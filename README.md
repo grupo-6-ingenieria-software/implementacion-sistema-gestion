@@ -15,10 +15,8 @@
 
 | Capa | Tecnología |
 |------|-----------|
-| UI | Electron 35 + React 19 + TypeScript |
-| Backend local | Express 5 (IPC) |
-| Base de datos | SQLite vía `@libsql/client` |
-| ORM | Drizzle ORM 0.45 |
+| Vista & Controlador| Electron 35 + React 19 + TypeScript |
+| Modelo | SQLite vía `@libsql/client` + Drizzle ORM 0.45 |
 | Runtime scripts | `tsx` |
 
 ## Requisitos
