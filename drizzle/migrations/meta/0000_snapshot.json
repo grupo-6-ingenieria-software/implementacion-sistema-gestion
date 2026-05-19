@@ -1,0 +1,2672 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "b898e8be-6567-4931-8a75-9a57553f8b2f",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "asistencia": {
+      "name": "asistencia",
+      "columns": {
+        "asistencia_id": {
+          "name": "asistencia_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "trabajador_id": {
+          "name": "trabajador_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turno_id": {
+          "name": "turno_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entrada_at": {
+          "name": "entrada_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "salida_at": {
+          "name": "salida_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "uq_asistencia_trab_fecha": {
+          "name": "uq_asistencia_trab_fecha",
+          "columns": [
+            "trabajador_id",
+            "fecha"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "asistencia_trabajador_id_trabajador_trabajador_id_fk": {
+          "name": "asistencia_trabajador_id_trabajador_trabajador_id_fk",
+          "tableFrom": "asistencia",
+          "tableTo": "trabajador",
+          "columnsFrom": [
+            "trabajador_id"
+          ],
+          "columnsTo": [
+            "trabajador_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "asistencia_turno_id_turno_turno_id_fk": {
+          "name": "asistencia_turno_id_turno_turno_id_fk",
+          "tableFrom": "asistencia",
+          "tableTo": "turno",
+          "columnsFrom": [
+            "turno_id"
+          ],
+          "columnsTo": [
+            "turno_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "asistencia_tipo_enum": {
+          "name": "asistencia_tipo_enum",
+          "value": "\"asistencia\".\"tipo\" IN ('presente','tardanza','justificada','injustificada')"
+        },
+        "asistencia_coherencia_tipo_horas": {
+          "name": "asistencia_coherencia_tipo_horas",
+          "value": "(\"asistencia\".\"tipo\" IN ('justificada','injustificada')\n            AND \"asistencia\".\"entrada_at\" IS NULL AND \"asistencia\".\"salida_at\" IS NULL)\n       OR (\"asistencia\".\"tipo\" IN ('presente','tardanza')\n            AND (\"asistencia\".\"salida_at\" IS NULL\n                 OR (\"asistencia\".\"entrada_at\" IS NOT NULL AND \"asistencia\".\"entrada_at\" <= \"asistencia\".\"salida_at\")))"
+        }
+      }
+    },
+    "audit_log": {
+      "name": "audit_log",
+      "columns": {
+        "audit_log_id": {
+          "name": "audit_log_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rol": {
+          "name": "rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "accion": {
+          "name": "accion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "modulo": {
+          "name": "modulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "archived": {
+          "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_audit_log_created": {
+          "name": "idx_audit_log_created",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_log_usuario": {
+          "name": "idx_audit_log_usuario",
+          "columns": [
+            "usuario_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_log_archived": {
+          "name": "idx_audit_log_archived",
+          "columns": [
+            "archived",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "audit_log_usuario_id_usuario_usuario_id_fk": {
+          "name": "audit_log_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "audit_log",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "audit_log_ulid_format": {
+          "name": "audit_log_ulid_format",
+          "value": "length(audit_log_id) = 26 AND NOT audit_log_id GLOB '*[^0-9A-HJKMNP-TV-Z]*'"
+        },
+        "audit_log_archived_bool": {
+          "name": "audit_log_archived_bool",
+          "value": "\"audit_log\".\"archived\" IN (0,1)"
+        }
+      }
+    },
+    "categoria": {
+      "name": "categoria",
+      "columns": {
+        "categoria_id": {
+          "name": "categoria_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requiere_vencimiento": {
+          "name": "requiere_vencimiento",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "categoria_nombre_unique": {
+          "name": "categoria_nombre_unique",
+          "columns": [
+            "nombre"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "categoria_requiere_venc_bool": {
+          "name": "categoria_requiere_venc_bool",
+          "value": "\"categoria\".\"requiere_vencimiento\" IN (0,1)"
+        }
+      }
+    },
+    "cierre_caja": {
+      "name": "cierre_caja",
+      "columns": {
+        "cierre_caja_id": {
+          "name": "cierre_caja_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_ventas": {
+          "name": "total_ventas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_efectivo": {
+          "name": "total_efectivo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_debito": {
+          "name": "total_debito",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_credito": {
+          "name": "total_credito",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_transferencia": {
+          "name": "total_transferencia",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "efectivo_contado": {
+          "name": "efectivo_contado",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "diferencia_efectivo": {
+          "name": "diferencia_efectivo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_cierre_caja_dia": {
+          "name": "uq_cierre_caja_dia",
+          "columns": [
+            "usuario_id",
+            "date(\"created_at\")"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "cierre_caja_usuario_id_usuario_usuario_id_fk": {
+          "name": "cierre_caja_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "cierre_caja",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cierre_total_ventas_min": {
+          "name": "cierre_total_ventas_min",
+          "value": "\"cierre_caja\".\"total_ventas\" >= 0"
+        },
+        "cierre_total_efectivo_min": {
+          "name": "cierre_total_efectivo_min",
+          "value": "\"cierre_caja\".\"total_efectivo\" >= 0"
+        },
+        "cierre_total_debito_min": {
+          "name": "cierre_total_debito_min",
+          "value": "\"cierre_caja\".\"total_debito\" >= 0"
+        },
+        "cierre_total_credito_min": {
+          "name": "cierre_total_credito_min",
+          "value": "\"cierre_caja\".\"total_credito\" >= 0"
+        },
+        "cierre_total_transfer_min": {
+          "name": "cierre_total_transfer_min",
+          "value": "\"cierre_caja\".\"total_transferencia\" >= 0"
+        },
+        "cierre_efectivo_contado_min": {
+          "name": "cierre_efectivo_contado_min",
+          "value": "\"cierre_caja\".\"efectivo_contado\" >= 0"
+        }
+      }
+    },
+    "config_previsional": {
+      "name": "config_previsional",
+      "columns": {
+        "config_previsional_id": {
+          "name": "config_previsional_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "afp_pct": {
+          "name": "afp_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "salud_pct": {
+          "name": "salud_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cesantia_pct": {
+          "name": "cesantia_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "config_previsional_updated_by_usuario_usuario_id_fk": {
+          "name": "config_previsional_updated_by_usuario_usuario_id_fk",
+          "tableFrom": "config_previsional",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "config_afp_range": {
+          "name": "config_afp_range",
+          "value": "\"config_previsional\".\"afp_pct\" BETWEEN 0 AND 100"
+        },
+        "config_salud_range": {
+          "name": "config_salud_range",
+          "value": "\"config_previsional\".\"salud_pct\" BETWEEN 0 AND 100"
+        },
+        "config_cesantia_range": {
+          "name": "config_cesantia_range",
+          "value": "\"config_previsional\".\"cesantia_pct\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "config_sistema": {
+      "name": "config_sistema",
+      "columns": {
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "valor": {
+          "name": "valor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by_usuario_id": {
+          "name": "updated_by_usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "config_sistema_updated_by_usuario_id_usuario_usuario_id_fk": {
+          "name": "config_sistema_updated_by_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "config_sistema",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "updated_by_usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "detalle_pedido": {
+      "name": "detalle_pedido",
+      "columns": {
+        "detalle_pedido_id": {
+          "name": "detalle_pedido_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "pedido_id": {
+          "name": "pedido_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cantidad_solicitada": {
+          "name": "cantidad_solicitada",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cantidad_recibida": {
+          "name": "cantidad_recibida",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "precio_unitario": {
+          "name": "precio_unitario",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_detalle_pedido_pedido": {
+          "name": "idx_detalle_pedido_pedido",
+          "columns": [
+            "pedido_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "detalle_pedido_pedido_id_pedido_pedido_id_fk": {
+          "name": "detalle_pedido_pedido_id_pedido_pedido_id_fk",
+          "tableFrom": "detalle_pedido",
+          "tableTo": "pedido",
+          "columnsFrom": [
+            "pedido_id"
+          ],
+          "columnsTo": [
+            "pedido_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "detalle_pedido_producto_id_producto_producto_id_fk": {
+          "name": "detalle_pedido_producto_id_producto_producto_id_fk",
+          "tableFrom": "detalle_pedido",
+          "tableTo": "producto",
+          "columnsFrom": [
+            "producto_id"
+          ],
+          "columnsTo": [
+            "producto_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "detalle_pedido_solicitada_min": {
+          "name": "detalle_pedido_solicitada_min",
+          "value": "\"detalle_pedido\".\"cantidad_solicitada\" > 0"
+        },
+        "detalle_pedido_recibida_range": {
+          "name": "detalle_pedido_recibida_range",
+          "value": "\"detalle_pedido\".\"cantidad_recibida\" >= 0 AND \"detalle_pedido\".\"cantidad_recibida\" <= \"detalle_pedido\".\"cantidad_solicitada\""
+        },
+        "detalle_pedido_precio_min": {
+          "name": "detalle_pedido_precio_min",
+          "value": "\"detalle_pedido\".\"precio_unitario\" >= 0"
+        }
+      }
+    },
+    "detalle_venta": {
+      "name": "detalle_venta",
+      "columns": {
+        "detalle_venta_id": {
+          "name": "detalle_venta_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "venta_id": {
+          "name": "venta_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lote_id": {
+          "name": "lote_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cantidad": {
+          "name": "cantidad",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "precio_unitario": {
+          "name": "precio_unitario",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descuento": {
+          "name": "descuento",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "subtotal": {
+          "name": "subtotal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_detalle_venta_venta": {
+          "name": "idx_detalle_venta_venta",
+          "columns": [
+            "venta_id"
+          ],
+          "isUnique": false
+        },
+        "idx_detalle_venta_producto": {
+          "name": "idx_detalle_venta_producto",
+          "columns": [
+            "producto_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "detalle_venta_venta_id_venta_venta_id_fk": {
+          "name": "detalle_venta_venta_id_venta_venta_id_fk",
+          "tableFrom": "detalle_venta",
+          "tableTo": "venta",
+          "columnsFrom": [
+            "venta_id"
+          ],
+          "columnsTo": [
+            "venta_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "detalle_venta_producto_id_producto_producto_id_fk": {
+          "name": "detalle_venta_producto_id_producto_producto_id_fk",
+          "tableFrom": "detalle_venta",
+          "tableTo": "producto",
+          "columnsFrom": [
+            "producto_id"
+          ],
+          "columnsTo": [
+            "producto_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "detalle_venta_lote_id_lote_lote_id_fk": {
+          "name": "detalle_venta_lote_id_lote_lote_id_fk",
+          "tableFrom": "detalle_venta",
+          "tableTo": "lote",
+          "columnsFrom": [
+            "lote_id"
+          ],
+          "columnsTo": [
+            "lote_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "detalle_venta_ulid_format": {
+          "name": "detalle_venta_ulid_format",
+          "value": "length(detalle_venta_id) = 26 AND NOT detalle_venta_id GLOB '*[^0-9A-HJKMNP-TV-Z]*'"
+        },
+        "detalle_venta_cantidad_min": {
+          "name": "detalle_venta_cantidad_min",
+          "value": "\"detalle_venta\".\"cantidad\" > 0"
+        },
+        "detalle_venta_precio_min": {
+          "name": "detalle_venta_precio_min",
+          "value": "\"detalle_venta\".\"precio_unitario\" >= 0"
+        },
+        "detalle_venta_descuento_min": {
+          "name": "detalle_venta_descuento_min",
+          "value": "\"detalle_venta\".\"descuento\" >= 0"
+        },
+        "detalle_venta_subtotal_min": {
+          "name": "detalle_venta_subtotal_min",
+          "value": "\"detalle_venta\".\"subtotal\" >= 0"
+        },
+        "detalle_venta_subtotal_aritmetico": {
+          "name": "detalle_venta_subtotal_aritmetico",
+          "value": "ABS(\"detalle_venta\".\"subtotal\" - (\"detalle_venta\".\"cantidad\" * \"detalle_venta\".\"precio_unitario\" - \"detalle_venta\".\"descuento\")) < 1"
+        }
+      }
+    },
+    "discrepancia_stock": {
+      "name": "discrepancia_stock",
+      "columns": {
+        "discrepancia_stock_id": {
+          "name": "discrepancia_stock_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lote_id": {
+          "name": "lote_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "venta_id": {
+          "name": "venta_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cantidad_negativa": {
+          "name": "cantidad_negativa",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detectado_por_usuario_id": {
+          "name": "detectado_por_usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pendiente'"
+        },
+        "resuelto_por_usuario_id": {
+          "name": "resuelto_por_usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resuelto_at": {
+          "name": "resuelto_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_discrepancia_estado": {
+          "name": "idx_discrepancia_estado",
+          "columns": [
+            "estado",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_discrepancia_producto": {
+          "name": "idx_discrepancia_producto",
+          "columns": [
+            "producto_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "discrepancia_stock_producto_id_producto_producto_id_fk": {
+          "name": "discrepancia_stock_producto_id_producto_producto_id_fk",
+          "tableFrom": "discrepancia_stock",
+          "tableTo": "producto",
+          "columnsFrom": [
+            "producto_id"
+          ],
+          "columnsTo": [
+            "producto_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "discrepancia_stock_lote_id_lote_lote_id_fk": {
+          "name": "discrepancia_stock_lote_id_lote_lote_id_fk",
+          "tableFrom": "discrepancia_stock",
+          "tableTo": "lote",
+          "columnsFrom": [
+            "lote_id"
+          ],
+          "columnsTo": [
+            "lote_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "discrepancia_stock_venta_id_venta_venta_id_fk": {
+          "name": "discrepancia_stock_venta_id_venta_venta_id_fk",
+          "tableFrom": "discrepancia_stock",
+          "tableTo": "venta",
+          "columnsFrom": [
+            "venta_id"
+          ],
+          "columnsTo": [
+            "venta_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "discrepancia_stock_detectado_por_usuario_id_usuario_usuario_id_fk": {
+          "name": "discrepancia_stock_detectado_por_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "discrepancia_stock",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "detectado_por_usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "discrepancia_stock_resuelto_por_usuario_id_usuario_usuario_id_fk": {
+          "name": "discrepancia_stock_resuelto_por_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "discrepancia_stock",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "resuelto_por_usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "discrepancia_cantidad_min": {
+          "name": "discrepancia_cantidad_min",
+          "value": "\"discrepancia_stock\".\"cantidad_negativa\" > 0"
+        },
+        "discrepancia_estado_enum": {
+          "name": "discrepancia_estado_enum",
+          "value": "\"discrepancia_stock\".\"estado\" IN ('pendiente','aceptada_merma','ajuste_reposicion','venta_anulada','stock_cero')"
+        },
+        "discrepancia_resolucion_coherente": {
+          "name": "discrepancia_resolucion_coherente",
+          "value": "(\"discrepancia_stock\".\"estado\" = 'pendiente' AND \"discrepancia_stock\".\"resuelto_at\" IS NULL\n            AND \"discrepancia_stock\".\"resuelto_por_usuario_id\" IS NULL)\n       OR (\"discrepancia_stock\".\"estado\" <> 'pendiente' AND \"discrepancia_stock\".\"resuelto_at\" IS NOT NULL\n            AND \"discrepancia_stock\".\"resuelto_por_usuario_id\" IS NOT NULL)"
+        }
+      }
+    },
+    "estado_pedido": {
+      "name": "estado_pedido",
+      "columns": {
+        "pedido_estado_id": {
+          "name": "pedido_estado_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "pedido_id": {
+          "name": "pedido_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_estado_pedido_pedido": {
+          "name": "idx_estado_pedido_pedido",
+          "columns": [
+            "pedido_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "estado_pedido_pedido_id_pedido_pedido_id_fk": {
+          "name": "estado_pedido_pedido_id_pedido_pedido_id_fk",
+          "tableFrom": "estado_pedido",
+          "tableTo": "pedido",
+          "columnsFrom": [
+            "pedido_id"
+          ],
+          "columnsTo": [
+            "pedido_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "estado_pedido_usuario_id_usuario_usuario_id_fk": {
+          "name": "estado_pedido_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "estado_pedido",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "estado_pedido_enum": {
+          "name": "estado_pedido_enum",
+          "value": "\"estado_pedido\".\"estado\" IN ('pendiente','enviado','parcial','recibido','cancelado')"
+        }
+      }
+    },
+    "lote": {
+      "name": "lote",
+      "columns": {
+        "lote_id": {
+          "name": "lote_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detalle_pedido_id": {
+          "name": "detalle_pedido_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cantidad_actual": {
+          "name": "cantidad_actual",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "precio_unitario": {
+          "name": "precio_unitario",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fecha_vencimiento": {
+          "name": "fecha_vencimiento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fecha_ingreso": {
+          "name": "fecha_ingreso",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_lote_producto_venc": {
+          "name": "idx_lote_producto_venc",
+          "columns": [
+            "producto_id",
+            "fecha_vencimiento"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lote_producto_id_producto_producto_id_fk": {
+          "name": "lote_producto_id_producto_producto_id_fk",
+          "tableFrom": "lote",
+          "tableTo": "producto",
+          "columnsFrom": [
+            "producto_id"
+          ],
+          "columnsTo": [
+            "producto_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "lote_detalle_pedido_id_detalle_pedido_detalle_pedido_id_fk": {
+          "name": "lote_detalle_pedido_id_detalle_pedido_detalle_pedido_id_fk",
+          "tableFrom": "lote",
+          "tableTo": "detalle_pedido",
+          "columnsFrom": [
+            "detalle_pedido_id"
+          ],
+          "columnsTo": [
+            "detalle_pedido_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "lote_precio_min": {
+          "name": "lote_precio_min",
+          "value": "\"lote\".\"precio_unitario\" >= 0"
+        }
+      }
+    },
+    "merma": {
+      "name": "merma",
+      "columns": {
+        "merma_id": {
+          "name": "merma_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "merma_usuario_id_usuario_usuario_id_fk": {
+          "name": "merma_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "merma",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "merma_tipo_enum": {
+          "name": "merma_tipo_enum",
+          "value": "\"merma\".\"tipo\" IN ('vencimiento','robo','rotura','conteo','otro')"
+        }
+      }
+    },
+    "movimiento_inventario": {
+      "name": "movimiento_inventario",
+      "columns": {
+        "movimiento_inventario_id": {
+          "name": "movimiento_inventario_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lote_id": {
+          "name": "lote_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detalle_pedido_id": {
+          "name": "detalle_pedido_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "detalle_venta_id": {
+          "name": "detalle_venta_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "merma_id": {
+          "name": "merma_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cantidad": {
+          "name": "cantidad",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_mov_producto_fecha": {
+          "name": "idx_mov_producto_fecha",
+          "columns": [
+            "producto_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_mov_lote": {
+          "name": "idx_mov_lote",
+          "columns": [
+            "lote_id"
+          ],
+          "isUnique": false
+        },
+        "idx_mov_tipo": {
+          "name": "idx_mov_tipo",
+          "columns": [
+            "tipo"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "movimiento_inventario_producto_id_producto_producto_id_fk": {
+          "name": "movimiento_inventario_producto_id_producto_producto_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "producto",
+          "columnsFrom": [
+            "producto_id"
+          ],
+          "columnsTo": [
+            "producto_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "movimiento_inventario_lote_id_lote_lote_id_fk": {
+          "name": "movimiento_inventario_lote_id_lote_lote_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "lote",
+          "columnsFrom": [
+            "lote_id"
+          ],
+          "columnsTo": [
+            "lote_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "movimiento_inventario_usuario_id_usuario_usuario_id_fk": {
+          "name": "movimiento_inventario_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "movimiento_inventario_detalle_pedido_id_detalle_pedido_detalle_pedido_id_fk": {
+          "name": "movimiento_inventario_detalle_pedido_id_detalle_pedido_detalle_pedido_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "detalle_pedido",
+          "columnsFrom": [
+            "detalle_pedido_id"
+          ],
+          "columnsTo": [
+            "detalle_pedido_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "movimiento_inventario_detalle_venta_id_detalle_venta_detalle_venta_id_fk": {
+          "name": "movimiento_inventario_detalle_venta_id_detalle_venta_detalle_venta_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "detalle_venta",
+          "columnsFrom": [
+            "detalle_venta_id"
+          ],
+          "columnsTo": [
+            "detalle_venta_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "movimiento_inventario_merma_id_merma_merma_id_fk": {
+          "name": "movimiento_inventario_merma_id_merma_merma_id_fk",
+          "tableFrom": "movimiento_inventario",
+          "tableTo": "merma",
+          "columnsFrom": [
+            "merma_id"
+          ],
+          "columnsTo": [
+            "merma_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "mov_inv_ulid_format": {
+          "name": "mov_inv_ulid_format",
+          "value": "length(movimiento_inventario_id) = 26 AND NOT movimiento_inventario_id GLOB '*[^0-9A-HJKMNP-TV-Z]*'"
+        },
+        "mov_inv_tipo_enum": {
+          "name": "mov_inv_tipo_enum",
+          "value": "\"movimiento_inventario\".\"tipo\" IN ('entrada','salida','venta','merma','ajuste','devolucion')"
+        },
+        "mov_inv_origen_coherente": {
+          "name": "mov_inv_origen_coherente",
+          "value": "(\"movimiento_inventario\".\"tipo\" = 'entrada'\n            AND \"movimiento_inventario\".\"detalle_pedido_id\" IS NOT NULL\n            AND \"movimiento_inventario\".\"detalle_venta_id\" IS NULL\n            AND \"movimiento_inventario\".\"merma_id\" IS NULL)\n       OR (\"movimiento_inventario\".\"tipo\" = 'venta'\n            AND \"movimiento_inventario\".\"detalle_venta_id\" IS NOT NULL\n            AND \"movimiento_inventario\".\"detalle_pedido_id\" IS NULL\n            AND \"movimiento_inventario\".\"merma_id\" IS NULL)\n       OR (\"movimiento_inventario\".\"tipo\" = 'merma'\n            AND \"movimiento_inventario\".\"merma_id\" IS NOT NULL\n            AND \"movimiento_inventario\".\"detalle_pedido_id\" IS NULL\n            AND \"movimiento_inventario\".\"detalle_venta_id\" IS NULL)\n       OR (\"movimiento_inventario\".\"tipo\" = 'devolucion'\n            AND \"movimiento_inventario\".\"detalle_venta_id\" IS NOT NULL\n            AND \"movimiento_inventario\".\"detalle_pedido_id\" IS NULL\n            AND \"movimiento_inventario\".\"merma_id\" IS NULL)\n       OR (\"movimiento_inventario\".\"tipo\" IN ('salida','ajuste')\n            AND \"movimiento_inventario\".\"detalle_pedido_id\" IS NULL\n            AND \"movimiento_inventario\".\"detalle_venta_id\" IS NULL\n            AND \"movimiento_inventario\".\"merma_id\" IS NULL)"
+        },
+        "mov_inv_signo_cantidad": {
+          "name": "mov_inv_signo_cantidad",
+          "value": "(\"movimiento_inventario\".\"tipo\" IN ('entrada','devolucion') AND \"movimiento_inventario\".\"cantidad\" > 0)\n       OR (\"movimiento_inventario\".\"tipo\" IN ('venta','merma','salida') AND \"movimiento_inventario\".\"cantidad\" < 0)\n       OR (\"movimiento_inventario\".\"tipo\" = 'ajuste' AND \"movimiento_inventario\".\"cantidad\" <> 0)"
+        }
+      }
+    },
+    "pedido": {
+      "name": "pedido",
+      "columns": {
+        "pedido_id": {
+          "name": "pedido_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "proveedor_id": {
+          "name": "proveedor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entrega_estimada": {
+          "name": "entrega_estimada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "comentario": {
+          "name": "comentario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_pedido_proveedor": {
+          "name": "idx_pedido_proveedor",
+          "columns": [
+            "proveedor_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pedido_proveedor_id_proveedor_proveedor_id_fk": {
+          "name": "pedido_proveedor_id_proveedor_proveedor_id_fk",
+          "tableFrom": "pedido",
+          "tableTo": "proveedor",
+          "columnsFrom": [
+            "proveedor_id"
+          ],
+          "columnsTo": [
+            "proveedor_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "pedido_email_format": {
+          "name": "pedido_email_format",
+          "value": "\"pedido\".\"email\" IS NULL OR \"pedido\".\"email\" LIKE '%_@_%._%'"
+        }
+      }
+    },
+    "producto": {
+      "name": "producto",
+      "columns": {
+        "producto_id": {
+          "name": "producto_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "categoria_id": {
+          "name": "categoria_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ean13": {
+          "name": "ean13",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "unidad_medida": {
+          "name": "unidad_medida",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "precio_costo": {
+          "name": "precio_costo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "precio_venta": {
+          "name": "precio_venta",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stock_minimo": {
+          "name": "stock_minimo",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'activo'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "producto_ean13_unique": {
+          "name": "producto_ean13_unique",
+          "columns": [
+            "ean13"
+          ],
+          "isUnique": true
+        },
+        "idx_producto_nombre": {
+          "name": "idx_producto_nombre",
+          "columns": [
+            "nombre"
+          ],
+          "isUnique": false
+        },
+        "idx_producto_estado": {
+          "name": "idx_producto_estado",
+          "columns": [
+            "estado"
+          ],
+          "isUnique": false
+        },
+        "idx_producto_categoria": {
+          "name": "idx_producto_categoria",
+          "columns": [
+            "categoria_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "producto_categoria_id_categoria_categoria_id_fk": {
+          "name": "producto_categoria_id_categoria_categoria_id_fk",
+          "tableFrom": "producto",
+          "tableTo": "categoria",
+          "columnsFrom": [
+            "categoria_id"
+          ],
+          "columnsTo": [
+            "categoria_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "producto_ean13_format": {
+          "name": "producto_ean13_format",
+          "value": "length(\"producto\".\"ean13\") = 13 AND \"producto\".\"ean13\" GLOB '[0-9]*'"
+        },
+        "producto_unidad_enum": {
+          "name": "producto_unidad_enum",
+          "value": "\"producto\".\"unidad_medida\" IN ('unidad','kg','g','litro','ml')"
+        },
+        "producto_precio_costo_min": {
+          "name": "producto_precio_costo_min",
+          "value": "\"producto\".\"precio_costo\" >= 0"
+        },
+        "producto_precio_venta_min": {
+          "name": "producto_precio_venta_min",
+          "value": "\"producto\".\"precio_venta\" >= 0"
+        },
+        "producto_stock_min": {
+          "name": "producto_stock_min",
+          "value": "\"producto\".\"stock_minimo\" >= 0"
+        },
+        "producto_estado_enum": {
+          "name": "producto_estado_enum",
+          "value": "\"producto\".\"estado\" IN ('activo','inactivo')"
+        }
+      }
+    },
+    "proveedor": {
+      "name": "proveedor",
+      "columns": {
+        "proveedor_id": {
+          "name": "proveedor_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "rut": {
+          "name": "rut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "razon_social": {
+          "name": "razon_social",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contacto": {
+          "name": "contacto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'activo'"
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "proveedor_rut_unique": {
+          "name": "proveedor_rut_unique",
+          "columns": [
+            "rut"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "proveedor_rut_format": {
+          "name": "proveedor_rut_format",
+          "value": "length(\"proveedor\".\"rut\") BETWEEN 9 AND 10 AND \"proveedor\".\"rut\" GLOB '[1-9]*-[0-9kK]'"
+        },
+        "proveedor_email_format": {
+          "name": "proveedor_email_format",
+          "value": "\"proveedor\".\"email\" IS NULL OR \"proveedor\".\"email\" LIKE '%_@_%._%'"
+        },
+        "proveedor_estado_enum": {
+          "name": "proveedor_estado_enum",
+          "value": "\"proveedor\".\"estado\" IN ('activo','inactivo')"
+        }
+      }
+    },
+    "proveedor_categoria": {
+      "name": "proveedor_categoria",
+      "columns": {
+        "proveedor_id": {
+          "name": "proveedor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "categoria_id": {
+          "name": "categoria_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proveedor_categoria_proveedor_id_proveedor_proveedor_id_fk": {
+          "name": "proveedor_categoria_proveedor_id_proveedor_proveedor_id_fk",
+          "tableFrom": "proveedor_categoria",
+          "tableTo": "proveedor",
+          "columnsFrom": [
+            "proveedor_id"
+          ],
+          "columnsTo": [
+            "proveedor_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "proveedor_categoria_categoria_id_categoria_categoria_id_fk": {
+          "name": "proveedor_categoria_categoria_id_categoria_categoria_id_fk",
+          "tableFrom": "proveedor_categoria",
+          "tableTo": "categoria",
+          "columnsFrom": [
+            "categoria_id"
+          ],
+          "columnsTo": [
+            "categoria_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proveedor_categoria_proveedor_id_categoria_id_pk": {
+          "columns": [
+            "proveedor_id",
+            "categoria_id"
+          ],
+          "name": "proveedor_categoria_proveedor_id_categoria_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "remuneracion": {
+      "name": "remuneracion",
+      "columns": {
+        "remuneracion_id": {
+          "name": "remuneracion_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "trabajador_id": {
+          "name": "trabajador_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mes": {
+          "name": "mes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "anio": {
+          "name": "anio",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "monto_bruto": {
+          "name": "monto_bruto",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "monto_liquido": {
+          "name": "monto_liquido",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pendiente'"
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "uq_remuneracion_trab_periodo": {
+          "name": "uq_remuneracion_trab_periodo",
+          "columns": [
+            "trabajador_id",
+            "mes",
+            "anio"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "remuneracion_trabajador_id_trabajador_trabajador_id_fk": {
+          "name": "remuneracion_trabajador_id_trabajador_trabajador_id_fk",
+          "tableFrom": "remuneracion",
+          "tableTo": "trabajador",
+          "columnsFrom": [
+            "trabajador_id"
+          ],
+          "columnsTo": [
+            "trabajador_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "remuneracion_mes_range": {
+          "name": "remuneracion_mes_range",
+          "value": "\"remuneracion\".\"mes\" BETWEEN 1 AND 12"
+        },
+        "remuneracion_anio_range": {
+          "name": "remuneracion_anio_range",
+          "value": "\"remuneracion\".\"anio\" BETWEEN 2020 AND 2100"
+        },
+        "remuneracion_bruto_min": {
+          "name": "remuneracion_bruto_min",
+          "value": "\"remuneracion\".\"monto_bruto\" >= 0"
+        },
+        "remuneracion_liquido_min": {
+          "name": "remuneracion_liquido_min",
+          "value": "\"remuneracion\".\"monto_liquido\" >= 0"
+        },
+        "remuneracion_estado_enum": {
+          "name": "remuneracion_estado_enum",
+          "value": "\"remuneracion\".\"estado\" IN ('pendiente','pagada','anulada')"
+        },
+        "remuneracion_liquido_lte_bruto": {
+          "name": "remuneracion_liquido_lte_bruto",
+          "value": "\"remuneracion\".\"monto_liquido\" <= \"remuneracion\".\"monto_bruto\""
+        }
+      }
+    },
+    "trabajador": {
+      "name": "trabajador",
+      "columns": {
+        "trabajador_id": {
+          "name": "trabajador_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "rut": {
+          "name": "rut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nombres": {
+          "name": "nombres",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "apellidos": {
+          "name": "apellidos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cargo": {
+          "name": "cargo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contacto_emergencia_nombre": {
+          "name": "contacto_emergencia_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contacto_emergencia_telefono": {
+          "name": "contacto_emergencia_telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fecha_ingreso": {
+          "name": "fecha_ingreso",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'activo'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "trabajador_rut_unique": {
+          "name": "trabajador_rut_unique",
+          "columns": [
+            "rut"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "trabajador_rut_format": {
+          "name": "trabajador_rut_format",
+          "value": "length(\"trabajador\".\"rut\") BETWEEN 9 AND 10 AND \"trabajador\".\"rut\" GLOB '[1-9]*-[0-9kK]'"
+        },
+        "trabajador_email_format": {
+          "name": "trabajador_email_format",
+          "value": "\"trabajador\".\"email\" IS NULL OR \"trabajador\".\"email\" LIKE '%_@_%._%'"
+        },
+        "trabajador_cargo_enum": {
+          "name": "trabajador_cargo_enum",
+          "value": "\"trabajador\".\"cargo\" IN ('dueño','cajero','reponedor','bodega','panadero','otro')"
+        },
+        "trabajador_estado_enum": {
+          "name": "trabajador_estado_enum",
+          "value": "\"trabajador\".\"estado\" IN ('activo','inactivo')"
+        }
+      }
+    },
+    "turno": {
+      "name": "turno",
+      "columns": {
+        "turno_id": {
+          "name": "turno_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "trabajador_id": {
+          "name": "trabajador_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inicio_at": {
+          "name": "inicio_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fin_at": {
+          "name": "fin_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'planificado'"
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "creado_por_usuario_id": {
+          "name": "creado_por_usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_turno_trabajador": {
+          "name": "idx_turno_trabajador",
+          "columns": [
+            "trabajador_id",
+            "inicio_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "turno_trabajador_id_trabajador_trabajador_id_fk": {
+          "name": "turno_trabajador_id_trabajador_trabajador_id_fk",
+          "tableFrom": "turno",
+          "tableTo": "trabajador",
+          "columnsFrom": [
+            "trabajador_id"
+          ],
+          "columnsTo": [
+            "trabajador_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "turno_creado_por_usuario_id_usuario_usuario_id_fk": {
+          "name": "turno_creado_por_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "turno",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "creado_por_usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "turno_estado_enum": {
+          "name": "turno_estado_enum",
+          "value": "\"turno\".\"estado\" IN ('planificado','en_curso','completado','cancelado')"
+        },
+        "turno_rango_valido": {
+          "name": "turno_rango_valido",
+          "value": "\"turno\".\"inicio_at\" < \"turno\".\"fin_at\""
+        }
+      }
+    },
+    "usuario": {
+      "name": "usuario",
+      "columns": {
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "trabajador_id": {
+          "name": "trabajador_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rol": {
+          "name": "rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "intentos_fallidos": {
+          "name": "intentos_fallidos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "bloqueado_hasta": {
+          "name": "bloqueado_hasta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ultimo_login": {
+          "name": "ultimo_login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "requiere_cambio_password": {
+          "name": "requiere_cambio_password",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "password_temporal_expira_at": {
+          "name": "password_temporal_expira_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "usuario_trabajador_id_unique": {
+          "name": "usuario_trabajador_id_unique",
+          "columns": [
+            "trabajador_id"
+          ],
+          "isUnique": true
+        },
+        "usuario_username_unique": {
+          "name": "usuario_username_unique",
+          "columns": [
+            "username"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "usuario_trabajador_id_trabajador_trabajador_id_fk": {
+          "name": "usuario_trabajador_id_trabajador_trabajador_id_fk",
+          "tableFrom": "usuario",
+          "tableTo": "trabajador",
+          "columnsFrom": [
+            "trabajador_id"
+          ],
+          "columnsTo": [
+            "trabajador_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "usuario_username_length": {
+          "name": "usuario_username_length",
+          "value": "length(\"usuario\".\"username\") BETWEEN 3 AND 32"
+        },
+        "usuario_rol_enum": {
+          "name": "usuario_rol_enum",
+          "value": "\"usuario\".\"rol\" IN ('dueño','cajero','reponedor')"
+        },
+        "usuario_intentos_min": {
+          "name": "usuario_intentos_min",
+          "value": "\"usuario\".\"intentos_fallidos\" >= 0"
+        },
+        "usuario_requiere_cambio_bool": {
+          "name": "usuario_requiere_cambio_bool",
+          "value": "\"usuario\".\"requiere_cambio_password\" IN (0,1)"
+        }
+      }
+    },
+    "venta": {
+      "name": "venta",
+      "columns": {
+        "venta_id": {
+          "name": "venta_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cierre_caja_id": {
+          "name": "cierre_caja_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "anulada_por_usuario_id": {
+          "name": "anulada_por_usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subtotal": {
+          "name": "subtotal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "iva": {
+          "name": "iva",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "descuento": {
+          "name": "descuento",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tipo_descuento": {
+          "name": "tipo_descuento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observacion_descuento": {
+          "name": "observacion_descuento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "total": {
+          "name": "total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "metodo_pago": {
+          "name": "metodo_pago",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "monto_recibido": {
+          "name": "monto_recibido",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "vuelto": {
+          "name": "vuelto",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'completada'"
+        },
+        "motivo_anulacion": {
+          "name": "motivo_anulacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "anulado_at": {
+          "name": "anulado_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_venta_created": {
+          "name": "idx_venta_created",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_venta_usuario": {
+          "name": "idx_venta_usuario",
+          "columns": [
+            "usuario_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_venta_cierre": {
+          "name": "idx_venta_cierre",
+          "columns": [
+            "cierre_caja_id"
+          ],
+          "isUnique": false
+        },
+        "idx_venta_estado": {
+          "name": "idx_venta_estado",
+          "columns": [
+            "estado"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "venta_cierre_caja_id_cierre_caja_cierre_caja_id_fk": {
+          "name": "venta_cierre_caja_id_cierre_caja_cierre_caja_id_fk",
+          "tableFrom": "venta",
+          "tableTo": "cierre_caja",
+          "columnsFrom": [
+            "cierre_caja_id"
+          ],
+          "columnsTo": [
+            "cierre_caja_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "venta_usuario_id_usuario_usuario_id_fk": {
+          "name": "venta_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "venta",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "venta_anulada_por_usuario_id_usuario_usuario_id_fk": {
+          "name": "venta_anulada_por_usuario_id_usuario_usuario_id_fk",
+          "tableFrom": "venta",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "anulada_por_usuario_id"
+          ],
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "venta_ulid_format": {
+          "name": "venta_ulid_format",
+          "value": "length(venta_id) = 26 AND NOT venta_id GLOB '*[^0-9A-HJKMNP-TV-Z]*'"
+        },
+        "venta_subtotal_min": {
+          "name": "venta_subtotal_min",
+          "value": "\"venta\".\"subtotal\" >= 0"
+        },
+        "venta_iva_min": {
+          "name": "venta_iva_min",
+          "value": "\"venta\".\"iva\" >= 0"
+        },
+        "venta_descuento_min": {
+          "name": "venta_descuento_min",
+          "value": "\"venta\".\"descuento\" >= 0"
+        },
+        "venta_total_min": {
+          "name": "venta_total_min",
+          "value": "\"venta\".\"total\" >= 0"
+        },
+        "venta_monto_recibido_min": {
+          "name": "venta_monto_recibido_min",
+          "value": "\"venta\".\"monto_recibido\" >= 0"
+        },
+        "venta_vuelto_min": {
+          "name": "venta_vuelto_min",
+          "value": "\"venta\".\"vuelto\" >= 0 OR \"venta\".\"vuelto\" IS NULL"
+        },
+        "venta_tipo_descuento_enum": {
+          "name": "venta_tipo_descuento_enum",
+          "value": "\"venta\".\"tipo_descuento\" IN ('porcentaje','monto') OR \"venta\".\"tipo_descuento\" IS NULL"
+        },
+        "venta_metodo_pago_enum": {
+          "name": "venta_metodo_pago_enum",
+          "value": "\"venta\".\"metodo_pago\" IN ('efectivo','debito','credito','transferencia')"
+        },
+        "venta_estado_enum": {
+          "name": "venta_estado_enum",
+          "value": "\"venta\".\"estado\" IN ('completada','anulada')"
+        },
+        "venta_descuento_coherente": {
+          "name": "venta_descuento_coherente",
+          "value": "(\"venta\".\"descuento\" = 0 AND \"venta\".\"tipo_descuento\" IS NULL)\n       OR (\"venta\".\"descuento\" > 0 AND \"venta\".\"tipo_descuento\" IS NOT NULL)"
+        },
+        "venta_anulacion_coherente": {
+          "name": "venta_anulacion_coherente",
+          "value": "(\"venta\".\"estado\" = 'anulada' AND \"venta\".\"anulado_at\" IS NOT NULL\n            AND \"venta\".\"motivo_anulacion\" IS NOT NULL\n            AND \"venta\".\"anulada_por_usuario_id\" IS NOT NULL)\n       OR (\"venta\".\"estado\" = 'completada' AND \"venta\".\"anulado_at\" IS NULL\n            AND \"venta\".\"motivo_anulacion\" IS NULL\n            AND \"venta\".\"anulada_por_usuario_id\" IS NULL)"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "uq_cierre_caja_dia": {
+        "columns": {
+          "date(\"created_at\")": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}
