@@ -1,6 +1,15 @@
 # Sistema de Gestión — Minimarket y Panadería Huáscar
 
-Sistema de escritorio offline-first para gestión de inventario, ventas y trabajadores del Minimarket y Panadería Huáscar, Rengo, Chile.
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20+-5FA04E?style=flat-square&logo=node.js&logoColor=white)
+![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-0.45-C5F74F?style=flat-square&logo=drizzle&logoColor=black)
+![SQLite](https://img.shields.io/badge/SQLite-libSQL-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-35-47848F?style=flat-square&logo=electron&logoColor=white)
+![License](https://img.shields.io/badge/licencia-académica-orange?style=flat-square)
+
+> Sistema de escritorio offline-first para gestión de inventario, ventas y trabajadores del Minimarket y Panadería Huáscar, Rengo, Chile.
+
+---
 
 ## Stack
 
@@ -46,7 +55,7 @@ La base de datos local se crea en `local.db` (excluido de git).
 
 ## Variables de entorno
 
-Crear un archivo `.env` en la raíz (ver `.env.example` cuando esté disponible):
+Crear un archivo `.env` en la raíz:
 
 ```env
 # Desarrollo local — SQLite embebido
@@ -79,6 +88,8 @@ drizzle.config.ts
 - Fechas: `TEXT` ISO-8601
 - `PRAGMA foreign_keys = ON` se activa en cada conexión
 
-## Licencia
+---
 
-Uso académico — Ingeniería de Software, Universidad, 2026.
+<p align="center">
+  Hecho con 💛 · Ingeniería de Software 2026
+</p>
