@@ -68,7 +68,7 @@ DATABASE_URL=file:./local.db
 ```
 src/
   db/
-    schema.ts          # 22 tablas (fuente de verdad)
+    schema.ts          # 34 tablas (fuente de verdad, 3FN)
     client.ts          # Conexión libSQL + Drizzle
     triggers.sql       # 15 triggers de integridad
     seed.ts            # Datos de prueba locales
@@ -81,10 +81,12 @@ drizzle.config.ts
 
 ## Convenciones
 
-- Claves primarias: `INTEGER AUTOINCREMENT` en general; `ULID` en tablas de alta concurrencia (`venta`, `detalle_venta`, `audit_log`, `movimiento_inventario`)
-- Dinero (CLP): `INTEGER`
-- Fechas: `TEXT` ISO-8601
-- `PRAGMA foreign_keys = ON` se activa en cada conexión
+- Claves primarias: `INTEGER AUTOINCREMENT` en maestros (`categoria`, `producto`, `proveedor`, `trabajador`, `tasa_legal`); `UUID v4` (`VARCHAR(36)`, generado en cliente con `node:crypto.randomUUID`) en tablas de eventos (`venta`, `detalle_venta`, `lote`, `merma`, `log_auditoria`, etc.); `usuario` usa PK derivada del RUT
+- Especializaciones ISA (`lote`, `contrasena`, `venta`): patrón híbrido con flags `ES_*` en el supertipo (`CHECK` exactamente uno = 1) + subtabla 1:1 (`lote_perecible`, `contrasena_temporal`, `venta_efectivo`)
+- Dinero (CLP): `INTEGER` (pesos sin decimales); tasas legales (%): `REAL`
+- Fechas y timestamps: `TEXT` ISO-8601
+- Integridad: 15 triggers en `triggers.sql` (turnos no superpuestos, sobreventa, logs inmutables, coherencia ISA, etc.)
+- `PRAGMA foreign_keys = ON` se activa en cada conexión (libSQL arranca con FK OFF)
 
 ---
 
