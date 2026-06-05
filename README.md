@@ -89,5 +89,5 @@ drizzle.config.ts
 ---
 
 <p align="center">
-  Hecho con 💛 · Ingeniería de Software 2026
+  Hecho con sangre, sudor y lágrimas 🫩 · Ingeniería de Software 2026
 </p>
