@@ -2,294 +2,374 @@
  * Drizzle schema — Minimarket y Panadería Huáscar
  * libSQL/Turso (compatible SQLite 3.x)
  *
- * Espejo TypeScript de db/schema/schema.sql. La SQL es la referencia humana;
- * este archivo es la fuente de verdad para tipos de Drizzle y la generación
- * de migraciones con drizzle-kit.
+ * Fuente de verdad: db/modelo_datos/modelo_relacional_3fn.md (29-may-2026)
  *
- * Triggers no se representan acá (Drizzle no los soporta en TS); viven en el
- * archivo db/drizzle/triggers.sql que se aplica como migración custom.
+ * Convenciones (estricto 3FN):
+ * - snake_case con prefijo de entidad en columnas (producto_nombre, no nombre).
+ * - PK INTEGER autoincremental para maestros: categoria, producto, proveedor,
+ *   trabajador, tasa_legal.
+ * - PK VARCHAR(36) UUID v4 para eventos (lote, venta, merma, sesion, logs, etc.).
+ * - PK VARCHAR(50) derivada de RUT para usuario (regla de negocio).
+ * - Tablas intermedias M:N: PK propia VARCHAR(36) + FKs + UNIQUE sobre el par
+ *   natural. Permite ser referenciada desde otras tablas con una sola columna.
+ * - Dinero (CLP): INTEGER (pesos sin decimales).
+ * - Tasas legales (%): REAL.
+ * - Fechas y timestamps: TEXT ISO-8601.
  *
  * Activación de FKs: el cliente debe ejecutar `PRAGMA foreign_keys = ON` en
  * cada conexión a libSQL/Turso. Sin esto los REFERENCES son decorativos.
+ *
+ * Triggers no se representan acá (Drizzle no los soporta en TS); viven en
+ * src/db/triggers.sql y se aplican vía `npm run db:triggers`.
+ *
+ * Módulos 3, 6 y 8 del catálogo de requerimientos no generan tablas (sólo
+ * vistas calculadas o lógica de hardware).
  */
 
+import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import {
   check,
   index,
   integer,
-  primaryKey,
   real,
   sqliteTable,
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
-import { ulid } from 'ulid';
 
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
 
-/** ULID 26 chars Crockford base32. Generado en cliente por concurrencia. */
-const ulidCheck = (col: string) =>
-  sql.raw(
-    `length(${col}) = 26 AND NOT ${col} GLOB '*[^0-9A-HJKMNP-TV-Z]*'`,
-  );
+/** UUID v4 (36 chars con guiones). Generado en cliente por concurrencia. */
+const uuid = () => randomUUID();
 
+/** Default SQL: timestamp ISO-8601 a la hora de INSERT. */
 const nowDefault = sql`(datetime('now'))`;
 
+/** Check de longitud para PKs UUID v4. */
+const uuidCheck = (col: string) => sql.raw(`length(${col}) = 36`);
+
 // ============================================================================
-// 1. PERSONAS
+// MÓDULO 4 (parcial) — MAESTROS DE PERSONAS (definidos primero por refs)
 // ============================================================================
 
 export const trabajador = sqliteTable(
   'trabajador',
   {
     trabajadorId: integer('trabajador_id').primaryKey({ autoIncrement: true }),
-    rut: text('rut').notNull().unique(),
-    nombres: text('nombres').notNull(),
-    apellidos: text('apellidos').notNull(),
-    cargo: text('cargo', {
-      enum: ['dueño', 'cajero', 'reponedor', 'bodega', 'panadero', 'otro'],
-    }).notNull(),
-    telefono: text('telefono'),
-    email: text('email'),
-    contactoEmergenciaNombre: text('contacto_emergencia_nombre'),
-    contactoEmergenciaTelefono: text('contacto_emergencia_telefono'),
-    fechaIngreso: text('fecha_ingreso').notNull(),
-    observacion: text('observacion'),
-    estado: text('estado', { enum: ['activo', 'inactivo'] })
+    trabajadorRut: text('trabajador_rut').notNull().unique(),
+    trabajadorNombre: text('trabajador_nombre').notNull(),
+    trabajadorApellido: text('trabajador_apellido').notNull(),
+    trabajadorTelefono: text('trabajador_telefono').notNull(),
+    trabajadorCorreoElectronico: text('trabajador_correo_electronico'),
+    trabajadorFechaIngreso: text('trabajador_fecha_ingreso').notNull(),
+    trabajadorEstado: text('trabajador_estado', {
+      enum: ['activo', 'inactivo'],
+    })
       .notNull()
       .default('activo'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-    updatedAt: text('updated_at').notNull().default(nowDefault),
   },
   (t) => [
     check(
       'trabajador_rut_format',
-      sql`length(${t.rut}) BETWEEN 9 AND 10 AND ${t.rut} GLOB '[1-9]*-[0-9kK]'`,
+      sql`length(${t.trabajadorRut}) BETWEEN 9 AND 12 AND ${t.trabajadorRut} GLOB '[1-9]*-[0-9kK]'`,
     ),
     check(
       'trabajador_email_format',
-      sql`${t.email} IS NULL OR ${t.email} LIKE '%_@_%._%'`,
+      sql`${t.trabajadorCorreoElectronico} IS NULL OR ${t.trabajadorCorreoElectronico} LIKE '%_@_%._%'`,
     ),
     check(
-      'trabajador_cargo_enum',
-      sql`${t.cargo} IN ('dueño','cajero','reponedor','bodega','panadero','otro')`,
+      'trabajador_estado_enum',
+      sql`${t.trabajadorEstado} IN ('activo','inactivo')`,
     ),
-    check('trabajador_estado_enum', sql`${t.estado} IN ('activo','inactivo')`),
   ],
 );
 
 export const usuario = sqliteTable(
   'usuario',
   {
-    usuarioId: integer('usuario_id').primaryKey({ autoIncrement: true }),
+    // PK VARCHAR(50) derivada del RUT (regla de negocio). No autogenera.
+    usuarioId: text('usuario_id').primaryKey(),
+    usuarioRol: text('usuario_rol', {
+      enum: ['dueño', 'cajero', 'reponedor'],
+    }).notNull(),
+    usuarioFechaCreacion: text('usuario_fecha_creacion')
+      .notNull()
+      .default(nowDefault),
+    usuarioUltimoLoginFechaHora: text('usuario_ultimo_login_fecha_hora'),
     trabajadorId: integer('trabajador_id')
+      .notNull()
       .unique()
       .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
-    username: text('username').notNull().unique(),
-    passwordHash: text('password_hash').notNull(),
-    rol: text('rol', { enum: ['dueño', 'cajero', 'reponedor'] }).notNull(),
-    intentosFallidos: integer('intentos_fallidos').notNull().default(0),
-    bloqueadoHasta: text('bloqueado_hasta'),
-    ultimoLogin: text('ultimo_login'),
-    requiereCambioPassword: integer('requiere_cambio_password')
-      .notNull()
-      .default(0),
-    passwordTemporalExpiraAt: text('password_temporal_expira_at'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-    updatedAt: text('updated_at').notNull().default(nowDefault),
   },
   (t) => [
     check(
-      'usuario_username_length',
-      sql`length(${t.username}) BETWEEN 3 AND 32`,
-    ),
-    check('usuario_rol_enum', sql`${t.rol} IN ('dueño','cajero','reponedor')`),
-    check('usuario_intentos_min', sql`${t.intentosFallidos} >= 0`),
-    check(
-      'usuario_requiere_cambio_bool',
-      sql`${t.requiereCambioPassword} IN (0,1)`,
-    ),
-  ],
-);
-
-export const turno = sqliteTable(
-  'turno',
-  {
-    turnoId: integer('turno_id').primaryKey({ autoIncrement: true }),
-    trabajadorId: integer('trabajador_id')
-      .notNull()
-      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
-    inicioAt: text('inicio_at').notNull(),
-    finAt: text('fin_at').notNull(),
-    estado: text('estado', {
-      enum: ['planificado', 'en_curso', 'completado', 'cancelado'],
-    })
-      .notNull()
-      .default('planificado'),
-    observacion: text('observacion'),
-    creadoPorUsuarioId: integer('creado_por_usuario_id').references(
-      () => usuario.usuarioId,
-      { onDelete: 'set null' },
-    ),
-    createdAt: text('created_at').notNull().default(nowDefault),
-    updatedAt: text('updated_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    check(
-      'turno_estado_enum',
-      sql`${t.estado} IN ('planificado','en_curso','completado','cancelado')`,
-    ),
-    check('turno_rango_valido', sql`${t.inicioAt} < ${t.finAt}`),
-    index('idx_turno_trabajador').on(t.trabajadorId, t.inicioAt),
-  ],
-);
-
-export const asistencia = sqliteTable(
-  'asistencia',
-  {
-    asistenciaId: integer('asistencia_id').primaryKey({ autoIncrement: true }),
-    trabajadorId: integer('trabajador_id')
-      .notNull()
-      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
-    turnoId: integer('turno_id').references(() => turno.turnoId, {
-      onDelete: 'restrict', // RF27: no borrar turno con asistencia
-    }),
-    fecha: text('fecha').notNull(),
-    tipo: text('tipo', {
-      enum: ['presente', 'tardanza', 'justificada', 'injustificada'],
-    }).notNull(),
-    entradaAt: text('entrada_at'),
-    salidaAt: text('salida_at'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-    updatedAt: text('updated_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    uniqueIndex('uq_asistencia_trab_fecha').on(t.trabajadorId, t.fecha),
-    check(
-      'asistencia_tipo_enum',
-      sql`${t.tipo} IN ('presente','tardanza','justificada','injustificada')`,
-    ),
-    // Coherencia tipo <-> entrada/salida (RF30, RF32)
-    check(
-      'asistencia_coherencia_tipo_horas',
-      sql`(${t.tipo} IN ('justificada','injustificada')
-            AND ${t.entradaAt} IS NULL AND ${t.salidaAt} IS NULL)
-       OR (${t.tipo} IN ('presente','tardanza')
-            AND (${t.salidaAt} IS NULL
-                 OR (${t.entradaAt} IS NOT NULL AND ${t.entradaAt} <= ${t.salidaAt})))`,
-    ),
-  ],
-);
-
-export const configPrevisional = sqliteTable(
-  'config_previsional',
-  {
-    configPrevisionalId: integer('config_previsional_id').primaryKey({
-      autoIncrement: true,
-    }),
-    afpPct: real('afp_pct').notNull(),
-    saludPct: real('salud_pct').notNull(),
-    cesantiaPct: real('cesantia_pct').notNull(),
-    updatedBy: integer('updated_by').references(() => usuario.usuarioId, {
-      onDelete: 'set null',
-    }),
-    updatedAt: text('updated_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    check('config_afp_range', sql`${t.afpPct} BETWEEN 0 AND 100`),
-    check('config_salud_range', sql`${t.saludPct} BETWEEN 0 AND 100`),
-    check('config_cesantia_range', sql`${t.cesantiaPct} BETWEEN 0 AND 100`),
-  ],
-);
-
-export const remuneracion = sqliteTable(
-  'remuneracion',
-  {
-    remuneracionId: integer('remuneracion_id').primaryKey({
-      autoIncrement: true,
-    }),
-    trabajadorId: integer('trabajador_id')
-      .notNull()
-      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
-    mes: integer('mes').notNull(),
-    anio: integer('anio').notNull(),
-    montoBruto: integer('monto_bruto').notNull(),
-    montoLiquido: integer('monto_liquido').notNull(),
-    estado: text('estado', { enum: ['pendiente', 'pagada', 'anulada'] })
-      .notNull()
-      .default('pendiente'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    uniqueIndex('uq_remuneracion_trab_periodo').on(t.trabajadorId, t.mes, t.anio),
-    check('remuneracion_mes_range', sql`${t.mes} BETWEEN 1 AND 12`),
-    check('remuneracion_anio_range', sql`${t.anio} BETWEEN 2020 AND 2100`),
-    check('remuneracion_bruto_min', sql`${t.montoBruto} >= 0`),
-    check('remuneracion_liquido_min', sql`${t.montoLiquido} >= 0`),
-    check(
-      'remuneracion_estado_enum',
-      sql`${t.estado} IN ('pendiente','pagada','anulada')`,
+      'usuario_id_length',
+      sql`length(${t.usuarioId}) BETWEEN 3 AND 50`,
     ),
     check(
-      'remuneracion_liquido_lte_bruto',
-      sql`${t.montoLiquido} <= ${t.montoBruto}`,
+      'usuario_rol_enum',
+      sql`${t.usuarioRol} IN ('dueño','cajero','reponedor')`,
     ),
   ],
 );
 
 // ============================================================================
-// 2. CATÁLOGO Y PROVEEDORES
+// MÓDULO 1 — INVENTARIO
 // ============================================================================
 
 export const categoria = sqliteTable(
   'categoria',
   {
     categoriaId: integer('categoria_id').primaryKey({ autoIncrement: true }),
-    nombre: text('nombre').notNull().unique(),
-    requiereVencimiento: integer('requiere_vencimiento').notNull().default(0),
+    categoriaNombre: text('categoria_nombre').notNull().unique(),
+    categoriaExigeVencimiento: integer('categoria_exige_vencimiento', {
+      mode: 'boolean',
+    }).notNull(),
   },
   (t) => [
-    check('categoria_requiere_venc_bool', sql`${t.requiereVencimiento} IN (0,1)`),
+    check(
+      'categoria_exige_venc_bool',
+      sql`${t.categoriaExigeVencimiento} IN (0,1)`,
+    ),
   ],
 );
+
+export const producto = sqliteTable(
+  'producto',
+  {
+    productoId: integer('producto_id').primaryKey({ autoIncrement: true }),
+    productoEan13: text('producto_ean_13').notNull().unique(),
+    productoNombre: text('producto_nombre').notNull(),
+    productoPrecioVenta: integer('producto_precio_venta').notNull(),
+    productoStockMinimo: integer('producto_stock_minimo').notNull().default(0),
+    productoEstado: text('producto_estado', { enum: ['activo', 'inactivo'] })
+      .notNull()
+      .default('activo'),
+    productoFechaRegistro: text('producto_fecha_registro')
+      .notNull()
+      .default(nowDefault),
+    categoriaId: integer('categoria_id')
+      .notNull()
+      .references(() => categoria.categoriaId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check(
+      'producto_ean13_format',
+      sql`length(${t.productoEan13}) = 13 AND ${t.productoEan13} GLOB '[0-9]*'`,
+    ),
+    check('producto_precio_venta_min', sql`${t.productoPrecioVenta} >= 0`),
+    check('producto_stock_minimo_min', sql`${t.productoStockMinimo} >= 0`),
+    check(
+      'producto_estado_enum',
+      sql`${t.productoEstado} IN ('activo','inactivo')`,
+    ),
+    index('idx_producto_nombre').on(t.productoNombre),
+    index('idx_producto_categoria').on(t.categoriaId),
+    index('idx_producto_estado').on(t.productoEstado),
+  ],
+);
+
+export const historialPrecioProducto = sqliteTable(
+  'historial_precio_producto',
+  {
+    historialPrecioProductoId: text('historial_precio_producto_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    historialPrecioCosto: integer('historial_precio_costo').notNull(),
+    historialPrecioVenta: integer('historial_precio_venta').notNull(),
+    historialFechaHoraVigenciaDesde: text('historial_fecha_hora_vigencia_desde')
+      .notNull()
+      .default(nowDefault),
+    historialFechaHoraVigenciaHasta: text('historial_fecha_hora_vigencia_hasta'),
+    productoId: integer('producto_id')
+      .notNull()
+      .references(() => producto.productoId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check(
+      'historial_precio_producto_uuid',
+      uuidCheck('historial_precio_producto_id'),
+    ),
+    check('historial_precio_costo_min', sql`${t.historialPrecioCosto} >= 0`),
+    check('historial_precio_venta_min', sql`${t.historialPrecioVenta} >= 0`),
+    check(
+      'historial_vigencia_rango',
+      sql`${t.historialFechaHoraVigenciaHasta} IS NULL
+       OR ${t.historialFechaHoraVigenciaDesde} <= ${t.historialFechaHoraVigenciaHasta}`,
+    ),
+    index('idx_historial_precio_producto').on(
+      t.productoId,
+      t.historialFechaHoraVigenciaDesde,
+    ),
+  ],
+);
+
+// proveedor y pedido_proveedor están en MÓDULO 2 (más abajo), pero lote los
+// referencia. Drizzle resuelve forward refs vía arrow functions: OK.
+
+export const lote = sqliteTable(
+  'lote',
+  {
+    loteId: text('lote_id').primaryKey().$defaultFn(uuid),
+    loteCantidadInicial: integer('lote_cantidad_inicial').notNull(),
+    loteCantidadActual: integer('lote_cantidad_actual').notNull(),
+    lotePrecioCosto: integer('lote_precio_costo').notNull(),
+    loteFechaHoraIngreso: text('lote_fecha_hora_ingreso')
+      .notNull()
+      .default(nowDefault),
+    // Flags discriminadores ISA (especialización perecible / no perecible).
+    // Persisten en el supertipo en todas las FN (metodología del modelo .docx).
+    esLotePerecible: integer('es_lote_perecible', { mode: 'boolean' }).notNull(),
+    esLoteNoPerecible: integer('es_lote_no_perecible', {
+      mode: 'boolean',
+    }).notNull(),
+    productoId: integer('producto_id')
+      .notNull()
+      .references(() => producto.productoId, { onDelete: 'restrict' }),
+    proveedorId: integer('proveedor_id').references(
+      () => proveedor.proveedorId,
+      { onDelete: 'set null' },
+    ),
+    pedidoProveedorId: text('pedido_proveedor_id').references(
+      () => pedidoProveedor.pedidoProveedorId,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    check('lote_uuid', uuidCheck('lote_id')),
+    check('lote_cantidad_inicial_min', sql`${t.loteCantidadInicial} >= 0`),
+    check('lote_precio_costo_min', sql`${t.lotePrecioCosto} >= 0`),
+    // ISA: exactamente uno de los dos flags es verdadero.
+    check(
+      'lote_isa_exclusivo',
+      sql`${t.esLotePerecible} + ${t.esLoteNoPerecible} = 1`,
+    ),
+    index('idx_lote_producto').on(t.productoId),
+    index('idx_lote_pedido').on(t.pedidoProveedorId),
+  ],
+);
+
+// Subtipo ISA 1:1 de lote
+export const lotePerecible = sqliteTable('lote_perecible', {
+  loteId: text('lote_id')
+    .primaryKey()
+    .references(() => lote.loteId, { onDelete: 'cascade' }),
+  lotePerecibleFechaVencimiento: text('lote_perecible_fecha_vencimiento')
+    .notNull(),
+});
+
+export const merma = sqliteTable(
+  'merma',
+  {
+    mermaId: text('merma_id').primaryKey().$defaultFn(uuid),
+    mermaMotivo: text('merma_motivo', {
+      enum: ['vencimiento', 'robo', 'rotura', 'conteo', 'otro'],
+    }).notNull(),
+    mermaObservacion: text('merma_observacion'),
+    mermaFechaHora: text('merma_fecha_hora').notNull().default(nowDefault),
+    productoId: integer('producto_id')
+      .notNull()
+      .references(() => producto.productoId, { onDelete: 'restrict' }),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('merma_uuid', uuidCheck('merma_id')),
+    check(
+      'merma_motivo_enum',
+      sql`${t.mermaMotivo} IN ('vencimiento','robo','rotura','conteo','otro')`,
+    ),
+    index('idx_merma_producto').on(t.productoId, t.mermaFechaHora),
+  ],
+);
+
+// Intermedia M:N (merma <-> lote) con PK propia (Opción B)
+export const mermaLote = sqliteTable(
+  'merma_lote',
+  {
+    mermaLoteId: text('merma_lote_id').primaryKey().$defaultFn(uuid),
+    mermaId: text('merma_id')
+      .notNull()
+      .references(() => merma.mermaId, { onDelete: 'cascade' }),
+    loteId: text('lote_id')
+      .notNull()
+      .references(() => lote.loteId, { onDelete: 'restrict' }),
+    mermaLoteCantidadDescontada: integer('merma_lote_cantidad_descontada')
+      .notNull(),
+  },
+  (t) => [
+    check('merma_lote_uuid', uuidCheck('merma_lote_id')),
+    check(
+      'merma_lote_cantidad_min',
+      sql`${t.mermaLoteCantidadDescontada} > 0`,
+    ),
+    uniqueIndex('uq_merma_lote').on(t.mermaId, t.loteId),
+  ],
+);
+
+export const ajusteInventario = sqliteTable(
+  'ajuste_inventario',
+  {
+    ajusteInventarioId: text('ajuste_inventario_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    ajusteCantidad: integer('ajuste_cantidad').notNull(),
+    ajusteJustificacion: text('ajuste_justificacion').notNull(),
+    ajusteFechaHora: text('ajuste_fecha_hora').notNull().default(nowDefault),
+    productoId: integer('producto_id')
+      .notNull()
+      .references(() => producto.productoId, { onDelete: 'restrict' }),
+    loteId: text('lote_id')
+      .notNull()
+      .references(() => lote.loteId, { onDelete: 'restrict' }),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('ajuste_inventario_uuid', uuidCheck('ajuste_inventario_id')),
+    check('ajuste_cantidad_no_cero', sql`${t.ajusteCantidad} <> 0`),
+    index('idx_ajuste_producto').on(t.productoId, t.ajusteFechaHora),
+  ],
+);
+
+// ============================================================================
+// MÓDULO 2 — PROVEEDORES
+// ============================================================================
 
 export const proveedor = sqliteTable(
   'proveedor',
   {
     proveedorId: integer('proveedor_id').primaryKey({ autoIncrement: true }),
-    rut: text('rut').notNull().unique(),
-    razonSocial: text('razon_social').notNull(),
-    contacto: text('contacto'),
-    telefono: text('telefono'),
-    email: text('email'),
-    estado: text('estado', { enum: ['activo', 'inactivo'] })
-      .notNull()
-      .default('activo'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
+    proveedorRut: text('proveedor_rut').notNull().unique(),
+    proveedorNombreRazonSocial: text('proveedor_nombre_razon_social').notNull(),
+    proveedorNombreContacto: text('proveedor_nombre_contacto').notNull(),
+    proveedorTelefono: text('proveedor_telefono').notNull(),
+    proveedorCorreoElectronico: text('proveedor_correo_electronico').notNull(),
   },
   (t) => [
     check(
       'proveedor_rut_format',
-      sql`length(${t.rut}) BETWEEN 9 AND 10 AND ${t.rut} GLOB '[1-9]*-[0-9kK]'`,
+      sql`length(${t.proveedorRut}) BETWEEN 9 AND 12 AND ${t.proveedorRut} GLOB '[1-9]*-[0-9kK]'`,
     ),
     check(
       'proveedor_email_format',
-      sql`${t.email} IS NULL OR ${t.email} LIKE '%_@_%._%'`,
+      sql`${t.proveedorCorreoElectronico} LIKE '%_@_%._%'`,
     ),
-    check('proveedor_estado_enum', sql`${t.estado} IN ('activo','inactivo')`),
   ],
 );
 
+// Intermedia M:N (proveedor <-> categoria) con PK propia (Opción B)
 export const proveedorCategoria = sqliteTable(
   'proveedor_categoria',
   {
+    proveedorCategoriaId: text('proveedor_categoria_id')
+      .primaryKey()
+      .$defaultFn(uuid),
     proveedorId: integer('proveedor_id')
       .notNull()
       .references(() => proveedor.proveedorId, { onDelete: 'cascade' }),
@@ -297,185 +377,456 @@ export const proveedorCategoria = sqliteTable(
       .notNull()
       .references(() => categoria.categoriaId, { onDelete: 'restrict' }),
   },
-  (t) => [primaryKey({ columns: [t.proveedorId, t.categoriaId] })],
-);
-
-export const producto = sqliteTable(
-  'producto',
-  {
-    productoId: integer('producto_id').primaryKey({ autoIncrement: true }),
-    categoriaId: integer('categoria_id')
-      .notNull()
-      .references(() => categoria.categoriaId, { onDelete: 'restrict' }),
-    ean13: text('ean13').notNull().unique(),
-    nombre: text('nombre').notNull(),
-    descripcion: text('descripcion'),
-    unidadMedida: text('unidad_medida', {
-      enum: ['unidad', 'kg', 'g', 'litro', 'ml'],
-    }).notNull(),
-    precioCosto: integer('precio_costo').notNull(),
-    precioVenta: integer('precio_venta').notNull(),
-    stockMinimo: real('stock_minimo').notNull().default(0),
-    estado: text('estado', { enum: ['activo', 'inactivo'] })
-      .notNull()
-      .default('activo'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-  },
   (t) => [
-    check(
-      'producto_ean13_format',
-      sql`length(${t.ean13}) = 13 AND ${t.ean13} GLOB '[0-9]*'`,
-    ),
-    check(
-      'producto_unidad_enum',
-      sql`${t.unidadMedida} IN ('unidad','kg','g','litro','ml')`,
-    ),
-    check('producto_precio_costo_min', sql`${t.precioCosto} >= 0`),
-    check('producto_precio_venta_min', sql`${t.precioVenta} >= 0`),
-    check('producto_stock_min', sql`${t.stockMinimo} >= 0`),
-    check('producto_estado_enum', sql`${t.estado} IN ('activo','inactivo')`),
-    index('idx_producto_nombre').on(t.nombre),
-    index('idx_producto_estado').on(t.estado),
-    index('idx_producto_categoria').on(t.categoriaId),
+    check('proveedor_categoria_uuid', uuidCheck('proveedor_categoria_id')),
+    uniqueIndex('uq_proveedor_categoria').on(t.proveedorId, t.categoriaId),
   ],
 );
 
-// ============================================================================
-// 3. COMPRAS
-// ============================================================================
-
-export const pedido = sqliteTable(
-  'pedido',
+export const pedidoProveedor = sqliteTable(
+  'pedido_proveedor',
   {
-    pedidoId: integer('pedido_id').primaryKey({ autoIncrement: true }),
+    pedidoProveedorId: text('pedido_proveedor_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    pedidoProveedorFechaHoraEmision: text('pedido_proveedor_fecha_hora_emision')
+      .notNull()
+      .default(nowDefault),
+    pedidoProveedorEstado: text('pedido_proveedor_estado', {
+      enum: ['borrador', 'emitido', 'enviado', 'parcial', 'recibido', 'cancelado'],
+    }).notNull(),
+    pedidoProveedorFechaHoraRecepcion: text(
+      'pedido_proveedor_fecha_hora_recepcion',
+    ),
+    pedidoProveedorNotaRecepcion: text('pedido_proveedor_nota_recepcion'),
     proveedorId: integer('proveedor_id')
       .notNull()
       .references(() => proveedor.proveedorId, { onDelete: 'restrict' }),
-    entregaEstimada: text('entrega_estimada'),
-    email: text('email'),
-    comentario: text('comentario'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    check(
-      'pedido_email_format',
-      sql`${t.email} IS NULL OR ${t.email} LIKE '%_@_%._%'`,
-    ),
-    index('idx_pedido_proveedor').on(t.proveedorId),
-  ],
-);
-
-export const estadoPedido = sqliteTable(
-  'estado_pedido',
-  {
-    pedidoEstadoId: integer('pedido_estado_id').primaryKey({
-      autoIncrement: true,
-    }),
-    pedidoId: integer('pedido_id')
-      .notNull()
-      .references(() => pedido.pedidoId, { onDelete: 'cascade' }),
-    usuarioId: integer('usuario_id')
+    usuarioEmisorId: text('usuario_emisor_id')
       .notNull()
       .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    estado: text('estado', {
-      enum: ['pendiente', 'enviado', 'parcial', 'recibido', 'cancelado'],
-    }).notNull(),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
+    usuarioReceptorId: text('usuario_receptor_id').references(
+      () => usuario.usuarioId,
+      { onDelete: 'restrict' },
+    ),
   },
   (t) => [
+    check('pedido_proveedor_uuid', uuidCheck('pedido_proveedor_id')),
     check(
-      'estado_pedido_enum',
-      sql`${t.estado} IN ('pendiente','enviado','parcial','recibido','cancelado')`,
+      'pedido_proveedor_estado_enum',
+      sql`${t.pedidoProveedorEstado} IN ('borrador','emitido','enviado','parcial','recibido','cancelado')`,
     ),
-    index('idx_estado_pedido_pedido').on(t.pedidoId, t.createdAt),
+    index('idx_pedido_proveedor_proveedor').on(t.proveedorId),
+    index('idx_pedido_proveedor_estado').on(t.pedidoProveedorEstado),
   ],
 );
 
+// Intermedia M:N (pedido_proveedor <-> producto) con PK propia (Opción B)
 export const detallePedido = sqliteTable(
   'detalle_pedido',
   {
-    detallePedidoId: integer('detalle_pedido_id').primaryKey({
-      autoIncrement: true,
-    }),
-    pedidoId: integer('pedido_id')
+    detallePedidoId: text('detalle_pedido_id').primaryKey().$defaultFn(uuid),
+    pedidoProveedorId: text('pedido_proveedor_id')
       .notNull()
-      .references(() => pedido.pedidoId, { onDelete: 'cascade' }),
+      .references(() => pedidoProveedor.pedidoProveedorId, {
+        onDelete: 'cascade',
+      }),
     productoId: integer('producto_id')
       .notNull()
       .references(() => producto.productoId, { onDelete: 'restrict' }),
-    cantidadSolicitada: real('cantidad_solicitada').notNull(),
-    cantidadRecibida: real('cantidad_recibida').notNull().default(0),
-    precioUnitario: integer('precio_unitario').notNull(),
+    cantidadSolicitada: integer('cantidad_solicitada').notNull(),
+    cantidadRecibida: integer('cantidad_recibida'),
   },
   (t) => [
+    check('detalle_pedido_uuid', uuidCheck('detalle_pedido_id')),
     check('detalle_pedido_solicitada_min', sql`${t.cantidadSolicitada} > 0`),
     check(
       'detalle_pedido_recibida_range',
-      sql`${t.cantidadRecibida} >= 0 AND ${t.cantidadRecibida} <= ${t.cantidadSolicitada}`,
+      sql`${t.cantidadRecibida} IS NULL OR ${t.cantidadRecibida} >= 0`,
     ),
-    check('detalle_pedido_precio_min', sql`${t.precioUnitario} >= 0`),
-    index('idx_detalle_pedido_pedido').on(t.pedidoId),
+    uniqueIndex('uq_detalle_pedido').on(t.pedidoProveedorId, t.productoId),
+    index('idx_detalle_pedido_pedido').on(t.pedidoProveedorId),
   ],
 );
 
-export const lote = sqliteTable(
-  'lote',
+export const historialAuditoriaPedido = sqliteTable(
+  'historial_auditoria_pedido',
   {
-    loteId: integer('lote_id').primaryKey({ autoIncrement: true }),
-    productoId: integer('producto_id')
+    historialAuditoriaPedidoId: text('historial_auditoria_pedido_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    historialApTipoEvento: text('historial_ap_tipo_evento').notNull(),
+    historialApFechaHora: text('historial_ap_fecha_hora')
       .notNull()
-      .references(() => producto.productoId, { onDelete: 'restrict' }),
-    detallePedidoId: integer('detalle_pedido_id').references(
-      () => detallePedido.detallePedidoId,
-      { onDelete: 'set null' },
-    ),
-    // cantidad_actual SIN check >= 0: el sistema acepta negativo y lo registra
-    // como discrepancia (dimensión técnica §14.23.14).
-    cantidadActual: real('cantidad_actual').notNull(),
-    precioUnitario: integer('precio_unitario').notNull(),
-    fechaVencimiento: text('fecha_vencimiento'),
-    fechaIngreso: text('fecha_ingreso').notNull().default(nowDefault),
+      .default(nowDefault),
+    historialApNota: text('historial_ap_nota'),
+    pedidoProveedorId: text('pedido_proveedor_id')
+      .notNull()
+      .references(() => pedidoProveedor.pedidoProveedorId, {
+        onDelete: 'restrict',
+      }),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
   },
   (t) => [
-    check('lote_precio_min', sql`${t.precioUnitario} >= 0`),
-    index('idx_lote_producto_venc').on(t.productoId, t.fechaVencimiento),
+    check(
+      'historial_auditoria_pedido_uuid',
+      uuidCheck('historial_auditoria_pedido_id'),
+    ),
+    index('idx_historial_ap_pedido').on(
+      t.pedidoProveedorId,
+      t.historialApFechaHora,
+    ),
   ],
 );
 
 // ============================================================================
-// 4. VENTAS
+// MÓDULO 4 (resto) — TRABAJADORES Y ACCESO
+// ============================================================================
+
+export const usuarioVersion = sqliteTable(
+  'usuario_version',
+  {
+    usuarioVersionId: text('usuario_version_id').primaryKey().$defaultFn(uuid),
+    usuarioVersionNombre: text('usuario_version_nombre').notNull(),
+    usuarioVersionRol: text('usuario_version_rol', {
+      enum: ['dueño', 'cajero', 'reponedor'],
+    }).notNull(),
+    usuarioVersionFechaHoraVigenciaDesde: text(
+      'usuario_version_fecha_hora_vigencia_desde',
+    )
+      .notNull()
+      .default(nowDefault),
+    usuarioVersionFechaHoraVigenciaHasta: text(
+      'usuario_version_fecha_hora_vigencia_hasta',
+    ),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('usuario_version_uuid', uuidCheck('usuario_version_id')),
+    check(
+      'usuario_version_rol_enum',
+      sql`${t.usuarioVersionRol} IN ('dueño','cajero','reponedor')`,
+    ),
+    check(
+      'usuario_version_vigencia_rango',
+      sql`${t.usuarioVersionFechaHoraVigenciaHasta} IS NULL
+       OR ${t.usuarioVersionFechaHoraVigenciaDesde} <= ${t.usuarioVersionFechaHoraVigenciaHasta}`,
+    ),
+    index('idx_usuario_version_usuario').on(
+      t.usuarioId,
+      t.usuarioVersionFechaHoraVigenciaDesde,
+    ),
+  ],
+);
+
+export const contrasena = sqliteTable(
+  'contrasena',
+  {
+    contrasenaId: text('contrasena_id').primaryKey().$defaultFn(uuid),
+    contrasenaHash: text('contrasena_hash').notNull(),
+    contrasenaFechaHoraCreacion: text('contrasena_fecha_hora_creacion')
+      .notNull()
+      .default(nowDefault),
+    // Flags discriminadores ISA (especialización temporal / definitiva).
+    esContrasenaTemporal: integer('es_contrasena_temporal', {
+      mode: 'boolean',
+    }).notNull(),
+    esContrasenaDefinitiva: integer('es_contrasena_definitiva', {
+      mode: 'boolean',
+    }).notNull(),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'cascade' }),
+    generadaPorUsuarioId: text('generada_por_usuario_id').references(
+      () => usuario.usuarioId,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    check('contrasena_uuid', uuidCheck('contrasena_id')),
+    // ISA: exactamente uno de los dos flags es verdadero.
+    check(
+      'contrasena_isa_exclusivo',
+      sql`${t.esContrasenaTemporal} + ${t.esContrasenaDefinitiva} = 1`,
+    ),
+    index('idx_contrasena_usuario').on(
+      t.usuarioId,
+      t.contrasenaFechaHoraCreacion,
+    ),
+  ],
+);
+
+// Subtipo ISA 1:1 de contrasena
+export const contrasenaTemporal = sqliteTable('contrasena_temporal', {
+  contrasenaId: text('contrasena_id')
+    .primaryKey()
+    .references(() => contrasena.contrasenaId, { onDelete: 'cascade' }),
+  contrasenaTemporalFechaHoraExpiracion: text(
+    'contrasena_temporal_fecha_hora_expiracion',
+  ).notNull(),
+});
+
+export const sesionUsuario = sqliteTable(
+  'sesion_usuario',
+  {
+    sesionUsuarioId: text('sesion_usuario_id').primaryKey().$defaultFn(uuid),
+    sesionFechaHoraInicio: text('sesion_fecha_hora_inicio')
+      .notNull()
+      .default(nowDefault),
+    sesionFechaHoraUltimoAcceso: text('sesion_fecha_hora_ultimo_acceso')
+      .notNull()
+      .default(nowDefault),
+    sesionFechaHoraCierre: text('sesion_fecha_hora_cierre'),
+    sesionMotivoCierre: text('sesion_motivo_cierre', {
+      enum: ['manual', 'inactividad', 'sistema'],
+    }),
+    usuarioId: text('usuario_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('sesion_usuario_uuid', uuidCheck('sesion_usuario_id')),
+    check(
+      'sesion_motivo_cierre_enum',
+      sql`${t.sesionMotivoCierre} IS NULL OR ${t.sesionMotivoCierre} IN ('manual','inactividad','sistema')`,
+    ),
+    check(
+      'sesion_cierre_coherente',
+      sql`(${t.sesionFechaHoraCierre} IS NULL AND ${t.sesionMotivoCierre} IS NULL)
+       OR (${t.sesionFechaHoraCierre} IS NOT NULL AND ${t.sesionMotivoCierre} IS NOT NULL)`,
+    ),
+    index('idx_sesion_usuario').on(t.usuarioId, t.sesionFechaHoraInicio),
+  ],
+);
+
+export const intentoLogin = sqliteTable(
+  'intento_login',
+  {
+    intentoLoginId: text('intento_login_id').primaryKey().$defaultFn(uuid),
+    intentoNombreUsuarioIngresado: text('intento_nombre_usuario_ingresado')
+      .notNull(),
+    intentoFechaHora: text('intento_fecha_hora').notNull().default(nowDefault),
+    intentoExitoso: integer('intento_exitoso', { mode: 'boolean' }).notNull(),
+    usuarioId: text('usuario_id').references(() => usuario.usuarioId, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => [
+    check('intento_login_uuid', uuidCheck('intento_login_id')),
+    check('intento_login_exitoso_bool', sql`${t.intentoExitoso} IN (0,1)`),
+    index('idx_intento_login_fecha').on(t.intentoFechaHora),
+    index('idx_intento_login_usuario').on(t.usuarioId, t.intentoFechaHora),
+  ],
+);
+
+export const turno = sqliteTable(
+  'turno',
+  {
+    turnoId: text('turno_id').primaryKey().$defaultFn(uuid),
+    turnoFechaHoraInicio: text('turno_fecha_hora_inicio').notNull(),
+    turnoFechaHoraFin: text('turno_fecha_hora_fin').notNull(),
+    turnoEstado: text('turno_estado', {
+      enum: ['planificado', 'en_curso', 'completado', 'cancelado'],
+    })
+      .notNull()
+      .default('planificado'),
+    trabajadorId: integer('trabajador_id')
+      .notNull()
+      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('turno_uuid', uuidCheck('turno_id')),
+    check(
+      'turno_estado_enum',
+      sql`${t.turnoEstado} IN ('planificado','en_curso','completado','cancelado')`,
+    ),
+    check(
+      'turno_rango_valido',
+      sql`${t.turnoFechaHoraInicio} < ${t.turnoFechaHoraFin}`,
+    ),
+    index('idx_turno_trabajador').on(t.trabajadorId, t.turnoFechaHoraInicio),
+  ],
+);
+
+export const asistencia = sqliteTable(
+  'asistencia',
+  {
+    asistenciaId: text('asistencia_id').primaryKey().$defaultFn(uuid),
+    asistenciaFechaHoraEntrada: text('asistencia_fecha_hora_entrada').notNull(),
+    asistenciaFechaHoraSalida: text('asistencia_fecha_hora_salida'),
+    trabajadorId: integer('trabajador_id')
+      .notNull()
+      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
+    turnoId: text('turno_id').references(() => turno.turnoId, {
+      onDelete: 'restrict',
+    }),
+  },
+  (t) => [
+    check('asistencia_uuid', uuidCheck('asistencia_id')),
+    check(
+      'asistencia_rango_valido',
+      sql`${t.asistenciaFechaHoraSalida} IS NULL
+       OR ${t.asistenciaFechaHoraEntrada} <= ${t.asistenciaFechaHoraSalida}`,
+    ),
+    index('idx_asistencia_trabajador').on(
+      t.trabajadorId,
+      t.asistenciaFechaHoraEntrada,
+    ),
+  ],
+);
+
+export const ausencia = sqliteTable(
+  'ausencia',
+  {
+    ausenciaId: text('ausencia_id').primaryKey().$defaultFn(uuid),
+    ausenciaFecha: text('ausencia_fecha').notNull(),
+    ausenciaTipo: text('ausencia_tipo', {
+      enum: ['justificada', 'injustificada', 'licencia', 'vacaciones', 'permiso'],
+    }).notNull(),
+    ausenciaObservacion: text('ausencia_observacion'),
+    ausenciaFechaHoraRegistro: text('ausencia_fecha_hora_registro')
+      .notNull()
+      .default(nowDefault),
+    trabajadorId: integer('trabajador_id')
+      .notNull()
+      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
+    usuarioRegistradorId: text('usuario_registrador_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('ausencia_uuid', uuidCheck('ausencia_id')),
+    check(
+      'ausencia_tipo_enum',
+      sql`${t.ausenciaTipo} IN ('justificada','injustificada','licencia','vacaciones','permiso')`,
+    ),
+    uniqueIndex('uq_ausencia_trabajador_fecha').on(
+      t.trabajadorId,
+      t.ausenciaFecha,
+    ),
+  ],
+);
+
+export const remuneracion = sqliteTable(
+  'remuneracion',
+  {
+    remuneracionId: text('remuneracion_id').primaryKey().$defaultFn(uuid),
+    remuneracionMes: integer('remuneracion_mes').notNull(),
+    remuneracionAnio: integer('remuneracion_anio').notNull(),
+    remuneracionMontoBruto: integer('remuneracion_monto_bruto').notNull(),
+    remuneracionObservacion: text('remuneracion_observacion'),
+    remuneracionFechaHoraRegistro: text('remuneracion_fecha_hora_registro')
+      .notNull()
+      .default(nowDefault),
+    trabajadorId: integer('trabajador_id')
+      .notNull()
+      .references(() => trabajador.trabajadorId, { onDelete: 'restrict' }),
+    usuarioRegistradorId: text('usuario_registrador_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('remuneracion_uuid', uuidCheck('remuneracion_id')),
+    check('remuneracion_mes_range', sql`${t.remuneracionMes} BETWEEN 1 AND 12`),
+    check(
+      'remuneracion_anio_range',
+      sql`${t.remuneracionAnio} BETWEEN 2020 AND 2100`,
+    ),
+    check('remuneracion_bruto_min', sql`${t.remuneracionMontoBruto} >= 0`),
+    uniqueIndex('uq_remuneracion_trabajador_periodo').on(
+      t.trabajadorId,
+      t.remuneracionAnio,
+      t.remuneracionMes,
+    ),
+  ],
+);
+
+export const tasaLegal = sqliteTable(
+  'tasa_legal',
+  {
+    tasaLegalId: integer('tasa_legal_id').primaryKey({ autoIncrement: true }),
+    tasaLegalTipo: text('tasa_legal_tipo', {
+      enum: ['afp', 'salud', 'cesantia', 'impuesto', 'otro'],
+    }).notNull(),
+    tasaLegalValor: real('tasa_legal_valor').notNull(),
+    tasaLegalFechaVigenciaDesde: text('tasa_legal_fecha_vigencia_desde')
+      .notNull(),
+    tasaLegalFechaVigenciaHasta: text('tasa_legal_fecha_vigencia_hasta'),
+  },
+  (t) => [
+    check(
+      'tasa_legal_tipo_enum',
+      sql`${t.tasaLegalTipo} IN ('afp','salud','cesantia','impuesto','otro')`,
+    ),
+    check(
+      'tasa_legal_valor_range',
+      sql`${t.tasaLegalValor} BETWEEN 0 AND 100`,
+    ),
+    check(
+      'tasa_legal_vigencia_rango',
+      sql`${t.tasaLegalFechaVigenciaHasta} IS NULL
+       OR ${t.tasaLegalFechaVigenciaDesde} <= ${t.tasaLegalFechaVigenciaHasta}`,
+    ),
+  ],
+);
+
+// Intermedia M:N (remuneracion <-> tasa_legal) con PK propia (Opción B)
+export const remuneracionTasa = sqliteTable(
+  'remuneracion_tasa',
+  {
+    remuneracionTasaId: text('remuneracion_tasa_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    remuneracionId: text('remuneracion_id')
+      .notNull()
+      .references(() => remuneracion.remuneracionId, { onDelete: 'cascade' }),
+    tasaLegalId: integer('tasa_legal_id')
+      .notNull()
+      .references(() => tasaLegal.tasaLegalId, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    check('remuneracion_tasa_uuid', uuidCheck('remuneracion_tasa_id')),
+    uniqueIndex('uq_remuneracion_tasa').on(t.remuneracionId, t.tasaLegalId),
+  ],
+);
+
+// ============================================================================
+// MÓDULO 5 — VENTAS
 // ============================================================================
 
 export const cierreCaja = sqliteTable(
   'cierre_caja',
   {
-    cierreCajaId: integer('cierre_caja_id').primaryKey({ autoIncrement: true }),
-    usuarioId: integer('usuario_id')
+    cierreCajaId: text('cierre_caja_id').primaryKey().$defaultFn(uuid),
+    cierreFechaHoraInicio: text('cierre_fecha_hora_inicio')
       .notNull()
-      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    totalVentas: integer('total_ventas').notNull(),
-    totalEfectivo: integer('total_efectivo').notNull(),
-    totalDebito: integer('total_debito').notNull(),
-    totalCredito: integer('total_credito').notNull(),
-    totalTransferencia: integer('total_transferencia').notNull(),
-    efectivoContado: integer('efectivo_contado').notNull(),
-    diferenciaEfectivo: integer('diferencia_efectivo').notNull(),
-    createdAt: text('created_at').notNull().default(nowDefault),
-    completedAt: text('completed_at'),
+      .unique()
+      .default(nowDefault),
+    cierreEstado: text('cierre_estado', { enum: ['abierto', 'cerrado'] })
+      .notNull()
+      .default('abierto'),
+    cierreFechaHoraFin: text('cierre_fecha_hora_fin'),
+    usuarioCierreId: text('usuario_cierre_id').references(
+      () => usuario.usuarioId,
+      { onDelete: 'restrict' },
+    ),
   },
   (t) => [
-    check('cierre_total_ventas_min', sql`${t.totalVentas} >= 0`),
-    check('cierre_total_efectivo_min', sql`${t.totalEfectivo} >= 0`),
-    check('cierre_total_debito_min', sql`${t.totalDebito} >= 0`),
-    check('cierre_total_credito_min', sql`${t.totalCredito} >= 0`),
-    check('cierre_total_transfer_min', sql`${t.totalTransferencia} >= 0`),
-    check('cierre_efectivo_contado_min', sql`${t.efectivoContado} >= 0`),
-    // RF41: un único cierre por usuario y día
-    uniqueIndex('uq_cierre_caja_dia').on(
-      t.usuarioId,
-      sql`date(${t.createdAt})`,
+    check('cierre_caja_uuid', uuidCheck('cierre_caja_id')),
+    check(
+      'cierre_estado_enum',
+      sql`${t.cierreEstado} IN ('abierto','cerrado')`,
+    ),
+    check(
+      'cierre_fin_coherente',
+      sql`(${t.cierreEstado} = 'abierto' AND ${t.cierreFechaHoraFin} IS NULL
+            AND ${t.usuarioCierreId} IS NULL)
+       OR (${t.cierreEstado} = 'cerrado' AND ${t.cierreFechaHoraFin} IS NOT NULL
+            AND ${t.usuarioCierreId} IS NOT NULL)`,
     ),
   ],
 );
@@ -483,298 +834,206 @@ export const cierreCaja = sqliteTable(
 export const venta = sqliteTable(
   'venta',
   {
-    ventaId: text('venta_id')
-      .primaryKey()
-      .$defaultFn(() => ulid()),
-    cierreCajaId: integer('cierre_caja_id').references(
-      () => cierreCaja.cierreCajaId,
-      { onDelete: 'set null' },
-    ),
-    usuarioId: integer('usuario_id')
+    ventaId: text('venta_id').primaryKey().$defaultFn(uuid),
+    ventaFechaHora: text('venta_fecha_hora').notNull().default(nowDefault),
+    ventaDescuentoTipo: text('venta_descuento_tipo', {
+      enum: ['ninguno', 'porcentaje', 'monto'],
+    })
       .notNull()
-      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    anuladaPorUsuarioId: integer('anulada_por_usuario_id').references(
-      () => usuario.usuarioId,
-      { onDelete: 'set null' },
-    ),
-    subtotal: integer('subtotal').notNull(),
-    iva: integer('iva').notNull().default(0),
-    descuento: integer('descuento').notNull().default(0),
-    tipoDescuento: text('tipo_descuento', { enum: ['porcentaje', 'monto'] }),
-    observacionDescuento: text('observacion_descuento'),
-    total: integer('total').notNull(),
-    metodoPago: text('metodo_pago', {
+      .default('ninguno'),
+    ventaDescuentoValor: integer('venta_descuento_valor'),
+    ventaDescuentoRazon: text('venta_descuento_razon'),
+    ventaMetodoPago: text('venta_metodo_pago', {
       enum: ['efectivo', 'debito', 'credito', 'transferencia'],
     }).notNull(),
-    montoRecibido: integer('monto_recibido').notNull(),
-    vuelto: integer('vuelto'),
-    estado: text('estado', { enum: ['completada', 'anulada'] })
+    ventaEstado: text('venta_estado', { enum: ['completada', 'anulada'] })
       .notNull()
       .default('completada'),
-    motivoAnulacion: text('motivo_anulacion'),
-    anuladoAt: text('anulado_at'),
-    createdAt: text('created_at').notNull().default(nowDefault),
+    // Flags discriminadores ISA (especialización efectivo / electrónica).
+    esVentaEfectivo: integer('es_venta_efectivo', {
+      mode: 'boolean',
+    }).notNull(),
+    esVentaElectronica: integer('es_venta_electronica', {
+      mode: 'boolean',
+    }).notNull(),
+    usuarioCajeroId: text('usuario_cajero_id')
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
+    cierreCajaId: text('cierre_caja_id')
+      .notNull()
+      .references(() => cierreCaja.cierreCajaId, { onDelete: 'restrict' }),
   },
   (t) => [
-    check('venta_ulid_format', ulidCheck('venta_id')),
-    check('venta_subtotal_min', sql`${t.subtotal} >= 0`),
-    check('venta_iva_min', sql`${t.iva} >= 0`),
-    check('venta_descuento_min', sql`${t.descuento} >= 0`),
-    check('venta_total_min', sql`${t.total} >= 0`),
-    check('venta_monto_recibido_min', sql`${t.montoRecibido} >= 0`),
-    check('venta_vuelto_min', sql`${t.vuelto} >= 0 OR ${t.vuelto} IS NULL`),
+    check('venta_uuid', uuidCheck('venta_id')),
     check(
-      'venta_tipo_descuento_enum',
-      sql`${t.tipoDescuento} IN ('porcentaje','monto') OR ${t.tipoDescuento} IS NULL`,
+      'venta_descuento_tipo_enum',
+      sql`${t.ventaDescuentoTipo} IN ('ninguno','porcentaje','monto')`,
     ),
     check(
       'venta_metodo_pago_enum',
-      sql`${t.metodoPago} IN ('efectivo','debito','credito','transferencia')`,
+      sql`${t.ventaMetodoPago} IN ('efectivo','debito','credito','transferencia')`,
     ),
-    check('venta_estado_enum', sql`${t.estado} IN ('completada','anulada')`),
+    check(
+      'venta_estado_enum',
+      sql`${t.ventaEstado} IN ('completada','anulada')`,
+    ),
     check(
       'venta_descuento_coherente',
-      sql`(${t.descuento} = 0 AND ${t.tipoDescuento} IS NULL)
-       OR (${t.descuento} > 0 AND ${t.tipoDescuento} IS NOT NULL)`,
+      sql`(${t.ventaDescuentoTipo} = 'ninguno' AND ${t.ventaDescuentoValor} IS NULL)
+       OR (${t.ventaDescuentoTipo} <> 'ninguno' AND ${t.ventaDescuentoValor} IS NOT NULL AND ${t.ventaDescuentoValor} > 0)`,
     ),
+    // ISA: exactamente un flag verdadero, y coherente con el método de pago
+    // (efectivo => es_venta_efectivo; débito/crédito/transferencia => electrónica).
     check(
-      'venta_anulacion_coherente',
-      sql`(${t.estado} = 'anulada' AND ${t.anuladoAt} IS NOT NULL
-            AND ${t.motivoAnulacion} IS NOT NULL
-            AND ${t.anuladaPorUsuarioId} IS NOT NULL)
-       OR (${t.estado} = 'completada' AND ${t.anuladoAt} IS NULL
-            AND ${t.motivoAnulacion} IS NULL
-            AND ${t.anuladaPorUsuarioId} IS NULL)`,
+      'venta_isa_coherente',
+      sql`(${t.ventaMetodoPago} = 'efectivo'
+            AND ${t.esVentaEfectivo} = 1 AND ${t.esVentaElectronica} = 0)
+       OR (${t.ventaMetodoPago} <> 'efectivo'
+            AND ${t.esVentaEfectivo} = 0 AND ${t.esVentaElectronica} = 1)`,
     ),
-    index('idx_venta_created').on(t.createdAt),
-    index('idx_venta_usuario').on(t.usuarioId, t.createdAt),
+    index('idx_venta_fecha').on(t.ventaFechaHora),
     index('idx_venta_cierre').on(t.cierreCajaId),
-    index('idx_venta_estado').on(t.estado),
+    index('idx_venta_cajero').on(t.usuarioCajeroId, t.ventaFechaHora),
+    index('idx_venta_estado').on(t.ventaEstado),
   ],
 );
 
+// Subtipo ISA 1:1 de venta
+export const ventaEfectivo = sqliteTable(
+  'venta_efectivo',
+  {
+    ventaId: text('venta_id')
+      .primaryKey()
+      .references(() => venta.ventaId, { onDelete: 'cascade' }),
+    ventaEfectivoMontoRecibido: integer('venta_efectivo_monto_recibido')
+      .notNull(),
+  },
+  (t) => [
+    check('venta_efectivo_min', sql`${t.ventaEfectivoMontoRecibido} >= 0`),
+  ],
+);
+
+// Intermedia M:N (venta <-> producto) con PK propia (Opción B)
 export const detalleVenta = sqliteTable(
   'detalle_venta',
   {
-    detalleVentaId: text('detalle_venta_id')
-      .primaryKey()
-      .$defaultFn(() => ulid()),
+    detalleVentaId: text('detalle_venta_id').primaryKey().$defaultFn(uuid),
     ventaId: text('venta_id')
       .notNull()
       .references(() => venta.ventaId, { onDelete: 'cascade' }),
     productoId: integer('producto_id')
       .notNull()
       .references(() => producto.productoId, { onDelete: 'restrict' }),
-    loteId: integer('lote_id').references(() => lote.loteId),
-    cantidad: real('cantidad').notNull(),
-    precioUnitario: integer('precio_unitario').notNull(),
-    descuento: integer('descuento').notNull().default(0),
-    subtotal: integer('subtotal').notNull(),
+    detalleVentaCantidad: integer('detalle_venta_cantidad').notNull(),
+    historialPrecioProductoId: text('historial_precio_producto_id')
+      .notNull()
+      .references(
+        () => historialPrecioProducto.historialPrecioProductoId,
+        { onDelete: 'restrict' },
+      ),
   },
   (t) => [
-    check('detalle_venta_ulid_format', ulidCheck('detalle_venta_id')),
-    check('detalle_venta_cantidad_min', sql`${t.cantidad} > 0`),
-    check('detalle_venta_precio_min', sql`${t.precioUnitario} >= 0`),
-    check('detalle_venta_descuento_min', sql`${t.descuento} >= 0`),
-    check('detalle_venta_subtotal_min', sql`${t.subtotal} >= 0`),
-    // Tolerancia 1 CLP por redondeo de venta a granel
-    check(
-      'detalle_venta_subtotal_aritmetico',
-      sql`ABS(${t.subtotal} - (${t.cantidad} * ${t.precioUnitario} - ${t.descuento})) < 1`,
-    ),
+    check('detalle_venta_uuid', uuidCheck('detalle_venta_id')),
+    check('detalle_venta_cantidad_min', sql`${t.detalleVentaCantidad} > 0`),
+    uniqueIndex('uq_detalle_venta').on(t.ventaId, t.productoId),
     index('idx_detalle_venta_venta').on(t.ventaId),
     index('idx_detalle_venta_producto').on(t.productoId),
   ],
 );
 
-// ============================================================================
-// 5. INVENTARIO
-// ============================================================================
-
-export const merma = sqliteTable(
-  'merma',
+// Intermedia M:N (venta <-> lote) con PK propia (Opción B)
+export const ventaLote = sqliteTable(
+  'venta_lote',
   {
-    mermaId: integer('merma_id').primaryKey({ autoIncrement: true }),
-    usuarioId: integer('usuario_id')
+    ventaLoteId: text('venta_lote_id').primaryKey().$defaultFn(uuid),
+    ventaId: text('venta_id')
       .notNull()
-      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    tipo: text('tipo', {
-      enum: ['vencimiento', 'robo', 'rotura', 'conteo', 'otro'],
-    }).notNull(),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
+      .references(() => venta.ventaId, { onDelete: 'cascade' }),
+    loteId: text('lote_id')
+      .notNull()
+      .references(() => lote.loteId, { onDelete: 'restrict' }),
+    ventaLoteCantidadConsumida: integer('venta_lote_cantidad_consumida')
+      .notNull(),
   },
   (t) => [
+    check('venta_lote_uuid', uuidCheck('venta_lote_id')),
     check(
-      'merma_tipo_enum',
-      sql`${t.tipo} IN ('vencimiento','robo','rotura','conteo','otro')`,
+      'venta_lote_cantidad_min',
+      sql`${t.ventaLoteCantidadConsumida} > 0`,
     ),
+    uniqueIndex('uq_venta_lote').on(t.ventaId, t.loteId),
   ],
 );
 
-export const movimientoInventario = sqliteTable(
-  'movimiento_inventario',
+export const anulacionVenta = sqliteTable(
+  'anulacion_venta',
   {
-    movimientoInventarioId: text('movimiento_inventario_id')
-      .primaryKey()
-      .$defaultFn(() => ulid()),
-    productoId: integer('producto_id')
+    anulacionVentaId: text('anulacion_venta_id').primaryKey().$defaultFn(uuid),
+    anulacionFechaHora: text('anulacion_fecha_hora')
       .notNull()
-      .references(() => producto.productoId, { onDelete: 'restrict' }),
-    loteId: integer('lote_id').references(() => lote.loteId),
-    usuarioId: integer('usuario_id')
+      .default(nowDefault),
+    anulacionRazon: text('anulacion_razon').notNull(),
+    ventaId: text('venta_id')
+      .notNull()
+      .unique()
+      .references(() => venta.ventaId, { onDelete: 'restrict' }),
+    usuarioId: text('usuario_id')
       .notNull()
       .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    detallePedidoId: integer('detalle_pedido_id').references(
-      () => detallePedido.detallePedidoId,
-      { onDelete: 'set null' },
-    ),
-    detalleVentaId: text('detalle_venta_id').references(
-      () => detalleVenta.detalleVentaId,
-      { onDelete: 'set null' },
-    ),
-    mermaId: integer('merma_id').references(() => merma.mermaId, {
+  },
+  (t) => [
+    check('anulacion_venta_uuid', uuidCheck('anulacion_venta_id')),
+  ],
+);
+
+// ============================================================================
+// MÓDULO 7 — LOGS Y AUDITORÍA
+// ============================================================================
+
+export const logAuditoria = sqliteTable(
+  'log_auditoria',
+  {
+    logAuditoriaId: text('log_auditoria_id').primaryKey().$defaultFn(uuid),
+    logFechaHora: text('log_fecha_hora').notNull().default(nowDefault),
+    logTipoAccion: text('log_tipo_accion').notNull(),
+    logModulo: text('log_modulo').notNull(),
+    logDescripcion: text('log_descripcion').notNull(),
+    usuarioVersionId: text('usuario_version_id')
+      .notNull()
+      .references(() => usuarioVersion.usuarioVersionId, {
+        onDelete: 'restrict',
+      }),
+  },
+  (t) => [
+    check('log_auditoria_uuid', uuidCheck('log_auditoria_id')),
+    index('idx_log_auditoria_fecha').on(t.logFechaHora),
+    index('idx_log_auditoria_modulo').on(t.logModulo, t.logFechaHora),
+  ],
+);
+
+export const logErroresTecnicos = sqliteTable(
+  'log_errores_tecnicos',
+  {
+    logErrortecnicosId: text('log_errortecnicos_id')
+      .primaryKey()
+      .$defaultFn(uuid),
+    logErroresFechaHora: text('log_errores_fecha_hora')
+      .notNull()
+      .default(nowDefault),
+    logErroresTipoError: text('log_errores_tipo_error').notNull(),
+    logErroresModulo: text('log_errores_modulo').notNull(),
+    logErroresDescripcionTecnica: text('log_errores_descripcion_tecnica')
+      .notNull(),
+    usuarioId: text('usuario_id').references(() => usuario.usuarioId, {
       onDelete: 'set null',
     }),
-    cantidad: real('cantidad').notNull(),
-    tipo: text('tipo', {
-      enum: ['entrada', 'salida', 'venta', 'merma', 'ajuste', 'devolucion'],
-    }).notNull(),
-    createdAt: text('created_at').notNull().default(nowDefault),
   },
   (t) => [
-    check('mov_inv_ulid_format', ulidCheck('movimiento_inventario_id')),
-    check(
-      'mov_inv_tipo_enum',
-      sql`${t.tipo} IN ('entrada','salida','venta','merma','ajuste','devolucion')`,
-    ),
-    // Exactamente una FK origen según tipo
-    check(
-      'mov_inv_origen_coherente',
-      sql`(${t.tipo} = 'entrada'
-            AND ${t.detallePedidoId} IS NOT NULL
-            AND ${t.detalleVentaId} IS NULL
-            AND ${t.mermaId} IS NULL)
-       OR (${t.tipo} = 'venta'
-            AND ${t.detalleVentaId} IS NOT NULL
-            AND ${t.detallePedidoId} IS NULL
-            AND ${t.mermaId} IS NULL)
-       OR (${t.tipo} = 'merma'
-            AND ${t.mermaId} IS NOT NULL
-            AND ${t.detallePedidoId} IS NULL
-            AND ${t.detalleVentaId} IS NULL)
-       OR (${t.tipo} = 'devolucion'
-            AND ${t.detalleVentaId} IS NOT NULL
-            AND ${t.detallePedidoId} IS NULL
-            AND ${t.mermaId} IS NULL)
-       OR (${t.tipo} IN ('salida','ajuste')
-            AND ${t.detallePedidoId} IS NULL
-            AND ${t.detalleVentaId} IS NULL
-            AND ${t.mermaId} IS NULL)`,
-    ),
-    // Coherencia signo cantidad <-> tipo
-    check(
-      'mov_inv_signo_cantidad',
-      sql`(${t.tipo} IN ('entrada','devolucion') AND ${t.cantidad} > 0)
-       OR (${t.tipo} IN ('venta','merma','salida') AND ${t.cantidad} < 0)
-       OR (${t.tipo} = 'ajuste' AND ${t.cantidad} <> 0)`,
-    ),
-    index('idx_mov_producto_fecha').on(t.productoId, t.createdAt),
-    index('idx_mov_lote').on(t.loteId),
-    index('idx_mov_tipo').on(t.tipo),
+    check('log_errores_tecnicos_uuid', uuidCheck('log_errortecnicos_id')),
+    index('idx_log_errores_fecha').on(t.logErroresFechaHora),
+    index('idx_log_errores_modulo').on(t.logErroresModulo, t.logErroresFechaHora),
   ],
 );
-
-export const discrepanciaStock = sqliteTable(
-  'discrepancia_stock',
-  {
-    discrepanciaStockId: integer('discrepancia_stock_id').primaryKey({
-      autoIncrement: true,
-    }),
-    productoId: integer('producto_id')
-      .notNull()
-      .references(() => producto.productoId, { onDelete: 'restrict' }),
-    loteId: integer('lote_id').references(() => lote.loteId),
-    ventaId: text('venta_id').references(() => venta.ventaId),
-    cantidadNegativa: real('cantidad_negativa').notNull(),
-    detectadoPorUsuarioId: integer('detectado_por_usuario_id')
-      .notNull()
-      .references(() => usuario.usuarioId, { onDelete: 'restrict' }),
-    estado: text('estado', {
-      enum: [
-        'pendiente',
-        'aceptada_merma',
-        'ajuste_reposicion',
-        'venta_anulada',
-        'stock_cero',
-      ],
-    })
-      .notNull()
-      .default('pendiente'),
-    resueltoPorUsuarioId: integer('resuelto_por_usuario_id').references(
-      () => usuario.usuarioId,
-      { onDelete: 'restrict' },
-    ),
-    resueltoAt: text('resuelto_at'),
-    observacion: text('observacion'),
-    createdAt: text('created_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    check('discrepancia_cantidad_min', sql`${t.cantidadNegativa} > 0`),
-    check(
-      'discrepancia_estado_enum',
-      sql`${t.estado} IN ('pendiente','aceptada_merma','ajuste_reposicion','venta_anulada','stock_cero')`,
-    ),
-    check(
-      'discrepancia_resolucion_coherente',
-      sql`(${t.estado} = 'pendiente' AND ${t.resueltoAt} IS NULL
-            AND ${t.resueltoPorUsuarioId} IS NULL)
-       OR (${t.estado} <> 'pendiente' AND ${t.resueltoAt} IS NOT NULL
-            AND ${t.resueltoPorUsuarioId} IS NOT NULL)`,
-    ),
-    index('idx_discrepancia_estado').on(t.estado, t.createdAt),
-    index('idx_discrepancia_producto').on(t.productoId),
-  ],
-);
-
-// ============================================================================
-// 6. SISTEMA
-// ============================================================================
-
-export const auditLog = sqliteTable(
-  'audit_log',
-  {
-    auditLogId: text('audit_log_id')
-      .primaryKey()
-      .$defaultFn(() => ulid()),
-    usuarioId: integer('usuario_id').references(() => usuario.usuarioId),
-    username: text('username'),
-    rol: text('rol'),
-    accion: text('accion').notNull(),
-    modulo: text('modulo').notNull(),
-    descripcion: text('descripcion').notNull(),
-    archived: integer('archived').notNull().default(0),
-    createdAt: text('created_at').notNull().default(nowDefault),
-  },
-  (t) => [
-    check('audit_log_ulid_format', ulidCheck('audit_log_id')),
-    check('audit_log_archived_bool', sql`${t.archived} IN (0,1)`),
-    index('idx_audit_log_created').on(t.createdAt),
-    index('idx_audit_log_usuario').on(t.usuarioId, t.createdAt),
-    index('idx_audit_log_archived').on(t.archived, t.createdAt),
-  ],
-);
-
-export const configSistema = sqliteTable('config_sistema', {
-  clave: text('clave').primaryKey(),
-  valor: text('valor').notNull(),
-  descripcion: text('descripcion'),
-  updatedByUsuarioId: integer('updated_by_usuario_id').references(
-    () => usuario.usuarioId,
-    { onDelete: 'set null' },
-  ),
-  updatedAt: text('updated_at').notNull().default(nowDefault),
-});
 
 // ============================================================================
 // Type helpers
@@ -784,13 +1043,17 @@ export type Trabajador = typeof trabajador.$inferSelect;
 export type NewTrabajador = typeof trabajador.$inferInsert;
 export type Usuario = typeof usuario.$inferSelect;
 export type NewUsuario = typeof usuario.$inferInsert;
+export type Categoria = typeof categoria.$inferSelect;
+export type NewCategoria = typeof categoria.$inferInsert;
 export type Producto = typeof producto.$inferSelect;
 export type NewProducto = typeof producto.$inferInsert;
+export type Proveedor = typeof proveedor.$inferSelect;
+export type NewProveedor = typeof proveedor.$inferInsert;
+export type Lote = typeof lote.$inferSelect;
+export type NewLote = typeof lote.$inferInsert;
 export type Venta = typeof venta.$inferSelect;
 export type NewVenta = typeof venta.$inferInsert;
 export type DetalleVenta = typeof detalleVenta.$inferSelect;
 export type NewDetalleVenta = typeof detalleVenta.$inferInsert;
-export type MovimientoInventario = typeof movimientoInventario.$inferSelect;
-export type NewMovimientoInventario = typeof movimientoInventario.$inferInsert;
-export type AuditLog = typeof auditLog.$inferSelect;
-export type NewAuditLog = typeof auditLog.$inferInsert;
+export type LogAuditoria = typeof logAuditoria.$inferSelect;
+export type NewLogAuditoria = typeof logAuditoria.$inferInsert;
