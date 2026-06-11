@@ -1,5 +1,8 @@
 node_modules/
 dist/
+out/
+_ini_/
+.specstory/
 *.db
 *.db-shm
 *.db-wal

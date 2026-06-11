@@ -11,6 +11,7 @@ const client = createClient({
 // libSQL inicia cada conexión con foreign_keys = OFF.
 // Sin esto los REFERENCES ... ON DELETE son decorativos.
 await client.execute('PRAGMA foreign_keys = ON');
+await client.execute('PRAGMA journal_mode = WAL');
 
 export const db = drizzle(client, { schema });
 export type DB = typeof db;
