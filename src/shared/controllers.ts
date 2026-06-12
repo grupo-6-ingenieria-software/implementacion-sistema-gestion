@@ -21,7 +21,12 @@ export type ControllerRequest<TPayload = unknown> = {
   payload?: TPayload;
 };
 
-export type ControllerErrorCode = 'NOT_IMPLEMENTED' | 'INVALID_CHANNEL';
+export type ControllerErrorCode =
+  | 'NOT_IMPLEMENTED'
+  | 'INVALID_CHANNEL'
+  | 'INVALID_REQUEST'
+  | 'ACCESS_DENIED'
+  | 'DATA_ACCESS_ERROR';
 
 export type ControllerResponse<TData = unknown> =
   | { ok: true; data: TData }

@@ -17,6 +17,7 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import { DashboardView } from './views/DashboardView';
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -251,7 +252,11 @@ function AppShell({
             </button>
           </div>
         </header>
-        <ViewPlaceholder node={currentNode} />
+        {currentNode.id === 'dashboard' && session.role ? (
+          <DashboardView role={session.role} onNavigate={onNavigate} />
+        ) : (
+          <ViewPlaceholder node={currentNode} />
+        )}
       </main>
     </div>
   );

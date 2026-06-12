@@ -1,4 +1,16 @@
 import { controllers } from '../../shared/controllers';
-import { createNotImplementedController } from './base';
+import { dataAccessError, type RegisteredController } from './base';
+import { loadStockAlerts } from './dashboard-queries';
 
-export const stockAlertController = createNotImplementedController(controllers[6]);
+const metadata = controllers[6];
+
+export const stockAlertController: RegisteredController = {
+  metadata,
+  handle: async () => {
+    try {
+      return { ok: true, data: await loadStockAlerts() };
+    } catch {
+      return dataAccessError(metadata);
+    }
+  },
+};

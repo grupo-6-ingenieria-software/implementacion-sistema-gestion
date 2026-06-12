@@ -1,6 +1,16 @@
 import { controllers } from '../../shared/controllers';
-import { createNotImplementedController } from './base';
+import { dataAccessError, type RegisteredController } from './base';
+import { loadDailySalesSummary } from './dashboard-queries';
 
-export const dailySalesTotalController = createNotImplementedController(
-  controllers[8],
-);
+const metadata = controllers[8];
+
+export const dailySalesTotalController: RegisteredController = {
+  metadata,
+  handle: async () => {
+    try {
+      return { ok: true, data: await loadDailySalesSummary() };
+    } catch {
+      return dataAccessError(metadata);
+    }
+  },
+};
