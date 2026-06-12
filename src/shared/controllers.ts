@@ -27,7 +27,9 @@ export type ControllerErrorCode =
   | 'DATABASE_ERROR'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
-  | 'VALIDATION_ERROR';
+  | 'VALIDATION_ERROR'
+  | 'BUSINESS_RULE'
+  | 'TECHNICAL_ERROR';
 
 export type ControllerResponse<TData = unknown> =
   | { ok: true; data: TData }

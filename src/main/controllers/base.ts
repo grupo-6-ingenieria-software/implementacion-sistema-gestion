@@ -13,9 +13,9 @@ export type ControllerHandler<TPayload = unknown, TData = unknown> = (
   context: ControllerContext,
 ) => Promise<ControllerResponse<TData>>;
 
-export type RegisteredController = {
+export type RegisteredController<TPayload = unknown, TData = unknown> = {
   metadata: ControllerMetadata;
-  handle: ControllerHandler;
+  handle: ControllerHandler<TPayload, TData>;
 };
 
 export function createNotImplementedController(
@@ -34,9 +34,7 @@ export function createNotImplementedController(
   };
 }
 
-export function controllerSuccess<TData>(
-  data: TData,
-): ControllerResponse<TData> {
+export function controllerSuccess<TData>(data: TData): ControllerResponse<TData> {
   return { ok: true, data };
 }
 
@@ -49,8 +47,8 @@ export function controllerError(
     ok: false,
     error: {
       code,
-      controllerId,
       message,
+      controllerId,
     },
   };
 }
