@@ -24,6 +24,9 @@ export type ControllerRequest<TPayload = unknown> = {
 export type ControllerErrorCode =
   | 'NOT_IMPLEMENTED'
   | 'INVALID_CHANNEL'
+  | 'DATABASE_ERROR'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
   | 'VALIDATION_ERROR'
   | 'BUSINESS_RULE'
   | 'TECHNICAL_ERROR';
@@ -36,6 +39,7 @@ export type ControllerResponse<TData = unknown> =
         code: ControllerErrorCode;
         message: string;
         controllerId?: ControllerId;
+        fieldErrors?: Partial<Record<string, string>>;
       };
     };
 

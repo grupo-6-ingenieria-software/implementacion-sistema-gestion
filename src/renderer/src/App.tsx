@@ -7,9 +7,9 @@ import {
   evaluateRouteAccess,
   findNavNodeByPath,
   getVisibleMenu,
+  internalComponents,
   navGroupLabels,
   navigationTree,
-  internalComponents,
   resolveInitialRoute,
   type NavNode,
   type Role,
@@ -17,7 +17,12 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+<<<<<<< Inventario
+import { ProductFormView } from './views/ProductFormView';
+import { ProductListView } from './views/ProductListView';
+=======
 import { DashboardView } from './views/DashboardView';
+>>>>>>> main
 import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
@@ -133,12 +138,9 @@ function LoginView({
     setError(null);
     setIsLoading(role);
 
-    const response = await window.appApi.invoke<{
-      role: Role;
-      usuarioId: string;
-      trabajadorNombre: string;
-      usuarioRol: string;
-    }>('auth:login', { role });
+    const response = await window.appApi.invoke<DevLoginData>('auth:login', {
+      role,
+    });
 
     setIsLoading(null);
 
@@ -248,6 +250,10 @@ function AppShell({
     [session.role],
   );
   const currentNode = findNavNodeByPath(currentPath) ?? navigationTree[2];
+  const isProductScreen =
+    currentNode.id === 'product-list' ||
+    currentNode.id === 'product-create' ||
+    currentNode.id === 'product-edit';
 
   return (
     <div className="grid min-h-screen grid-cols-[280px_1fr] bg-[#f6f7f9] text-[#17202a]">
@@ -296,7 +302,7 @@ function AppShell({
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
           <div>
             <p className="text-sm font-semibold text-[#61717f]">
-              {currentNode.path}
+              {isProductScreen ? 'Inventario' : currentNode.path}
             </p>
             <h2 className="mt-1 text-2xl font-semibold">{currentNode.label}</h2>
           </div>
@@ -317,6 +323,10 @@ function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
+<<<<<<< Inventario
+          currentPath={currentPath}
+=======
+>>>>>>> main
         />
       </main>
     </div>
@@ -324,11 +334,15 @@ function AppShell({
 }
 
 function ViewRenderer({
+  currentPath,
   node,
+  onNavigate,
   session,
   onNavigate,
 }: {
+  currentPath: string;
   node: NavNode;
+  onNavigate: (path: string) => void;
   session: AppSession;
   onNavigate: (path: string) => void;
 }): ReactElement {
@@ -344,6 +358,30 @@ function ViewRenderer({
 
   if (node.id === 'sale-register') {
     return <SaleRegisterView session={session} />;
+  }
+
+  if (node.id === 'product-list' && session.role && session.usuarioId) {
+    return (
+      <ProductListView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (
+    (node.id === 'product-create' || node.id === 'product-edit') &&
+    session.usuarioId
+  ) {
+    return (
+      <ProductFormView
+        ean13={getProductEditEan13(currentPath)}
+        mode={node.id === 'product-create' ? 'create' : 'edit'}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   return <ViewPlaceholder node={node} />;
@@ -453,6 +491,11 @@ function navigate(path: string): void {
 function getHashPath(): string {
   const rawPath = window.location.hash.replace(/^#/, '');
   return rawPath.startsWith('/') ? rawPath : PUBLIC_LOGIN_PATH;
+}
+
+function getProductEditEan13(path: string): string | undefined {
+  const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/editar$/);
+  return match ? decodeURIComponent(match[1]) : undefined;
 }
 
 function isControllerMetadata(
