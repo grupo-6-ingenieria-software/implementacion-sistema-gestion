@@ -16,7 +16,7 @@
   },
   "include": [
     "src/**/*",
-    "test/**/*",
+    "tests/**/*",
     "drizzle.config.ts",
     "electron.vite.config.ts"
   ]
