@@ -24,9 +24,9 @@ export type ControllerRequest<TPayload = unknown> = {
 export type ControllerErrorCode =
   | 'NOT_IMPLEMENTED'
   | 'INVALID_CHANNEL'
-  | 'INVALID_REQUEST'
-  | 'ACCESS_DENIED'
-  | 'DATA_ACCESS_ERROR';
+  | 'VALIDATION_ERROR'
+  | 'BUSINESS_RULE'
+  | 'TECHNICAL_ERROR';
 
 export type ControllerResponse<TData = unknown> =
   | { ok: true; data: TData }

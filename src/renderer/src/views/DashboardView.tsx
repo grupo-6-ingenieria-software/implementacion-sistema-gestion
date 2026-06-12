@@ -1,53 +1,97 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import type { DashboardData, ExpirationAlert, StockAlert } from '../../../shared/dashboard';
+import type {
+  CashSummary,
+  DashboardData,
+  ExpirationAlert,
+  PaymentMethod,
+  StockAlert,
+} from '../../../shared/dashboard';
 import type { Role } from '../../../shared/navigation';
 import { ResumenVentasDashboard } from '../components';
 
 type DashboardViewProps = {
   role: Role;
+  usuarioId?: string;
   onNavigate: (path: string) => void;
 };
 
 type DashboardState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; data: DashboardData };
+  | {
+      status: 'ready';
+      data: DashboardData;
+      isRefreshing: boolean;
+      refreshError?: string;
+    };
 
 export function DashboardView({
   role,
+  usuarioId,
   onNavigate,
 }: DashboardViewProps): ReactElement {
   const [state, setState] = useState<DashboardState>({ status: 'loading' });
 
-  const loadDashboard = useCallback(async (): Promise<void> => {
-    setState({ status: 'loading' });
+  const loadDashboard = useCallback(
+    async (options: { preserveData?: boolean } = {}): Promise<void> => {
+      setState((current) => {
+        if (options.preserveData && current.status === 'ready') {
+          return {
+            ...current,
+            isRefreshing: true,
+            refreshError: undefined,
+          };
+        }
 
-    try {
-      const response = await window.appApi.invoke<DashboardData>(
-        'dashboard:cargar',
-        { role },
-      );
-
-      if (!response.ok) {
-        setState({ status: 'error', message: response.error.message });
-        return;
-      }
-
-      setState({ status: 'ready', data: response.data });
-    } catch {
-      setState({
-        status: 'error',
-        message: 'No fue posible comunicarse con el proceso principal.',
+        return { status: 'loading' };
       });
-    }
-  }, [role]);
+
+      try {
+        const response = await window.appApi.invoke<DashboardData>(
+          'dashboard:cargar',
+          { role, usuarioId },
+        );
+
+        if (!response.ok) {
+          setDashboardError(response.error.message, options.preserveData);
+          return;
+        }
+
+        setState({
+          status: 'ready',
+          data: response.data,
+          isRefreshing: false,
+        });
+      } catch {
+        setDashboardError(
+          'No fue posible comunicarse con el proceso principal.',
+          options.preserveData,
+        );
+      }
+    },
+    [role, usuarioId],
+  );
 
   useEffect(() => {
     void loadDashboard();
     return window.appApi.onDashboardUpdated(() => {
-      void loadDashboard();
+      void loadDashboard({ preserveData: true });
     });
   }, [loadDashboard]);
+
+  function setDashboardError(message: string, preserveData?: boolean): void {
+    setState((current) => {
+      if (preserveData && current.status === 'ready') {
+        return {
+          ...current,
+          isRefreshing: false,
+          refreshError: message,
+        };
+      }
+
+      return { status: 'error', message };
+    });
+  }
 
   if (state.status === 'loading') {
     return (
@@ -100,17 +144,29 @@ export function DashboardView({
           </p>
         </div>
         <p className="text-xs text-[#61717f]" aria-live="polite">
-          Actualizado a las {formatTime(data.generatedAt)}
+          {state.isRefreshing
+            ? 'Actualizando indicadores...'
+            : `Actualizado a las ${formatTime(data.generatedAt)}`}
         </p>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      {state.refreshError ? (
+        <p
+          className="rounded-md border border-[#dba7a7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-[#8f2727]"
+          role="status"
+        >
+          {state.refreshError}
+        </p>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-3">
         <ResumenVentasDashboard
           total={data.sales.currentAmount}
           transacciones={data.sales.currentTransactions}
           montoAnulado={data.sales.voidedAmount}
           transaccionesAnuladas={data.sales.voidedTransactions}
         />
+        <CashSummaryCard cashSummary={data.cashSummary} />
         <IndicatorCard
           title="Asistencia de hoy"
           icon="attendance"
@@ -178,6 +234,71 @@ export function DashboardView({
         </div>
       </IndicatorSection>
     </section>
+  );
+}
+
+function CashSummaryCard({
+  cashSummary,
+}: {
+  cashSummary: CashSummary;
+}): ReactElement {
+  const activePaymentMethods = paymentMethods.filter((method) => {
+    const summary = cashSummary.byPaymentMethod[method];
+    return (
+      summary.currentTransactions > 0 ||
+      summary.voidedTransactions > 0 ||
+      summary.currentAmount > 0 ||
+      summary.voidedAmount > 0
+    );
+  });
+
+  return (
+    <IndicatorCard
+      title="Caja del dia"
+      icon="cash"
+      alert={false}
+    >
+      <p className="text-2xl font-semibold text-[#17202a]">
+        {getCashStatusLabel(cashSummary.status)}
+      </p>
+      <p className="mt-1 text-sm text-[#61717f]">
+        {cashSummary.currentTransactions} transacciones vigentes por{' '}
+        {formatCurrency(cashSummary.currentAmount)}
+      </p>
+      {cashSummary.voidedTransactions > 0 ? (
+        <p className="mt-3 text-sm font-semibold text-[#8f4c4c]">
+          {cashSummary.voidedTransactions} anuladas (
+          {formatCurrency(cashSummary.voidedAmount)})
+        </p>
+      ) : null}
+      {cashSummary.openedAt ? (
+        <p className="mt-3 text-xs font-medium text-[#61717f]">
+          Inicio: {formatTime(cashSummary.openedAt)}
+          {cashSummary.closedAt
+            ? ` - Cierre: ${formatTime(cashSummary.closedAt)}`
+            : ''}
+        </p>
+      ) : (
+        <p className="mt-3 text-sm font-medium text-[#61717f]">
+          No hay caja registrada para hoy.
+        </p>
+      )}
+      {activePaymentMethods.length > 0 ? (
+        <dl className="mt-4 grid gap-2 border-t border-[#e1e6eb] pt-3 text-sm">
+          {activePaymentMethods.map((method) => {
+            const summary = cashSummary.byPaymentMethod[method];
+            return (
+              <div className="flex justify-between gap-3" key={method}>
+                <dt className="text-[#61717f]">{paymentMethodLabels[method]}</dt>
+                <dd className="font-semibold text-[#24313d]">
+                  {formatCurrency(summary.currentAmount)}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      ) : null}
+    </IndicatorCard>
   );
 }
 
@@ -373,7 +494,21 @@ function EmptyState({ message }: { message: string }): ReactElement {
   );
 }
 
-type DashboardIconName = 'attendance' | 'stock' | 'expiration';
+type DashboardIconName = 'attendance' | 'cash' | 'stock' | 'expiration';
+
+const paymentMethods: PaymentMethod[] = [
+  'efectivo',
+  'debito',
+  'credito',
+  'transferencia',
+];
+
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+  efectivo: 'Efectivo',
+  debito: 'Debito',
+  credito: 'Credito',
+  transferencia: 'Transferencia',
+};
 
 function DashboardIcon({
   name,
@@ -385,6 +520,8 @@ function DashboardIcon({
   const path =
     name === 'attendance'
       ? 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M19 8v6 M22 11h-6'
+      : name === 'cash'
+        ? 'M3 7h18v10H3z M7 7V5h10v2 M7 12h.01 M17 12h.01 M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6'
       : name === 'stock'
         ? 'M3 7h18 M5 7l1 14h12l1-14 M9 11v6 M15 11v6 M8 3h8l1 4H7l1-4'
         : 'M12 8v5l3 2 M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9';
@@ -427,6 +564,26 @@ function formatTime(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getCashStatusLabel(status: CashSummary['status']): string {
+  if (status === 'abierta') {
+    return 'Caja abierta';
+  }
+
+  if (status === 'cerrada') {
+    return 'Caja cerrada';
+  }
+
+  return 'Sin caja registrada';
 }
 
 function formatShortDate(value: string): string {

@@ -4,6 +4,7 @@ export const DASHBOARD_UPDATED_EVENT = 'dashboard:actualizado';
 
 export type DashboardRequest = {
   role: Role;
+  usuarioId?: string;
 };
 
 export type StockAlert = {
@@ -35,6 +36,22 @@ export type DailySalesSummary = {
   voidedTransactions: number;
 };
 
+export type PaymentMethod = 'efectivo' | 'debito' | 'credito' | 'transferencia';
+
+export type PaymentMethodSummary = {
+  currentAmount: number;
+  currentTransactions: number;
+  voidedAmount: number;
+  voidedTransactions: number;
+};
+
+export type CashSummary = DailySalesSummary & {
+  status: 'abierta' | 'cerrada' | 'sin_registro';
+  openedAt?: string;
+  closedAt?: string;
+  byPaymentMethod: Record<PaymentMethod, PaymentMethodSummary>;
+};
+
 export type AttendancePendingWorker = {
   workerId: number;
   fullName: string;
@@ -50,6 +67,7 @@ export type AttendanceSummary = {
 export type DashboardData = {
   generatedAt: string;
   sales: DailySalesSummary;
+  cashSummary: CashSummary;
   stockAlerts: StockAlert[];
   expirationAlerts: ExpirationAlerts;
   attendance: AttendanceSummary;

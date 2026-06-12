@@ -1,10 +1,12 @@
 import { controllers } from '../../shared/controllers';
 import {
-  dataAccessError,
+  controllerError,
+  controllerSuccess,
   notImplementedResponse,
   type RegisteredController,
 } from './base';
-import { loadAttendanceSummary } from './dashboard-queries';
+import { db } from '../../db/client';
+import { loadAttendanceSummary, type DashboardDb } from './dashboard-service';
 
 const metadata = controllers[22];
 
@@ -16,9 +18,16 @@ export const attendanceController: RegisteredController = {
     }
 
     try {
-      return { ok: true, data: await loadAttendanceSummary() };
-    } catch {
-      return dataAccessError(metadata);
+      return controllerSuccess(
+        await loadAttendanceSummary(db as unknown as DashboardDb),
+      );
+    } catch (error) {
+      console.error(error);
+      return controllerError(
+        'TECHNICAL_ERROR',
+        'No fue posible cargar la informacion solicitada.',
+        metadata.id,
+      );
     }
   },
 };

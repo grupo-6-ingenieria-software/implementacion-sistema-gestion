@@ -21,6 +21,7 @@ import { DashboardView } from './views/DashboardView';
 
 type AppSession = SessionState & {
   displayName?: string;
+  usuarioId?: string;
 };
 
 const defaultSession: AppSession = {
@@ -253,7 +254,11 @@ function AppShell({
           </div>
         </header>
         {currentNode.id === 'dashboard' && session.role ? (
-          <DashboardView role={session.role} onNavigate={onNavigate} />
+          <DashboardView
+            role={session.role}
+            usuarioId={session.usuarioId}
+            onNavigate={onNavigate}
+          />
         ) : (
           <ViewPlaceholder node={currentNode} />
         )}
