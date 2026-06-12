@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { registeredControllers } from '../../src/main/controllers';
 import { controllers, ipcChannels } from '../../src/shared/controllers';
+import { registeredControllers } from '../../src/main/controllers';
 
 describe('controller registry', () => {
   it('declares one metadata entry per controller id', () => {

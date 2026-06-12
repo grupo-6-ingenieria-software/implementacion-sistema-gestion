@@ -13,8 +13,10 @@ const client = createClient({
 // Sin esto los REFERENCES ... ON DELETE son decorativos.
 await client.execute('PRAGMA foreign_keys = ON');
 
-if (databaseUrl.startsWith('file:')) {
+try {
   await client.execute('PRAGMA journal_mode = WAL');
+} catch {
+  // Turso remoto no permite cambiar journal_mode; es solo una optimizacion local.
 }
 
 export const db = drizzle(client, { schema });
