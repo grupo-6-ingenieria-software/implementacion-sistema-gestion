@@ -17,6 +17,7 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import { DashboardView } from './views/DashboardView';
 import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
@@ -312,7 +313,11 @@ function AppShell({
             </button>
           </div>
         </header>
-        <ViewRenderer node={currentNode} session={session} />
+        <ViewRenderer
+          node={currentNode}
+          session={session}
+          onNavigate={onNavigate}
+        />
       </main>
     </div>
   );
@@ -321,10 +326,22 @@ function AppShell({
 function ViewRenderer({
   node,
   session,
+  onNavigate,
 }: {
   node: NavNode;
   session: AppSession;
+  onNavigate: (path: string) => void;
 }): ReactElement {
+  if (node.id === 'dashboard' && session.role) {
+    return (
+      <DashboardView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === 'sale-register') {
     return <SaleRegisterView session={session} />;
   }
