@@ -154,24 +154,33 @@ describe('dashboard attendance controller', () => {
     });
   });
 
-  it('loads the attendance summary for the authenticated worker', async () => {
-    allMock.mockResolvedValueOnce([
+  it('returns the same global attendance summary for owner and worker', async () => {
+    const attendanceRows = [
+      { workerId: 1, fullName: 'Ana Perez', hasAttendance: 1 },
       { workerId: 2, fullName: 'Luis Soto', hasAttendance: 0 },
-    ]);
+    ];
+    allMock
+      .mockResolvedValueOnce(attendanceRows)
+      .mockResolvedValueOnce(attendanceRows);
 
-    const response = await attendanceController.handle(
+    const workerResponse = await attendanceController.handle(
       { role: 'trabajador', usuarioId: 'usuario-luis' },
       { channel: 'asistencia:resumen-dashboard' },
     );
+    const ownerResponse = await attendanceController.handle(
+      { role: 'dueno', usuarioId: 'usuario-dueno' },
+      { channel: 'asistencia:resumen-dashboard' },
+    );
 
-    expect(response).toMatchObject({
+    expect(workerResponse).toMatchObject({
       ok: true,
       data: {
-        activeWorkers: 1,
-        workersWithAttendance: 0,
+        activeWorkers: 2,
+        workersWithAttendance: 1,
         workersWithoutAttendance: 1,
         pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
       },
     });
+    expect(ownerResponse).toEqual(workerResponse);
   });
 });

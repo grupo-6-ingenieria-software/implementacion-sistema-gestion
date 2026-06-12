@@ -28,11 +28,7 @@ export const attendanceController: RegisteredController = {
 
     try {
       return controllerSuccess(
-        await loadAttendanceSummary(
-          db as unknown as DashboardDb,
-          new Date(),
-          payload,
-        ),
+        await loadAttendanceSummary(db as unknown as DashboardDb),
       );
     } catch (error) {
       console.error(error);
