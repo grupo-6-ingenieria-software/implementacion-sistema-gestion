@@ -1,75 +1,104 @@
+import { eq } from 'drizzle-orm';
 import { controllers } from '../../shared/controllers';
-import { db } from '../../db/client';
-import { controllerError, controllerSuccess, type RegisteredController } from './base';
-import { sql } from 'drizzle-orm';
+import type { Role } from '../../shared/navigation';
+import { db, schema } from '../../db/client';
+import {
+  controllerError,
+  controllerSuccess,
+  type RegisteredController,
+} from './base';
+import { mapDatabaseRoleToTechnicalRole } from './auth-context';
 
 type LoginPayload = {
-  role?: 'dueno' | 'trabajador';
+  role?: Role;
 };
 
 type LoginResponse = {
-  role: 'dueno' | 'trabajador';
-  usuarioId: string;
+  role: Role;
   trabajadorNombre: string;
+  usuarioId: string;
   usuarioRol: string;
 };
 
-export const authLoginController: RegisteredController<LoginPayload, LoginResponse> = {
+export const authLoginController: RegisteredController<
+  LoginPayload,
+  LoginResponse
+> = {
   metadata: controllers[0],
   handle: async (payload) => {
-    const requestedRole = payload?.role;
+    const requestedRole = normalizeLoginPayload(payload).role;
 
     if (requestedRole !== 'dueno' && requestedRole !== 'trabajador') {
       return controllerError(
         'VALIDATION_ERROR',
-        'Seleccione un rol válido para iniciar sesión.',
+        'Seleccione un rol valido para iniciar sesion.',
         'auth-login',
       );
     }
 
-    const roleCondition =
-      requestedRole === 'dueno'
-        ? sql`u.usuario_rol IN ('dueño', 'dueÃ±o')`
-        : sql`u.usuario_rol IN ('cajero', 'reponedor')`;
+    const activeUsers = await db
+      .select({
+        usuarioId: schema.usuario.usuarioId,
+        usuarioRol: schema.usuario.usuarioRol,
+        trabajadorNombre: schema.trabajador.trabajadorNombre,
+        trabajadorApellido: schema.trabajador.trabajadorApellido,
+      })
+      .from(schema.usuario)
+      .innerJoin(
+        schema.trabajador,
+        eq(schema.trabajador.trabajadorId, schema.usuario.trabajadorId),
+      )
+      .where(eq(schema.trabajador.trabajadorEstado, 'activo'))
+      .orderBy(schema.trabajador.trabajadorId)
+      .limit(20);
 
-    const rows = await db.all<{
-      usuarioId: string;
-      usuarioRol: string;
-      trabajadorNombre: string;
-    }>(sql`
-      SELECT
-        u.usuario_id AS usuarioId,
-        u.usuario_rol AS usuarioRol,
-        t.trabajador_nombre || ' ' || t.trabajador_apellido AS trabajadorNombre
-      FROM usuario u
-      INNER JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-      WHERE ${roleCondition}
-        AND t.trabajador_estado = 'activo'
-      ORDER BY t.trabajador_id ASC
-      LIMIT 1
-    `);
-
-    const user = rows[0];
+    const user = activeUsers.find(
+      (candidate) =>
+        mapDatabaseRoleToTechnicalRole(candidate.usuarioRol) === requestedRole,
+    );
 
     if (!user) {
       return controllerError(
-        'BUSINESS_RULE',
+        'FORBIDDEN',
         'No existe un trabajador activo para el rol seleccionado.',
         'auth-login',
       );
     }
 
-    await db.run(sql`
-      UPDATE usuario
-      SET usuario_ultimo_login_fecha_hora = ${new Date().toISOString()}
-      WHERE usuario_id = ${user.usuarioId}
-    `);
+    const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
 
-    return controllerSuccess({
-      role: requestedRole,
+    if (role !== requestedRole) {
+      return controllerError(
+        'FORBIDDEN',
+        'El usuario encontrado no coincide con el rol solicitado.',
+        'auth-login',
+      );
+    }
+
+    await db
+      .update(schema.usuario)
+      .set({ usuarioUltimoLoginFechaHora: new Date().toISOString() })
+      .where(eq(schema.usuario.usuarioId, user.usuarioId));
+
+    return controllerSuccess<LoginResponse>({
+      role,
       usuarioId: user.usuarioId,
-      trabajadorNombre: user.trabajadorNombre,
       usuarioRol: user.usuarioRol,
+      trabajadorNombre:
+        `${user.trabajadorNombre} ${user.trabajadorApellido}`.trim(),
     });
   },
 };
+
+function normalizeLoginPayload(payload: unknown): LoginPayload {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'role' in payload &&
+    typeof payload.role === 'string'
+  ) {
+    return { role: payload.role as Role };
+  }
+
+  return {};
+}
