@@ -32,3 +32,30 @@ export function createNotImplementedController(
     }),
   };
 }
+
+export function notImplementedResponse(
+  metadata: ControllerMetadata,
+  channel: string,
+): ControllerResponse {
+  return {
+    ok: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      controllerId: metadata.id,
+      message: `${metadata.name} no implementa todavia el canal ${channel}.`,
+    },
+  };
+}
+
+export function dataAccessError(
+  metadata: ControllerMetadata,
+): ControllerResponse {
+  return {
+    ok: false,
+    error: {
+      code: 'DATA_ACCESS_ERROR',
+      controllerId: metadata.id,
+      message: 'No fue posible cargar la informacion solicitada.',
+    },
+  };
+}

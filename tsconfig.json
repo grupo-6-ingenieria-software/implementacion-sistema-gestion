@@ -14,5 +14,10 @@
     "skipLibCheck": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*", "drizzle.config.ts", "electron.vite.config.ts"]
+  "include": [
+    "src/**/*",
+    "test/**/*",
+    "drizzle.config.ts",
+    "electron.vite.config.ts"
+  ]
 }

@@ -9,7 +9,7 @@ import {
   internalComponents,
   navigationTree,
   validateNavigationTree,
-} from './navigation';
+} from '../../src/shared/navigation';
 
 describe('navigation tree', () => {
   it('declares every route without structural errors', () => {
