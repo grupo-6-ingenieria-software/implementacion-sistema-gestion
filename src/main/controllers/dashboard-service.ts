@@ -319,12 +319,11 @@ function createEmptyPaymentMethodSummary(): PaymentMethodSummary {
 export async function loadAttendanceSummary(
   database: DashboardDb,
   now = new Date(),
-  request?: Pick<DashboardRequest, 'role' | 'usuarioId'>,
+  request?: DashboardRequest,
 ): Promise<AttendanceSummary> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  const shouldFilterWorker =
-    request?.role === 'trabajador' && Boolean(request.usuarioId);
-  const usuarioId = request?.usuarioId ?? '';
+  const shouldFilterWorker = request?.role === 'trabajador';
+  const usuarioId = shouldFilterWorker ? request.usuarioId : '';
   const rows = await database.all<AttendanceRow>(sql`
     SELECT
       t.trabajador_id AS workerId,

@@ -9,6 +9,7 @@ vi.mock('../../../src/db/client', () => ({
 }));
 
 import { dashboardController } from '../../../src/main/controllers/dashboard';
+import { attendanceController } from '../../../src/main/controllers/attendance';
 
 describe('dashboard controller', () => {
   it('rejects requests without a supported development role', async () => {
@@ -19,7 +20,23 @@ describe('dashboard controller', () => {
       error: {
         code: 'VALIDATION_ERROR',
         controllerId: 'dashboard',
-        message: 'Se requiere un rol valido para cargar el dashboard.',
+        message: 'Se requiere una sesion valida para cargar el dashboard.',
+      },
+    });
+  });
+
+  it('rejects worker dashboard requests without an authenticated user', async () => {
+    await expect(
+      dashboardController.handle(
+        { role: 'trabajador' },
+        { channel: 'dashboard:cargar' },
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        controllerId: 'dashboard',
+        message: 'Se requiere una sesion valida para cargar el dashboard.',
       },
     });
   });
@@ -103,7 +120,7 @@ describe('dashboard controller', () => {
 
     await expect(
       dashboardController.handle(
-        { role: 'trabajador' },
+        { role: 'trabajador', usuarioId: 'trabajador-1' },
         { channel: 'dashboard:cargar' },
       ),
     ).resolves.toEqual({
@@ -116,5 +133,45 @@ describe('dashboard controller', () => {
     });
 
     consoleError.mockRestore();
+  });
+});
+
+describe('dashboard attendance controller', () => {
+  it('rejects worker summaries without an authenticated user', async () => {
+    await expect(
+      attendanceController.handle(
+        { role: 'trabajador' },
+        { channel: 'asistencia:resumen-dashboard' },
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        controllerId: 'attendance',
+        message:
+          'Se requiere una sesion valida para cargar el resumen de asistencia.',
+      },
+    });
+  });
+
+  it('loads the attendance summary for the authenticated worker', async () => {
+    allMock.mockResolvedValueOnce([
+      { workerId: 2, fullName: 'Luis Soto', hasAttendance: 0 },
+    ]);
+
+    const response = await attendanceController.handle(
+      { role: 'trabajador', usuarioId: 'usuario-luis' },
+      { channel: 'asistencia:resumen-dashboard' },
+    );
+
+    expect(response).toMatchObject({
+      ok: true,
+      data: {
+        activeWorkers: 1,
+        workersWithAttendance: 0,
+        workersWithoutAttendance: 1,
+        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
+      },
+    });
   });
 });
