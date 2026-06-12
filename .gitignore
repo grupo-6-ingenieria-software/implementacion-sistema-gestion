@@ -8,3 +8,5 @@ _ini_/
 *.db-wal
 .env
 .DS_Store
+AGENTS.md
+.vscode/
