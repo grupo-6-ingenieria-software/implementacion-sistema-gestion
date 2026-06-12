@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import {
   calculateSaleAmount,
   loadAttendanceSummary,
@@ -8,6 +10,11 @@ import {
   loadStockAlerts,
   type DashboardDb,
 } from '../../../src/main/controllers/dashboard-service';
+import {
+  createDashboardRequest,
+  getAttendanceDisplay,
+  shouldShowExpirationAlerts,
+} from '../../../src/renderer/src/views/DashboardView';
 
 const allMock = vi.fn();
 const database: DashboardDb = {
@@ -169,6 +176,53 @@ describe('dashboard query mapping', () => {
     });
   });
 
+  it('filters worker attendance by the authenticated user', async () => {
+    const client = createClient({ url: 'file::memory:' });
+    const testDatabase = drizzle(client);
+
+    try {
+      await client.executeMultiple(`
+        CREATE TABLE trabajador (
+          trabajador_id INTEGER PRIMARY KEY,
+          trabajador_nombre TEXT NOT NULL,
+          trabajador_apellido TEXT NOT NULL,
+          trabajador_estado TEXT NOT NULL
+        );
+        CREATE TABLE usuario (
+          usuario_id TEXT PRIMARY KEY,
+          trabajador_id INTEGER NOT NULL
+        );
+        CREATE TABLE asistencia (
+          trabajador_id INTEGER NOT NULL,
+          asistencia_fecha_hora_entrada TEXT NOT NULL
+        );
+        INSERT INTO trabajador VALUES
+          (1, 'Ana', 'Perez', 'activo'),
+          (2, 'Luis', 'Soto', 'activo');
+        INSERT INTO usuario VALUES
+          ('usuario-ana', 1),
+          ('usuario-luis', 2);
+        INSERT INTO asistencia VALUES
+          (1, '2026-06-11T12:00:00.000Z');
+      `);
+
+      const result = await loadAttendanceSummary(
+        testDatabase as unknown as DashboardDb,
+        new Date('2026-06-11T15:00:00.000Z'),
+        { role: 'trabajador', usuarioId: 'usuario-luis' },
+      );
+
+      expect(result).toEqual({
+        activeWorkers: 1,
+        workersWithAttendance: 0,
+        workersWithoutAttendance: 1,
+        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
+      });
+    } finally {
+      client.close();
+    }
+  });
+
   it('builds a read-only cash summary without a cash register for the day', async () => {
     allMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
@@ -260,5 +314,65 @@ describe('dashboard query mapping', () => {
       openedAt: '2026-06-11T08:00:00.000Z',
       closedAt: '2026-06-11T20:00:00.000Z',
     });
+  });
+});
+
+describe('dashboard presentation by role', () => {
+  const globalAttendance = {
+    activeWorkers: 2,
+    workersWithAttendance: 1,
+    workersWithoutAttendance: 1,
+    pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
+  };
+
+  it('requires the authenticated user in worker dashboard requests', () => {
+    expect(createDashboardRequest('trabajador')).toBeNull();
+    expect(createDashboardRequest('trabajador', ' usuario-luis ')).toEqual({
+      role: 'trabajador',
+      usuarioId: 'usuario-luis',
+    });
+  });
+
+  it('shows personal attendance for workers and global attendance for owners', () => {
+    expect(
+      getAttendanceDisplay('trabajador', {
+        activeWorkers: 1,
+        workersWithAttendance: 0,
+        workersWithoutAttendance: 1,
+        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
+      }),
+    ).toEqual({
+      alert: true,
+      primary: 'Sin registro de asistencia',
+      title: 'Asistencia de hoy',
+    });
+
+    expect(getAttendanceDisplay('dueno', globalAttendance)).toMatchObject({
+      alert: true,
+      description: 'trabajadores activos con entrada registrada',
+      primary: '1 de 2',
+      secondary: '1 sin registro de asistencia',
+    });
+  });
+
+  it('hides expiration alerts only when both lists are empty', () => {
+    expect(
+      shouldShowExpirationAlerts({ expired: [], expiringSoon: [] }),
+    ).toBe(false);
+    expect(
+      shouldShowExpirationAlerts({
+        expired: [],
+        expiringSoon: [
+          {
+            lotId: 'lot-1',
+            productName: 'Yogur',
+            ean13: '7800000000124',
+            availableQuantity: 6,
+            expirationDate: '2026-06-11',
+            daysRemaining: 0,
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

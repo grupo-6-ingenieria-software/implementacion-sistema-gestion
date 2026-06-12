@@ -6,20 +6,33 @@ import {
   type RegisteredController,
 } from './base';
 import { db } from '../../db/client';
+import { isDashboardRequest } from '../../shared/dashboard';
 import { loadAttendanceSummary, type DashboardDb } from './dashboard-service';
 
 const metadata = controllers[22];
 
 export const attendanceController: RegisteredController = {
   metadata,
-  handle: async (_payload, context) => {
+  handle: async (payload, context) => {
     if (context.channel !== 'asistencia:resumen-dashboard') {
       return notImplementedResponse(metadata, context.channel);
     }
 
+    if (!isDashboardRequest(payload)) {
+      return controllerError(
+        'VALIDATION_ERROR',
+        'Se requiere una sesion valida para cargar el resumen de asistencia.',
+        metadata.id,
+      );
+    }
+
     try {
       return controllerSuccess(
-        await loadAttendanceSummary(db as unknown as DashboardDb),
+        await loadAttendanceSummary(
+          db as unknown as DashboardDb,
+          new Date(),
+          payload,
+        ),
       );
     } catch (error) {
       console.error(error);
