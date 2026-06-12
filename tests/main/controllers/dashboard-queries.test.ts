@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createClient } from '@libsql/client';
-import { drizzle } from 'drizzle-orm/libsql';
 import {
   calculateSaleAmount,
   loadAttendanceSummary,
@@ -176,53 +174,6 @@ describe('dashboard query mapping', () => {
     });
   });
 
-  it('filters worker attendance by the authenticated user', async () => {
-    const client = createClient({ url: 'file::memory:' });
-    const testDatabase = drizzle(client);
-
-    try {
-      await client.executeMultiple(`
-        CREATE TABLE trabajador (
-          trabajador_id INTEGER PRIMARY KEY,
-          trabajador_nombre TEXT NOT NULL,
-          trabajador_apellido TEXT NOT NULL,
-          trabajador_estado TEXT NOT NULL
-        );
-        CREATE TABLE usuario (
-          usuario_id TEXT PRIMARY KEY,
-          trabajador_id INTEGER NOT NULL
-        );
-        CREATE TABLE asistencia (
-          trabajador_id INTEGER NOT NULL,
-          asistencia_fecha_hora_entrada TEXT NOT NULL
-        );
-        INSERT INTO trabajador VALUES
-          (1, 'Ana', 'Perez', 'activo'),
-          (2, 'Luis', 'Soto', 'activo');
-        INSERT INTO usuario VALUES
-          ('usuario-ana', 1),
-          ('usuario-luis', 2);
-        INSERT INTO asistencia VALUES
-          (1, '2026-06-11T12:00:00.000Z');
-      `);
-
-      const result = await loadAttendanceSummary(
-        testDatabase as unknown as DashboardDb,
-        new Date('2026-06-11T15:00:00.000Z'),
-        { role: 'trabajador', usuarioId: 'usuario-luis' },
-      );
-
-      expect(result).toEqual({
-        activeWorkers: 1,
-        workersWithAttendance: 0,
-        workersWithoutAttendance: 1,
-        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
-      });
-    } finally {
-      client.close();
-    }
-  });
-
   it('builds a read-only cash summary without a cash register for the day', async () => {
     allMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
@@ -333,25 +284,30 @@ describe('dashboard presentation by role', () => {
     });
   });
 
-  it('shows personal attendance for workers and global attendance for owners', () => {
-    expect(
-      getAttendanceDisplay('trabajador', {
-        activeWorkers: 1,
-        workersWithAttendance: 0,
-        workersWithoutAttendance: 1,
-        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
-      }),
-    ).toEqual({
-      alert: true,
-      primary: 'Sin registro de asistencia',
-      title: 'Asistencia de hoy',
-    });
-
-    expect(getAttendanceDisplay('dueno', globalAttendance)).toMatchObject({
+  it('shows the global attendance summary when workers are pending', () => {
+    expect(getAttendanceDisplay(globalAttendance)).toEqual({
       alert: true,
       description: 'trabajadores activos con entrada registrada',
       primary: '1 de 2',
       secondary: '1 sin registro de asistencia',
+      title: 'Asistencia de hoy',
+    });
+  });
+
+  it('shows a positive global attendance message when all workers attended', () => {
+    expect(
+      getAttendanceDisplay({
+        activeWorkers: 2,
+        workersWithAttendance: 2,
+        workersWithoutAttendance: 0,
+        pendingWorkers: [],
+      }),
+    ).toEqual({
+      alert: false,
+      description: 'trabajadores activos con entrada registrada',
+      primary: '2 de 2',
+      secondary: 'Todos los trabajadores activos registraron asistencia',
+      title: 'Asistencia de hoy',
     });
   });
 

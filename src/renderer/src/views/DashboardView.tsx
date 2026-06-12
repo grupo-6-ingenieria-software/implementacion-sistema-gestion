@@ -143,7 +143,7 @@ export function DashboardView({
   const hasExpirationAlerts = shouldShowExpirationAlerts(
     data.expirationAlerts,
   );
-  const attendanceDisplay = getAttendanceDisplay(role, data.attendance);
+  const attendanceDisplay = getAttendanceDisplay(data.attendance);
 
   return (
     <section className="space-y-6 px-8 py-8">
@@ -543,19 +543,8 @@ export function createDashboardRequest(
 }
 
 export function getAttendanceDisplay(
-  role: Role,
   attendance: AttendanceSummary,
 ): AttendanceDisplay {
-  if (role === 'trabajador') {
-    const hasAttendance = attendance.workersWithAttendance > 0;
-
-    return {
-      alert: !hasAttendance,
-      primary: hasAttendance ? 'Entrada registrada' : 'Sin registro de asistencia',
-      title: 'Asistencia de hoy',
-    };
-  }
-
   const alert = attendance.workersWithoutAttendance > 0;
 
   return {
