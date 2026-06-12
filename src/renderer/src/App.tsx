@@ -17,13 +17,24 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
   displayName?: string;
+  usuarioId?: string;
+  trabajadorNombre?: string;
+  usuarioRol?: string;
 };
 
 const defaultSession: AppSession = {
   isAuthenticated: false,
+};
+
+type DevLoginData = {
+  role: Role;
+  usuarioId: string;
+  trabajadorNombre: string;
+  usuarioRol: string;
 };
 
 export function App(): ReactElement {
@@ -44,12 +55,21 @@ export function App(): ReactElement {
     }
   }, [path, session]);
 
-  const login = (role: Role, passwordChangeRequired = false): void => {
+  const login = (
+    role: Role,
+    passwordChangeRequired = false,
+    loginData?: DevLoginData,
+  ): void => {
     const nextSession = {
       isAuthenticated: true,
       role,
       passwordChangeRequired,
-      displayName: role === 'dueno' ? 'Dueno' : 'Trabajador',
+      displayName:
+        loginData?.trabajadorNombre ??
+        (role === 'dueno' ? 'Dueno' : 'Trabajador'),
+      usuarioId: loginData?.usuarioId,
+      trabajadorNombre: loginData?.trabajadorNombre,
+      usuarioRol: loginData?.usuarioRol,
     };
 
     setSession(nextSession);
@@ -96,8 +116,39 @@ export function App(): ReactElement {
 function LoginView({
   onLogin,
 }: {
-  onLogin: (role: Role, passwordChangeRequired?: boolean) => void;
+  onLogin: (
+    role: Role,
+    passwordChangeRequired?: boolean,
+    loginData?: DevLoginData,
+  ) => void;
 }): ReactElement {
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<Role | null>(null);
+
+  const handleLogin = async (
+    role: Role,
+    passwordChangeRequired = false,
+  ): Promise<void> => {
+    setError(null);
+    setIsLoading(role);
+
+    const response = await window.appApi.invoke<{
+      role: Role;
+      usuarioId: string;
+      trabajadorNombre: string;
+      usuarioRol: string;
+    }>('auth:login', { role });
+
+    setIsLoading(null);
+
+    if (!response.ok) {
+      setError(response.error.message);
+      return;
+    }
+
+    onLogin(response.data.role, passwordChangeRequired, response.data);
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#edf1f5] px-6">
       <section className="w-full max-w-[420px] rounded-md border border-[#c8d2dc] bg-white p-8 shadow-sm">
@@ -108,25 +159,35 @@ function LoginView({
         <div className="mt-8 grid gap-3">
           <button
             className="rounded-md bg-[#244d61] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#1f4354]"
+            disabled={Boolean(isLoading)}
             type="button"
-            onClick={() => onLogin('dueno')}
+            onClick={() => void handleLogin('dueno')}
           >
-            Entrar como dueno
+            {isLoading === 'dueno' ? 'Entrando...' : 'Entrar como dueno'}
           </button>
           <button
             className="rounded-md bg-[#2d6a4f] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#255a43]"
+            disabled={Boolean(isLoading)}
             type="button"
-            onClick={() => onLogin('trabajador')}
+            onClick={() => void handleLogin('trabajador')}
           >
-            Entrar como trabajador
+            {isLoading === 'trabajador'
+              ? 'Entrando...'
+              : 'Entrar como trabajador'}
           </button>
           <button
             className="rounded-md border border-[#9ba9b5] px-4 py-3 text-left font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            disabled={Boolean(isLoading)}
             type="button"
-            onClick={() => onLogin('trabajador', true)}
+            onClick={() => void handleLogin('trabajador', true)}
           >
             Entrar con cambio de contrasena
           </button>
+          {error ? (
+            <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
+              {error}
+            </p>
+          ) : null}
         </div>
       </section>
     </main>
@@ -251,10 +312,24 @@ function AppShell({
             </button>
           </div>
         </header>
-        <ViewPlaceholder node={currentNode} />
+        <ViewRenderer node={currentNode} session={session} />
       </main>
     </div>
   );
+}
+
+function ViewRenderer({
+  node,
+  session,
+}: {
+  node: NavNode;
+  session: AppSession;
+}): ReactElement {
+  if (node.id === 'sale-register') {
+    return <SaleRegisterView session={session} />;
+  }
+
+  return <ViewPlaceholder node={node} />;
 }
 
 function ViewPlaceholder({ node }: { node: NavNode }): ReactElement {
