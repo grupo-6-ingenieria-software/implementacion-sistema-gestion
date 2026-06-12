@@ -26,7 +26,7 @@ import { wasteController } from './waste';
 import { workerController } from './worker';
 import type { RegisteredController } from './base';
 
-export const registeredControllers: readonly RegisteredController[] = [
+export const registeredControllers: readonly RegisteredController<any, any>[] = [
   authLoginController,
   passwordController,
   accessControlController,
