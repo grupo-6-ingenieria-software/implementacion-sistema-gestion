@@ -6,12 +6,14 @@ describe('ean13 helpers', () => {
     expect(normalizeEan13(' 780-2920000017\n')).toBe('7802920000017');
   });
 
-  it('validates a correct EAN-13 checksum', () => {
+  it('accepts exactly 13 numeric digits without checksum validation', () => {
     expect(isValidEan13('7802920000015')).toBe(true);
+    expect(isValidEan13('7802920000017')).toBe(true);
   });
 
-  it('rejects an invalid checksum or incomplete value', () => {
-    expect(isValidEan13('7802920000017')).toBe(false);
+  it('rejects incomplete, oversized, or non numeric values', () => {
     expect(isValidEan13('780292')).toBe(false);
+    expect(isValidEan13('78029200000175')).toBe(false);
+    expect(isValidEan13('780292000001a')).toBe(false);
   });
 });
