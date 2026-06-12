@@ -1,5 +1,6 @@
 import { controllers } from '../../shared/controllers';
-import { invalidEan13Message, isValidEan13 } from '../../shared/products';
+import { invalidEan13Message } from '../../shared/products';
+import { isValidEan13, normalizeEan13 } from '../../shared/ean13';
 import type { ControllerHandler, RegisteredController } from './base';
 
 type EanValidationResponse = {
@@ -28,7 +29,7 @@ const handle: ControllerHandler<unknown, EanValidationResponse> = async (
     typeof payload.value === 'string'
       ? payload.value
       : '';
-  const ean13 = rawValue.replace(/\D/g, '').slice(0, 13);
+  const ean13 = normalizeEan13(rawValue);
 
   if (!isValidEan13(ean13)) {
     return {

@@ -20,7 +20,10 @@ type LoginResponse = {
   usuarioRol: string;
 };
 
-export const authLoginController: RegisteredController = {
+export const authLoginController: RegisteredController<
+  LoginPayload,
+  LoginResponse
+> = {
   metadata: controllers[0],
   handle: async (payload) => {
     const requestedRole = normalizeLoginPayload(payload).role;

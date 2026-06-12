@@ -7,9 +7,9 @@ import {
   evaluateRouteAccess,
   findNavNodeByPath,
   getVisibleMenu,
+  internalComponents,
   navGroupLabels,
   navigationTree,
-  internalComponents,
   resolveInitialRoute,
   type NavNode,
   type Role,
@@ -19,16 +19,24 @@ import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
+import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
   displayName?: string;
-  trabajadorNombre?: string;
   usuarioId?: string;
+  trabajadorNombre?: string;
   usuarioRol?: string;
 };
 
 const defaultSession: AppSession = {
   isAuthenticated: false,
+};
+
+type DevLoginData = {
+  role: Role;
+  usuarioId: string;
+  trabajadorNombre: string;
+  usuarioRol: string;
 };
 
 export function App(): ReactElement {
@@ -52,16 +60,17 @@ export function App(): ReactElement {
   const login = (
     role: Role,
     passwordChangeRequired = false,
-    loginData?: LoginData,
+    loginData?: DevLoginData,
   ): void => {
     const nextSession = {
       isAuthenticated: true,
       role,
       passwordChangeRequired,
       displayName:
-        loginData?.trabajadorNombre ?? (role === 'dueno' ? 'Dueno' : 'Trabajador'),
-      trabajadorNombre: loginData?.trabajadorNombre,
+        loginData?.trabajadorNombre ??
+        (role === 'dueno' ? 'Dueno' : 'Trabajador'),
       usuarioId: loginData?.usuarioId,
+      trabajadorNombre: loginData?.trabajadorNombre,
       usuarioRol: loginData?.usuarioRol,
     };
 
@@ -112,24 +121,24 @@ function LoginView({
   onLogin: (
     role: Role,
     passwordChangeRequired?: boolean,
-    loginData?: LoginData,
+    loginData?: DevLoginData,
   ) => void;
 }): ReactElement {
   const [error, setError] = useState<string | null>(null);
-  const [loadingRole, setLoadingRole] = useState<Role | null>(null);
+  const [isLoading, setIsLoading] = useState<Role | null>(null);
 
-  async function handleLogin(
+  const handleLogin = async (
     role: Role,
     passwordChangeRequired = false,
-  ): Promise<void> {
+  ): Promise<void> => {
     setError(null);
-    setLoadingRole(role);
+    setIsLoading(role);
 
-    const response = await window.appApi.invoke<LoginData>('auth:login', {
+    const response = await window.appApi.invoke<DevLoginData>('auth:login', {
       role,
     });
 
-    setLoadingRole(null);
+    setIsLoading(null);
 
     if (!response.ok) {
       setError(response.error.message);
@@ -137,7 +146,7 @@ function LoginView({
     }
 
     onLogin(response.data.role, passwordChangeRequired, response.data);
-  }
+  };
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#edf1f5] px-6">
@@ -149,25 +158,25 @@ function LoginView({
         <div className="mt-8 grid gap-3">
           <button
             className="rounded-md bg-[#244d61] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#1f4354]"
-            disabled={Boolean(loadingRole)}
+            disabled={Boolean(isLoading)}
             type="button"
             onClick={() => void handleLogin('dueno')}
           >
-            {loadingRole === 'dueno' ? 'Entrando...' : 'Entrar como dueno'}
+            {isLoading === 'dueno' ? 'Entrando...' : 'Entrar como dueno'}
           </button>
           <button
             className="rounded-md bg-[#2d6a4f] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#255a43]"
-            disabled={Boolean(loadingRole)}
+            disabled={Boolean(isLoading)}
             type="button"
             onClick={() => void handleLogin('trabajador')}
           >
-            {loadingRole === 'trabajador'
+            {isLoading === 'trabajador'
               ? 'Entrando...'
               : 'Entrar como trabajador'}
           </button>
           <button
             className="rounded-md border border-[#9ba9b5] px-4 py-3 text-left font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-            disabled={Boolean(loadingRole)}
+            disabled={Boolean(isLoading)}
             type="button"
             onClick={() => void handleLogin('trabajador', true)}
           >
@@ -237,10 +246,10 @@ function AppShell({
     [session.role],
   );
   const currentNode = findNavNodeByPath(currentPath) ?? navigationTree[2];
-  const isProductList = currentNode.id === 'product-list';
-  const isProductForm =
-    currentNode.id === 'product-create' || currentNode.id === 'product-edit';
-  const isProductScreen = isProductList || isProductForm;
+  const isProductScreen =
+    currentNode.id === 'product-list' ||
+    currentNode.id === 'product-create' ||
+    currentNode.id === 'product-edit';
 
   return (
     <div className="grid min-h-screen grid-cols-[280px_1fr] bg-[#f6f7f9] text-[#17202a]">
@@ -306,33 +315,58 @@ function AppShell({
             </button>
           </div>
         </header>
-        {isProductList && session.role && session.usuarioId ? (
-          <ProductListView
-            role={session.role}
-            usuarioId={session.usuarioId}
-            onNavigate={onNavigate}
-          />
-        ) : isProductForm && session.role && session.usuarioId ? (
-          <ProductFormView
-            ean13={getProductEditEan13(currentPath)}
-            mode={currentNode.id === 'product-create' ? 'create' : 'edit'}
-            usuarioId={session.usuarioId}
-            onNavigate={onNavigate}
-          />
-        ) : (
-          <ViewPlaceholder node={currentNode} />
-        )}
+        <ViewRenderer
+          node={currentNode}
+          session={session}
+          onNavigate={onNavigate}
+          currentPath={currentPath}
+        />
       </main>
     </div>
   );
 }
 
-type LoginData = {
-  role: Role;
-  trabajadorNombre: string;
-  usuarioId: string;
-  usuarioRol: string;
-};
+function ViewRenderer({
+  currentPath,
+  node,
+  onNavigate,
+  session,
+}: {
+  currentPath: string;
+  node: NavNode;
+  onNavigate: (path: string) => void;
+  session: AppSession;
+}): ReactElement {
+  if (node.id === 'sale-register') {
+    return <SaleRegisterView session={session} />;
+  }
+
+  if (node.id === 'product-list' && session.role && session.usuarioId) {
+    return (
+      <ProductListView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (
+    (node.id === 'product-create' || node.id === 'product-edit') &&
+    session.usuarioId
+  ) {
+    return (
+      <ProductFormView
+        ean13={getProductEditEan13(currentPath)}
+        mode={node.id === 'product-create' ? 'create' : 'edit'}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  return <ViewPlaceholder node={node} />;
+}
 
 function ViewPlaceholder({ node }: { node: NavNode }): ReactElement {
   const relatedControllers = node.controllerIds

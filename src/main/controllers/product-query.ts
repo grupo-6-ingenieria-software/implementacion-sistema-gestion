@@ -1,24 +1,43 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, like, or, sql } from 'drizzle-orm';
 import { controllers } from '../../shared/controllers';
 import type { Role } from '../../shared/navigation';
 import {
   filterAndSortProductList,
   normalizeProductListPayload,
+  type ProductCategoryOption,
   type ProductDetailPayload,
   type ProductDetailResponse,
-  type ProductCategoryOption,
   type ProductListItem,
   type ProductListResponse,
 } from '../../shared/products';
-import type {
-  ControllerHandler,
-  RegisteredController,
-} from './base';
+import type { ControllerHandler, RegisteredController } from './base';
 import {
   AccessDeniedError,
   authorizeUser,
   type AuthenticatedUser,
 } from './auth-context';
+
+type ProductSearchPayload = {
+  query?: string;
+  ean13?: string;
+  limit?: number;
+  usuarioId?: string;
+};
+
+export type ActiveProductListItem = {
+  productoId: number;
+  ean13: string;
+  nombre: string;
+  categoria: string;
+  precioVenta: number;
+  stockDisponible: number;
+};
+
+type ProductQueryResponse =
+  | ProductListResponse
+  | ProductDetailResponse
+  | ActiveProductListItem
+  | ActiveProductListItem[];
 
 type ProductQueryDependencies = {
   authorize: (
@@ -28,22 +47,53 @@ type ProductQueryDependencies = {
   listProducts: (options: { includeCost: boolean }) => Promise<ProductListItem[]>;
   listCategories: () => Promise<ProductCategoryOption[]>;
   findProduct: (ean13: string) => Promise<ProductDetailResponse['product'] | null>;
+  listActiveProducts?: (options: {
+    query?: string;
+    ean13?: string;
+    limit: number;
+  }) => Promise<ActiveProductListItem[]>;
 };
 
 export function createProductQueryController(
   dependencies: ProductQueryDependencies = productQueryDependencies,
 ): RegisteredController {
-  const handle: ControllerHandler<unknown, ProductListResponse | ProductDetailResponse> = async (
+  const handle: ControllerHandler<unknown, ProductQueryResponse> = async (
     payload,
     context,
   ) => {
     if (context.channel === 'producto:listar') {
+      const usuarioId = normalizeUsuarioIdPayload(payload);
+
+      if (!usuarioId) {
+        if (typeof payload !== 'object' || payload === null) {
+          return {
+            ok: false,
+            error: {
+              code: 'FORBIDDEN',
+              controllerId: 'product-query',
+              message: 'No hay un usuario autenticado para esta accion.',
+            },
+          };
+        }
+
+        const input = normalizeProductSearchPayload(payload);
+        const products = await dependencies.listActiveProducts?.({
+          query: input.query?.trim(),
+          limit: normalizeLimit(input.limit),
+        });
+
+        return {
+          ok: true,
+          data: products ?? [],
+        };
+      }
+
       try {
         const filters = normalizeProductListPayload(payload);
-        const auth = await dependencies.authorize(
-          normalizeUsuarioIdPayload(payload),
-          ['dueno', 'trabajador'],
-        );
+        const auth = await dependencies.authorize(usuarioId, [
+          'dueno',
+          'trabajador',
+        ]);
         const [products, categories] = await Promise.all([
           dependencies.listProducts({ includeCost: auth.role === 'dueno' }),
           dependencies.listCategories(),
@@ -80,24 +130,48 @@ export function createProductQueryController(
     }
 
     if (context.channel === 'producto:estado') {
-      try {
-        await dependencies.authorize(normalizeUsuarioIdPayload(payload), [
-          'dueno',
-        ]);
-        const { ean13 } = normalizeProductDetailPayload(payload);
+      const { ean13 } = normalizeProductDetailPayload(payload);
 
-        if (!ean13) {
+      if (!ean13) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            controllerId: 'product-query',
+            message: 'Debe indicar un producto valido.',
+            fieldErrors: { ean13: 'Debe indicar un EAN-13 valido.' },
+          },
+        };
+      }
+
+      const usuarioId = normalizeUsuarioIdPayload(payload);
+
+      if (!usuarioId) {
+        const products = await dependencies.listActiveProducts?.({
+          ean13,
+          limit: 1,
+        });
+        const product = products?.[0];
+
+        if (!product) {
           return {
             ok: false,
             error: {
-              code: 'VALIDATION_ERROR',
+              code: 'BUSINESS_RULE',
               controllerId: 'product-query',
-              message: 'Debe indicar un producto valido.',
-              fieldErrors: { ean13: 'Debe indicar un EAN-13 valido.' },
+              message: 'El producto no existe o se encuentra inactivo.',
             },
           };
         }
 
+        return {
+          ok: true,
+          data: product,
+        };
+      }
+
+      try {
+        await dependencies.authorize(usuarioId, ['dueno']);
         const [product, categories] = await Promise.all([
           dependencies.findProduct(ean13),
           dependencies.listCategories(),
@@ -145,13 +219,39 @@ export function createProductQueryController(
     }
 
     if (context.channel === 'producto:buscar-activo') {
+      const input = normalizeProductSearchPayload(payload);
+      const query = input.ean13?.trim() || input.query?.trim();
+
+      if (!query) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            controllerId: 'product-query',
+            message: 'Ingrese un EAN-13 o nombre de producto para buscar.',
+          },
+        };
+      }
+
+      const products = await dependencies.listActiveProducts?.({
+        query,
+        limit: normalizeLimit(input.limit),
+      });
+
+      if (!products || products.length === 0) {
+        return {
+          ok: false,
+          error: {
+            code: 'BUSINESS_RULE',
+            controllerId: 'product-query',
+            message: 'No se encontraron productos activos para la busqueda.',
+          },
+        };
+      }
+
       return {
-        ok: false,
-        error: {
-          code: 'NOT_IMPLEMENTED',
-          controllerId: 'product-query',
-          message: 'La busqueda operativa de producto activo aun no esta implementada.',
-        },
+        ok: true,
+        data: products,
       };
     }
 
@@ -186,8 +286,7 @@ const productQueryDependencies: ProductQueryDependencies = {
         nombre: schema.producto.productoNombre,
         categoria: schema.categoria.categoriaNombre,
         categoriaId: schema.categoria.categoriaId,
-        precioCosto:
-          schema.historialPrecioProducto.historialPrecioCosto,
+        precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
         precioVenta: schema.producto.productoPrecioVenta,
         stockActual:
           sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`,
@@ -296,6 +395,74 @@ const productQueryDependencies: ProductQueryDependencies = {
       precioCosto: Number(row.precioCosto ?? 0),
     };
   },
+  listActiveProducts: async ({ ean13, limit, query }) => {
+    const { db, schema } = await import('../../db/client');
+    const search = ean13 ?? query;
+    const conditions = [eq(schema.producto.productoEstado, 'activo')];
+
+    if (search) {
+      conditions.push(
+        or(
+          eq(schema.producto.productoEan13, search),
+          like(schema.producto.productoEan13, `%${search}%`),
+          like(schema.producto.productoNombre, `%${search}%`),
+        )!,
+      );
+    }
+
+    const rows = await db
+      .select({
+        productoId: schema.producto.productoId,
+        ean13: schema.producto.productoEan13,
+        nombre: schema.producto.productoNombre,
+        categoria: schema.categoria.categoriaNombre,
+        precioVenta:
+          sql<number>`coalesce(${schema.historialPrecioProducto.historialPrecioVenta}, ${schema.producto.productoPrecioVenta})`,
+        stockDisponible:
+          sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`,
+      })
+      .from(schema.producto)
+      .innerJoin(
+        schema.categoria,
+        eq(schema.categoria.categoriaId, schema.producto.categoriaId),
+      )
+      .leftJoin(
+        schema.lote,
+        eq(schema.lote.productoId, schema.producto.productoId),
+      )
+      .leftJoin(
+        schema.historialPrecioProducto,
+        and(
+          eq(
+            schema.historialPrecioProducto.productoId,
+            schema.producto.productoId,
+          ),
+          isNull(
+            schema.historialPrecioProducto.historialFechaHoraVigenciaHasta,
+          ),
+        ),
+      )
+      .where(and(...conditions))
+      .groupBy(
+        schema.producto.productoId,
+        schema.producto.productoEan13,
+        schema.producto.productoNombre,
+        schema.categoria.categoriaNombre,
+        schema.historialPrecioProducto.historialPrecioVenta,
+        schema.producto.productoPrecioVenta,
+      )
+      .orderBy(asc(schema.producto.productoNombre))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      productoId: Number(row.productoId),
+      ean13: row.ean13,
+      nombre: row.nombre,
+      categoria: row.categoria,
+      precioVenta: Number(row.precioVenta),
+      stockDisponible: Number(row.stockDisponible),
+    }));
+  },
 };
 
 export const productQueryController = createProductQueryController();
@@ -324,4 +491,24 @@ function normalizeUsuarioIdPayload(payload: unknown): string | undefined {
   }
 
   return undefined;
+}
+
+function normalizeProductSearchPayload(payload: unknown): ProductSearchPayload {
+  if (typeof payload !== 'object' || payload === null) {
+    return {};
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  return {
+    ean13: typeof record.ean13 === 'string' ? record.ean13 : undefined,
+    limit: typeof record.limit === 'number' ? record.limit : undefined,
+    query: typeof record.query === 'string' ? record.query : undefined,
+    usuarioId:
+      typeof record.usuarioId === 'string' ? record.usuarioId : undefined,
+  };
+}
+
+function normalizeLimit(limit: unknown): number {
+  return Math.min(Math.max(Number(limit ?? 20), 1), 50);
 }
