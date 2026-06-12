@@ -17,9 +17,14 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import { ProductFormView } from './views/ProductFormView';
+import { ProductListView } from './views/ProductListView';
 
 type AppSession = SessionState & {
   displayName?: string;
+  trabajadorNombre?: string;
+  usuarioId?: string;
+  usuarioRol?: string;
 };
 
 const defaultSession: AppSession = {
@@ -44,12 +49,20 @@ export function App(): ReactElement {
     }
   }, [path, session]);
 
-  const login = (role: Role, passwordChangeRequired = false): void => {
+  const login = (
+    role: Role,
+    passwordChangeRequired = false,
+    loginData?: LoginData,
+  ): void => {
     const nextSession = {
       isAuthenticated: true,
       role,
       passwordChangeRequired,
-      displayName: role === 'dueno' ? 'Dueno' : 'Trabajador',
+      displayName:
+        loginData?.trabajadorNombre ?? (role === 'dueno' ? 'Dueno' : 'Trabajador'),
+      trabajadorNombre: loginData?.trabajadorNombre,
+      usuarioId: loginData?.usuarioId,
+      usuarioRol: loginData?.usuarioRol,
     };
 
     setSession(nextSession);
@@ -96,8 +109,36 @@ export function App(): ReactElement {
 function LoginView({
   onLogin,
 }: {
-  onLogin: (role: Role, passwordChangeRequired?: boolean) => void;
+  onLogin: (
+    role: Role,
+    passwordChangeRequired?: boolean,
+    loginData?: LoginData,
+  ) => void;
 }): ReactElement {
+  const [error, setError] = useState<string | null>(null);
+  const [loadingRole, setLoadingRole] = useState<Role | null>(null);
+
+  async function handleLogin(
+    role: Role,
+    passwordChangeRequired = false,
+  ): Promise<void> {
+    setError(null);
+    setLoadingRole(role);
+
+    const response = await window.appApi.invoke<LoginData>('auth:login', {
+      role,
+    });
+
+    setLoadingRole(null);
+
+    if (!response.ok) {
+      setError(response.error.message);
+      return;
+    }
+
+    onLogin(response.data.role, passwordChangeRequired, response.data);
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#edf1f5] px-6">
       <section className="w-full max-w-[420px] rounded-md border border-[#c8d2dc] bg-white p-8 shadow-sm">
@@ -108,25 +149,35 @@ function LoginView({
         <div className="mt-8 grid gap-3">
           <button
             className="rounded-md bg-[#244d61] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#1f4354]"
+            disabled={Boolean(loadingRole)}
             type="button"
-            onClick={() => onLogin('dueno')}
+            onClick={() => void handleLogin('dueno')}
           >
-            Entrar como dueno
+            {loadingRole === 'dueno' ? 'Entrando...' : 'Entrar como dueno'}
           </button>
           <button
             className="rounded-md bg-[#2d6a4f] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#255a43]"
+            disabled={Boolean(loadingRole)}
             type="button"
-            onClick={() => onLogin('trabajador')}
+            onClick={() => void handleLogin('trabajador')}
           >
-            Entrar como trabajador
+            {loadingRole === 'trabajador'
+              ? 'Entrando...'
+              : 'Entrar como trabajador'}
           </button>
           <button
             className="rounded-md border border-[#9ba9b5] px-4 py-3 text-left font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            disabled={Boolean(loadingRole)}
             type="button"
-            onClick={() => onLogin('trabajador', true)}
+            onClick={() => void handleLogin('trabajador', true)}
           >
             Entrar con cambio de contrasena
           </button>
+          {error ? (
+            <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
+              {error}
+            </p>
+          ) : null}
         </div>
       </section>
     </main>
@@ -186,6 +237,10 @@ function AppShell({
     [session.role],
   );
   const currentNode = findNavNodeByPath(currentPath) ?? navigationTree[2];
+  const isProductList = currentNode.id === 'product-list';
+  const isProductForm =
+    currentNode.id === 'product-create' || currentNode.id === 'product-edit';
+  const isProductScreen = isProductList || isProductForm;
 
   return (
     <div className="grid min-h-screen grid-cols-[280px_1fr] bg-[#f6f7f9] text-[#17202a]">
@@ -234,7 +289,7 @@ function AppShell({
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
           <div>
             <p className="text-sm font-semibold text-[#61717f]">
-              {currentNode.path}
+              {isProductScreen ? 'Inventario' : currentNode.path}
             </p>
             <h2 className="mt-1 text-2xl font-semibold">{currentNode.label}</h2>
           </div>
@@ -251,11 +306,33 @@ function AppShell({
             </button>
           </div>
         </header>
-        <ViewPlaceholder node={currentNode} />
+        {isProductList && session.role && session.usuarioId ? (
+          <ProductListView
+            role={session.role}
+            usuarioId={session.usuarioId}
+            onNavigate={onNavigate}
+          />
+        ) : isProductForm && session.role && session.usuarioId ? (
+          <ProductFormView
+            ean13={getProductEditEan13(currentPath)}
+            mode={currentNode.id === 'product-create' ? 'create' : 'edit'}
+            usuarioId={session.usuarioId}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <ViewPlaceholder node={currentNode} />
+        )}
       </main>
     </div>
   );
 }
+
+type LoginData = {
+  role: Role;
+  trabajadorNombre: string;
+  usuarioId: string;
+  usuarioRol: string;
+};
 
 function ViewPlaceholder({ node }: { node: NavNode }): ReactElement {
   const relatedControllers = node.controllerIds
@@ -361,6 +438,11 @@ function navigate(path: string): void {
 function getHashPath(): string {
   const rawPath = window.location.hash.replace(/^#/, '');
   return rawPath.startsWith('/') ? rawPath : PUBLIC_LOGIN_PATH;
+}
+
+function getProductEditEan13(path: string): string | undefined {
+  const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/editar$/);
+  return match ? decodeURIComponent(match[1]) : undefined;
 }
 
 function isControllerMetadata(

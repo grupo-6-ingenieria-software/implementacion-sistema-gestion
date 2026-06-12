@@ -1,6 +1,16 @@
 import { controllers } from '../../shared/controllers';
-import { createNotImplementedController } from './base';
+import {
+  createProductWriteController,
+  normalizeEditPayload,
+  productEditDependencies,
+  validateEditPayload,
+} from './product-write';
 
-export const productEditController = createNotImplementedController(
-  controllers[10],
-);
+export const productEditController = createProductWriteController({
+  channel: 'producto:editar',
+  controllerId: 'product-edit',
+  dependencies: productEditDependencies,
+  metadata: controllers[10],
+  normalize: normalizeEditPayload,
+  validate: validateEditPayload,
+});
