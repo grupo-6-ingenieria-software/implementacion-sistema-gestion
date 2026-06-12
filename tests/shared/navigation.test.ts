@@ -114,4 +114,19 @@ describe('navigation tree', () => {
       }),
     ).toEqual({ status: 'allow' });
   });
+
+  it('allows both supported roles to access daily sales', () => {
+    expect(
+      evaluateRouteAccess('/app/ventas/dia', {
+        isAuthenticated: true,
+        role: 'dueno',
+      }),
+    ).toEqual({ status: 'allow' });
+    expect(
+      evaluateRouteAccess('/app/ventas/dia', {
+        isAuthenticated: true,
+        role: 'trabajador',
+      }),
+    ).toEqual({ status: 'allow' });
+  });
 });
