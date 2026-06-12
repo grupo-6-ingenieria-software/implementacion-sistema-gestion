@@ -17,8 +17,12 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+<<<<<<< Inventario
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
+=======
+import { DashboardView } from './views/DashboardView';
+>>>>>>> main
 import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
@@ -319,7 +323,10 @@ function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
+<<<<<<< Inventario
           currentPath={currentPath}
+=======
+>>>>>>> main
         />
       </main>
     </div>
@@ -331,12 +338,24 @@ function ViewRenderer({
   node,
   onNavigate,
   session,
+  onNavigate,
 }: {
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
   session: AppSession;
+  onNavigate: (path: string) => void;
 }): ReactElement {
+  if (node.id === 'dashboard' && session.role) {
+    return (
+      <DashboardView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === 'sale-register') {
     return <SaleRegisterView session={session} />;
   }
