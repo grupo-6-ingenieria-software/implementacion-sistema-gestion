@@ -34,6 +34,17 @@ export function createNotImplementedController(
   };
 }
 
+export function notImplementedResponse(
+  metadata: ControllerMetadata,
+  channel: string,
+): ControllerResponse {
+  return controllerError(
+    'NOT_IMPLEMENTED',
+    `${metadata.name} no implementa todavia el canal ${channel}.`,
+    metadata.id,
+  );
+}
+
 export function controllerSuccess<TData>(data: TData): ControllerResponse<TData> {
   return { ok: true, data };
 }
