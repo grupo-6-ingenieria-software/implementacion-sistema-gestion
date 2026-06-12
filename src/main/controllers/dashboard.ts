@@ -1,13 +1,9 @@
 import { controllers } from '../../shared/controllers';
-import type { DashboardData, DashboardRequest } from '../../shared/dashboard';
+import { db } from '../../db/client';
+import type { DashboardRequest } from '../../shared/dashboard';
 import type { Role } from '../../shared/navigation';
-import { dataAccessError, type RegisteredController } from './base';
-import {
-  loadAttendanceSummary,
-  loadDailySalesSummary,
-  loadExpirationAlerts,
-  loadStockAlerts,
-} from './dashboard-queries';
+import { controllerError, controllerSuccess, type RegisteredController } from './base';
+import { loadDashboardData, type DashboardDb } from './dashboard-service';
 
 const metadata = controllers[5];
 
@@ -15,36 +11,24 @@ export const dashboardController: RegisteredController = {
   metadata,
   handle: async (payload) => {
     if (!isDashboardRequest(payload)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_REQUEST',
-          controllerId: metadata.id,
-          message: 'Se requiere un rol valido para cargar el dashboard.',
-        },
-      };
+      return controllerError(
+        'VALIDATION_ERROR',
+        'Se requiere un rol valido para cargar el dashboard.',
+        metadata.id,
+      );
     }
 
     try {
-      const now = new Date();
-      const [sales, stockAlerts, expirationAlerts, attendance] =
-        await Promise.all([
-          loadDailySalesSummary(now),
-          loadStockAlerts(),
-          loadExpirationAlerts(now),
-          loadAttendanceSummary(now),
-        ]);
-      const data: DashboardData = {
-        generatedAt: now.toISOString(),
-        sales,
-        stockAlerts,
-        expirationAlerts,
-        attendance,
-      };
-
-      return { ok: true, data };
-    } catch {
-      return dataAccessError(metadata);
+      return controllerSuccess(
+        await loadDashboardData(db as unknown as DashboardDb, payload),
+      );
+    } catch (error) {
+      console.error(error);
+      return controllerError(
+        'TECHNICAL_ERROR',
+        'No fue posible cargar la informacion solicitada.',
+        metadata.id,
+      );
     }
   },
 };
