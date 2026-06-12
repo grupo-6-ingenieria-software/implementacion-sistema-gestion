@@ -17,12 +17,10 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
-<<<<<<< Inventario
+import { DashboardView } from './views/DashboardView';
+import { LotCreateView } from './views/LotCreateView';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
-=======
-import { DashboardView } from './views/DashboardView';
->>>>>>> main
 import { SaleRegisterView } from './views/SaleRegisterView';
 
 type AppSession = SessionState & {
@@ -323,10 +321,7 @@ function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
-<<<<<<< Inventario
           currentPath={currentPath}
-=======
->>>>>>> main
         />
       </main>
     </div>
@@ -338,18 +333,26 @@ function ViewRenderer({
   node,
   onNavigate,
   session,
-  onNavigate,
 }: {
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
   session: AppSession;
-  onNavigate: (path: string) => void;
 }): ReactElement {
   if (node.id === 'dashboard' && session.role) {
     return (
       <DashboardView
         role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === 'lot-create' && session.usuarioId) {
+    return (
+      <LotCreateView
+        initialEan13={getLotCreateEan13(currentPath)}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
       />
@@ -496,6 +499,24 @@ function getHashPath(): string {
 function getProductEditEan13(path: string): string | undefined {
   const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/editar$/);
   return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function isImplementedViewNodeId(nodeId: string): boolean {
+  return [
+    'dashboard',
+    'lot-create',
+    'product-create',
+    'product-edit',
+    'product-list',
+    'sale-register',
+  ].includes(nodeId);
+}
+
+export function getLotCreateEan13(path: string): string | undefined {
+  const [, query = ''] = path.split('?');
+  const ean13 = new URLSearchParams(query).get('ean13');
+
+  return ean13 ? decodeURIComponent(ean13) : undefined;
 }
 
 function isControllerMetadata(
