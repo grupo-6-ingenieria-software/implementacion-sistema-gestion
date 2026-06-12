@@ -9,6 +9,7 @@ import {
   type SaleReceipt,
   type SaleRegisterPayload,
 } from './sale-service';
+import { notifyDashboardUpdated } from './dashboard-events';
 
 export const saleController: RegisteredController<
   SaleRegisterPayload,
@@ -18,6 +19,7 @@ export const saleController: RegisteredController<
   handle: async (payload) => {
     try {
       const receipt = await registerSale(db as unknown as DbExecutor, payload);
+      notifyDashboardUpdated();
       return controllerSuccess(receipt);
     } catch (error) {
       if (error instanceof SaleValidationError) {

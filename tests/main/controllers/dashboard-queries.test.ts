@@ -8,6 +8,11 @@ import {
   loadStockAlerts,
   type DashboardDb,
 } from '../../../src/main/controllers/dashboard-service';
+import {
+  createDashboardRequest,
+  getAttendanceDisplay,
+  shouldShowExpirationAlerts,
+} from '../../../src/renderer/src/views/DashboardView';
 
 const allMock = vi.fn();
 const database: DashboardDb = {
@@ -260,5 +265,70 @@ describe('dashboard query mapping', () => {
       openedAt: '2026-06-11T08:00:00.000Z',
       closedAt: '2026-06-11T20:00:00.000Z',
     });
+  });
+});
+
+describe('dashboard presentation by role', () => {
+  const globalAttendance = {
+    activeWorkers: 2,
+    workersWithAttendance: 1,
+    workersWithoutAttendance: 1,
+    pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
+  };
+
+  it('requires the authenticated user in worker dashboard requests', () => {
+    expect(createDashboardRequest('trabajador')).toBeNull();
+    expect(createDashboardRequest('trabajador', ' usuario-luis ')).toEqual({
+      role: 'trabajador',
+      usuarioId: 'usuario-luis',
+    });
+  });
+
+  it('shows the global attendance summary when workers are pending', () => {
+    expect(getAttendanceDisplay(globalAttendance)).toEqual({
+      alert: true,
+      description: 'trabajadores activos con entrada registrada',
+      primary: '1 de 2',
+      secondary: '1 sin registro de asistencia',
+      title: 'Asistencia de hoy',
+    });
+  });
+
+  it('shows a positive global attendance message when all workers attended', () => {
+    expect(
+      getAttendanceDisplay({
+        activeWorkers: 2,
+        workersWithAttendance: 2,
+        workersWithoutAttendance: 0,
+        pendingWorkers: [],
+      }),
+    ).toEqual({
+      alert: false,
+      description: 'trabajadores activos con entrada registrada',
+      primary: '2 de 2',
+      secondary: 'Todos los trabajadores activos registraron asistencia',
+      title: 'Asistencia de hoy',
+    });
+  });
+
+  it('hides expiration alerts only when both lists are empty', () => {
+    expect(
+      shouldShowExpirationAlerts({ expired: [], expiringSoon: [] }),
+    ).toBe(false);
+    expect(
+      shouldShowExpirationAlerts({
+        expired: [],
+        expiringSoon: [
+          {
+            lotId: 'lot-1',
+            productName: 'Yogur',
+            ean13: '7800000000124',
+            availableQuantity: 6,
+            expirationDate: '2026-06-11',
+            daysRemaining: 0,
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

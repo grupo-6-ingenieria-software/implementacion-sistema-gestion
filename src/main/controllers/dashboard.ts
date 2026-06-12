@@ -1,7 +1,6 @@
 import { controllers } from '../../shared/controllers';
 import { db } from '../../db/client';
-import type { DashboardRequest } from '../../shared/dashboard';
-import type { Role } from '../../shared/navigation';
+import { isDashboardRequest } from '../../shared/dashboard';
 import { controllerError, controllerSuccess, type RegisteredController } from './base';
 import { loadDashboardData, type DashboardDb } from './dashboard-service';
 
@@ -13,7 +12,7 @@ export const dashboardController: RegisteredController = {
     if (!isDashboardRequest(payload)) {
       return controllerError(
         'VALIDATION_ERROR',
-        'Se requiere un rol valido para cargar el dashboard.',
+        'Se requiere una sesion valida para cargar el dashboard.',
         metadata.id,
       );
     }
@@ -32,15 +31,3 @@ export const dashboardController: RegisteredController = {
     }
   },
 };
-
-function isDashboardRequest(payload: unknown): payload is DashboardRequest {
-  if (!payload || typeof payload !== 'object') {
-    return false;
-  }
-
-  return isRole((payload as { role?: unknown }).role);
-}
-
-function isRole(role: unknown): role is Role {
-  return role === 'dueno' || role === 'trabajador';
-}
