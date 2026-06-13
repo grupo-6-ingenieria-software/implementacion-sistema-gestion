@@ -258,6 +258,27 @@ describe('product query controller', () => {
     ]);
   });
 
+  it('lists active products when search is empty for sale registration', async () => {
+    const response = (await createController().handle(
+      {
+        query: '',
+        limit: 10,
+        usuarioId: 'trabajador',
+      },
+      { channel: 'producto:buscar-activo' },
+    )) as ControllerResponse<ActiveProductSearchItem[]>;
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    expect(response.data.map((product) => product.nombre)).toEqual([
+      'Leche Soprole 1L',
+      'Coca-Cola 1.5L',
+    ]);
+  });
+
   it('allows workers to load product detail for status changes', async () => {
     const response = (await createController().handle(
       {
