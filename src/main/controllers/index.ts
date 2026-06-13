@@ -55,7 +55,12 @@ export const registeredControllers: readonly RegisteredController<any, any>[] = 
   userManagementController,
 ];
 
-export function registerControllers(ipcMain: IpcMain): void {
+export type ControllerActivityHook = (channel: string) => void;
+
+export function registerControllers(
+  ipcMain: IpcMain,
+  onActivity?: ControllerActivityHook,
+): void {
   for (const controller of registeredControllers) {
     for (const channel of controller.metadata.channels) {
       ipcMain.handle(channel, async (_event, payload) => {
@@ -71,7 +76,15 @@ export function registerControllers(ipcMain: IpcMain): void {
           };
         }
 
-        return controller.handle(payload, { channel });
+        const response = await controller.handle(payload, { channel });
+
+        // La verificación de sesión NO cuenta como actividad del usuario;
+        // de lo contrario la inactividad nunca expiraría.
+        if (onActivity && channel !== 'auth:verificar-sesion') {
+          onActivity(channel);
+        }
+
+        return response;
       });
     }
   }

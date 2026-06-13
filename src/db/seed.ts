@@ -15,6 +15,8 @@
 import 'dotenv/config';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
+import bcrypt from 'bcryptjs';
+import { TEMP_PASSWORD_MS } from '../shared/auth.js';
 import * as s from './schema.js';
 
 const client = createClient({
@@ -73,6 +75,41 @@ await db.insert(s.usuario).values([
     trabajadorId: cajera.trabajadorId,
   },
 ]);
+
+// ----------------------------------------------------------------------------
+// Contraseñas (RF55, RF58)
+// - Dueño: contraseña DEFINITIVA fija para desarrollo.
+// - Cajera: contraseña TEMPORAL (fuerza cambio al primer login, expira en 24h).
+// ----------------------------------------------------------------------------
+
+const DUENO_PASSWORD = 'Huascar2026';
+const CAJERA_TEMP_PASSWORD = 'Caja2026';
+
+await db.insert(s.contrasena).values({
+  contrasenaHash: await bcrypt.hash(DUENO_PASSWORD, 10),
+  esContrasenaTemporal: false,
+  esContrasenaDefinitiva: true,
+  usuarioId: USR_DUENO,
+  generadaPorUsuarioId: USR_DUENO,
+});
+
+const [cajeraPwd] = await db
+  .insert(s.contrasena)
+  .values({
+    contrasenaHash: await bcrypt.hash(CAJERA_TEMP_PASSWORD, 10),
+    esContrasenaTemporal: true,
+    esContrasenaDefinitiva: false,
+    usuarioId: USR_CAJERA,
+    generadaPorUsuarioId: USR_DUENO,
+  })
+  .returning({ contrasenaId: s.contrasena.contrasenaId });
+
+await db.insert(s.contrasenaTemporal).values({
+  contrasenaId: cajeraPwd.contrasenaId,
+  contrasenaTemporalFechaHoraExpiracion: new Date(
+    Date.now() + TEMP_PASSWORD_MS,
+  ).toISOString(),
+});
 
 // ----------------------------------------------------------------------------
 // Categorías
