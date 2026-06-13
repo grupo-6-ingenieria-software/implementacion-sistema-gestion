@@ -25,10 +25,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Typecheck
         run: npm run typecheck
@@ -60,10 +59,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # Sube el patch en package.json (0.1.0 -> 0.1.1 -> ...).
       - name: Bump patch version
