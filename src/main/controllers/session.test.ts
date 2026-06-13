@@ -6,7 +6,6 @@ import {
   verifySessionWithExecutor,
   type SessionDeps,
 } from './session';
-import type { SessionTokenClaims } from './auth-jwt';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
@@ -17,17 +16,7 @@ import {
 const NOW = new Date('2026-06-13T12:00:00.000Z');
 const SESSION_ID = '00000000-0000-4000-8000-000000000777';
 
-const claims: SessionTokenClaims = {
-  usuarioId: '12345678-9',
-  rol: 'dueno',
-  usuarioRol: 'dueno',
-  passwordTemporal: false,
-  sesionId: SESSION_ID,
-};
-
-function depsWith(token: SessionTokenClaims | null): SessionDeps {
-  return { verifyToken: () => token, now: () => NOW };
-}
+const deps: SessionDeps = { now: () => NOW };
 
 let testDb: AuthTestDatabase | undefined;
 
@@ -65,12 +54,12 @@ async function seedSession(ultimoAccesoMinutesAgo: number): Promise<void> {
 }
 
 describe('verifySessionWithExecutor (RF55)', () => {
-  it('reports an invalid token as inactive', async () => {
+  it('reports a missing sesionId (no trusted claims) as inactive', async () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
-      { token: 'whatever' },
-      depsWith(null),
+      undefined,
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -83,8 +72,8 @@ describe('verifySessionWithExecutor (RF55)', () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
-      { token: 't' },
-      depsWith(claims),
+      SESSION_ID,
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -99,8 +88,8 @@ describe('verifySessionWithExecutor (RF55)', () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
-      { token: 't' },
-      depsWith(claims),
+      SESSION_ID,
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -120,8 +109,8 @@ describe('verifySessionWithExecutor (RF55)', () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
-      { token: 't' },
-      depsWith(claims),
+      SESSION_ID,
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -143,8 +132,8 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
     const response = await closeSessionWithExecutor(
       testDb!.db,
       schema,
-      claims.sesionId,
-      depsWith(claims),
+      SESSION_ID,
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -169,7 +158,7 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
       testDb!.db,
       schema,
       undefined,
-      depsWith(null),
+      deps,
     );
 
     expect(response.ok).toBe(true);
@@ -189,15 +178,15 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
     await closeSessionWithExecutor(
       testDb!.db,
       schema,
-      claims.sesionId,
-      depsWith(claims),
+      SESSION_ID,
+      deps,
     );
 
     const second = await closeSessionWithExecutor(
       testDb!.db,
       schema,
-      claims.sesionId,
-      { verifyToken: () => claims, now: () => new Date(NOW.getTime() + 60_000) },
+      SESSION_ID,
+      { now: () => new Date(NOW.getTime() + 60_000) },
     );
 
     expect(second.ok).toBe(true);
