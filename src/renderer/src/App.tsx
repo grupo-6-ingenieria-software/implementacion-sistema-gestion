@@ -267,11 +267,6 @@ function AppShell({
     [session.role],
   );
   const currentNode = findNavNodeByPath(currentPath) ?? navigationTree[2];
-  const isProductScreen =
-    currentNode.id === 'product-list' ||
-    currentNode.id === 'product-create' ||
-    currentNode.id === 'product-edit' ||
-    currentNode.id === 'product-status';
   const sidebarScroll = useAutoHiddenScrollbar();
   const mainScroll = useAutoHiddenScrollbar();
 
@@ -326,12 +321,7 @@ function AppShell({
         onScroll={mainScroll.onScroll}
       >
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
-          <div>
-            <p className="text-sm font-semibold text-[#61717f]">
-              {isProductScreen ? 'Inventario' : currentNode.path}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold">{currentNode.label}</h2>
-          </div>
+          <h2 className="text-2xl font-semibold">{currentNode.label}</h2>
           <div className="flex items-center gap-3">
             <span className="rounded-md border border-[#cbd5df] bg-[#f6f7f9] px-3 py-2 text-sm font-semibold text-[#24313d]">
               {session.displayName ?? 'Sesion'}
@@ -491,6 +481,10 @@ function ViewRenderer({
         usuarioId={session.usuarioId}
       />
     );
+  }
+
+  if (node.id === 'audit-log') {
+    return <AuditLogView usuarioId={session.usuarioId} />;
   }
 
   if (node.id === 'product-status' && session.usuarioId) {
@@ -672,6 +666,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'product-list',
     'product-status',
     'sale-register',
+    'audit-log',
     'waste-create',
   ].includes(nodeId);
 }
