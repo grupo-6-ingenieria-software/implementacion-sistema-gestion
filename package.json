@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "author": "Grupo 6 - Ingenieria de Software",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "build:win": "electron-vite build && electron-builder --win --publish always",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
@@ -45,5 +47,31 @@
     "typescript": "6.0.3",
     "vite": "^7.0.0",
     "vitest": "4.1.4"
+  },
+  "build": {
+    "appId": "cl.huascar.sistemagestion",
+    "productName": "Sistema Gestion Huascar",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "drizzle",
+        "to": "drizzle"
+      }
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "grupo-6-ingenieria-software",
+      "repo": "implementacion-sistema-gestion",
+      "releaseType": "release"
+    }
   }
 }
