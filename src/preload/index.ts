@@ -4,6 +4,12 @@ import { DASHBOARD_UPDATED_EVENT } from '../shared/dashboard';
 import { SESSION_EXPIRED_EVENT } from '../shared/auth';
 
 export type AppApi = {
+  /**
+   * True sólo cuando la app se levantó con `npm run dev:debug`
+   * (HUASCAR_DEBUG_LOGIN=1). El renderer lo usa para mostrar la lista de
+   * usuarios e iniciar sesión como cualquiera de ellos en el login.
+   */
+  debugMode: boolean;
   invoke: <TData = unknown>(
     channel: string,
     payload?: unknown,
@@ -24,6 +30,8 @@ export type AppApi = {
 let sessionToken: string | null = null;
 
 const api: AppApi = {
+  // Se lee en tiempo de ejecución del entorno del proceso (heredado del main).
+  debugMode: process.env.HUASCAR_DEBUG_LOGIN === '1',
   invoke: (channel, payload) => {
     // Fusiona el token en el payload sin alterar su forma existente. Los
     // payloads son objetos (o ausentes) en todos los call sites del renderer;
