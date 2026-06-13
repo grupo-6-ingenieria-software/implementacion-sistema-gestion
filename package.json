@@ -7,6 +7,7 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:debug": "HUASCAR_DEBUG_LOGIN=1 electron-vite dev",
     "build": "electron-vite build",
     "build:win": "electron-vite build && electron-builder --win --publish always",
     "typecheck": "tsc --noEmit",

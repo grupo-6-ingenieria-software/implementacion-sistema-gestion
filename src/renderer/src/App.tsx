@@ -236,6 +236,12 @@ export function App(): ReactElement {
   );
 }
 
+type DebugUserItem = {
+  usuarioId: string;
+  nombre: string;
+  rol: string;
+};
+
 function LoginView({
   notice,
   onLogin,
@@ -328,8 +334,102 @@ function LoginView({
             </p>
           ) : null}
         </form>
+        {window.appApi.debugMode ? <DebugLoginPanel onLogin={onLogin} /> : null}
       </section>
     </main>
+  );
+}
+
+// Panel visible sólo en `npm run dev:debug` (window.appApi.debugMode): lista los
+// usuarios activos y permite iniciar sesión como cualquiera sin contraseña.
+function DebugLoginPanel({
+  onLogin,
+}: {
+  onLogin: (data: LoginData) => void;
+}): ReactElement {
+  const [users, setUsers] = useState<DebugUserItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void window.appApi
+      .invoke<DebugUserItem[]>('debug:listar-usuarios', {})
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        if (response.ok) {
+          setUsers(response.data);
+        } else {
+          setError(response.error.message);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('No se pudo cargar la lista de usuarios.');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loginAs = async (usuarioId: string): Promise<void> => {
+    setError(null);
+    setPendingId(usuarioId);
+
+    const response = await window.appApi.invoke<LoginData>('debug:login-como', {
+      usuarioId,
+    });
+
+    setPendingId(null);
+
+    if (!response.ok) {
+      setError(response.error.message);
+      return;
+    }
+
+    onLogin(response.data);
+  };
+
+  return (
+    <div className="mt-8 rounded-md border border-dashed border-[#c79a2b] bg-[#fdf6e3] p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#8a5a12]">
+        Modo debug · iniciar sesión como
+      </p>
+      {error ? (
+        <p className="mt-3 rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
+          {error}
+        </p>
+      ) : null}
+      <div className="mt-3 grid gap-2">
+        {users.length === 0 && !error ? (
+          <p className="text-sm text-[#8a6d2f]">Cargando usuarios…</p>
+        ) : null}
+        {users.map((user) => (
+          <button
+            key={user.usuarioId}
+            className="flex items-center justify-between gap-3 rounded-md border border-[#d8c388] bg-white px-3 py-2 text-left text-sm transition hover:bg-[#fcf3d8] disabled:opacity-60"
+            disabled={pendingId !== null}
+            type="button"
+            onClick={() => void loginAs(user.usuarioId)}
+          >
+            <span>
+              <span className="font-semibold text-[#24313d]">{user.nombre}</span>
+              <span className="ml-2 text-xs text-[#61717f]">
+                {user.usuarioId} · {user.rol}
+              </span>
+            </span>
+            <span className="text-xs font-semibold text-[#8a5a12]">
+              {pendingId === user.usuarioId ? 'Entrando…' : 'Entrar'}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

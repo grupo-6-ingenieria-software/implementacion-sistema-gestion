@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 import { registerControllers } from './controllers';
+import { isDebugLoginEnabled, registerDebugLogin } from './controllers/debug-login';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -48,6 +49,13 @@ function createMainWindow(): void {
 
 app.whenReady().then(() => {
   registerControllers(ipcMain);
+
+  // Sólo en `npm run dev:debug`: canales IPC que listan usuarios y emiten una
+  // sesión sin contraseña para la lista de login de depuración.
+  if (isDebugLoginEnabled()) {
+    registerDebugLogin(ipcMain);
+  }
+
   createMainWindow();
 
   app.on('activate', () => {
