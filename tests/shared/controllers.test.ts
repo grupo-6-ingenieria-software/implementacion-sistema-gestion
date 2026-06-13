@@ -48,4 +48,17 @@ describe('controller registry', () => {
       true,
     );
   });
+
+  it('keeps the lot controller scoped to lot registration support channels', () => {
+    expect(controllers.find((controller) => controller.id === 'lot')?.channels).toEqual([
+      'lote:registrar',
+      'lote:proveedores',
+    ]);
+  });
+
+  it('keeps the waste controller scoped to the documented registration channel', () => {
+    expect(
+      controllers.find((controller) => controller.id === 'waste')?.channels,
+    ).toEqual(['merma:registrar']);
+  });
 });

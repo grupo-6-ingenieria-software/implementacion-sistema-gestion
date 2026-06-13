@@ -4,6 +4,7 @@ import type { Role } from '../../shared/navigation';
 import {
   filterAndSortProductList,
   normalizeProductListPayload,
+  type ActiveProductSearchItem,
   type ProductCategoryOption,
   type ProductDetailPayload,
   type ProductDetailResponse,
@@ -24,14 +25,7 @@ type ProductSearchPayload = {
   usuarioId?: string;
 };
 
-export type ActiveProductListItem = {
-  productoId: number;
-  ean13: string;
-  nombre: string;
-  categoria: string;
-  precioVenta: number;
-  stockDisponible: number;
-};
+export type ActiveProductListItem = ActiveProductSearchItem;
 
 type ProductQueryResponse =
   | ProductListResponse
@@ -171,7 +165,7 @@ export function createProductQueryController(
       }
 
       try {
-        await dependencies.authorize(usuarioId, ['dueno']);
+        await dependencies.authorize(usuarioId, ['dueno', 'trabajador']);
         const [product, categories] = await Promise.all([
           dependencies.findProduct(ean13),
           dependencies.listCategories(),
@@ -233,26 +227,50 @@ export function createProductQueryController(
         };
       }
 
-      const products = await dependencies.listActiveProducts?.({
-        query,
-        limit: normalizeLimit(input.limit),
-      });
+      try {
+        await dependencies.authorize(input.usuarioId, ['dueno', 'trabajador']);
 
-      if (!products || products.length === 0) {
+        const products = await dependencies.listActiveProducts?.({
+          query,
+          limit: normalizeLimit(input.limit),
+        });
+
+        if (!products || products.length === 0) {
+          return {
+            ok: false,
+            error: {
+              code: 'BUSINESS_RULE',
+              controllerId: 'product-query',
+              message: 'No se encontraron productos activos para la busqueda.',
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          data: products,
+        };
+      } catch (error) {
+        if (error instanceof AccessDeniedError) {
+          return {
+            ok: false,
+            error: {
+              code: 'FORBIDDEN',
+              controllerId: 'product-query',
+              message: error.message,
+            },
+          };
+        }
+
         return {
           ok: false,
           error: {
-            code: 'BUSINESS_RULE',
+            code: 'DATABASE_ERROR',
             controllerId: 'product-query',
-            message: 'No se encontraron productos activos para la busqueda.',
+            message: 'No fue posible buscar productos activos. Intente nuevamente.',
           },
         };
       }
-
-      return {
-        ok: true,
-        data: products,
-      };
     }
 
     return {
@@ -315,7 +333,6 @@ const productQueryDependencies: ProductQueryDependencies = {
           ),
         ),
       )
-      .where(eq(schema.producto.productoEstado, 'activo'))
       .groupBy(
         schema.producto.productoId,
         schema.producto.productoEan13,
@@ -416,6 +433,7 @@ const productQueryDependencies: ProductQueryDependencies = {
         ean13: schema.producto.productoEan13,
         nombre: schema.producto.productoNombre,
         categoria: schema.categoria.categoriaNombre,
+        exigeVencimiento: schema.categoria.categoriaExigeVencimiento,
         precioVenta:
           sql<number>`coalesce(${schema.historialPrecioProducto.historialPrecioVenta}, ${schema.producto.productoPrecioVenta})`,
         stockDisponible:
@@ -448,6 +466,7 @@ const productQueryDependencies: ProductQueryDependencies = {
         schema.producto.productoEan13,
         schema.producto.productoNombre,
         schema.categoria.categoriaNombre,
+        schema.categoria.categoriaExigeVencimiento,
         schema.historialPrecioProducto.historialPrecioVenta,
         schema.producto.productoPrecioVenta,
       )
@@ -459,6 +478,7 @@ const productQueryDependencies: ProductQueryDependencies = {
       ean13: row.ean13,
       nombre: row.nombre,
       categoria: row.categoria,
+      exigeVencimiento: Boolean(row.exigeVencimiento),
       precioVenta: Number(row.precioVenta),
       stockDisponible: Number(row.stockDisponible),
     }));
