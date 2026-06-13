@@ -25,6 +25,7 @@ import {
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import { DashboardView } from './views/DashboardView';
+import { AttendanceView } from './views/AttendanceView';
 import { CashClosingView } from './views/CashClosingView';
 import { LotCreateView } from './views/LotCreateView';
 import { ProductFormView } from './views/ProductFormView';
@@ -435,6 +436,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === 'attendance' && session.role) {
+    return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
+  }
+
   if (node.id === 'product-list' && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -586,6 +591,7 @@ function getProductEditEan13(path: string): string | undefined {
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     'dashboard',
+    'attendance',
     'cash-closing',
     'lot-create',
     'product-create',
