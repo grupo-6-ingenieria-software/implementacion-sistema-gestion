@@ -66,8 +66,19 @@ export function AttendanceView({
 
     setWorkers(response.data);
 
-    if (role === 'trabajador' && response.data[0]) {
-      setRut(response.data[0].rut);
+    if (role === 'trabajador') {
+      // Resolver al propio trabajador por RUT (usuarioId == RUT de la sesion),
+      // nunca por posicion: si el backend devolviera mas de un trabajador
+      // (p.ej. rol desincronizado), data[0] podria ser OTRO trabajador y la
+      // operacion se rechazaria con "no tiene permisos para otro trabajador".
+      const ownRut = normalizeRut(usuarioId ?? '');
+      const self =
+        response.data.find((worker) => normalizeRut(worker.rut) === ownRut) ??
+        (response.data.length === 1 ? response.data[0] : undefined);
+
+      if (self) {
+        setRut(self.rut);
+      }
     }
 
     setPageState({ status: 'ready' });
@@ -95,6 +106,18 @@ export function AttendanceView({
 
   const selectedWorker = workers.find(
     (worker) => worker.rut === normalizeRut(rut),
+  );
+
+  // Trabajador propio para el panel "Asistencia propia": se identifica por RUT
+  // de la sesion, no por posicion en la lista. Si no aparece, WorkerSelfPanel
+  // muestra el aviso "no se encontro trabajador asociado" en vez de etiquetar
+  // por error a otro trabajador como propio.
+  const ownRut = normalizeRut(usuarioId ?? '');
+  const selfWorker = useMemo(
+    () =>
+      workers.find((worker) => normalizeRut(worker.rut) === ownRut) ??
+      (workers.length === 1 ? workers[0] : undefined),
+    [workers, ownRut],
   );
   const canSubmit = Boolean(usuarioId?.trim() && rut.trim()) && !isSubmitting;
 
@@ -311,7 +334,7 @@ export function AttendanceView({
                       onSelectWorker={selectWorker}
                     />
                   ) : (
-                    <WorkerSelfPanel worker={selectedWorker ?? workers[0]} />
+                    <WorkerSelfPanel worker={selfWorker} />
                   )}
                 </div>
               </div>
