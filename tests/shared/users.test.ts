@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterAndSortUserList,
   formatRoleLabel,
+  formatRutInput,
   hasUserFieldErrors,
   normalizeRut,
   normalizeUserFormPayload,
@@ -10,6 +11,31 @@ import {
   validateUserFormValues,
   type UserListItem,
 } from '../../src/shared/users';
+
+describe('formatRutInput', () => {
+  it('inserts the dash before the verifier digit automatically', () => {
+    expect(formatRutInput('226024395')).toBe('22602439-5');
+  });
+
+  it('ignores a dash typed by the user and re-inserts it', () => {
+    expect(formatRutInput('22602439-5')).toBe('22602439-5');
+    expect(formatRutInput('2-2-6')).toBe('22-6');
+  });
+
+  it('moves the dash dynamically as more digits are typed', () => {
+    expect(formatRutInput('1')).toBe('1');
+    expect(formatRutInput('12')).toBe('1-2');
+    expect(formatRutInput('123')).toBe('12-3');
+  });
+
+  it('keeps a K verifier and uppercases it', () => {
+    expect(formatRutInput('12345670k')).toBe('12345670-K');
+  });
+
+  it('drops dots, spaces and other characters', () => {
+    expect(formatRutInput('22.602.439-5')).toBe('22602439-5');
+  });
+});
 
 const users: UserListItem[] = [
   {

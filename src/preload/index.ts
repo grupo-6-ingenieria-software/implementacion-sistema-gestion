@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ControllerResponse } from '../shared/controllers';
 import { DASHBOARD_UPDATED_EVENT } from '../shared/dashboard';
+import { SESSION_EXPIRED_EVENT } from '../shared/auth';
 
 export type AppApi = {
   invoke: <TData = unknown>(
@@ -8,6 +9,7 @@ export type AppApi = {
     payload?: unknown,
   ) => Promise<ControllerResponse<TData>>;
   onDashboardUpdated: (listener: () => void) => () => void;
+  onSessionExpired: (listener: () => void) => () => void;
 };
 
 const api: AppApi = {
@@ -18,6 +20,14 @@ const api: AppApi = {
 
     return () => {
       ipcRenderer.removeListener(DASHBOARD_UPDATED_EVENT, handleUpdate);
+    };
+  },
+  onSessionExpired: (listener) => {
+    const handleExpired = (): void => listener();
+    ipcRenderer.on(SESSION_EXPIRED_EVENT, handleExpired);
+
+    return () => {
+      ipcRenderer.removeListener(SESSION_EXPIRED_EVENT, handleExpired);
     };
   },
 };

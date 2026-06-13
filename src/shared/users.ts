@@ -263,6 +263,33 @@ export function normalizeRut(value: string): string {
   return value.replace(/\./g, '').replace(/\s/g, '').toUpperCase();
 }
 
+/**
+ * Formatea dinámicamente un RUT mientras se escribe: conserva solo los dígitos
+ * y el dígito verificador (0-9 o K) e inserta el guion automáticamente antes
+ * del último carácter. Cualquier guion que ingrese el usuario se ignora; el
+ * guion se gestiona solo y se reubica a medida que se escribe.
+ */
+export function formatRutInput(value: string): string {
+  const clean = rutToBackend(value);
+
+  if (clean.length <= 1) {
+    return clean;
+  }
+
+  return `${clean.slice(0, -1)}-${clean.slice(-1)}`;
+}
+
+/**
+ * Valor de RUT para el backend: solo dígitos y dígito verificador (sin guion,
+ * sin puntos). Es la contraparte de formatRutInput, que es puramente visual.
+ */
+export function rutToBackend(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^0-9K]/g, '')
+    .slice(0, 9);
+}
+
 export function formatRoleLabel(role: UserRole): string {
   return role === 'dueno' ? 'Dueño' : 'Trabajador';
 }
