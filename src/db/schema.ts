@@ -266,7 +266,7 @@ export const merma = sqliteTable(
   {
     mermaId: text('merma_id').primaryKey().$defaultFn(uuid),
     mermaMotivo: text('merma_motivo', {
-      enum: ['vencimiento', 'robo', 'rotura', 'conteo', 'otro'],
+      enum: ['vencimiento', 'dano', 'robo', 'error_registro'],
     }).notNull(),
     mermaObservacion: text('merma_observacion'),
     mermaFechaHora: text('merma_fecha_hora').notNull().default(nowDefault),
@@ -281,7 +281,7 @@ export const merma = sqliteTable(
     check('merma_uuid', uuidCheck('merma_id')),
     check(
       'merma_motivo_enum',
-      sql`${t.mermaMotivo} IN ('vencimiento','robo','rotura','conteo','otro')`,
+      sql`${t.mermaMotivo} IN ('vencimiento','dano','robo','error_registro')`,
     ),
     index('idx_merma_producto').on(t.productoId, t.mermaFechaHora),
   ],

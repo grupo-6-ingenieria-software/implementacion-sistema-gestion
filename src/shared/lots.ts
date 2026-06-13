@@ -1,3 +1,5 @@
+import { isValidEan13 } from './ean13';
+
 export type LotFieldErrors = Partial<
   Record<
     | 'ean13'
@@ -9,33 +11,6 @@ export type LotFieldErrors = Partial<
     string
   >
 >;
-
-export type LotProductOption = {
-  productoId: number;
-  ean13: string;
-  nombre: string;
-  categoria: string;
-  exigeVencimiento: boolean;
-  stockDisponible: number;
-};
-
-export type LotProviderOption = {
-  id: number;
-  nombre: string;
-  rut: string;
-};
-
-export type LotPreparePayload = {
-  ean13?: string;
-  query?: string;
-  usuarioId?: string;
-};
-
-export type LotPrepareResponse = {
-  providers: LotProviderOption[];
-  product?: LotProductOption;
-  products?: LotProductOption[];
-};
 
 export type LotRegisterPayload = {
   ean13: string;
@@ -51,21 +26,13 @@ export type LotRegisterResponse = {
   ean13: string;
 };
 
+export type LotProviderOption = {
+  id: number;
+  nombre: string;
+};
+
 export const invalidLotEanMessage =
   'Seleccione un producto activo para registrar el lote.';
-
-export function normalizeLotPreparePayload(
-  payload: unknown,
-): LotPreparePayload {
-  const record = isRecord(payload) ? payload : {};
-
-  return {
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : undefined,
-    query: typeof record.query === 'string' ? record.query.trim() : undefined,
-    usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
-  };
-}
 
 export function normalizeLotRegisterPayload(
   payload: unknown,
@@ -92,7 +59,7 @@ export function validateLotRegisterPayload(
 ): LotFieldErrors {
   const fieldErrors: LotFieldErrors = {};
 
-  if (!/^\d{13}$/.test(values.ean13)) {
+  if (!isValidEan13(values.ean13)) {
     fieldErrors.ean13 = invalidLotEanMessage;
   }
 

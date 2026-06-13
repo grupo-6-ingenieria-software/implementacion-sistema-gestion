@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type UIEventHandler,
+} from 'react';
 import {
   APP_HOME_PATH,
   PASSWORD_CHANGE_PATH,
@@ -21,7 +28,9 @@ import { DashboardView } from './views/DashboardView';
 import { LotCreateView } from './views/LotCreateView';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
+import { ProductStatusView } from './views/ProductStatusView';
 import { SaleRegisterView } from './views/SaleRegisterView';
+import { WasteCreateView } from './views/WasteCreateView';
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -251,11 +260,17 @@ function AppShell({
   const isProductScreen =
     currentNode.id === 'product-list' ||
     currentNode.id === 'product-create' ||
-    currentNode.id === 'product-edit';
+    currentNode.id === 'product-edit' ||
+    currentNode.id === 'product-status';
+  const sidebarScroll = useAutoHiddenScrollbar();
+  const mainScroll = useAutoHiddenScrollbar();
 
   return (
-    <div className="grid min-h-screen grid-cols-[280px_1fr] bg-[#f6f7f9] text-[#17202a]">
-      <aside className="border-r border-[#cbd5df] bg-[#17202a] text-white">
+    <div className="grid h-screen grid-cols-[280px_1fr] overflow-hidden bg-[#f6f7f9] text-[#17202a]">
+      <aside
+        className={`scroll-area h-screen overflow-y-auto border-r border-[#cbd5df] bg-[#17202a] text-white ${sidebarScroll.className}`}
+        onScroll={sidebarScroll.onScroll}
+      >
         <div className="border-b border-white/10 px-5 py-5">
           <p className="text-xs font-semibold uppercase text-[#9dd6bd]">
             Minimarket y Panaderia
@@ -296,7 +311,10 @@ function AppShell({
           })}
         </nav>
       </aside>
-      <main className="min-w-0">
+      <main
+        className={`scroll-area min-w-0 overflow-y-auto ${mainScroll.className}`}
+        onScroll={mainScroll.onScroll}
+      >
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
           <div>
             <p className="text-sm font-semibold text-[#61717f]">
@@ -326,6 +344,40 @@ function AppShell({
       </main>
     </div>
   );
+}
+
+function useAutoHiddenScrollbar(): {
+  className: string;
+  onScroll: UIEventHandler<HTMLElement>;
+} {
+  const [isScrolling, setIsScrolling] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const onScroll: UIEventHandler<HTMLElement> = () => {
+    setIsScrolling(true);
+
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      setIsScrolling(false);
+      timeoutRef.current = null;
+    }, 900);
+  };
+
+  return {
+    className: isScrolling ? 'is-scrolling' : '',
+    onScroll,
+  };
 }
 
 function ViewRenderer({
@@ -363,6 +415,16 @@ function ViewRenderer({
     return <SaleRegisterView session={session} />;
   }
 
+  if (node.id === 'waste-create' && session.usuarioId) {
+    return (
+      <WasteCreateView
+        initialEan13={getWasteCreateEan13(currentPath)}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === 'product-list' && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -381,6 +443,16 @@ function ViewRenderer({
       <ProductFormView
         ean13={getProductEditEan13(currentPath)}
         mode={node.id === 'product-create' ? 'create' : 'edit'}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === 'product-status' && session.usuarioId) {
+    return (
+      <ProductStatusView
+        ean13={getProductStatusEan13(currentPath)}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
       />
@@ -508,11 +580,25 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'product-create',
     'product-edit',
     'product-list',
+    'product-status',
     'sale-register',
+    'waste-create',
   ].includes(nodeId);
 }
 
+export function getProductStatusEan13(path: string): string | undefined {
+  const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/estado$/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 export function getLotCreateEan13(path: string): string | undefined {
+  const [, query = ''] = path.split('?');
+  const ean13 = new URLSearchParams(query).get('ean13');
+
+  return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getWasteCreateEan13(path: string): string | undefined {
   const [, query = ''] = path.split('?');
   const ean13 = new URLSearchParams(query).get('ean13');
 

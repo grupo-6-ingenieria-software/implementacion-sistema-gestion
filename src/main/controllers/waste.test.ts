@@ -8,10 +8,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../db/schema';
 import { AccessDeniedError } from './auth-context';
 import {
-  createLotController,
-  registerLotWithExecutor,
-  type LotError,
-} from './lot';
+  createWasteController,
+  registerWasteWithExecutor,
+  type WasteError,
+} from './waste';
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -19,7 +19,7 @@ let testDb: TestDatabase | undefined;
 
 beforeEach(async () => {
   testDb = await createTestDatabase();
-  await seedLotFixture(testDb.db);
+  await seedWasteFixture(testDb.db);
 });
 
 afterEach(async () => {
@@ -32,10 +32,9 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('lot controller', () => {
+describe('waste controller', () => {
   it('maps authorization failures to forbidden responses', async () => {
-    const controller = createLotController({
-      listProviders: async () => [],
+    const controller = createWasteController({
       register: async () => {
         throw new AccessDeniedError();
       },
@@ -44,32 +43,32 @@ describe('lot controller', () => {
     const response = await controller.handle(
       {
         ean13: '7802920000015',
-        cantidad: 10,
-        precioCosto: 700,
-        proveedorId: 1,
+        cantidad: 2,
+        motivo: 'dano',
         usuarioId: 'trabajador',
       },
-      { channel: 'lote:registrar' },
+      { channel: 'merma:registrar' },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden lot response');
+      throw new Error('Expected forbidden waste response');
     }
 
     expect(response.error.code).toBe('FORBIDDEN');
   });
 
-  it('rejects channels not declared for the lot controller', async () => {
-    const controller = createLotController({
-      listProviders: async () => [],
+  it('rejects channels not declared for the waste controller', async () => {
+    const controller = createWasteController({
       register: async () => ({
-        loteId: '00000000-0000-4000-8000-000000000001',
+        mermaId: '00000000-0000-4000-8000-000000000001',
         ean13: '7802920000015',
+        cantidad: 1,
+        lotesDescontados: [],
       }),
     });
 
-    const response = await controller.handle({}, { channel: 'lote:preparar' });
+    const response = await controller.handle({}, { channel: 'merma:preparar' });
 
     expect(response.ok).toBe(false);
     if (response.ok) {
@@ -79,128 +78,124 @@ describe('lot controller', () => {
     expect(response.error.code).toBe('INVALID_CHANNEL');
   });
 
-  it('lists providers for lot registration', async () => {
-    const controller = createLotController({
-      listProviders: async () => [
-        { id: 1, nombre: 'Distribuidora Central S.A.' },
-      ],
-      register: async () => ({
-        loteId: '00000000-0000-4000-8000-000000000001',
+  it('registers waste and discounts perishable lots using FEFO', async () => {
+    const result = await testDb!.db.transaction((tx) =>
+      registerWasteWithExecutor(tx, schema, {
         ean13: '7802920000015',
+        cantidad: 7,
+        motivo: 'vencimiento',
+        observacion: 'Fecha cercana',
+        usuarioId: '12345678-9',
       }),
-    });
-
-    const response = await controller.handle(
-      { usuarioId: 'dueno' },
-      { channel: 'lote:proveedores' },
     );
 
-    expect(response.ok).toBe(true);
-    if (!response.ok) {
-      throw new Error(response.error.message);
-    }
+    expect(result.ean13).toBe('7802920000015');
+    expect(result.cantidad).toBe(7);
+    expect(result.lotesDescontados).toEqual([
+      {
+        loteId: '00000000-0000-4000-8000-000000000102',
+        cantidad: 5,
+      },
+      {
+        loteId: '00000000-0000-4000-8000-000000000101',
+        cantidad: 2,
+      },
+    ]);
 
-    expect(response.data).toEqual([
-      { id: 1, nombre: 'Distribuidora Central S.A.' },
+    const rows = await testDb!.db.all<{
+      mermaLotes: number;
+      movimientos: number;
+      auditorias: number;
+      loteA: number;
+      loteB: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM merma_lote WHERE merma_id = ${result.mermaId}) AS mermaLotes,
+        (SELECT COUNT(*) FROM ajuste_inventario WHERE ajuste_cantidad < 0) AS movimientos,
+        (SELECT COUNT(*) FROM log_auditoria) AS auditorias,
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = '00000000-0000-4000-8000-000000000101') AS loteA,
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = '00000000-0000-4000-8000-000000000102') AS loteB
+    `);
+
+    expect(rows[0]).toMatchObject({
+      mermaLotes: 2,
+      movimientos: 2,
+      auditorias: 1,
+      loteA: 3,
+      loteB: 0,
+    });
+  });
+
+  it('discounts non-perishable lots by entry date', async () => {
+    const result = await testDb!.db.transaction((tx) =>
+      registerWasteWithExecutor(tx, schema, {
+        ean13: '7802920000022',
+        cantidad: 8,
+        motivo: 'error_registro',
+        usuarioId: '12345678-9',
+      }),
+    );
+
+    expect(result.lotesDescontados).toEqual([
+      {
+        loteId: '00000000-0000-4000-8000-000000000201',
+        cantidad: 3,
+      },
+      {
+        loteId: '00000000-0000-4000-8000-000000000202',
+        cantidad: 5,
+      },
     ]);
   });
 
-  it('registers a non-perishable lot, movement and audit log', async () => {
-    const result = await testDb!.db.transaction((tx) =>
-      registerLotWithExecutor(tx, schema, {
-        ean13: '7802920000022',
-        cantidad: 24,
-        precioCosto: 900,
-        proveedorId: 1,
-        usuarioId: '12345678-9',
-      }),
-    );
-
-    const rows = await testDb!.db.all<{
-      loteId: string;
-      perecible: number;
-      noPerecible: number;
-      cantidadActual: number;
-      movimientos: number;
-      auditorias: number;
-    }>(sql`
-      SELECT
-        l.lote_id AS loteId,
-        l.es_lote_perecible AS perecible,
-        l.es_lote_no_perecible AS noPerecible,
-        l.lote_cantidad_actual AS cantidadActual,
-        (SELECT COUNT(*) FROM ajuste_inventario ai WHERE ai.lote_id = l.lote_id) AS movimientos,
-        (SELECT COUNT(*) FROM log_auditoria) AS auditorias
-      FROM lote l
-      WHERE l.lote_id = ${result.loteId}
-    `);
-
-    expect(result.ean13).toBe('7802920000022');
-    expect(rows[0]).toMatchObject({
-      perecible: 0,
-      noPerecible: 1,
-      cantidadActual: 24,
-      movimientos: 1,
-      auditorias: 1,
-    });
-  });
-
-  it('registers a perishable lot with expiration subtype', async () => {
-    const result = await testDb!.db.transaction((tx) =>
-      registerLotWithExecutor(tx, schema, {
-        ean13: '7802920000015',
-        cantidad: 10,
-        precioCosto: 700,
-        fechaVencimiento: '2027-01-01',
-        proveedorId: 1,
-        usuarioId: '12345678-9',
-      }),
-    );
-
-    const rows = await testDb!.db.all<{
-      fechaVencimiento: string;
-    }>(sql`
-      SELECT lote_perecible_fecha_vencimiento AS fechaVencimiento
-      FROM lote_perecible
-      WHERE lote_id = ${result.loteId}
-    `);
-
-    expect(rows).toEqual([{ fechaVencimiento: '2027-01-01' }]);
-  });
-
-  it('rejects inactive products and missing providers', async () => {
+  it('rejects inactive products and insufficient stock without partial writes', async () => {
     await expect(
       testDb!.db.transaction((tx) =>
-        registerLotWithExecutor(tx, schema, {
+        registerWasteWithExecutor(tx, schema, {
           ean13: '7802920000039',
-          cantidad: 10,
-          precioCosto: 700,
-          proveedorId: 1,
+          cantidad: 1,
+          motivo: 'dano',
           usuarioId: '12345678-9',
         }),
       ),
     ).rejects.toMatchObject({
       reason: 'product-not-found',
-    } satisfies Partial<LotError>);
+    } satisfies Partial<WasteError>);
 
     await expect(
       testDb!.db.transaction((tx) =>
-        registerLotWithExecutor(tx, schema, {
+        registerWasteWithExecutor(tx, schema, {
           ean13: '7802920000022',
-          cantidad: 10,
-          precioCosto: 700,
-          proveedorId: 999,
+          cantidad: 99,
+          motivo: 'error_registro',
           usuarioId: '12345678-9',
         }),
       ),
     ).rejects.toMatchObject({
-      reason: 'provider-not-found',
-    } satisfies Partial<LotError>);
+      reason: 'stock-insufficient',
+    } satisfies Partial<WasteError>);
+
+    const rows = await testDb!.db.all<{
+      mermas: number;
+      mermaLotes: number;
+      movimientos: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM merma) AS mermas,
+        (SELECT COUNT(*) FROM merma_lote) AS mermaLotes,
+        (SELECT COUNT(*) FROM ajuste_inventario WHERE ajuste_cantidad < 0) AS movimientos
+    `);
+
+    expect(rows[0]).toEqual({
+      mermas: 0,
+      mermaLotes: 0,
+      movimientos: 0,
+    });
   });
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-lot-'));
+  const dir = await mkdtemp(join(tmpdir(), 'huascar-waste-'));
   const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
@@ -222,7 +217,7 @@ async function createTestDatabase() {
   return { client, db, dir };
 }
 
-async function seedLotFixture(db: TestDatabase['db']): Promise<void> {
+async function seedWasteFixture(db: TestDatabase['db']): Promise<void> {
   await db.run(sql`
     INSERT INTO trabajador (
       trabajador_id,
@@ -275,22 +270,33 @@ async function seedLotFixture(db: TestDatabase['db']): Promise<void> {
   `);
 
   await db.run(sql`
-    INSERT INTO proveedor (
-      proveedor_id,
-      proveedor_rut,
-      proveedor_nombre_razon_social,
-      proveedor_nombre_contacto,
-      proveedor_telefono,
-      proveedor_correo_electronico
+    INSERT INTO lote (
+      lote_id,
+      lote_cantidad_inicial,
+      lote_cantidad_actual,
+      lote_precio_costo,
+      lote_fecha_hora_ingreso,
+      es_lote_perecible,
+      es_lote_no_perecible,
+      producto_id
     )
-    VALUES (
-      1,
-      '76543210-K',
-      'Distribuidora Central S.A.',
-      'Juan Perez',
-      '912345678',
-      'ventas@distribuidora.cl'
+    VALUES
+      ('00000000-0000-4000-8000-000000000101', 5, 5, 700, '2026-01-01T00:00:00.000Z', 1, 0, 1),
+      ('00000000-0000-4000-8000-000000000102', 5, 5, 700, '2026-02-01T00:00:00.000Z', 1, 0, 1),
+      ('00000000-0000-4000-8000-000000000103', 5, 5, 700, '2026-03-01T00:00:00.000Z', 1, 0, 1),
+      ('00000000-0000-4000-8000-000000000201', 3, 3, 800, '2026-01-10T00:00:00.000Z', 0, 1, 2),
+      ('00000000-0000-4000-8000-000000000202', 7, 7, 800, '2026-02-10T00:00:00.000Z', 0, 1, 2)
+  `);
+
+  await db.run(sql`
+    INSERT INTO lote_perecible (
+      lote_id,
+      lote_perecible_fecha_vencimiento
     )
+    VALUES
+      ('00000000-0000-4000-8000-000000000101', '2027-02-01'),
+      ('00000000-0000-4000-8000-000000000102', '2027-01-01'),
+      ('00000000-0000-4000-8000-000000000103', '2027-03-01')
   `);
 }
 
