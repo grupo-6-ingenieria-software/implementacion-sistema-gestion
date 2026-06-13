@@ -20,10 +20,13 @@ import {
   resolveInitialRoute,
   type NavNode,
   type Role,
+  type RouteGuardDecision,
   type SessionState,
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import { AuditLogView } from './views/AuditLogView';
+import { DailySalesView } from './views/DailySalesView';
 import { DashboardView } from './views/DashboardView';
 import { AttendanceView } from './views/AttendanceView';
 import { CashClosingView } from './views/CashClosingView';
@@ -57,6 +60,7 @@ type DevLoginData = {
 export function App(): ReactElement {
   const [session, setSession] = useState<AppSession>(defaultSession);
   const [path, setPath] = useState(getHashPath);
+  const lastRouteAuditKey = useRef<string | null>(null);
 
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
@@ -66,6 +70,8 @@ export function App(): ReactElement {
 
   useEffect(() => {
     const decision = evaluateRouteAccess(path, session);
+
+    auditRouteAccess(path, session, decision, lastRouteAuditKey);
 
     if (decision.status !== 'allow') {
       navigate(decision.to);
@@ -442,6 +448,10 @@ function ViewRenderer({
     return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === 'daily-sales') {
+    return <DailySalesView />;
+  }
+
   if (node.id === 'product-list' && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -597,6 +607,49 @@ function navigate(path: string): void {
   window.location.hash = path;
 }
 
+function auditRouteAccess(
+  pathname: string,
+  session: AppSession,
+  decision: RouteGuardDecision,
+  lastRouteAuditKey: { current: string | null },
+): void {
+  if (!pathname.startsWith('/app') || !session.usuarioId) {
+    return;
+  }
+
+  if (decision.status === 'redirect') {
+    return;
+  }
+
+  const node = findNavNodeByPath(pathname);
+  const result = decision.status === 'allow' ? 'concedido' : 'denegado';
+  const key = `${session.usuarioId}:${pathname}:${result}`;
+
+  if (lastRouteAuditKey.current === key) {
+    return;
+  }
+
+  lastRouteAuditKey.current = key;
+
+  const label = node?.label ?? pathname;
+  const moduleLabel = node
+    ? navGroupLabels[node.group].toLocaleLowerCase('es')
+    : 'acceso';
+
+  void window.appApi
+    .invoke('auditoria:registrar', {
+      descripcion:
+        decision.status === 'allow'
+          ? `Acceso concedido a ${label}.`
+          : `Acceso denegado a ${label}.`,
+      modulo: moduleLabel,
+      tipoAccion:
+        decision.status === 'allow' ? 'acceso_concedido' : 'acceso_denegado',
+      usuarioId: session.usuarioId,
+    })
+    .catch(() => undefined);
+}
+
 function getHashPath(): string {
   const rawPath = window.location.hash.replace(/^#/, '');
   return rawPath.startsWith('/') ? rawPath : PUBLIC_LOGIN_PATH;
@@ -612,6 +665,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'dashboard',
     'attendance',
     'cash-closing',
+    'daily-sales',
     'lot-create',
     'product-create',
     'product-edit',
