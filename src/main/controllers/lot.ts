@@ -1,13 +1,10 @@
-import { and, asc, eq, like, or, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { controllers } from '../../shared/controllers';
 import {
   hasLotFieldErrors,
-  normalizeLotPreparePayload,
   normalizeLotRegisterPayload,
   validateLotRegisterPayload,
   type LotFieldErrors,
-  type LotPrepareResponse,
-  type LotProductOption,
   type LotProviderOption,
   type LotRegisterPayload,
   type LotRegisterResponse,
@@ -18,78 +15,52 @@ import {
   authorizeUser,
   registerAuditLog,
 } from './auth-context';
+import { notifyDashboardUpdated } from './dashboard-events';
 
 type LotDependencies = {
-  prepare: (payload: {
-    ean13?: string;
-    query?: string;
-    usuarioId?: string;
-  }) => Promise<LotPrepareResponse>;
   register: (payload: LotRegisterPayload) => Promise<LotRegisterResponse>;
+  listProviders: (payload: unknown) => Promise<LotProviderOption[]>;
 };
+
+type LotControllerResponse = LotRegisterResponse | LotProviderOption[];
 
 export function createLotController(
   dependencies: LotDependencies = lotDependencies,
 ): RegisteredController {
-  const handle: ControllerHandler<unknown, LotPrepareResponse | LotRegisterResponse> =
-    async (payload, context) => {
-      if (context.channel === 'lote:preparar') {
-        const input = normalizeLotPreparePayload(payload);
-
-        try {
-          return {
-            ok: true,
-            data: await dependencies.prepare(input),
-          };
-        } catch (error) {
-          const knownError = normalizeLotError(error);
-
-          if (knownError) {
-            return knownError;
-          }
-
+  const handle: ControllerHandler<unknown, LotControllerResponse> = async (
+    payload,
+    context,
+  ) => {
+    if (context.channel === 'lote:proveedores') {
+      try {
+        return {
+          ok: true,
+          data: await dependencies.listProviders(payload),
+        };
+      } catch (error) {
+        if (error instanceof AccessDeniedError) {
           return {
             ok: false,
             error: {
-              code: 'DATABASE_ERROR',
+              code: 'FORBIDDEN',
               controllerId: 'lot',
-              message: 'No fue posible preparar el registro de lote.',
+              message: error.message,
             },
           };
         }
+
+        return {
+          ok: false,
+          error: {
+            code: 'DATABASE_ERROR',
+            controllerId: 'lot',
+            message: 'No fue posible cargar los proveedores.',
+          },
+        };
       }
+    }
 
-      if (context.channel === 'lote:registrar') {
-        const input = normalizeLotRegisterPayload(payload);
-        const fieldErrors = validateLotRegisterPayload(input);
-
-        if (hasLotFieldErrors(fieldErrors)) {
-          return validationResponse(fieldErrors);
-        }
-
-        try {
-          return {
-            ok: true,
-            data: await dependencies.register(input),
-          };
-        } catch (error) {
-          const knownError = normalizeLotError(error);
-
-          if (knownError) {
-            return knownError;
-          }
-
-          return {
-            ok: false,
-            error: {
-              code: 'DATABASE_ERROR',
-              controllerId: 'lot',
-              message: 'No fue posible registrar el lote. Intente nuevamente.',
-            },
-          };
-        }
-      }
-
+    if (context.channel !== 'lote:registrar') {
       return {
         ok: false,
         error: {
@@ -98,7 +69,37 @@ export function createLotController(
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
-    };
+    }
+
+    const input = normalizeLotRegisterPayload(payload);
+    const fieldErrors = validateLotRegisterPayload(input);
+
+    if (hasLotFieldErrors(fieldErrors)) {
+      return validationResponse(fieldErrors);
+    }
+
+    try {
+      return {
+        ok: true,
+        data: await dependencies.register(input),
+      };
+    } catch (error) {
+      const knownError = normalizeLotError(error);
+
+      if (knownError) {
+        return knownError;
+      }
+
+      return {
+        ok: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          controllerId: 'lot',
+          message: 'No fue posible registrar el lote. Intente nuevamente.',
+        },
+      };
+    }
+  };
 
   return {
     metadata: controllers[13],
@@ -107,37 +108,7 @@ export function createLotController(
 }
 
 const lotDependencies: LotDependencies = {
-  prepare: async ({ ean13, query, usuarioId }) => {
-    const { db, schema } = await import('../../db/client');
-
-    await authorizeUser(db, schema, usuarioId, ['dueno']);
-
-    const providers = await listProviders(db as unknown as QueryExecutor, schema);
-    const search = ean13?.trim() || query?.trim();
-
-    if (!search) {
-      return { providers };
-    }
-
-    const products = await listActiveProducts(
-      db as unknown as QueryExecutor,
-      schema,
-      search,
-      ean13 ? 1 : 10,
-    );
-
-    if (ean13 && products.length === 0) {
-      throw new LotError('product-not-found', {
-        ean13: 'El producto no existe o se encuentra inactivo.',
-      });
-    }
-
-    return {
-      providers,
-      product: ean13 ? products[0] : undefined,
-      products: ean13 ? undefined : products,
-    };
-  },
+  listProviders,
   register: registerLot,
 };
 
@@ -152,10 +123,27 @@ async function registerLot(
     createdLotId = result.loteId;
   });
 
+  notifyDashboardUpdated();
+
   return {
     loteId: createdLotId,
     ean13: payload.ean13,
   };
+}
+
+async function listProviders(payload: unknown): Promise<LotProviderOption[]> {
+  const { db, schema } = await import('../../db/client');
+  const usuarioId = normalizeUsuarioIdPayload(payload);
+
+  await authorizeUser(db, schema, usuarioId, ['dueno']);
+
+  return db
+    .select({
+      id: schema.proveedor.proveedorId,
+      nombre: schema.proveedor.proveedorNombreRazonSocial,
+    })
+    .from(schema.proveedor)
+    .orderBy(schema.proveedor.proveedorNombreRazonSocial);
 }
 
 export async function registerLotWithExecutor(
@@ -210,7 +198,7 @@ export async function registerLotWithExecutor(
 
   await executor.insert(schema.ajusteInventario).values({
     ajusteCantidad: payload.cantidad,
-    ajusteJustificacion: `Ingreso de lote para ${payload.ean13}`,
+    ajusteJustificacion: `Entrada de lote para ${payload.ean13}`,
     productoId: product.productoId,
     loteId: createdLot.loteId,
     usuarioId: user.usuarioId,
@@ -229,83 +217,35 @@ export async function registerLotWithExecutor(
   };
 }
 
-async function listProviders(
+async function findActiveProductByEan13(
   executor: QueryExecutor,
   schema: SchemaLike,
-): Promise<LotProviderOption[]> {
-  const rows = await executor
-    .select({
-      id: schema.proveedor.proveedorId,
-      nombre: schema.proveedor.proveedorNombreRazonSocial,
-      rut: schema.proveedor.proveedorRut,
-    })
-    .from(schema.proveedor)
-    .orderBy(asc(schema.proveedor.proveedorNombreRazonSocial));
-
-  return rows.map((row) => ({
-    id: Number(row.id),
-    nombre: row.nombre,
-    rut: row.rut,
-  }));
-}
-
-async function listActiveProducts(
-  executor: QueryExecutor,
-  schema: SchemaLike,
-  search: string,
-  limit: number,
-): Promise<LotProductOption[]> {
-  const rows = await executor
+  ean13: string,
+): Promise<{ productoId: number; exigeVencimiento: boolean } | null> {
+  const [product] = await executor
     .select({
       productoId: schema.producto.productoId,
-      ean13: schema.producto.productoEan13,
-      nombre: schema.producto.productoNombre,
-      categoria: schema.categoria.categoriaNombre,
       exigeVencimiento: schema.categoria.categoriaExigeVencimiento,
-      stockDisponible:
-        sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`,
     })
     .from(schema.producto)
     .innerJoin(
       schema.categoria,
       eq(schema.categoria.categoriaId, schema.producto.categoriaId),
     )
-    .leftJoin(
-      schema.lote,
-      eq(schema.lote.productoId, schema.producto.productoId),
-    )
     .where(
       and(
         eq(schema.producto.productoEstado, 'activo'),
-        or(
-          eq(schema.producto.productoEan13, search),
-          like(schema.producto.productoEan13, `%${search}%`),
-          like(schema.producto.productoNombre, `%${search}%`),
-        ),
+        eq(schema.producto.productoEan13, ean13),
       ),
     )
-    .groupBy(
-      schema.producto.productoId,
-      schema.producto.productoEan13,
-      schema.producto.productoNombre,
-      schema.categoria.categoriaNombre,
-      schema.categoria.categoriaExigeVencimiento,
-    )
-    .orderBy(asc(schema.producto.productoNombre))
-    .limit(limit);
+    .limit(1);
 
-  return rows.map(mapProductRow);
-}
-
-async function findActiveProductByEan13(
-  executor: QueryExecutor,
-  schema: SchemaLike,
-  ean13: string,
-): Promise<LotProductOption | null> {
-  const products = await listActiveProducts(executor, schema, ean13, 1);
-  const product = products.find((item) => item.ean13 === ean13);
-
-  return product ?? null;
+  return product
+    ? {
+        productoId: Number(product.productoId),
+        exigeVencimiento: Boolean(product.exigeVencimiento),
+      }
+    : null;
 }
 
 async function findProviderById(
@@ -320,24 +260,6 @@ async function findProviderById(
     .limit(1);
 
   return provider ? { id: Number(provider.id) } : null;
-}
-
-function mapProductRow(row: {
-  productoId: number;
-  ean13: string;
-  nombre: string;
-  categoria: string;
-  exigeVencimiento: boolean;
-  stockDisponible: number;
-}): LotProductOption {
-  return {
-    productoId: Number(row.productoId),
-    ean13: row.ean13,
-    nombre: row.nombre,
-    categoria: row.categoria,
-    exigeVencimiento: Boolean(row.exigeVencimiento),
-    stockDisponible: Number(row.stockDisponible),
-  };
 }
 
 function normalizeLotError(error: unknown) {
@@ -381,6 +303,19 @@ function normalizeLotError(error: unknown) {
   }
 
   return validationResponse(error.fieldErrors);
+}
+
+function normalizeUsuarioIdPayload(payload: unknown): string | undefined {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'usuarioId' in payload &&
+    typeof payload.usuarioId === 'string'
+  ) {
+    return payload.usuarioId.trim();
+  }
+
+  return undefined;
 }
 
 function validationResponse(fieldErrors: LotFieldErrors) {

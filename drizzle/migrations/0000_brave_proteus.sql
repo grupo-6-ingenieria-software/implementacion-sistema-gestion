@@ -237,7 +237,7 @@ CREATE TABLE `merma` (
 	FOREIGN KEY (`producto_id`) REFERENCES `producto`(`producto_id`) ON UPDATE no action ON DELETE restrict,
 	FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "merma_uuid" CHECK(length(merma_id) = 36),
-	CONSTRAINT "merma_motivo_enum" CHECK("merma"."merma_motivo" IN ('vencimiento','robo','rotura','conteo','otro'))
+	CONSTRAINT "merma_motivo_enum" CHECK("merma"."merma_motivo" IN ('vencimiento','dano','robo','error_registro'))
 );
 --> statement-breakpoint
 CREATE INDEX `idx_merma_producto` ON `merma` (`producto_id`,`merma_fecha_hora`);--> statement-breakpoint

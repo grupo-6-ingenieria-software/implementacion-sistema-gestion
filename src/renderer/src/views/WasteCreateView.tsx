@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import {
-  normalizeLotRegisterPayload,
-  validateLotRegisterPayload,
-  type LotFieldErrors,
-  type LotProviderOption,
-  type LotRegisterPayload,
-  type LotRegisterResponse,
-} from '../../../shared/lots';
 import type { ActiveProductSearchItem } from '../../../shared/products';
+import {
+  normalizeWasteRegisterPayload,
+  validateWasteRegisterPayload,
+  wasteReasons,
+  type WasteFieldErrors,
+  type WasteReason,
+  type WasteRegisterPayload,
+  type WasteRegisterResponse,
+} from '../../../shared/waste';
 import { CampoEAN13Input } from '../components';
 
-type LotCreateViewProps = {
+type WasteCreateViewProps = {
   initialEan13?: string;
   usuarioId: string;
   onNavigate: (path: string) => void;
@@ -19,24 +20,29 @@ type LotCreateViewProps = {
 type FormState = {
   ean13: string;
   cantidad: string;
-  precioCosto: string;
-  fechaVencimiento: string;
-  proveedorId: string;
+  motivo: WasteReason | '';
+  observacion: string;
 };
 
 const emptyForm: FormState = {
   ean13: '',
   cantidad: '',
-  precioCosto: '',
-  fechaVencimiento: '',
-  proveedorId: '',
+  motivo: '',
+  observacion: '',
 };
 
-export function LotCreateView({
+const reasonLabels: Record<WasteReason, string> = {
+  vencimiento: 'Vencimiento',
+  dano: 'Daño',
+  robo: 'Robo',
+  error_registro: 'Error de registro',
+};
+
+export function WasteCreateView({
   initialEan13,
   onNavigate,
   usuarioId,
-}: LotCreateViewProps): ReactElement {
+}: WasteCreateViewProps): ReactElement {
   const [form, setForm] = useState<FormState>({
     ...emptyForm,
     ean13: initialEan13 ?? '',
@@ -47,10 +53,8 @@ export function LotCreateView({
   const [searchResults, setSearchResults] = useState<ActiveProductSearchItem[]>(
     [],
   );
-  const [providers, setProviders] = useState<LotProviderOption[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<LotFieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<WasteFieldErrors>({});
   const [loading, setLoading] = useState(Boolean(initialEan13));
-  const [providersLoading, setProvidersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -107,58 +111,9 @@ export function LotCreateView({
     };
   }, [initialEan13, usuarioId]);
 
-  useEffect(() => {
-    let isCurrent = true;
-
-    async function loadProviders(): Promise<void> {
-      setProvidersLoading(true);
-
-      const response = await window.appApi.invoke<LotProviderOption[]>(
-        'lote:proveedores',
-        { usuarioId },
-      );
-
-      if (!isCurrent) {
-        return;
-      }
-
-      if (!response.ok) {
-        setProviders([]);
-        setMessage(response.error.message);
-        setProvidersLoading(false);
-        return;
-      }
-
-      setProviders(response.data);
-
-      if (response.data.length === 1) {
-        setForm((current) => ({
-          ...current,
-          proveedorId: current.proveedorId || String(response.data[0].id),
-        }));
-      }
-
-      setProvidersLoading(false);
-    }
-
-    loadProviders().catch(() => {
-      if (!isCurrent) {
-        return;
-      }
-
-      setProviders([]);
-      setMessage('No fue posible cargar los proveedores.');
-      setProvidersLoading(false);
-    });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [usuarioId]);
-
-  const payload = useMemo<LotRegisterPayload>(
+  const payload = useMemo<WasteRegisterPayload>(
     () =>
-      normalizeLotRegisterPayload({
+      normalizeWasteRegisterPayload({
         ...form,
         usuarioId,
       }),
@@ -172,9 +127,6 @@ export function LotCreateView({
     setForm((current) => ({
       ...current,
       ean13: product.ean13,
-      fechaVencimiento: product.exigeVencimiento
-        ? current.fechaVencimiento
-        : '',
     }));
     setFieldErrors((current) => ({ ...current, ean13: undefined }));
   }
@@ -216,9 +168,14 @@ export function LotCreateView({
   }
 
   async function submitForm(): Promise<void> {
-    const nextErrors = validateLotRegisterPayload(payload, {
-      productRequiresExpiration: selectedProduct?.exigeVencimiento,
+    const nextErrors = validateWasteRegisterPayload(payload, {
+      requireUser: true,
+      stockDisponible: selectedProduct?.stockDisponible,
     });
+
+    if (!selectedProduct) {
+      nextErrors.ean13 = 'Seleccione un producto activo para registrar la merma.';
+    }
 
     setFieldErrors(nextErrors);
     setMessage(null);
@@ -229,8 +186,8 @@ export function LotCreateView({
 
     setSaving(true);
 
-    const response = await window.appApi.invoke<LotRegisterResponse>(
-      'lote:registrar',
+    const response = await window.appApi.invoke<WasteRegisterResponse>(
+      'merma:registrar',
       payload,
     );
 
@@ -242,7 +199,7 @@ export function LotCreateView({
       return;
     }
 
-    setMessage('Lote registrado correctamente.');
+    setMessage('Merma registrada correctamente.');
     window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
   }
 
@@ -252,11 +209,11 @@ export function LotCreateView({
         <div>
           <p className="text-sm font-semibold text-[#2d6a4f]">Inventario</p>
           <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-            Registrar lote
+            Registrar merma
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Ingresa la recepcion de un producto activo y deja actualizado el
-            stock disponible.
+            Registra perdidas de productos activos y descuenta stock disponible
+            desde sus lotes.
           </p>
         </div>
         <button
@@ -350,39 +307,15 @@ export function LotCreateView({
                   <ProductSummary product={selectedProduct} />
                 ) : (
                   <p className="rounded-md bg-[#f6f7f9] px-3 py-2 text-sm font-semibold text-[#61717f]">
-                    Seleccione un producto activo para registrar el lote.
+                    Seleccione un producto activo para registrar la merma.
                   </p>
                 )}
               </section>
 
               <section className="grid gap-4">
-                <Field label="Proveedor" error={fieldErrors.proveedorId}>
-                  <select
-                    className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                    disabled={providersLoading || providers.length === 0}
-                    value={form.proveedorId}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        proveedorId: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">
-                      {providersLoading
-                        ? 'Cargando proveedores...'
-                        : 'Seleccione proveedor'}
-                    </option>
-                    {providers.map((provider) => (
-                      <option key={provider.id} value={provider.id}>
-                        {provider.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Cantidad recibida" error={fieldErrors.cantidad}>
+                <Field label="Cantidad" error={fieldErrors.cantidad}>
                   <NumberInput
+                    max={selectedProduct?.stockDisponible}
                     value={form.cantidad}
                     onChange={(value) =>
                       setForm((current) => ({ ...current, cantidad: value }))
@@ -390,33 +323,38 @@ export function LotCreateView({
                   />
                 </Field>
 
-                <Field label="Precio costo del lote" error={fieldErrors.precioCosto}>
-                  <NumberInput
-                    value={form.precioCosto}
-                    onChange={(value) =>
-                      setForm((current) => ({ ...current, precioCosto: value }))
+                <Field label="Motivo" error={fieldErrors.motivo}>
+                  <select
+                    className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+                    value={form.motivo}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        motivo: event.target.value as WasteReason | '',
+                      }))
+                    }
+                  >
+                    <option value="">Seleccione un motivo</option>
+                    {wasteReasons.map((reason) => (
+                      <option key={reason} value={reason}>
+                        {reasonLabels[reason]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Observacion" error={fieldErrors.observacion}>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+                    value={form.observacion}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        observacion: event.target.value,
+                      }))
                     }
                   />
                 </Field>
-
-                {selectedProduct?.exigeVencimiento ? (
-                  <Field
-                    label="Fecha de vencimiento"
-                    error={fieldErrors.fechaVencimiento}
-                  >
-                    <input
-                      className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                      type="date"
-                      value={form.fechaVencimiento}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          fechaVencimiento: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                ) : null}
               </section>
             </div>
 
@@ -432,7 +370,7 @@ export function LotCreateView({
                 disabled={saving}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Registrar lote'}
+                {saving ? 'Guardando...' : 'Registrar merma'}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -460,10 +398,14 @@ function ProductSummary({
       <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
         <Info label="EAN-13" value={product.ean13} />
         <Info label="Categoria" value={product.categoria} />
-        <Info label="Stock actual" value={String(product.stockDisponible)} />
+        <Info label="Stock disponible" value={String(product.stockDisponible)} />
         <Info
-          label="Vencimiento"
-          value={product.exigeVencimiento ? 'Requerido' : 'No requerido'}
+          label="Descuento"
+          value={
+            product.exigeVencimiento
+              ? 'FEFO por vencimiento'
+              : 'Fecha de ingreso'
+          }
         />
       </dl>
     </div>
@@ -502,9 +444,11 @@ function Info({ label, value }: { label: string; value: string }): ReactElement 
 }
 
 function NumberInput({
+  max,
   onChange,
   value,
 }: {
+  max?: number;
   onChange: (value: string) => void;
   value: string;
 }): ReactElement {
@@ -512,6 +456,7 @@ function NumberInput({
     <input
       className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
       inputMode="numeric"
+      max={max}
       min={0}
       type="number"
       value={value}

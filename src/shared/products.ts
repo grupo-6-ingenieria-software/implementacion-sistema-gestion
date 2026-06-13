@@ -1,3 +1,7 @@
+import { isValidEan13 } from './ean13';
+
+export { isValidEan13 };
+
 export type ProductStatus = 'activo' | 'inactivo';
 export type ProductStatusFilter = ProductStatus | 'todos';
 export type ProductSortBy = 'nombre' | 'categoria' | 'stockActual';
@@ -13,6 +17,9 @@ export type ProductFieldErrors = Partial<
     | 'usuarioId',
     string
   >
+>;
+export type ProductStatusFieldErrors = Partial<
+  Record<'ean13' | 'estado' | 'usuarioId', string>
 >;
 
 export type ProductListFilters = {
@@ -43,6 +50,16 @@ export type ProductListItem = {
   stockMinimo: number;
   estado: ProductStatus;
   fechaRegistro: string;
+};
+
+export type ActiveProductSearchItem = {
+  productoId: number;
+  ean13: string;
+  nombre: string;
+  categoria: string;
+  precioVenta: number;
+  stockDisponible: number;
+  exigeVencimiento: boolean;
 };
 
 export type ProductListResponse = {
@@ -81,6 +98,17 @@ export type ProductDetailResponse = {
     estado: ProductStatus;
   };
   categories: ProductCategoryOption[];
+};
+
+export type ProductStatusPayload = {
+  ean13?: string;
+  estado?: ProductStatus;
+  usuarioId?: string;
+};
+
+export type ProductStatusResponse = {
+  ean13: string;
+  estado: ProductStatus;
 };
 
 export const invalidEan13Message =
@@ -141,10 +169,6 @@ export function normalizeProductListPayload(
   };
 }
 
-export function isValidEan13(value: string): boolean {
-  return /^\d{13}$/.test(value);
-}
-
 export function normalizeProductFormPayload(
   payload: unknown,
 ): ProductCreatePayload {
@@ -172,6 +196,23 @@ export function normalizeProductEditPayload(
     ...formPayload,
     originalEan13:
       typeof record.originalEan13 === 'string' ? record.originalEan13.trim() : '',
+  };
+}
+
+export function normalizeProductStatusPayload(
+  payload: unknown,
+): ProductStatusPayload {
+  const record = isRecord(payload) ? payload : {};
+  const estado =
+    record.estado === 'activo' || record.estado === 'inactivo'
+      ? record.estado
+      : undefined;
+
+  return {
+    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    estado,
+    usuarioId:
+      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
   };
 }
 
@@ -216,6 +257,32 @@ export function validateProductFormValues(
 }
 
 export function hasProductFieldErrors(errors: ProductFieldErrors): boolean {
+  return Object.keys(errors).length > 0;
+}
+
+export function validateProductStatusPayload(
+  values: ProductStatusPayload,
+): ProductStatusFieldErrors {
+  const fieldErrors: ProductStatusFieldErrors = {};
+
+  if (!values.ean13 || !isValidEan13(values.ean13)) {
+    fieldErrors.ean13 = invalidEan13Message;
+  }
+
+  if (values.estado !== 'activo' && values.estado !== 'inactivo') {
+    fieldErrors.estado = 'Seleccione un estado valido.';
+  }
+
+  if (!values.usuarioId) {
+    fieldErrors.usuarioId = 'No hay un usuario responsable para cambiar el estado.';
+  }
+
+  return fieldErrors;
+}
+
+export function hasProductStatusFieldErrors(
+  errors: ProductStatusFieldErrors,
+): boolean {
   return Object.keys(errors).length > 0;
 }
 
