@@ -1623,7 +1623,7 @@
         },
         "merma_motivo_enum": {
           "name": "merma_motivo_enum",
-          "value": "\"merma\".\"merma_motivo\" IN ('vencimiento','robo','rotura','conteo','otro')"
+          "value": "\"merma\".\"merma_motivo\" IN ('vencimiento','dano','robo','error_registro')"
         }
       }
     },
