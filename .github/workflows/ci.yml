@@ -5,6 +5,8 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Disparo manual desde la pestaña Actions ("Run workflow"): corre tests y luego release.
+  workflow_dispatch:
 
 # Cancel redundant PR runs, but never cancel a run on main (a release may be mid-publish)
 concurrency:
@@ -39,7 +41,9 @@ jobs:
   release:
     name: release-windows
     needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     permissions:
       contents: write
