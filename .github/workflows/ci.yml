@@ -6,10 +6,10 @@ on:
   push:
     branches: [main]
 
-# Cancel in-progress runs for the same PR/branch when a new push arrives
+# Cancel redundant PR runs, but never cancel a run on main (a release may be mid-publish)
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
@@ -33,3 +33,56 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # Empaqueta el .exe portable de Windows y publica un GitHub Release.
+  # Solo corre al hacer merge/push a main, y solo si build-and-test pasa.
+  release:
+    name: release-windows
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      # RELEASE_TOKEN: PAT de un integrante del team con bypass de branch protection
+      # (el GITHUB_TOKEN por defecto NO puede saltar la proteccion de main).
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Sube el patch en package.json (0.1.0 -> 0.1.1 -> ...).
+      - name: Bump patch version
+        id: bump
+        shell: pwsh
+        run: |
+          npm version patch --no-git-tag-version
+          $v = node -p "require('./package.json').version"
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      # Commitea el bump + tag a main. [skip ci] evita re-disparar este workflow (sin loop).
+      - name: Commit, tag and push bump
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): v${{ steps.bump.outputs.version }} [skip ci]"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin "HEAD:main" --follow-tags
+
+      # electron-vite build + electron-builder: genera el .exe portable y lo publica
+      # en el GitHub Release del tag recien creado.
+      - name: Build and publish portable .exe
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
