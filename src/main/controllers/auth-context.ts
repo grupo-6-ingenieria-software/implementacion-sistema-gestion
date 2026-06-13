@@ -1,4 +1,5 @@
 import { and, desc, eq, isNull } from 'drizzle-orm';
+import { getAuditTimestamp } from '../../shared/audit';
 import type { Role } from '../../shared/navigation';
 
 export type AuthenticatedUser = {
@@ -76,6 +77,7 @@ export async function registerAuditLog(
   );
 
   await executor.insert(schema.logAuditoria).values({
+    logFechaHora: getAuditTimestamp(),
     logTipoAccion: event.tipoAccion,
     logModulo: event.modulo,
     logDescripcion: event.descripcion,
@@ -130,6 +132,7 @@ async function getOrCreateCurrentUserVersion(
     .values({
       usuarioVersionNombre: user.trabajadorNombre,
       usuarioVersionRol: toAuditRole(user),
+      usuarioVersionFechaHoraVigenciaDesde: getAuditTimestamp(),
       usuarioId: user.usuarioId,
     })
     .returning({ id: schema.usuarioVersion.usuarioVersionId });
