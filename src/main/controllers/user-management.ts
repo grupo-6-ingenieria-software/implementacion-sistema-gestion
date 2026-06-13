@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
+import { controllers, type ControllerResponse } from '../../shared/controllers';
 import type { Role } from '../../shared/navigation';
 import {
   filterAndSortUserList,
@@ -16,9 +16,9 @@ import type { ControllerHandler, RegisteredController } from './base';
 import {
   AccessDeniedError,
   authorizeUser,
-  registerAuditLog,
   type AuthenticatedUser,
 } from './auth-context';
+import { resetPasswordWithExecutor } from './password';
 
 type UserManagementDependencies = {
   authorize: (
@@ -28,7 +28,7 @@ type UserManagementDependencies = {
   listUsers: () => Promise<UserListItem[]>;
   requestPasswordReset: (
     payload: UserPasswordResetRequestPayload,
-  ) => Promise<UserPasswordResetRequestResponse>;
+  ) => Promise<ControllerResponse<UserPasswordResetRequestResponse>>;
 };
 
 type UserManagementResponse = UserListResponse | UserPasswordResetRequestResponse;
@@ -70,12 +70,9 @@ export function createUserManagementController(
           };
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ['dueno']);
-
-        return {
-          ok: true,
-          data: await dependencies.requestPasswordReset(normalizedPayload),
-        };
+        // resetPasswordWithExecutor autoriza al dueño y audita por sí mismo,
+        // por lo que delegamos la respuesta (éxito o error) directamente.
+        return dependencies.requestPasswordReset(normalizedPayload);
       }
 
       return {
@@ -92,17 +89,6 @@ export function createUserManagementController(
           ok: false,
           error: {
             code: 'FORBIDDEN',
-            controllerId: 'user-management',
-            message: error.message,
-          },
-        };
-      }
-
-      if (error instanceof UserManagementError) {
-        return {
-          ok: false,
-          error: {
-            code: 'NOT_FOUND',
             controllerId: 'user-management',
             message: error.message,
           },
@@ -179,47 +165,28 @@ async function listUsers(): Promise<UserListItem[]> {
 
 async function requestPasswordReset(
   payload: UserPasswordResetRequestPayload,
-): Promise<UserPasswordResetRequestResponse> {
+): Promise<ControllerResponse<UserPasswordResetRequestResponse>> {
   const { db, schema } = await import('../../db/client');
 
-  await db.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
-    const existing = await findUserById(tx, schema, payload.usuarioObjetivoId);
-
-    if (!existing) {
-      throw new UserManagementError('No se encontro el usuario solicitado.');
-    }
-
-    await registerAuditLog(tx, schema, {
-      tipoAccion: 'restablecimiento',
-      modulo: 'usuarios',
-      descripcion: `Solicitud de restablecimiento preparada para ${existing.usuarioId}`,
-      usuarioId: owner.usuarioId,
-    });
+  // Reutiliza el generador de contraseña temporal de RF58: autoriza al dueño,
+  // genera la temporal de 24h, persiste contrasena + contrasena_temporal y audita.
+  const result = await resetPasswordWithExecutor(db, schema, {
+    usuarioId: payload.usuarioId,
+    usuarioObjetivoId: payload.usuarioObjetivoId,
   });
 
+  if (!result.ok) {
+    return result;
+  }
+
   return {
-    estado: 'pendiente-auth',
-    mensaje:
-      'Solicitud validada. La generacion de contrasena temporal queda pendiente del modulo de autenticacion.',
-    usuarioObjetivoId: payload.usuarioObjetivoId,
+    ok: true,
+    data: {
+      estado: 'completado',
+      contrasenaTemporal: result.data.contrasenaTemporal,
+      usuarioObjetivoId: result.data.usuarioObjetivoId,
+    },
   };
-}
-
-async function findUserById(
-  tx: TransactionLike,
-  schema: SchemaLike,
-  usuarioId: string,
-) {
-  const [row] = await tx
-    .select({
-      usuarioId: schema.usuario.usuarioId,
-    })
-    .from(schema.usuario)
-    .where(eq(schema.usuario.usuarioId, usuarioId))
-    .limit(1);
-
-  return row ?? null;
 }
 
 function normalizeUsuarioId(payload: unknown): string | undefined {
@@ -234,11 +201,3 @@ function normalizeUsuarioId(payload: unknown): string | undefined {
 
   return undefined;
 }
-
-class UserManagementError extends Error {}
-
-type SchemaLike = typeof import('../../db/schema');
-type TransactionLike = {
-  insert: typeof import('../../db/client').db.insert;
-  select: typeof import('../../db/client').db.select;
-};

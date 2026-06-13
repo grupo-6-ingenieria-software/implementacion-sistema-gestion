@@ -23,10 +23,19 @@ export type SessionTokenClaims = {
  * (JWT_SECRET) inyectada en el bundle; el valor por defecto sólo cubre el
  * entorno de desarrollo y pruebas.
  */
-const JWT_SECRET = process.env.JWT_SECRET ?? 'huascar-dev-jwt-secret-change-me';
+const FALLBACK = 'huascar-dev-jwt-secret-change-me';
+
+function resolveSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (s && s.length > 0) return s;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required in production');
+  }
+  return FALLBACK;
+}
 
 export function signSessionToken(claims: SessionTokenClaims): string {
-  return jwt.sign(claims, JWT_SECRET, { algorithm: 'HS256' });
+  return jwt.sign(claims, resolveSecret(), { algorithm: 'HS256', expiresIn: '8h' });
 }
 
 export function verifySessionToken(token: unknown): SessionTokenClaims | null {
@@ -35,7 +44,7 @@ export function verifySessionToken(token: unknown): SessionTokenClaims | null {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const payload = jwt.verify(token, resolveSecret(), { algorithms: ['HS256'] });
 
     if (typeof payload !== 'object' || payload === null) {
       return null;

@@ -28,6 +28,7 @@ import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import {
   SESSION_EXPIRED_MESSAGE,
+  SESSION_HEARTBEAT_MS,
   validatePasswordComplexity,
 } from '../../shared/auth';
 import { formatRutInput, rutToBackend } from '../../shared/users';
@@ -71,6 +72,21 @@ export function App(): ReactElement {
   const [path, setPath] = useState(getHashPath);
   const [notice, setNotice] = useState<string | null>(null);
   const lastRouteAuditKey = useRef<string | null>(null);
+  const isAuthenticatedRef = useRef(session.isAuthenticated);
+
+  // Refleja en un ref la autenticación vigente para que el latido pueda
+  // detenerse sin recrear el intervalo en cada render.
+  isAuthenticatedRef.current = session.isAuthenticated;
+
+  // Restablece la sesión por expiración/inactividad (RF55, CU56 e4): limpia el
+  // token del preload, vuelve al login y muestra el mensaje exigido. Se usa
+  // tanto desde el latido como desde cualquier push de expiración.
+  const expireSession = useRef((): void => {
+    window.appApi.setSessionToken(null);
+    setSession(defaultSession);
+    setNotice(SESSION_EXPIRED_MESSAGE);
+    navigate(PUBLIC_LOGIN_PATH);
+  }).current;
 
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
@@ -85,17 +101,72 @@ export function App(): ReactElement {
 
     if (decision.status !== 'allow') {
       navigate(decision.to);
+      return;
     }
+
+    // Validación de acceso en el proceso principal contra el JWT (RF56/CU57).
+    // El guard cliente (evaluateRouteAccess) da UX instantánea; ésta confirma
+    // con identidad de confianza y redirige al dashboard ante un FORBIDDEN.
+    if (path.startsWith('/app') && session.isAuthenticated) {
+      let cancelled = false;
+
+      void window.appApi
+        .invoke('access:validate', { ruta: path })
+        .then((response) => {
+          if (
+            !cancelled &&
+            !response.ok &&
+            response.error.code === 'FORBIDDEN'
+          ) {
+            navigate(APP_HOME_PATH);
+          }
+        })
+        .catch(() => undefined);
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    return;
   }, [path, session]);
 
-  // Aviso push de expiración de sesión por inactividad (RF55, CU56 e4).
+  // Latido de sesión (RF55, CU56 e4): mientras haya sesión activa, consulta cada
+  // 60 s a auth:verificar-sesion (el preload adjunta el token). session.ts es la
+  // única fuente de verdad: cierra la fila sesion_usuario tras 30 min de
+  // inactividad y responde active=false; entonces se dispara la expiración. El
+  // latido NO reinicia el contador de inactividad porque session.ts sólo refresca
+  // ultimo_acceso si la sesión aún está dentro de la ventana de actividad.
   useEffect(() => {
-    return window.appApi.onSessionExpired(() => {
-      setSession(defaultSession);
-      setNotice(SESSION_EXPIRED_MESSAGE);
-      navigate(PUBLIC_LOGIN_PATH);
-    });
-  }, []);
+    if (!session.isAuthenticated) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (!isAuthenticatedRef.current) {
+        return;
+      }
+
+      void window.appApi
+        .invoke<{ active: boolean }>('auth:verificar-sesion', {})
+        .then((response) => {
+          if (!isAuthenticatedRef.current) {
+            return;
+          }
+
+          // Una respuesta válida con active=false (inactividad/cierre) o un
+          // fallo del canal autenticado significan que la sesión ya no es válida.
+          if (!response.ok || !response.data.active) {
+            expireSession();
+          }
+        })
+        .catch(() => undefined);
+    }, SESSION_HEARTBEAT_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [session.isAuthenticated, expireSession]);
 
   const login = (data: LoginData): void => {
     const nextSession: AppSession = {
@@ -109,12 +180,21 @@ export function App(): ReactElement {
       token: data.token,
     };
 
+    // Registra el token de sesión en el preload para que se adjunte a cada
+    // invoke posterior y el dispatcher pueda verificar identidad y rol.
+    window.appApi.setSessionToken(data.token);
     setNotice(null);
     setSession(nextSession);
     navigate(resolveInitialRoute(nextSession));
   };
 
   const logout = (): void => {
+    // Cierre manual en la BD (CU56): session.ts marca motivo_cierre='manual' y
+    // fecha_hora_cierre sobre la sesión activa. El sesionId se toma del JWT en el
+    // dispatcher, no de un parámetro del renderer. Se invoca con el token aún
+    // vigente, antes de limpiarlo del preload.
+    void window.appApi.invoke('auth:logout', {}).catch(() => undefined);
+    window.appApi.setSessionToken(null);
     setSession(defaultSession);
     navigate(PUBLIC_LOGIN_PATH);
   };

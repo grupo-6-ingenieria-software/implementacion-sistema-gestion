@@ -1,7 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../db/schema';
-import { verifySessionWithExecutor, type SessionDeps } from './session';
+import {
+  closeSessionWithExecutor,
+  verifySessionWithExecutor,
+  type SessionDeps,
+} from './session';
 import type { SessionTokenClaims } from './auth-jwt';
 import {
   createAuthTestDatabase,
@@ -129,5 +133,82 @@ describe('verifySessionWithExecutor (RF55)', () => {
       sql`SELECT sesion_motivo_cierre AS motivo FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
     );
     expect(rows[0]?.motivo).toBe('inactividad');
+  });
+});
+
+describe('closeSessionWithExecutor (CU56 logout)', () => {
+  it('closes the active session as manual using the sesionId from claims', async () => {
+    await seedSession(2);
+
+    const response = await closeSessionWithExecutor(
+      testDb!.db,
+      schema,
+      claims.sesionId,
+      depsWith(claims),
+    );
+
+    expect(response.ok).toBe(true);
+    if (response.ok) {
+      expect(response.data).toEqual({ closed: true });
+    }
+
+    const rows = await testDb!.db.all<{
+      motivo: string | null;
+      cierre: string | null;
+    }>(
+      sql`SELECT sesion_motivo_cierre AS motivo, sesion_fecha_hora_cierre AS cierre FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
+    );
+    expect(rows[0]?.motivo).toBe('manual');
+    expect(rows[0]?.cierre).toBe(NOW.toISOString());
+  });
+
+  it('reports no closure when there is no sesionId in the trusted claims', async () => {
+    await seedSession(2);
+
+    const response = await closeSessionWithExecutor(
+      testDb!.db,
+      schema,
+      undefined,
+      depsWith(null),
+    );
+
+    expect(response.ok).toBe(true);
+    if (response.ok) {
+      expect(response.data).toEqual({ closed: false });
+    }
+
+    const rows = await testDb!.db.all<{ cierre: string | null }>(
+      sql`SELECT sesion_fecha_hora_cierre AS cierre FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
+    );
+    expect(rows[0]?.cierre ?? null).toBeNull();
+  });
+
+  it('is idempotent: a second logout does not alter the already closed row', async () => {
+    await seedSession(2);
+
+    await closeSessionWithExecutor(
+      testDb!.db,
+      schema,
+      claims.sesionId,
+      depsWith(claims),
+    );
+
+    const second = await closeSessionWithExecutor(
+      testDb!.db,
+      schema,
+      claims.sesionId,
+      { verifyToken: () => claims, now: () => new Date(NOW.getTime() + 60_000) },
+    );
+
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.data).toEqual({ closed: false });
+    }
+
+    const rows = await testDb!.db.all<{ cierre: string | null }>(
+      sql`SELECT sesion_fecha_hora_cierre AS cierre FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
+    );
+    // El cierre conserva el instante del primer logout (NOW), no el segundo.
+    expect(rows[0]?.cierre).toBe(NOW.toISOString());
   });
 });
