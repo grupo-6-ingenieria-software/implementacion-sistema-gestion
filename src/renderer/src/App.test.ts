@@ -19,6 +19,10 @@ describe('App inventory route helpers', () => {
     expect(isImplementedViewNodeId('product-status')).toBe(true);
   });
 
+  it('treats audit-log as an implemented view', () => {
+    expect(isImplementedViewNodeId('audit-log')).toBe(true);
+  });
+
   it('reads the product status EAN-13 route parameter', () => {
     expect(
       getProductStatusEan13(
