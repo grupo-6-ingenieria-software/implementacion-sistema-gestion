@@ -25,6 +25,11 @@ import {
   registerAuditLog,
   type AuthenticatedUser,
 } from './auth-context';
+import {
+  createTemporaryPasswordRecord,
+  defaultDeps as defaultPasswordDeps,
+  type PasswordDeps,
+} from './password';
 
 type WorkerDependencies = {
   authorize: (
@@ -237,7 +242,24 @@ async function createWorker(
 ): Promise<UserMutationResponse> {
   const { db, schema } = await import('../../db/client');
 
-  await db.transaction(async (tx) => {
+  return createWorkerWithExecutor(db, schema, payload);
+}
+
+/**
+ * Alta de trabajador (RF + RF58): crea trabajador, usuario, versión inicial y,
+ * en la misma transacción, una contraseña temporal de 24h. Devuelve la temporal
+ * en texto plano para mostrarla una sola vez al dueño. Exportada para pruebas
+ * con una base de datos real.
+ */
+export async function createWorkerWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
+  payload: UserFormValues,
+  passwordDeps: PasswordDeps = defaultPasswordDeps,
+): Promise<UserMutationResponse> {
+  let contrasenaTemporal = '';
+
+  await database.transaction(async (tx) => {
     const owner = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
     const existing = await findWorkerByRut(tx, schema, payload.rut);
 
@@ -270,6 +292,15 @@ async function createWorker(
       usuarioId: payload.rut,
     });
 
+    // El nuevo usuario nace con una temporal para que el dueño la entregue de
+    // inmediato, sin tener que pasar por el flujo de restablecimiento.
+    contrasenaTemporal = await createTemporaryPasswordRecord(
+      tx,
+      schema,
+      { usuarioId: payload.rut, generadaPorUsuarioId: owner.usuarioId },
+      passwordDeps,
+    );
+
     await registerAuditLog(tx, schema, {
       tipoAccion: 'registro',
       modulo: 'trabajadores',
@@ -278,7 +309,7 @@ async function createWorker(
     });
   });
 
-  return { usuarioId: payload.rut };
+  return { usuarioId: payload.rut, contrasenaTemporal };
 }
 
 async function updateWorker(
@@ -509,6 +540,7 @@ class WorkerError extends Error {
 }
 
 type SchemaLike = typeof import('../../db/schema');
+type DatabaseLike = Pick<typeof import('../../db/client').db, 'transaction'>;
 type TransactionLike = {
   insert: typeof import('../../db/client').db.insert;
   select: typeof import('../../db/client').db.select;

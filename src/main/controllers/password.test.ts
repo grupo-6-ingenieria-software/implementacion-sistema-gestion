@@ -81,6 +81,56 @@ describe('changePasswordWithExecutor (CU56b)', () => {
     });
   });
 
+  it('changes a temporary password without requiring the current one', async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: '33333333-3',
+      trabajadorId: 3,
+      rut: '33333333-3',
+      rolBd: 'trabajador',
+      esTemporal: true,
+    });
+
+    const response = await changePasswordWithExecutor(
+      testDb!.db,
+      schema,
+      {
+        usuarioId: '33333333-3',
+        contrasenaNueva: 'NuevaClave9',
+      },
+      deps,
+    );
+
+    expect(response.ok).toBe(true);
+
+    const counts = await testDb!.db.all<{
+      definitivas: number;
+    }>(sql`
+      SELECT COUNT(*) AS definitivas
+      FROM contrasena
+      WHERE usuario_id = '33333333-3' AND es_contrasena_definitiva = 1
+    `);
+
+    expect(counts[0].definitivas).toBe(1);
+  });
+
+  it('still requires the current password for voluntary changes', async () => {
+    const response = await changePasswordWithExecutor(
+      testDb!.db,
+      schema,
+      {
+        usuarioId: '12345678-9',
+        contrasenaNueva: 'NuevaClave9',
+      },
+      deps,
+    );
+
+    expect(response.ok).toBe(false);
+    if (!response.ok) {
+      expect(response.error.code).toBe('VALIDATION_ERROR');
+      expect(response.error.message).toContain('actual');
+    }
+  });
+
   it('rejects a wrong current password', async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,

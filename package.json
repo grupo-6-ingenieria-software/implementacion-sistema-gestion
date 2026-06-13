@@ -57,6 +57,7 @@
     },
     "files": [
       "out/**/*",
+      "resources/**",
       "package.json"
     ],
     "extraResources": [
