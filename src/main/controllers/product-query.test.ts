@@ -301,7 +301,7 @@ function authorizeTestUser(
   return {
     role,
     usuarioId: usuarioId ?? '',
-    usuarioRol: role === 'dueno' ? 'dueño' : 'cajero',
+    usuarioRol: role,
     trabajadorNombre: role === 'dueno' ? 'Dueno Prueba' : 'Trabajador Prueba',
   };
 }

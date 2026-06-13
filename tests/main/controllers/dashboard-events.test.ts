@@ -182,7 +182,7 @@ function createSaleReceipt(): SaleReceipt {
     responsable: {
       usuarioId: 'usuario-1',
       nombre: 'Trabajador Prueba',
-      rol: 'cajero',
+      rol: 'trabajador',
     },
     metodoPago: 'debito',
     subtotal: 1000,
