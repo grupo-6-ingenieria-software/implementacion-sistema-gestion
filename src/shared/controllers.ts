@@ -127,7 +127,7 @@ export const controllers = [
     id: 'lot',
     name: 'LoteHandler',
     module: 'inventario',
-    channels: ['lote:registrar'],
+    channels: ['lote:registrar', 'lote:proveedores'],
   },
   {
     id: 'waste',

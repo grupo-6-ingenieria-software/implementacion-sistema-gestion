@@ -173,7 +173,7 @@ export const navigationTree = [
     roles: ['dueno'],
     group: 'inventario',
     showInMenu: true,
-    entryFrom: 'Menu Inventario > Registrar lote.',
+    entryFrom: 'Menu Inventario > Registrar lote, o accion contextual desde Productos con ?ean13=.',
     controllerIds: [
       'access-control',
       'product-query',

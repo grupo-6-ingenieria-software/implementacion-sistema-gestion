@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ControllerResponse } from '../../shared/controllers';
 import type { Role } from '../../shared/navigation';
-import type { ProductListItem, ProductListResponse } from '../../shared/products';
+import type {
+  ActiveProductSearchItem,
+  ProductListItem,
+  ProductListResponse,
+} from '../../shared/products';
 import { createProductQueryController } from './product-query';
 import {
   AccessDeniedError,
@@ -83,6 +87,28 @@ function createController() {
         estado: product.estado,
       };
     },
+    listActiveProducts: async ({ query, ean13, limit }) => {
+      const search = ean13 ?? query ?? '';
+      return products
+        .filter(
+          (product) =>
+            product.estado === 'activo' &&
+            (product.ean13.includes(search) ||
+              product.nombre.toLocaleLowerCase('es').includes(
+                search.toLocaleLowerCase('es'),
+              )),
+        )
+        .slice(0, limit)
+        .map<ActiveProductSearchItem>((product) => ({
+          productoId: product.categoriaId,
+          ean13: product.ean13,
+          nombre: product.nombre,
+          categoria: product.categoria,
+          exigeVencimiento: product.categoria === 'Lacteos',
+          precioVenta: product.precioVenta,
+          stockDisponible: product.stockActual,
+        }));
+    },
   });
 }
 
@@ -116,7 +142,7 @@ describe('product query controller', () => {
   it('filters products by name and EAN-13', async () => {
     const byName = await invokeProductList({ search: 'leche', usuarioId: 'dueno' });
     const byEan = await invokeProductList({
-      search: '7802920000017',
+      search: '292000001',
       usuarioId: 'dueno',
     });
 
@@ -184,6 +210,78 @@ describe('product query controller', () => {
     expect(response.ok).toBe(false);
     if (response.ok) {
       throw new Error('Expected forbidden product list');
+    }
+
+    expect(response.error.code).toBe('FORBIDDEN');
+  });
+
+  it('searches active products with expiration requirement for lot registration', async () => {
+    const response = (await createController().handle(
+      {
+        query: 'leche',
+        limit: 10,
+        usuarioId: 'dueno',
+      },
+      { channel: 'producto:buscar-activo' },
+    )) as ControllerResponse<ActiveProductSearchItem[]>;
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    expect(response.data).toEqual([
+      expect.objectContaining({
+        ean13: '7802345600012',
+        exigeVencimiento: true,
+      }),
+    ]);
+  });
+
+  it('searches active products by partial EAN-13 for lot and waste registration', async () => {
+    const response = (await createController().handle(
+      {
+        query: '292000001',
+        limit: 10,
+        usuarioId: 'trabajador',
+      },
+      { channel: 'producto:buscar-activo' },
+    )) as ControllerResponse<ActiveProductSearchItem[]>;
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    expect(response.data.map((product) => product.ean13)).toEqual([
+      '7802920000017',
+    ]);
+  });
+
+  it('allows workers to load product detail for status changes', async () => {
+    const response = (await createController().handle(
+      {
+        ean13: '7802920000017',
+        usuarioId: 'trabajador',
+      },
+      { channel: 'producto:estado' },
+    )) as ControllerResponse;
+
+    expect(response.ok).toBe(true);
+  });
+
+  it('requires authorization to search active products', async () => {
+    const response = (await createController().handle(
+      {
+        query: 'leche',
+        limit: 10,
+      },
+      { channel: 'producto:buscar-activo' },
+    )) as ControllerResponse<ActiveProductSearchItem[]>;
+
+    expect(response.ok).toBe(false);
+    if (response.ok) {
+      throw new Error('Expected forbidden active product search');
     }
 
     expect(response.error.code).toBe('FORBIDDEN');
