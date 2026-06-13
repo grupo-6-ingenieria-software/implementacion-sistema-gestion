@@ -256,4 +256,24 @@ describe('authenticateWithExecutor (CU56)', () => {
       expect(response.error.code).toBe('BUSINESS_RULE');
     }
   });
+
+  it('matches the stored RUT ignoring the dash (digit-only input)', async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: '12345678-9',
+      trabajadorId: 1,
+      rut: '12345678-9',
+    });
+
+    const response = await authenticateWithExecutor(
+      testDb!.db,
+      schema,
+      { usuario: '123456789', contrasena: 'good' },
+      makeDeps(true),
+    );
+
+    expect(response.ok).toBe(true);
+    if (response.ok) {
+      expect(response.data.usuarioId).toBe('12345678-9');
+    }
+  });
 });

@@ -30,6 +30,7 @@ import {
   SESSION_EXPIRED_MESSAGE,
   validatePasswordComplexity,
 } from '../../shared/auth';
+import { formatRutInput, rutToBackend } from '../../shared/users';
 import { AuditLogView } from './views/AuditLogView';
 import { DailySalesView } from './views/DailySalesView';
 import { DashboardView } from './views/DashboardView';
@@ -177,7 +178,7 @@ function LoginView({
     setIsLoading(true);
 
     const response = await window.appApi.invoke<LoginData>('auth:login', {
-      usuario: usuario.trim(),
+      usuario: rutToBackend(usuario),
       contrasena,
     });
 
@@ -212,11 +213,12 @@ function LoginView({
             <input
               autoFocus
               className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-              maxLength={50}
+              inputMode="numeric"
+              maxLength={12}
               name="usuario"
-              placeholder="RUT o nombre de usuario"
+              placeholder="RUT (sin puntos)"
               value={usuario}
-              onChange={(event) => setUsuario(event.target.value)}
+              onChange={(event) => setUsuario(formatRutInput(event.target.value))}
             />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
@@ -614,6 +616,10 @@ function ViewRenderer({
         usuarioId={session.usuarioId}
       />
     );
+  }
+
+  if (node.id === 'audit-log') {
+    return <AuditLogView usuarioId={session.usuarioId} />;
   }
 
   if (node.id === 'product-status' && session.usuarioId) {
