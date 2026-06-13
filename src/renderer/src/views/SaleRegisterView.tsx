@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactElement,
+} from 'react';
 import { CampoEAN13Input, SeccionesPagoVenta } from '../components';
 import { isValidEan13 } from '../../../shared/ean13';
 import {
@@ -162,18 +168,13 @@ export function SaleRegisterView({
     });
   }
 
-  function updateQuantity(productoId: number, value: string): void {
-    const quantity = Number(value);
-
+  function updateQuantity(productoId: number, quantity: number): void {
     setCart((current) =>
       current.map((item) =>
         item.productoId === productoId
           ? {
               ...item,
-              cantidad:
-                Number.isInteger(quantity) && quantity > 0
-                  ? Math.min(quantity, item.stockDisponible)
-                  : 1,
+              cantidad: Math.min(quantity, item.stockDisponible),
             }
           : item,
       ),
@@ -355,13 +356,11 @@ export function SaleRegisterView({
                       {formatCurrency(item.precioVenta)} · Stock {item.stockDisponible}
                     </p>
                   </div>
-                  <input
-                    className="rounded-md border border-[#9ba9b5] px-3 py-2"
-                    inputMode="numeric"
-                    min={1}
+                  <CartQuantityInput
                     value={item.cantidad}
-                    onChange={(event) =>
-                      updateQuantity(item.productoId, event.target.value)
+                    max={item.stockDisponible}
+                    onCommit={(quantity) =>
+                      updateQuantity(item.productoId, quantity)
                     }
                   />
                   <p className="self-center font-semibold text-[#17202a]">
@@ -453,6 +452,63 @@ export function SaleRegisterView({
         </aside>
       </div>
     </section>
+  );
+}
+
+function CartQuantityInput({
+  value,
+  max,
+  onCommit,
+}: {
+  value: number;
+  max: number;
+  onCommit: (quantity: number) => void;
+}): ReactElement {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>): void {
+    const next = event.target.value;
+
+    // Allow empty (mid-edit) and digits only; reject other input.
+    if (next !== '' && !/^\d+$/.test(next)) {
+      return;
+    }
+
+    setDraft(next);
+
+    const quantity = Number(next);
+    if (next !== '' && Number.isInteger(quantity) && quantity > 0) {
+      onCommit(Math.min(quantity, max));
+    }
+  }
+
+  function handleBlur(): void {
+    const quantity = Number(draft);
+
+    // Empty or 0/invalid is not a valid quantity: revert to last committed.
+    if (draft === '' || !Number.isInteger(quantity) || quantity <= 0) {
+      setDraft(String(value));
+      return;
+    }
+
+    const clamped = Math.min(quantity, max);
+    setDraft(String(clamped));
+    onCommit(clamped);
+  }
+
+  return (
+    <input
+      className="rounded-md border border-[#9ba9b5] px-3 py-2"
+      inputMode="numeric"
+      min={1}
+      value={draft}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
   );
 }
 
