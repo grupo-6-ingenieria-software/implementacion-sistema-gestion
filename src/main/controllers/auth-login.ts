@@ -11,7 +11,7 @@
  * e2 cuenta bloqueada, e3 usuario inactivo.
  */
 
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { controllers, type ControllerResponse } from '../../shared/controllers';
 import type { Role } from '../../shared/navigation';
@@ -80,6 +80,10 @@ export async function authenticateWithExecutor(
   const nowMs = now.getTime();
   const nowIso = now.toISOString();
 
+  // El guion del RUT es solo visual: el cotejo del usuario ignora guion y
+  // puntos, de modo que da igual cómo esté almacenado el usuario_id.
+  const usuarioDigitos = input.usuario.replace(/[.-]/g, '');
+
   // 1. Buscar usuario + estado del trabajador asociado.
   const [user] = await database
     .select({
@@ -94,7 +98,9 @@ export async function authenticateWithExecutor(
       schema.trabajador,
       eq(schema.trabajador.trabajadorId, schema.usuario.trabajadorId),
     )
-    .where(eq(schema.usuario.usuarioId, input.usuario))
+    .where(
+      sql`replace(replace(${schema.usuario.usuarioId}, '-', ''), '.', '') = ${usuarioDigitos}`,
+    )
     .limit(1);
 
   // 2. Verificar bloqueo por intentos fallidos previos (e2).
