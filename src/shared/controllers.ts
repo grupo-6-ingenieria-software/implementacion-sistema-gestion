@@ -211,6 +211,12 @@ export const controllers = [
     module: 'administracion',
     channels: ['usuario:listar', 'usuario:solicitar-restablecimiento'],
   },
+  {
+    id: 'product-delete',
+    name: 'EliminarProductoHandler',
+    module: 'inventario',
+    channels: ['producto:eliminar'],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);

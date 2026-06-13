@@ -23,6 +23,7 @@ describe('navigation tree', () => {
         'product-create',
         'product-edit',
         'product-status',
+        'product-delete',
         'lot-create',
         'waste-create',
         'sale-register',
@@ -128,6 +129,32 @@ describe('navigation tree', () => {
         role: 'trabajador',
       }),
     ).toEqual({ status: 'allow' });
+  });
+
+  it('allows both roles to access product deletion outside the menu', () => {
+    const productDeleteNode = navigationTree.find(
+      (node) => node.id === 'product-delete',
+    );
+
+    expect(productDeleteNode?.showInMenu).toBe(false);
+    expect(getVisibleMenu('dueno').map((node) => node.id)).not.toContain(
+      'product-delete',
+    );
+    expect(getVisibleMenu('trabajador').map((node) => node.id)).not.toContain(
+      'product-delete',
+    );
+
+    for (const role of ['dueno', 'trabajador'] as const) {
+      expect(
+        evaluateRouteAccess(
+          '/app/inventario/productos/eliminar?ean13=7802920000015',
+          {
+            isAuthenticated: true,
+            role,
+          },
+        ),
+      ).toEqual({ status: 'allow' });
+    }
   });
 
   it('allows only the owner to access V16 and V17', () => {
