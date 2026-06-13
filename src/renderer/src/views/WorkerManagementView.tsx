@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   defaultUserListFilters,
   formatRoleLabel,
+  formatRutInput,
   type UserFieldErrors,
   type UserFormValues,
   type UserListItem,
@@ -388,7 +389,7 @@ function WorkerFormDialog({
             error={errors.rut}
             label="RUT"
             value={values.rut}
-            onChange={(rut) => onChange({ ...values, rut })}
+            onChange={(rut) => onChange({ ...values, rut: formatRutInput(rut) })}
           />
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Rol

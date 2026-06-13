@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type FormEvent,
   type ReactElement,
   type UIEventHandler,
 } from 'react';
@@ -25,6 +26,11 @@ import {
 } from '../../shared/navigation';
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
+import {
+  SESSION_EXPIRED_MESSAGE,
+  validatePasswordComplexity,
+} from '../../shared/auth';
+import { formatRutInput, rutToBackend } from '../../shared/users';
 import { AuditLogView } from './views/AuditLogView';
 import { DailySalesView } from './views/DailySalesView';
 import { DashboardView } from './views/DashboardView';
@@ -44,22 +50,26 @@ type AppSession = SessionState & {
   usuarioId?: string;
   trabajadorNombre?: string;
   usuarioRol?: string;
+  token?: string;
 };
 
 const defaultSession: AppSession = {
   isAuthenticated: false,
 };
 
-type DevLoginData = {
+type LoginData = {
+  token: string;
   role: Role;
   usuarioId: string;
   trabajadorNombre: string;
   usuarioRol: string;
+  passwordChangeRequired: boolean;
 };
 
 export function App(): ReactElement {
   const [session, setSession] = useState<AppSession>(defaultSession);
   const [path, setPath] = useState(getHashPath);
+  const [notice, setNotice] = useState<string | null>(null);
   const lastRouteAuditKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -78,23 +88,28 @@ export function App(): ReactElement {
     }
   }, [path, session]);
 
-  const login = (
-    role: Role,
-    passwordChangeRequired = false,
-    loginData?: DevLoginData,
-  ): void => {
-    const nextSession = {
+  // Aviso push de expiración de sesión por inactividad (RF55, CU56 e4).
+  useEffect(() => {
+    return window.appApi.onSessionExpired(() => {
+      setSession(defaultSession);
+      setNotice(SESSION_EXPIRED_MESSAGE);
+      navigate(PUBLIC_LOGIN_PATH);
+    });
+  }, []);
+
+  const login = (data: LoginData): void => {
+    const nextSession: AppSession = {
       isAuthenticated: true,
-      role,
-      passwordChangeRequired,
-      displayName:
-        loginData?.trabajadorNombre ??
-        (role === 'dueno' ? 'Dueno' : 'Trabajador'),
-      usuarioId: loginData?.usuarioId,
-      trabajadorNombre: loginData?.trabajadorNombre,
-      usuarioRol: loginData?.usuarioRol,
+      role: data.role,
+      passwordChangeRequired: data.passwordChangeRequired,
+      displayName: data.trabajadorNombre,
+      usuarioId: data.usuarioId,
+      trabajadorNombre: data.trabajadorNombre,
+      usuarioRol: data.usuarioRol,
+      token: data.token,
     };
 
+    setNotice(null);
     setSession(nextSession);
     navigate(resolveInitialRoute(nextSession));
   };
@@ -114,12 +129,13 @@ export function App(): ReactElement {
   };
 
   if (path === PUBLIC_LOGIN_PATH) {
-    return <LoginView onLogin={login} />;
+    return <LoginView notice={notice} onLogin={login} />;
   }
 
   if (path === PASSWORD_CHANGE_PATH) {
     return (
       <PasswordChangeView
+        usuarioId={session.usuarioId}
         onComplete={completePasswordChange}
         onLogout={logout}
       />
@@ -137,36 +153,43 @@ export function App(): ReactElement {
 }
 
 function LoginView({
+  notice,
   onLogin,
 }: {
-  onLogin: (
-    role: Role,
-    passwordChangeRequired?: boolean,
-    loginData?: DevLoginData,
-  ) => void;
+  notice: string | null;
+  onLogin: (data: LoginData) => void;
 }): ReactElement {
+  const [usuario, setUsuario] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<Role | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (
-    role: Role,
-    passwordChangeRequired = false,
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
+    event.preventDefault();
     setError(null);
-    setIsLoading(role);
 
-    const response = await window.appApi.invoke<DevLoginData>('auth:login', {
-      role,
+    if (!usuario.trim() || !contrasena) {
+      setError('Ingrese usuario y contraseña.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    const response = await window.appApi.invoke<LoginData>('auth:login', {
+      usuario: rutToBackend(usuario),
+      contrasena,
     });
 
-    setIsLoading(null);
+    setIsLoading(false);
 
     if (!response.ok) {
       setError(response.error.message);
       return;
     }
 
-    onLogin(response.data.role, passwordChangeRequired, response.data);
+    onLogin(response.data);
   };
 
   return (
@@ -176,51 +199,114 @@ function LoginView({
         <h1 className="mt-3 text-2xl font-semibold text-[#17202a]">
           Sistema de Gestion Huascar
         </h1>
-        <div className="mt-8 grid gap-3">
+        {notice ? (
+          <p className="mt-4 rounded-md border border-[#b9c8d6] bg-[#f6f9fb] px-3 py-2 text-sm font-medium text-[#24313d]">
+            {notice}
+          </p>
+        ) : null}
+        <form
+          className="mt-8 grid gap-4"
+          onSubmit={(event) => void handleSubmit(event)}
+        >
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Usuario
+            <input
+              autoFocus
+              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              inputMode="numeric"
+              maxLength={12}
+              name="usuario"
+              placeholder="RUT (sin puntos)"
+              value={usuario}
+              onChange={(event) => setUsuario(formatRutInput(event.target.value))}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Contraseña
+            <input
+              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              name="contrasena"
+              type="password"
+              value={contrasena}
+              onChange={(event) => setContrasena(event.target.value)}
+            />
+          </label>
           <button
-            className="rounded-md bg-[#244d61] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#1f4354]"
-            disabled={Boolean(isLoading)}
-            type="button"
-            onClick={() => void handleLogin('dueno')}
+            className="rounded-md bg-[#244d61] px-4 py-3 text-center font-semibold text-white transition hover:bg-[#1f4354] disabled:opacity-60"
+            disabled={isLoading}
+            type="submit"
           >
-            {isLoading === 'dueno' ? 'Entrando...' : 'Entrar como dueno'}
-          </button>
-          <button
-            className="rounded-md bg-[#2d6a4f] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#255a43]"
-            disabled={Boolean(isLoading)}
-            type="button"
-            onClick={() => void handleLogin('trabajador')}
-          >
-            {isLoading === 'trabajador'
-              ? 'Entrando...'
-              : 'Entrar como trabajador'}
-          </button>
-          <button
-            className="rounded-md border border-[#9ba9b5] px-4 py-3 text-left font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-            disabled={Boolean(isLoading)}
-            type="button"
-            onClick={() => void handleLogin('trabajador', true)}
-          >
-            Entrar con cambio de contrasena
+            {isLoading ? 'Entrando...' : 'Iniciar sesión'}
           </button>
           {error ? (
             <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
               {error}
             </p>
           ) : null}
-        </div>
+        </form>
       </section>
     </main>
   );
 }
 
 function PasswordChangeView({
+  usuarioId,
   onComplete,
   onLogout,
 }: {
+  usuarioId: string | undefined;
   onComplete: () => void;
   onLogout: () => void;
 }): ReactElement {
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
+    event.preventDefault();
+    setError(null);
+
+    if (!usuarioId) {
+      setError('No hay una sesión válida para cambiar la contraseña.');
+      return;
+    }
+
+    if (nueva !== confirmacion) {
+      setError('La nueva contraseña y su confirmación no coinciden.');
+      return;
+    }
+
+    const complejidad = validatePasswordComplexity(nueva);
+
+    if (!complejidad.valid) {
+      setError(
+        complejidad.message ?? 'La nueva contraseña no cumple los requisitos.',
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    const response = await window.appApi.invoke('auth:cambiar-password', {
+      usuarioId,
+      contrasenaActual: actual,
+      contrasenaNueva: nueva,
+    });
+
+    setIsLoading(false);
+
+    if (!response.ok) {
+      setError(response.error.message);
+      return;
+    }
+
+    onComplete();
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#edf1f5] px-6">
       <section className="w-full max-w-[460px] rounded-md border border-[#c8d2dc] bg-white p-8 shadow-sm">
@@ -228,24 +314,63 @@ function PasswordChangeView({
           Cambio obligatorio
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-[#17202a]">
-          Cambio obligatorio de contrasena
+          Cambio obligatorio de contraseña
         </h1>
-        <div className="mt-8 grid gap-3">
+        <p className="mt-2 text-sm text-[#61717f]">
+          Debe definir una contraseña definitiva (mínimo 8 caracteres, con
+          mayúscula, minúscula y número) antes de acceder al sistema.
+        </p>
+        <form
+          className="mt-6 grid gap-4"
+          onSubmit={(event) => void handleSubmit(event)}
+        >
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Contraseña actual
+            <input
+              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              type="password"
+              value={actual}
+              onChange={(event) => setActual(event.target.value)}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Nueva contraseña
+            <input
+              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              type="password"
+              value={nueva}
+              onChange={(event) => setNueva(event.target.value)}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Confirmar nueva contraseña
+            <input
+              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              type="password"
+              value={confirmacion}
+              onChange={(event) => setConfirmacion(event.target.value)}
+            />
+          </label>
           <button
-            className="rounded-md bg-[#244d61] px-4 py-3 text-left font-semibold text-white transition hover:bg-[#1f4354]"
-            type="button"
-            onClick={onComplete}
+            className="rounded-md bg-[#244d61] px-4 py-3 text-center font-semibold text-white transition hover:bg-[#1f4354] disabled:opacity-60"
+            disabled={isLoading}
+            type="submit"
           >
-            Continuar a inicio
+            {isLoading ? 'Guardando...' : 'Cambiar contraseña'}
           </button>
+          {error ? (
+            <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
+              {error}
+            </p>
+          ) : null}
           <button
-            className="rounded-md border border-[#9ba9b5] px-4 py-3 text-left font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            className="rounded-md border border-[#9ba9b5] px-4 py-2 text-center text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
             type="button"
             onClick={onLogout}
           >
-            Cerrar sesion
+            Cerrar sesión
           </button>
-        </div>
+        </form>
       </section>
     </main>
   );
