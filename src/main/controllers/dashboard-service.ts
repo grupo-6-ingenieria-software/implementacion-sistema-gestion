@@ -15,6 +15,7 @@ import {
   differenceInCalendarDays,
   getDashboardDay,
 } from './dashboard-date';
+import { calculateRecordedSaleTotal } from '../../shared/sales';
 
 export type DashboardDb = {
   all: <TRow = Record<string, unknown>>(query: SQL) => Promise<TRow[]>;
@@ -353,16 +354,5 @@ export async function loadAttendanceSummary(
 }
 
 export function calculateSaleAmount(row: SaleRow): number {
-  const subtotal = Number(row.subtotal);
-  const discount = Number(row.discountValue ?? 0);
-
-  if (row.discountType === 'porcentaje') {
-    return Math.max(0, Math.round(subtotal * (1 - discount / 100)));
-  }
-
-  if (row.discountType === 'monto') {
-    return Math.max(0, subtotal - discount);
-  }
-
-  return subtotal;
+  return calculateRecordedSaleTotal(row);
 }
