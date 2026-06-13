@@ -51,6 +51,7 @@ export function ProductListView({
     () => ({
       usuarioId,
       search: eanSearch.trim() || textSearch.trim(),
+      estado: 'todos',
       categoriaId: categoriaId ? Number(categoriaId) : undefined,
       sortBy,
       sortDirection,
@@ -75,7 +76,7 @@ export function ProductListView({
       }
 
       if (response.ok) {
-        setProducts(response.data.products);
+        setProducts(orderProductsForList(response.data.products));
         setCategories(response.data.categories);
       } else {
         setProducts([]);
@@ -112,7 +113,7 @@ export function ProductListView({
             Productos
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Consulta productos activos, revisa stock disponible y accede a las
+            Consulta productos, revisa stock disponible y accede a las
             acciones operativas permitidas para tu rol.
           </p>
         </div>
@@ -360,7 +361,7 @@ export function getProductActionsForRole(
   const ean13 = encodeURIComponent(product.ean13);
 
   if (role === 'dueno') {
-    return [
+    const actions: ProductAction[] = [
       {
         label: 'Editar',
         path: `/app/inventario/productos/${ean13}/editar`,
@@ -369,26 +370,47 @@ export function getProductActionsForRole(
         label: 'Cambiar estado',
         path: `/app/inventario/productos/${ean13}/estado`,
       },
-      {
-        label: 'Registrar lote',
-        path: `/app/inventario/lotes/nuevo?ean13=${ean13}`,
-      },
-      {
-        label: 'Registrar merma',
-        path: `/app/inventario/mermas/nueva?ean13=${ean13}`,
-      },
     ];
+
+    if (product.estado === 'activo') {
+      actions.push(
+        {
+          label: 'Registrar lote',
+          path: `/app/inventario/lotes/nuevo?ean13=${ean13}`,
+        },
+        {
+          label: 'Registrar merma',
+          path: `/app/inventario/mermas/nueva?ean13=${ean13}`,
+        },
+      );
+    }
+
+    return actions;
   }
 
-  return [
+  const actions: ProductAction[] = [
     {
       label: 'Cambiar estado',
       path: `/app/inventario/productos/${ean13}/estado`,
     },
-    {
+  ];
+
+  if (product.estado === 'activo') {
+    actions.push({
       label: 'Registrar merma',
       path: `/app/inventario/mermas/nueva?ean13=${ean13}`,
-    },
+    });
+  }
+
+  return actions;
+}
+
+export function orderProductsForList(
+  products: ProductListItem[],
+): ProductListItem[] {
+  return [
+    ...products.filter((product) => product.estado === 'activo'),
+    ...products.filter((product) => product.estado === 'inactivo'),
   ];
 }
 
