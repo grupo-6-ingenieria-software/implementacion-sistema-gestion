@@ -34,6 +34,12 @@ const workers: UserListItem[] = [
   },
 ];
 
+const activeWorkers = workers.map((worker, index) => ({
+  trabajadorId: index + 1,
+  rut: worker.rut,
+  nombreCompleto: worker.nombreCompleto,
+}));
+
 function createController(overrides: Partial<Dependencies> = {}) {
   const dependencies: Dependencies = {
     authorize: async (usuarioId, allowedRoles) =>
@@ -42,7 +48,7 @@ function createController(overrides: Partial<Dependencies> = {}) {
       usuarioId: payload.usuarioObjetivoId,
     }),
     createWorker: async (payload) => ({ usuarioId: payload.rut }),
-    listActiveWorkers: async () => workers,
+    listActiveWorkers: async () => activeWorkers,
     listWorkers: async () => workers,
     updateWorker: async (payload) => ({ usuarioId: payload.rut }),
     ...overrides,

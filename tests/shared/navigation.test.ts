@@ -129,4 +129,27 @@ describe('navigation tree', () => {
       }),
     ).toEqual({ status: 'allow' });
   });
+
+  it('allows only the owner to access V16 and V17', () => {
+    for (const path of [
+      '/app/personal/turnos',
+      '/app/personal/turnos/nuevo',
+    ]) {
+      expect(
+        evaluateRouteAccess(path, {
+          isAuthenticated: true,
+          role: 'dueno',
+        }),
+      ).toEqual({ status: 'allow' });
+      expect(
+        evaluateRouteAccess(path, {
+          isAuthenticated: true,
+          role: 'trabajador',
+        }),
+      ).toMatchObject({
+        status: 'deny',
+        to: APP_HOME_PATH,
+      });
+    }
+  });
 });

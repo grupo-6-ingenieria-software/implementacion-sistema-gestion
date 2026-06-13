@@ -26,7 +26,11 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   transferencia: 'Transferencia',
 };
 
-export function DailySalesView(): ReactElement {
+export function DailySalesView({
+  usuarioId,
+}: {
+  usuarioId: string;
+}): ReactElement {
   const [state, setState] = useState<DailySalesState>({ status: 'loading' });
 
   const loadSales = useCallback(async (): Promise<void> => {
@@ -35,6 +39,7 @@ export function DailySalesView(): ReactElement {
     try {
       const response = await window.appApi.invoke<DailySalesHistory>(
         'venta:historial-dia',
+        { usuarioId },
       );
 
       if (!response.ok) {
@@ -49,7 +54,7 @@ export function DailySalesView(): ReactElement {
         message: 'No fue posible comunicarse con el proceso principal.',
       });
     }
-  }, []);
+  }, [usuarioId]);
 
   useEffect(() => {
     void loadSales();
