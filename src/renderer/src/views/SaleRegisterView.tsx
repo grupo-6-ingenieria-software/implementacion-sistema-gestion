@@ -126,7 +126,7 @@ export function SaleRegisterView({
 
     const response = await window.appApi.invoke<ActiveProduct[]>(
       'producto:buscar-activo',
-      { ean13: code, limit: 1 },
+      { ean13: code, limit: 1, usuarioId: session.usuarioId },
     );
 
     if (!response.ok) {
