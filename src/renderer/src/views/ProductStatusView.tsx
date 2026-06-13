@@ -23,6 +23,9 @@ export function ProductStatusView({
   const [product, setProduct] = useState<ProductDetailResponse['product'] | null>(
     null,
   );
+  const [categories, setCategories] = useState<ProductDetailResponse['categories']>(
+    [],
+  );
   const [nextStatus, setNextStatus] = useState<ProductStatus>('inactivo');
   const [fieldErrors, setFieldErrors] = useState<ProductStatusFieldErrors>({});
   const [loading, setLoading] = useState(true);
@@ -59,6 +62,7 @@ export function ProductStatusView({
 
       const loadedProduct = response.data.product;
       setProduct(loadedProduct);
+      setCategories(response.data.categories);
       setNextStatus(loadedProduct.estado === 'activo' ? 'inactivo' : 'activo');
       setLoading(false);
     }
@@ -86,6 +90,17 @@ export function ProductStatusView({
       }),
     [ean13, nextStatus, product?.ean13, usuarioId],
   );
+
+  const categoryName = useMemo(() => {
+    if (!product) {
+      return '';
+    }
+
+    return (
+      categories.find((category) => category.id === product.categoriaId)
+        ?.nombre ?? 'No disponible'
+    );
+  }, [categories, product]);
 
   async function submitStatusChange(): Promise<void> {
     const nextErrors = validateProductStatusPayload(payload);
@@ -123,6 +138,9 @@ export function ProductStatusView({
           <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
             Cambiar estado
           </h3>
+          <p className="mt-2 text-sm font-semibold text-[#61717f]">
+            Desde Productos: accion Cambiar estado sobre un producto.
+          </p>
           <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
             Activa o inactiva un producto conservando su historial operativo.
           </p>
@@ -170,9 +188,9 @@ export function ProductStatusView({
               </p>
               <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                 <Info label="EAN-13" value={product.ean13} />
-                <Info label="Estado actual" value={product.estado} />
-                <Info label="Precio venta" value={`$${product.precioVenta}`} />
-                <Info label="Stock minimo" value={String(product.stockMinimo)} />
+                <Info label="Categoria" value={categoryName} />
+                <Info label="Estado actual" value={formatStatus(product.estado)} />
+                <Info label="Nuevo estado" value={formatStatus(nextStatus)} />
               </dl>
             </div>
 
@@ -188,6 +206,31 @@ export function ProductStatusView({
                 <option value="inactivo">Inactivo</option>
               </select>
             </Field>
+
+            <div className="rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4 text-sm text-[#24313d]">
+              <p className="font-semibold text-[#17202a]">
+                Confirmacion del cambio
+              </p>
+              {nextStatus === product.estado ? (
+                <p className="mt-2">
+                  El producto ya se encuentra {formatStatus(product.estado)}.
+                  Selecciona un estado distinto para confirmar el cambio.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2">
+                    Al confirmar, {product.nombre} quedara en estado{' '}
+                    {formatStatus(nextStatus)}.
+                  </p>
+                  {nextStatus === 'inactivo' ? (
+                    <p className="mt-2 text-[#61717f]">
+                      No estara disponible para seleccion en nuevas ventas ni
+                      mermas, y se conservara su historial operativo.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
 
             {fieldErrors.ean13 ? (
               <p className="rounded-md bg-[#f8e7e3] px-3 py-2 text-sm font-semibold text-[#9f2d20]">
@@ -253,4 +296,8 @@ function Info({ label, value }: { label: string; value: string }): ReactElement 
       <dd className="mt-1 font-semibold text-[#24313d]">{value}</dd>
     </div>
   );
+}
+
+function formatStatus(status: ProductStatus): string {
+  return status === 'activo' ? 'Activo' : 'Inactivo';
 }
