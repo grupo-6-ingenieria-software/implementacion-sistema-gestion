@@ -272,6 +272,7 @@ async function seedAttendanceFixture(db: DbExecutor): Promise<void> {
     VALUES
       ('12345678-9', 'dueño', '2026-01-01T00:00:00.000Z', 1),
       ('23456789-0', 'cajero', '2026-01-01T00:00:00.000Z', 2),
+      ('34567890-1', 'cajero', '2026-01-01T00:00:00.000Z', 3),
       ('45678901-2', 'reponedor', '2026-01-01T00:00:00.000Z', 4)
   `);
 }

@@ -90,10 +90,12 @@ export function SaleRegisterView({
   useEffect(() => {
     void checkCash();
     void loadProducts();
-  }, []);
+  }, [session.usuarioId]);
 
   async function checkCash(): Promise<void> {
-    const response = await window.appApi.invoke('caja:verificar-disponible');
+    const response = await window.appApi.invoke('caja:verificar-disponible', {
+      usuarioId: session.usuarioId,
+    });
 
     if (!response.ok) {
       setCashAvailable(false);
@@ -104,7 +106,7 @@ export function SaleRegisterView({
   async function loadProducts(search?: string): Promise<void> {
     const response = await window.appApi.invoke<ActiveProduct[]>(
       'producto:listar',
-      { query: search, limit: 20 },
+      { query: search, limit: 20, usuarioId: session.usuarioId },
     );
 
     if (response.ok) {
