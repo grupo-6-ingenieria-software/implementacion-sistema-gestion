@@ -105,7 +105,7 @@ export function SaleRegisterView({
 
   async function loadProducts(search?: string): Promise<void> {
     const response = await window.appApi.invoke<ActiveProduct[]>(
-      'producto:listar',
+      'producto:buscar-activo',
       { query: search, limit: 20, usuarioId: session.usuarioId },
     );
 

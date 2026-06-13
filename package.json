@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "build:win": "electron-vite build && electron-builder --win --publish always",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=1 --hookTimeout=30000",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
