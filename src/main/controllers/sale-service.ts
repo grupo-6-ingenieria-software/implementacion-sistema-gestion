@@ -5,6 +5,7 @@ import {
   calculateSaleTotals,
   type PaymentMethod,
 } from '../../shared/sales';
+import { getAuditTimestamp } from '../../shared/audit';
 
 export type SaleRegisterItemInput = {
   productoId: number;
@@ -378,7 +379,7 @@ export async function registerAuditLog(
     )
     VALUES (
       ${randomUUID()},
-      ${new Date().toISOString()},
+      ${getAuditTimestamp()},
       ${input.tipoAccion},
       ${input.modulo},
       ${input.descripcion},
@@ -451,7 +452,7 @@ async function getOrCreateCurrentUserVersion(
       ${usuarioVersionId},
       ${user.nombre},
       ${user.rol},
-      ${new Date().toISOString()},
+      ${getAuditTimestamp()},
       NULL,
       ${usuarioId}
     )
