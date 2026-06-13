@@ -255,12 +255,9 @@ export function AttendanceView({
 
   return (
     <section className="space-y-6 px-8 py-8">
-      <div>
-        <p className="text-sm font-semibold text-[#2d6a4f]">Personal</p>
-        <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-          Registro de asistencia
-        </h3>
-      </div>
+      <h3 className="text-2xl font-semibold text-[#17202a]">
+        Registro de asistencia
+      </h3>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">

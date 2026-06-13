@@ -248,17 +248,7 @@ export function LotCreateView({
 
   return (
     <section className="px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-[#2d6a4f]">Inventario</p>
-          <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-            Registrar lote
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Ingresa la recepcion de un producto activo y deja actualizado el
-            stock disponible.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-start justify-end gap-4">
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
@@ -268,7 +258,7 @@ export function LotCreateView({
         </button>
       </div>
 
-      <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
+      <section className="mt-4 rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
         {loading ? (
           <p className="text-sm font-semibold text-[#61717f]">
             Cargando producto...
