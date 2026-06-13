@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { calculateCashChange, calculateSaleTotals } from '../../src/shared/sales';
+import {
+  calculateCashChange,
+  calculateSaleTotals,
+  formatChileanPeso,
+} from '../../src/shared/sales';
+
+describe('Chilean peso formatting', () => {
+  it('uses the literal format defined by Documento 0', () => {
+    expect(formatChileanPeso(0)).toBe('$ 0');
+    expect(formatChileanPeso(990)).toBe('$ 990');
+    expect(formatChileanPeso(1_250_000)).toBe('$ 1.250.000');
+  });
+});
 
 describe('sale totals', () => {
   it('calculates subtotal, discount and total', () => {
