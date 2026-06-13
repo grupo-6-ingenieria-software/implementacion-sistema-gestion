@@ -29,6 +29,7 @@ import {
 
 type SchemaLike = typeof import('../../db/schema');
 type PasswordExecutor = Pick<typeof db, 'select' | 'insert'>;
+type TempPasswordExecutor = Pick<typeof db, 'insert'>;
 
 const TEMP_PASSWORD_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -40,12 +41,49 @@ export type PasswordDeps = {
   now: () => Date;
 };
 
-const defaultDeps: PasswordDeps = {
+export const defaultDeps: PasswordDeps = {
   hashPassword: (plain) => bcrypt.hash(plain, 10),
   comparePassword: (plain, hash) => bcrypt.compare(plain, hash),
   generateTempPassword: generateTemporaryPassword,
   now: () => new Date(),
 };
+
+/**
+ * Genera y persiste una contraseña temporal de 24h (contrasena + contrasena_temporal)
+ * para `usuarioId`, dejando registro de quién la generó. Devuelve la contraseña en
+ * texto plano para mostrarla una sola vez. Reutilizable dentro de una transacción
+ * (alta de trabajador) o con la conexión directa (restablecimiento por el dueño).
+ */
+export async function createTemporaryPasswordRecord(
+  executor: TempPasswordExecutor,
+  schema: SchemaLike,
+  params: { usuarioId: string; generadaPorUsuarioId: string },
+  deps: PasswordDeps = defaultDeps,
+): Promise<string> {
+  const temporal = deps.generateTempPassword();
+  const hash = await deps.hashPassword(temporal);
+  const now = deps.now();
+  const expiracion = new Date(now.getTime() + TEMP_PASSWORD_MS).toISOString();
+
+  const [created] = await executor
+    .insert(schema.contrasena)
+    .values({
+      contrasenaHash: hash,
+      contrasenaFechaHoraCreacion: now.toISOString(),
+      esContrasenaTemporal: true,
+      esContrasenaDefinitiva: false,
+      usuarioId: params.usuarioId,
+      generadaPorUsuarioId: params.generadaPorUsuarioId,
+    })
+    .returning({ contrasenaId: schema.contrasena.contrasenaId });
+
+  await executor.insert(schema.contrasenaTemporal).values({
+    contrasenaId: created.contrasenaId,
+    contrasenaTemporalFechaHoraExpiracion: expiracion,
+  });
+
+  return temporal;
+}
 
 export type ChangePasswordPayload = {
   usuarioId?: string;
@@ -199,27 +237,15 @@ export async function resetPasswordWithExecutor(
       );
     }
 
-    const temporal = deps.generateTempPassword();
-    const hash = await deps.hashPassword(temporal);
-    const now = deps.now();
-    const expiracion = new Date(now.getTime() + TEMP_PASSWORD_MS).toISOString();
-
-    const [created] = await database
-      .insert(schema.contrasena)
-      .values({
-        contrasenaHash: hash,
-        contrasenaFechaHoraCreacion: now.toISOString(),
-        esContrasenaTemporal: true,
-        esContrasenaDefinitiva: false,
+    const temporal = await createTemporaryPasswordRecord(
+      database,
+      schema,
+      {
         usuarioId: objetivo.usuarioId,
         generadaPorUsuarioId: solicitante.usuarioId,
-      })
-      .returning({ contrasenaId: schema.contrasena.contrasenaId });
-
-    await database.insert(schema.contrasenaTemporal).values({
-      contrasenaId: created.contrasenaId,
-      contrasenaTemporalFechaHoraExpiracion: expiracion,
-    });
+      },
+      deps,
+    );
 
     await registerAuditLog(database, schema, {
       descripcion: `Restablecimiento de contraseña para el usuario ${objetivo.usuarioId}.`,

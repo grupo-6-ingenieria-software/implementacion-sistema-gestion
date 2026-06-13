@@ -28,6 +28,11 @@ export type UserFieldErrors = Partial<
 
 export type UserMutationResponse = {
   usuarioId: string;
+  /**
+   * Contraseña temporal de 24h generada al registrar un trabajador. Solo se
+   * envía en el alta y se muestra una única vez; ausente en actualizaciones.
+   */
+  contrasenaTemporal?: string;
 };
 
 export type UserStatusChangePayload = {
