@@ -3,9 +3,17 @@ import type {
   ControllerMetadata,
   ControllerResponse,
 } from '../../shared/controllers';
+import type { SessionTokenClaims } from './auth-jwt';
 
 export type ControllerContext = {
   channel: string;
+  /**
+   * Claims verificados del JWT de sesión, inyectados por el dispatcher tras
+   * verificar el token en el borde IPC. Presentes en canales autenticados; el
+   * dispatcher también sobrescribe `payload.usuarioId` con la identidad de
+   * confianza, de modo que los `authorizeUser` existentes operan sobre ella.
+   */
+  claims?: SessionTokenClaims;
 };
 
 export type ControllerHandler<TPayload = unknown, TData = unknown> = (

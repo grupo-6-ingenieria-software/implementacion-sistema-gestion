@@ -43,7 +43,7 @@ const [dueno] = await db
   })
   .returning();
 
-const [cajera] = await db
+const [trabajadora] = await db
   .insert(s.trabajador)
   .values({
     trabajadorRut: '23456789-0',
@@ -61,7 +61,7 @@ const [cajera] = await db
 // ----------------------------------------------------------------------------
 
 const USR_DUENO = dueno.trabajadorRut;
-const USR_CAJERA = cajera.trabajadorRut;
+const USR_TRABAJADORA = trabajadora.trabajadorRut;
 
 await db.insert(s.usuario).values([
   {
@@ -70,20 +70,20 @@ await db.insert(s.usuario).values([
     trabajadorId: dueno.trabajadorId,
   },
   {
-    usuarioId: USR_CAJERA,
+    usuarioId: USR_TRABAJADORA,
     usuarioRol: 'trabajador',
-    trabajadorId: cajera.trabajadorId,
+    trabajadorId: trabajadora.trabajadorId,
   },
 ]);
 
 // ----------------------------------------------------------------------------
 // Contraseñas (RF55, RF58)
 // - Dueño: contraseña DEFINITIVA fija para desarrollo.
-// - Cajera: contraseña TEMPORAL (fuerza cambio al primer login, expira en 24h).
+// - Trabajadora: contraseña TEMPORAL (fuerza cambio al primer login, expira en 24h).
 // ----------------------------------------------------------------------------
 
 const DUENO_PASSWORD = 'Huascar2026';
-const CAJERA_TEMP_PASSWORD = 'Caja2026';
+const TRABAJADORA_TEMP_PASSWORD = 'Caja2026';
 
 await db.insert(s.contrasena).values({
   contrasenaHash: await bcrypt.hash(DUENO_PASSWORD, 10),
@@ -93,19 +93,19 @@ await db.insert(s.contrasena).values({
   generadaPorUsuarioId: USR_DUENO,
 });
 
-const [cajeraPwd] = await db
+const [trabajadoraPwd] = await db
   .insert(s.contrasena)
   .values({
-    contrasenaHash: await bcrypt.hash(CAJERA_TEMP_PASSWORD, 10),
+    contrasenaHash: await bcrypt.hash(TRABAJADORA_TEMP_PASSWORD, 10),
     esContrasenaTemporal: true,
     esContrasenaDefinitiva: false,
-    usuarioId: USR_CAJERA,
+    usuarioId: USR_TRABAJADORA,
     generadaPorUsuarioId: USR_DUENO,
   })
   .returning({ contrasenaId: s.contrasena.contrasenaId });
 
 await db.insert(s.contrasenaTemporal).values({
-  contrasenaId: cajeraPwd.contrasenaId,
+  contrasenaId: trabajadoraPwd.contrasenaId,
   contrasenaTemporalFechaHoraExpiracion: new Date(
     Date.now() + TEMP_PASSWORD_MS,
   ).toISOString(),
@@ -277,7 +277,7 @@ await db.insert(s.tasaLegal).values({
 });
 
 // ----------------------------------------------------------------------------
-// Cierre de caja inicial (abierto) para que la cajera pueda registrar ventas
+// Cierre de caja inicial (abierto) para que la trabajadora pueda registrar ventas
 // ----------------------------------------------------------------------------
 
 await db.insert(s.cierreCaja).values({
