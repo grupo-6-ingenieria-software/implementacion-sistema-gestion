@@ -62,4 +62,28 @@ describe('controller registry', () => {
       controllers.find((controller) => controller.id === 'waste')?.channels,
     ).toEqual(['merma:registrar']);
   });
+
+  it('keeps the worker operations provided by the current main scope', () => {
+    expect(
+      controllers.find((controller) => controller.id === 'worker')?.channels,
+    ).toEqual([
+      'trabajador:listar',
+      'trabajador:registrar',
+      'trabajador:actualizar',
+      'trabajador:cambiar-estado',
+      'trabajador:listar-activos',
+    ]);
+  });
+
+  it('keeps all turn operations in the documented shift controller', () => {
+    expect(
+      controllers.find((controller) => controller.id === 'shift')?.channels,
+    ).toEqual([
+      'turno:crear',
+      'turno:listar',
+      'turno:editar',
+      'turno:eliminar',
+    ]);
+  });
+
 });

@@ -41,6 +41,8 @@ import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
 import { ProductStatusView } from './views/ProductStatusView';
 import { SaleRegisterView } from './views/SaleRegisterView';
+import { ShiftCalendarView } from './views/ShiftCalendarView';
+import { ShiftCreateView } from './views/ShiftCreateView';
 import { UserManagementView } from './views/UserManagementView';
 import { WorkerManagementView } from './views/WorkerManagementView';
 import { WasteCreateView } from './views/WasteCreateView';
@@ -563,8 +565,27 @@ function ViewRenderer({
     return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === 'daily-sales') {
-    return <DailySalesView />;
+  if (node.id === 'daily-sales' && session.usuarioId) {
+    return <DailySalesView usuarioId={session.usuarioId} />;
+  }
+
+  if (node.id === 'shift-calendar' && session.usuarioId) {
+    return (
+      <ShiftCalendarView
+        onNavigate={onNavigate}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === 'shift-create' && session.usuarioId) {
+    return (
+      <ShiftCreateView
+        currentPath={currentPath}
+        onNavigate={onNavigate}
+        usuarioId={session.usuarioId}
+      />
+    );
   }
 
   if (node.id === 'product-list' && session.role && session.usuarioId) {
@@ -792,6 +813,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'product-status',
     'sale-register',
     'audit-log',
+    'shift-calendar',
+    'shift-create',
     'waste-create',
   ].includes(nodeId);
 }

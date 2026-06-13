@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { controllers, type ControllerResponse } from '../../shared/controllers';
+import type { AttendanceWorkerOption } from '../../shared/attendance';
 import type { Role } from '../../shared/navigation';
 import {
   filterAndSortUserList,
@@ -33,11 +34,14 @@ type WorkerDependencies = {
   changeStatus: (payload: UserStatusChangePayload) => Promise<UserMutationResponse>;
   createWorker: (payload: UserFormValues) => Promise<UserMutationResponse>;
   listWorkers: () => Promise<UserListItem[]>;
-  listActiveWorkers: () => Promise<UserListItem[]>;
+  listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
   updateWorker: (payload: UserFormValues) => Promise<UserMutationResponse>;
 };
 
-type WorkerResponse = UserListResponse | UserMutationResponse | UserListItem[];
+type WorkerResponse =
+  | UserListResponse
+  | UserMutationResponse
+  | AttendanceWorkerOption[];
 
 export function createWorkerController(
   dependencies: WorkerDependencies = workerDependencies,
@@ -204,34 +208,28 @@ async function listWorkers(): Promise<UserListItem[]> {
   );
 }
 
-async function listActiveWorkers(): Promise<UserListItem[]> {
+async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
   const { db, schema } = await import('../../db/client');
 
-  return mapWorkerRows(
-    await db
-      .select({
-        usuarioId: schema.usuario.usuarioId,
-        rol: schema.usuario.usuarioRol,
-        ultimoLoginFechaHora: schema.usuario.usuarioUltimoLoginFechaHora,
-        rut: schema.trabajador.trabajadorRut,
-        nombre: schema.trabajador.trabajadorNombre,
-        apellido: schema.trabajador.trabajadorApellido,
-        telefono: schema.trabajador.trabajadorTelefono,
-        correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
-        fechaIngreso: schema.trabajador.trabajadorFechaIngreso,
-        estado: schema.trabajador.trabajadorEstado,
-      })
-      .from(schema.trabajador)
-      .innerJoin(
-        schema.usuario,
-        eq(schema.usuario.trabajadorId, schema.trabajador.trabajadorId),
-      )
-      .where(eq(schema.trabajador.trabajadorEstado, 'activo'))
-      .orderBy(
-        asc(schema.trabajador.trabajadorNombre),
-        asc(schema.trabajador.trabajadorApellido),
-      ),
-  );
+  const rows = await db
+    .select({
+      trabajadorId: schema.trabajador.trabajadorId,
+      rut: schema.trabajador.trabajadorRut,
+      nombre: schema.trabajador.trabajadorNombre,
+      apellido: schema.trabajador.trabajadorApellido,
+    })
+    .from(schema.trabajador)
+    .where(eq(schema.trabajador.trabajadorEstado, 'activo'))
+    .orderBy(
+      asc(schema.trabajador.trabajadorNombre),
+      asc(schema.trabajador.trabajadorApellido),
+    );
+
+  return rows.map((row) => ({
+    trabajadorId: row.trabajadorId,
+    rut: row.rut,
+    nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
+  }));
 }
 
 async function createWorker(
