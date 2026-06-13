@@ -114,6 +114,31 @@ describe('guardChannel (RF56/CU57)', () => {
       new Set(['dueno', 'trabajador']),
     );
   });
+
+  it('lets trabajador list active workers for Asistencia (cross-module override)', async () => {
+    // `trabajador:listar-activos` lo expone el controlador worker, que en la
+    // navegación sólo aparece bajo nodos de dueño; el override lo habilita para
+    // trabajador porque la vista de Asistencia (RF29/RF30) lo necesita para
+    // seleccionar al trabajador desde la lista de activos.
+    expect(CHANNEL_ROLES.get('trabajador:listar-activos')).toEqual(
+      new Set(['dueno', 'trabajador']),
+    );
+
+    const result = await guardChannel(
+      'trabajador:listar-activos',
+      { __authToken: 't' },
+      deps({ verifyToken: () => claimsFor('trabajador') }),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('still gates worker management channels to dueno only', () => {
+    expect(CHANNEL_ROLES.get('trabajador:listar')).toEqual(new Set(['dueno']));
+    expect(CHANNEL_ROLES.get('trabajador:registrar')).toEqual(
+      new Set(['dueno']),
+    );
+  });
 });
 
 describe('guardChannel audit persistence', () => {
