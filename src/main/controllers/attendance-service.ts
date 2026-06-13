@@ -75,7 +75,7 @@ export async function listActiveWorkers(
 
   return rows.map((row) => ({
     trabajadorId: Number(row.trabajadorId),
-    rut: row.rut,
+    rut: normalizeRut(row.rut),
     nombreCompleto: row.nombreCompleto,
   }));
 }
@@ -282,7 +282,7 @@ async function authorizeAttendanceUser(
     usuarioId: user.usuarioId,
     usuarioRol: user.usuarioRol,
     trabajadorId: Number(user.trabajadorId),
-    trabajadorRut: user.trabajadorRut,
+    trabajadorRut: normalizeRut(user.trabajadorRut),
     nombreCompleto: user.nombreCompleto,
   };
 }
@@ -316,6 +316,7 @@ async function findWorkerByRut(
   database: Pick<DbExecutor, 'all'>,
   trabajadorRut: string,
 ): Promise<WorkerRow | null> {
+  const rutLookupKey = trabajadorRut.replace(/-/g, '');
   const rows = await database.all<WorkerRow>(sql`
     SELECT
       trabajador_id AS trabajadorId,
@@ -323,7 +324,7 @@ async function findWorkerByRut(
       trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombreCompleto,
       trabajador_estado AS estado
     FROM trabajador
-    WHERE trabajador_rut = ${trabajadorRut}
+    WHERE replace(replace(replace(upper(trabajador_rut), '.', ''), '-', ''), ' ', '') = ${rutLookupKey}
     LIMIT 1
   `);
 
@@ -331,6 +332,7 @@ async function findWorkerByRut(
     ? {
         ...rows[0],
         trabajadorId: Number(rows[0].trabajadorId),
+        rut: normalizeRut(rows[0].rut),
       }
     : null;
 }
