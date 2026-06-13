@@ -39,10 +39,26 @@ export const AUTHENTICATED_CHANNELS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Overrides para canales compartidos entre módulos cuyo rol NO se puede derivar
+ * del árbol de navegación. `trabajador:listar-activos` lo expone el controlador
+ * `worker`, que en la navegación sólo aparece bajo nodos de dueño (Trabajadores,
+ * Registrar trabajador); pero la vista de Asistencia (rol trabajador, RF29/RF30)
+ * también lo usa para seleccionar al trabajador desde la lista de activos. El
+ * propio `worker.ts` ya autoriza ese canal para `['dueno','trabajador']`, así que
+ * sin este override el guard sería más restrictivo que el controlador y el
+ * trabajador no podría abrir Asistencia.
+ */
+export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<string, ReadonlySet<Role>> =
+  new Map<string, ReadonlySet<Role>>([
+    ['trabajador:listar-activos', new Set<Role>(['dueno', 'trabajador'])],
+  ]);
+
+/**
  * Roles permitidos por canal, derivados del árbol de navegación: para cada
  * canal se toma la unión de `node.roles` de todos los nodos cuyo controlador
  * declara dicho canal. Así el mapeo se mantiene en sincronía con la navegación
- * en lugar de hardcodearse.
+ * en lugar de hardcodearse. Los canales compartidos entre módulos se ajustan
+ * con `CHANNEL_ROLE_OVERRIDES`.
  */
 export const CHANNEL_ROLES: ReadonlyMap<string, ReadonlySet<Role>> =
   buildChannelRoleMap();
@@ -80,6 +96,12 @@ function buildChannelRoleMap(): Map<string, Set<Role>> {
 
       channelRoles.set(channel, new Set(roles));
     }
+  }
+
+  // Canales compartidos entre módulos: el override define el rol real del canal,
+  // por encima de la unión derivada de la navegación.
+  for (const [channel, roles] of CHANNEL_ROLE_OVERRIDES) {
+    channelRoles.set(channel, new Set(roles));
   }
 
   return channelRoles;
