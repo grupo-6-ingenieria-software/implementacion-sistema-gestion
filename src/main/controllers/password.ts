@@ -29,6 +29,7 @@ import {
 
 type SchemaLike = typeof import('../../db/schema');
 type PasswordExecutor = Pick<typeof db, 'select' | 'insert'>;
+type TempPasswordExecutor = Pick<typeof db, 'insert'>;
 
 const TEMP_PASSWORD_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -40,12 +41,49 @@ export type PasswordDeps = {
   now: () => Date;
 };
 
-const defaultDeps: PasswordDeps = {
+export const defaultDeps: PasswordDeps = {
   hashPassword: (plain) => bcrypt.hash(plain, 10),
   comparePassword: (plain, hash) => bcrypt.compare(plain, hash),
   generateTempPassword: generateTemporaryPassword,
   now: () => new Date(),
 };
+
+/**
+ * Genera y persiste una contraseña temporal de 24h (contrasena + contrasena_temporal)
+ * para `usuarioId`, dejando registro de quién la generó. Devuelve la contraseña en
+ * texto plano para mostrarla una sola vez. Reutilizable dentro de una transacción
+ * (alta de trabajador) o con la conexión directa (restablecimiento por el dueño).
+ */
+export async function createTemporaryPasswordRecord(
+  executor: TempPasswordExecutor,
+  schema: SchemaLike,
+  params: { usuarioId: string; generadaPorUsuarioId: string },
+  deps: PasswordDeps = defaultDeps,
+): Promise<string> {
+  const temporal = deps.generateTempPassword();
+  const hash = await deps.hashPassword(temporal);
+  const now = deps.now();
+  const expiracion = new Date(now.getTime() + TEMP_PASSWORD_MS).toISOString();
+
+  const [created] = await executor
+    .insert(schema.contrasena)
+    .values({
+      contrasenaHash: hash,
+      contrasenaFechaHoraCreacion: now.toISOString(),
+      esContrasenaTemporal: true,
+      esContrasenaDefinitiva: false,
+      usuarioId: params.usuarioId,
+      generadaPorUsuarioId: params.generadaPorUsuarioId,
+    })
+    .returning({ contrasenaId: schema.contrasena.contrasenaId });
+
+  await executor.insert(schema.contrasenaTemporal).values({
+    contrasenaId: created.contrasenaId,
+    contrasenaTemporalFechaHoraExpiracion: expiracion,
+  });
+
+  return temporal;
+}
 
 export type ChangePasswordPayload = {
   usuarioId?: string;
@@ -71,10 +109,10 @@ export async function changePasswordWithExecutor(
   const nueva =
     typeof input?.contrasenaNueva === 'string' ? input.contrasenaNueva : '';
 
-  if (!usuarioId || !actual || !nueva) {
+  if (!usuarioId || !nueva) {
     return controllerError(
       'VALIDATION_ERROR',
-      'Ingrese la contraseña actual y la nueva contraseña.',
+      'Ingrese la nueva contraseña.',
       'password',
     );
   }
@@ -88,6 +126,7 @@ export async function changePasswordWithExecutor(
     const [vigente] = await database
       .select({
         contrasenaHash: schema.contrasena.contrasenaHash,
+        esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
       })
       .from(schema.contrasena)
       .where(eq(schema.contrasena.usuarioId, user.usuarioId))
@@ -102,14 +141,27 @@ export async function changePasswordWithExecutor(
       );
     }
 
-    const actualOk = await deps.comparePassword(actual, vigente.contrasenaHash);
+    // En el cambio obligatorio tras login con contraseña temporal el usuario ya
+    // demostró conocerla al autenticarse, así que no se vuelve a pedir la actual.
+    // Solo el cambio voluntario (contraseña definitiva vigente) la exige.
+    if (!vigente.esContrasenaTemporal) {
+      if (!actual) {
+        return controllerError(
+          'VALIDATION_ERROR',
+          'Ingrese la contraseña actual y la nueva contraseña.',
+          'password',
+        );
+      }
 
-    if (!actualOk) {
-      return controllerError(
-        'VALIDATION_ERROR',
-        'La contraseña actual es incorrecta.',
-        'password',
-      );
+      const actualOk = await deps.comparePassword(actual, vigente.contrasenaHash);
+
+      if (!actualOk) {
+        return controllerError(
+          'VALIDATION_ERROR',
+          'La contraseña actual es incorrecta.',
+          'password',
+        );
+      }
     }
 
     const complexity = validatePasswordComplexity(nueva);
@@ -199,27 +251,15 @@ export async function resetPasswordWithExecutor(
       );
     }
 
-    const temporal = deps.generateTempPassword();
-    const hash = await deps.hashPassword(temporal);
-    const now = deps.now();
-    const expiracion = new Date(now.getTime() + TEMP_PASSWORD_MS).toISOString();
-
-    const [created] = await database
-      .insert(schema.contrasena)
-      .values({
-        contrasenaHash: hash,
-        contrasenaFechaHoraCreacion: now.toISOString(),
-        esContrasenaTemporal: true,
-        esContrasenaDefinitiva: false,
+    const temporal = await createTemporaryPasswordRecord(
+      database,
+      schema,
+      {
         usuarioId: objetivo.usuarioId,
         generadaPorUsuarioId: solicitante.usuarioId,
-      })
-      .returning({ contrasenaId: schema.contrasena.contrasenaId });
-
-    await database.insert(schema.contrasenaTemporal).values({
-      contrasenaId: created.contrasenaId,
-      contrasenaTemporalFechaHoraExpiracion: expiracion,
-    });
+      },
+      deps,
+    );
 
     await registerAuditLog(database, schema, {
       descripcion: `Restablecimiento de contraseña para el usuario ${objetivo.usuarioId}.`,

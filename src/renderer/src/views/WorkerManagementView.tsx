@@ -56,6 +56,7 @@ export function WorkerManagementView({
   const [formValues, setFormValues] = useState<UserFormValues>(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<UserFieldErrors>({});
   const [saving, setSaving] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const initialCreateHandled = useRef(false);
 
   const payload = useMemo(
@@ -158,6 +159,9 @@ export function WorkerManagementView({
 
     if (response.ok) {
       setFormMode(null);
+      if (formMode === 'create' && response.data.contrasenaTemporal) {
+        setTemporaryPassword(response.data.contrasenaTemporal);
+      }
       setNotice(
         formMode === 'create'
           ? 'Trabajador registrado con cuenta asociada.'
@@ -247,7 +251,73 @@ export function WorkerManagementView({
           onSubmit={() => void submitForm()}
         />
       ) : null}
+
+      {temporaryPassword ? (
+        <TemporaryPasswordDialog
+          password={temporaryPassword}
+          onClose={() => setTemporaryPassword(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function TemporaryPasswordDialog({
+  onClose,
+  password,
+}: {
+  onClose: () => void;
+  password: string;
+}): ReactElement {
+  const [copied, setCopied] = useState(false);
+
+  async function copyToClipboard(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#17202a]/40 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="worker-temporary-password-title"
+    >
+      <div className="w-full max-w-md rounded-md border border-[#cbd5df] bg-white p-6 shadow-xl">
+        <h2
+          className="text-base font-semibold text-[#17202a]"
+          id="worker-temporary-password-title"
+        >
+          Contraseña temporal generada
+        </h2>
+        <p className="mt-2 text-sm text-[#61717f]">
+          Entréguela al trabajador (cópiela ahora, no se mostrará de nuevo):
+        </p>
+        <p className="mt-3 select-all rounded-md border border-[#9ba9b5] bg-[#f6f9fb] px-3 py-2 text-center font-mono text-lg font-semibold tracking-wider text-[#17202a]">
+          {password}
+        </p>
+        <div className="mt-5 flex items-center justify-end gap-3">
+          <button
+            className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            type="button"
+            onClick={() => void copyToClipboard()}
+          >
+            {copied ? 'Copiada' : 'Copiar'}
+          </button>
+          <button
+            className="rounded-md border border-[#244d61] bg-[#244d61] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#1d3e4f]"
+            type="button"
+            onClick={onClose}
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
