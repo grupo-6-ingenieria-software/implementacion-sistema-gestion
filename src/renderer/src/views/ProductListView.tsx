@@ -106,17 +106,7 @@ export function ProductListView({
 
   return (
     <section className="px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-[#2d6a4f]">Inventario</p>
-          <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-            Productos
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Consulta productos, revisa stock disponible y accede a las
-            acciones operativas permitidas para tu rol.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-start justify-end gap-4">
         {role === 'dueno' ? (
           <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
@@ -128,7 +118,7 @@ export function ProductListView({
         ) : null}
       </div>
 
-      <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
+      <section className="mt-4 rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-[1fr_220px_180px]">
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Buscar por nombre
