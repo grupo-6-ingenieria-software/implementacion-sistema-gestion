@@ -21,16 +21,11 @@ import {
   type ControllerContext,
   type RegisteredController,
 } from './base';
-import { verifySessionToken, type SessionTokenClaims } from './auth-jwt';
 
 type SchemaLike = typeof import('../../db/schema');
 type SessionExecutor = Pick<typeof db, 'select' | 'update'>;
 
 export const LOGOUT_CHANNEL = 'auth:logout';
-
-export type VerifySessionPayload = {
-  token?: string;
-};
 
 export type LogoutData = {
   closed: boolean;
@@ -49,25 +44,27 @@ export type VerifySessionData = {
 };
 
 export type SessionDeps = {
-  verifyToken: (token: unknown) => SessionTokenClaims | null;
   now: () => Date;
 };
 
 const defaultDeps: SessionDeps = {
-  verifyToken: verifySessionToken,
   now: () => new Date(),
 };
 
+/**
+ * Verifica la vigencia de la sesión identificada por `sesionId`. El JWT ya fue
+ * verificado por el guard del dispatcher (auth-guard.ts), que es la única fuente
+ * de verificación de tokens; aquí se confía en el sesionId de los claims, igual
+ * que en el cierre de sesión. No se vuelve a leer ningún token del payload (el
+ * renderer lo envía como `__authToken`, no como `token`).
+ */
 export async function verifySessionWithExecutor(
   database: SessionExecutor,
   schema: SchemaLike,
-  payload: unknown,
+  sesionId: string | undefined,
   deps: SessionDeps = defaultDeps,
 ): Promise<ControllerResponse<VerifySessionData>> {
-  const input = payload as VerifySessionPayload | null;
-  const claims = deps.verifyToken(input?.token);
-
-  if (!claims) {
+  if (!sesionId) {
     return controllerSuccess<VerifySessionData>({
       active: false,
       reason: 'token-invalido',
@@ -81,7 +78,7 @@ export async function verifySessionWithExecutor(
       ultimoAcceso: schema.sesionUsuario.sesionFechaHoraUltimoAcceso,
     })
     .from(schema.sesionUsuario)
-    .where(eq(schema.sesionUsuario.sesionUsuarioId, claims.sesionId))
+    .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId))
     .limit(1);
 
   if (!sesion) {
@@ -108,7 +105,7 @@ export async function verifySessionWithExecutor(
         sesionFechaHoraCierre: now.toISOString(),
         sesionMotivoCierre: 'inactividad',
       })
-      .where(eq(schema.sesionUsuario.sesionUsuarioId, claims.sesionId));
+      .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId));
 
     return controllerSuccess<VerifySessionData>({
       active: false,
@@ -120,7 +117,7 @@ export async function verifySessionWithExecutor(
   await database
     .update(schema.sesionUsuario)
     .set({ sesionFechaHoraUltimoAcceso: now.toISOString() })
-    .where(eq(schema.sesionUsuario.sesionUsuarioId, claims.sesionId));
+    .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId));
 
   return controllerSuccess<VerifySessionData>({ active: true });
 }
@@ -172,12 +169,12 @@ function normalizeReason(motivo: string | null): SessionInactiveReason {
 
 export function createSessionController(
   deps: Partial<SessionDeps> = {},
-): RegisteredController<VerifySessionPayload, VerifySessionData | LogoutData> {
+): RegisteredController<unknown, VerifySessionData | LogoutData> {
   const resolved: SessionDeps = { ...defaultDeps, ...deps };
 
   return {
     metadata: controllers[4],
-    handle: (payload, context: ControllerContext) => {
+    handle: (_payload, context: ControllerContext) => {
       if (context.channel === LOGOUT_CHANNEL) {
         // El sesionId proviene del claim firmado adjuntado por el guard, no del
         // renderer; así no se puede cerrar la sesión de otro usuario.
@@ -189,7 +186,15 @@ export function createSessionController(
         );
       }
 
-      return verifySessionWithExecutor(db, appSchema, payload, resolved);
+      // Igual que el logout: el sesionId de confianza viene del guard. Antes se
+      // re-leía payload.token (inexistente: el preload envía __authToken), por lo
+      // que el latido siempre respondía inactivo y cerraba la sesión.
+      return verifySessionWithExecutor(
+        db,
+        appSchema,
+        context.claims?.sesionId,
+        resolved,
+      );
     },
   };
 }
