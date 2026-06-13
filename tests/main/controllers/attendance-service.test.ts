@@ -90,6 +90,27 @@ describe('attendance service', () => {
     expect(Number(rows[0].count)).toBe(1);
   });
 
+  it('registers an entry when the stored worker rut has dots', async () => {
+    await testDb!.db.run(sql`
+      UPDATE trabajador
+      SET trabajador_rut = '23.456.789-0'
+      WHERE trabajador_id = 2
+    `);
+
+    const result = await registerAttendanceEntryWithoutShift(
+      testDb!.db as unknown as DbExecutor,
+      { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+      now,
+    );
+
+    expect(result.status).toBe('registered');
+    if (result.status !== 'registered') {
+      throw new Error(result.message);
+    }
+
+    expect(result.trabajador.rut).toBe('23456789-0');
+  });
+
   it('asks for confirmation when the worker has no shift', async () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
