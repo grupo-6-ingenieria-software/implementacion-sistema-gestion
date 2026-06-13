@@ -17,6 +17,13 @@ export const LOCKOUT_MS = LOCKOUT_MINUTES * 60 * 1000;
 export const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 export const TEMP_PASSWORD_MS = TEMP_PASSWORD_HOURS * 60 * 60 * 1000;
 
+/**
+ * Periodo del latido (heartbeat) del renderer hacia auth:verificar-sesion. Cada
+ * 60 s el renderer consulta la sesión; el proceso principal (session.ts) cierra
+ * la fila sesion_usuario tras 30 min de inactividad y responde active=false.
+ */
+export const SESSION_HEARTBEAT_MS = 60 * 1000;
+
 export const USERNAME_MAX_LENGTH = 50;
 export const PASSWORD_MIN_LENGTH = 8;
 

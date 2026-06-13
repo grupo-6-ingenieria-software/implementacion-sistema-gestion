@@ -1,5 +1,6 @@
 import type { IpcMain } from 'electron';
 import { findControllerByChannel } from '../../shared/controllers';
+import { guardChannel } from './auth-guard';
 import { accessControlController } from './access-control';
 import { attendanceController } from './attendance';
 import { auditController } from './audit';
@@ -55,12 +56,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] = 
   userManagementController,
 ];
 
-export type ControllerActivityHook = (channel: string) => void;
-
-export function registerControllers(
-  ipcMain: IpcMain,
-  onActivity?: ControllerActivityHook,
-): void {
+export function registerControllers(ipcMain: IpcMain): void {
   for (const controller of registeredControllers) {
     for (const channel of controller.metadata.channels) {
       ipcMain.handle(channel, async (_event, payload) => {
@@ -76,15 +72,19 @@ export function registerControllers(
           };
         }
 
-        const response = await controller.handle(payload, { channel });
+        // Guard de identidad/rol en el borde IPC: verifica el JWT de sesión
+        // (RF56/CU57) antes de despachar, salvo en canales públicos. En éxito,
+        // sobrescribe usuarioId con la identidad de confianza y adjunta claims.
+        const guard = await guardChannel(channel, payload);
 
-        // La verificación de sesión NO cuenta como actividad del usuario;
-        // de lo contrario la inactividad nunca expiraría.
-        if (onActivity && channel !== 'auth:verificar-sesion') {
-          onActivity(channel);
+        if (!guard.ok) {
+          return guard.response;
         }
 
-        return response;
+        // session.ts es la única fuente de verdad de inactividad: refresca
+        // ultimo_acceso en cada verificar-sesión válida y cierra la fila tras
+        // 30 min. El dispatcher ya no lleva un contador de actividad propio.
+        return controller.handle(guard.payload, guard.context);
       });
     }
   }

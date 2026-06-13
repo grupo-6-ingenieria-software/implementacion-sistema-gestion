@@ -73,7 +73,7 @@ export const controllers = [
     id: 'session',
     name: 'SesionHandler',
     module: 'auth',
-    channels: ['auth:verificar-sesion'],
+    channels: ['auth:verificar-sesion', 'auth:logout'],
   },
   {
     id: 'dashboard',
