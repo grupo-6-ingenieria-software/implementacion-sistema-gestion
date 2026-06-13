@@ -25,6 +25,7 @@ import {
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import { DashboardView } from './views/DashboardView';
+import { CashClosingView } from './views/CashClosingView';
 import { LotCreateView } from './views/LotCreateView';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
@@ -425,6 +426,15 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === 'cash-closing') {
+    return (
+      <CashClosingView
+        displayName={session.displayName}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
   if (node.id === 'product-list' && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -576,6 +586,7 @@ function getProductEditEan13(path: string): string | undefined {
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     'dashboard',
+    'cash-closing',
     'lot-create',
     'product-create',
     'product-edit',

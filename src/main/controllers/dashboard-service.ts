@@ -67,7 +67,7 @@ export async function loadDashboardData(
       loadDailyCashRegister(database, now),
       loadStockAlerts(database),
       loadExpirationAlerts(database, now),
-      loadAttendanceSummary(database, now, request),
+      loadAttendanceSummary(database, now),
     ]);
 
   const sales = summarizeDailySales(saleRows);
@@ -319,12 +319,8 @@ function createEmptyPaymentMethodSummary(): PaymentMethodSummary {
 export async function loadAttendanceSummary(
   database: DashboardDb,
   now = new Date(),
-  request?: Pick<DashboardRequest, 'role' | 'usuarioId'>,
 ): Promise<AttendanceSummary> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  const shouldFilterWorker =
-    request?.role === 'trabajador' && Boolean(request.usuarioId);
-  const usuarioId = request?.usuarioId ?? '';
   const rows = await database.all<AttendanceRow>(sql`
     SELECT
       t.trabajador_id AS workerId,
@@ -338,18 +334,7 @@ export async function loadAttendanceSummary(
           AND datetime(a.asistencia_fecha_hora_entrada) < datetime(${endUtc})
       ) THEN 1 ELSE 0 END AS hasAttendance
     FROM trabajador t
-    WHERE
-      t.trabajador_estado = 'activo'
-      AND (
-        ${shouldFilterWorker ? 1 : 0} = 0
-        OR EXISTS (
-          SELECT 1
-          FROM usuario u
-          WHERE
-            u.trabajador_id = t.trabajador_id
-            AND u.usuario_id = ${usuarioId}
-        )
-      )
+    WHERE t.trabajador_estado = 'activo'
     ORDER BY t.trabajador_apellido ASC, t.trabajador_nombre ASC
   `);
   const pendingWorkers = rows
