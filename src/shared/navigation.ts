@@ -15,6 +15,7 @@ export type ControllerId =
   | 'access-control'
   | 'audit'
   | 'session'
+  | 'user-management'
   | 'dashboard'
   | 'stock-alert'
   | 'expiration-alert'
@@ -247,7 +248,7 @@ export const navigationTree = [
     group: 'personal',
     showInMenu: true,
     entryFrom: 'Menu Personal > Trabajadores.',
-    controllerIds: ['access-control', 'worker'],
+    controllerIds: ['access-control', 'worker', 'audit'],
   },
   {
     id: 'worker-create',
@@ -258,7 +259,7 @@ export const navigationTree = [
     group: 'personal',
     showInMenu: false,
     entryFrom: 'Accion Registrar trabajador desde Trabajadores.',
-    controllerIds: ['access-control', 'worker', 'password', 'audit'],
+    controllerIds: ['access-control', 'worker', 'audit'],
   },
   {
     id: 'shift-calendar',
@@ -302,7 +303,7 @@ export const navigationTree = [
     group: 'administracion',
     showInMenu: true,
     entryFrom: 'Menu Administracion > Usuarios.',
-    controllerIds: ['access-control', 'password', 'audit'],
+    controllerIds: ['access-control', 'user-management', 'audit'],
   },
   {
     id: 'audit-log',

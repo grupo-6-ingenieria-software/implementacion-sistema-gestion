@@ -3,7 +3,7 @@
  * Ejecutar: npm run db:seed
  *
  * Crea el conjunto mínimo de datos para poder levantar la app:
- * - 2 trabajadores (dueño + cajero)
+ * - 2 trabajadores (dueno + trabajador)
  * - 2 usuarios (con PK derivada del RUT)
  * - 3 categorías (1 perecible + 2 no perecibles)
  * - 1 proveedor con sus relaciones de categoría
@@ -64,12 +64,12 @@ const USR_CAJERA = cajera.trabajadorRut;
 await db.insert(s.usuario).values([
   {
     usuarioId: USR_DUENO,
-    usuarioRol: 'dueño',
+    usuarioRol: 'dueno',
     trabajadorId: dueno.trabajadorId,
   },
   {
     usuarioId: USR_CAJERA,
-    usuarioRol: 'cajero',
+    usuarioRol: 'trabajador',
     trabajadorId: cajera.trabajadorId,
   },
 ]);
