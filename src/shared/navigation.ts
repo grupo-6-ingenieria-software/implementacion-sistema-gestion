@@ -24,6 +24,7 @@ export type ControllerId =
   | 'product-edit'
   | 'product-status'
   | 'product-query'
+  | 'product-delete'
   | 'lot'
   | 'waste'
   | 'sale'
@@ -163,6 +164,23 @@ export const navigationTree = [
       'product-status',
       'product-query',
       'audit',
+    ],
+  },
+  {
+    id: 'product-delete',
+    viewName: 'ProductDeleteView',
+    label: 'Eliminar producto',
+    path: '/app/inventario/productos/eliminar',
+    roles: ['dueno', 'trabajador'],
+    group: 'inventario',
+    showInMenu: false,
+    entryFrom: 'Accion Eliminar producto desde Productos.',
+    controllerIds: [
+      'access-control',
+      'product-query',
+      'product-delete',
+      'audit',
+      'ean-reader',
     ],
   },
   {
@@ -325,6 +343,7 @@ export const internalComponents = [
     usedIn: [
       'product-list',
       'product-create',
+      'product-delete',
       'lot-create',
       'waste-create',
       'sale-register',
@@ -468,9 +487,10 @@ export function validateNavigationTree(): string[] {
     'dashboard',
     'product-list',
     'product-create',
-    'product-edit',
-    'product-status',
-    'lot-create',
+      'product-edit',
+      'product-status',
+      'product-delete',
+      'lot-create',
     'waste-create',
     'sale-register',
     'daily-sales',

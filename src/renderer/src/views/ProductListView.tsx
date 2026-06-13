@@ -360,6 +360,10 @@ export function getProductActionsForRole(
         label: 'Cambiar estado',
         path: `/app/inventario/productos/${ean13}/estado`,
       },
+      {
+        label: 'Eliminar',
+        path: `/app/inventario/productos/eliminar?ean13=${ean13}`,
+      },
     ];
 
     if (product.estado === 'activo') {
@@ -382,6 +386,10 @@ export function getProductActionsForRole(
     {
       label: 'Cambiar estado',
       path: `/app/inventario/productos/${ean13}/estado`,
+    },
+    {
+      label: 'Eliminar',
+      path: `/app/inventario/productos/eliminar?ean13=${ean13}`,
     },
   ];
 

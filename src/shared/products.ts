@@ -21,6 +21,9 @@ export type ProductFieldErrors = Partial<
 export type ProductStatusFieldErrors = Partial<
   Record<'ean13' | 'estado' | 'usuarioId', string>
 >;
+export type ProductDeleteFieldErrors = Partial<
+  Record<'ean13' | 'confirmacion' | 'usuarioId', string>
+>;
 
 export type ProductListFilters = {
   search: string;
@@ -109,6 +112,16 @@ export type ProductStatusPayload = {
 export type ProductStatusResponse = {
   ean13: string;
   estado: ProductStatus;
+};
+
+export type ProductDeletePayload = {
+  ean13?: string;
+  confirmacion?: boolean;
+  usuarioId?: string;
+};
+
+export type ProductDeleteResponse = {
+  ean13: string;
 };
 
 export const invalidEan13Message =
@@ -216,6 +229,19 @@ export function normalizeProductStatusPayload(
   };
 }
 
+export function normalizeProductDeletePayload(
+  payload: unknown,
+): ProductDeletePayload {
+  const record = isRecord(payload) ? payload : {};
+
+  return {
+    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    confirmacion: record.confirmacion === true,
+    usuarioId:
+      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+  };
+}
+
 export function validateProductFormValues(
   values: ProductFormValues,
 ): ProductFieldErrors {
@@ -282,6 +308,32 @@ export function validateProductStatusPayload(
 
 export function hasProductStatusFieldErrors(
   errors: ProductStatusFieldErrors,
+): boolean {
+  return Object.keys(errors).length > 0;
+}
+
+export function validateProductDeletePayload(
+  values: ProductDeletePayload,
+): ProductDeleteFieldErrors {
+  const fieldErrors: ProductDeleteFieldErrors = {};
+
+  if (!values.ean13 || !isValidEan13(values.ean13)) {
+    fieldErrors.ean13 = invalidEan13Message;
+  }
+
+  if (!values.confirmacion) {
+    fieldErrors.confirmacion = 'Debe confirmar la eliminacion del producto.';
+  }
+
+  if (!values.usuarioId) {
+    fieldErrors.usuarioId = 'No hay un usuario responsable para eliminar el producto.';
+  }
+
+  return fieldErrors;
+}
+
+export function hasProductDeleteFieldErrors(
+  errors: ProductDeleteFieldErrors,
 ): boolean {
   return Object.keys(errors).length > 0;
 }

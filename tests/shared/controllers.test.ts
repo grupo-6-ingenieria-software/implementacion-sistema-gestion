@@ -6,8 +6,8 @@ describe('controller registry', () => {
   it('declares one metadata entry per controller id', () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(25);
-    expect(new Set(ids)).toHaveProperty('size', 25);
+    expect(controllers).toHaveLength(26);
+    expect(new Set(ids)).toHaveProperty('size', 26);
     expect(ids).toEqual([
       'auth-login',
       'password',
@@ -34,6 +34,7 @@ describe('controller registry', () => {
       'attendance',
       'ean-reader',
       'user-management',
+      'product-delete',
     ]);
   });
 
@@ -44,7 +45,7 @@ describe('controller registry', () => {
   });
 
   it('assigns at least one IPC channel to every controller', () => {
-    expect(ipcChannels.length).toBeGreaterThanOrEqual(25);
+    expect(ipcChannels.length).toBeGreaterThanOrEqual(26);
     expect(controllers.every((controller) => controller.channels.length > 0)).toBe(
       true,
     );
@@ -61,6 +62,13 @@ describe('controller registry', () => {
     expect(
       controllers.find((controller) => controller.id === 'waste')?.channels,
     ).toEqual(['merma:registrar']);
+  });
+
+  it('keeps product deletion scoped to its documented channel', () => {
+    expect(
+      controllers.find((controller) => controller.id === 'product-delete')
+        ?.channels,
+    ).toEqual(['producto:eliminar']);
   });
 
   it('keeps the worker operations provided by the current main scope', () => {
