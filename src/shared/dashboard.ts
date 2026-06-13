@@ -1,11 +1,36 @@
-import type { Role } from './navigation';
-
 export const DASHBOARD_UPDATED_EVENT = 'dashboard:actualizado';
 
-export type DashboardRequest = {
-  role: Role;
-  usuarioId?: string;
-};
+export type DashboardRequest =
+  | {
+      role: 'dueno';
+      usuarioId?: string;
+    }
+  | {
+      role: 'trabajador';
+      usuarioId: string;
+    };
+
+export function isDashboardRequest(
+  payload: unknown,
+): payload is DashboardRequest {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const request = payload as { role?: unknown; usuarioId?: unknown };
+
+  if (request.role === 'dueno') {
+    return (
+      request.usuarioId === undefined || typeof request.usuarioId === 'string'
+    );
+  }
+
+  return (
+    request.role === 'trabajador' &&
+    typeof request.usuarioId === 'string' &&
+    request.usuarioId.trim().length > 0
+  );
+}
 
 export type StockAlert = {
   productName: string;

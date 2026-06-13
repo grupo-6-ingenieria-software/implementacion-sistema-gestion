@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import type {
+  AttendanceSummary,
   CashSummary,
   DashboardData,
+  DashboardRequest,
   ExpirationAlert,
+  ExpirationAlerts,
   PaymentMethod,
   StockAlert,
 } from '../../../shared/dashboard';
@@ -47,9 +50,19 @@ export function DashboardView({
       });
 
       try {
+        const request = createDashboardRequest(role, usuarioId);
+
+        if (!request) {
+          setDashboardError(
+            'Se requiere una sesion valida para cargar el dashboard.',
+            options.preserveData,
+          );
+          return;
+        }
+
         const response = await window.appApi.invoke<DashboardData>(
           'dashboard:cargar',
-          { role, usuarioId },
+          request,
         );
 
         if (!response.ok) {
@@ -127,10 +140,10 @@ export function DashboardView({
 
   const { data } = state;
   const hasStockAlerts = data.stockAlerts.length > 0;
-  const hasExpirationAlerts =
-    data.expirationAlerts.expired.length > 0 ||
-    data.expirationAlerts.expiringSoon.length > 0;
-  const hasAttendancePending = data.attendance.workersWithoutAttendance > 0;
+  const hasExpirationAlerts = shouldShowExpirationAlerts(
+    data.expirationAlerts,
+  );
+  const attendanceDisplay = getAttendanceDisplay(data.attendance);
 
   return (
     <section className="space-y-6 px-8 py-8">
@@ -168,27 +181,29 @@ export function DashboardView({
         />
         <CashSummaryCard cashSummary={data.cashSummary} />
         <IndicatorCard
-          title="Asistencia de hoy"
+          title={attendanceDisplay.title}
           icon="attendance"
-          alert={hasAttendancePending}
+          alert={attendanceDisplay.alert}
         >
           <p className="text-2xl font-semibold text-[#17202a]">
-            {data.attendance.workersWithAttendance} de{' '}
-            {data.attendance.activeWorkers}
+            {attendanceDisplay.primary}
           </p>
-          <p className="mt-1 text-sm text-[#61717f]">
-            trabajadores activos con entrada registrada
-          </p>
-          {hasAttendancePending ? (
-            <p className="mt-3 text-sm font-semibold text-[#9a4f12]">
-              {data.attendance.workersWithoutAttendance} sin registro de
-              asistencia
+          {attendanceDisplay.description ? (
+            <p className="mt-1 text-sm text-[#61717f]">
+              {attendanceDisplay.description}
             </p>
-          ) : (
-            <p className="mt-3 text-sm font-semibold text-[#2d6a4f]">
-              Todos los trabajadores activos registraron asistencia
+          ) : null}
+          {attendanceDisplay.secondary ? (
+            <p
+              className={`mt-3 text-sm font-semibold ${
+                attendanceDisplay.alert
+                  ? 'text-[#9a4f12]'
+                  : 'text-[#2d6a4f]'
+              }`}
+            >
+              {attendanceDisplay.secondary}
             </p>
-          )}
+          ) : null}
           <button
             className="mt-4 text-sm font-semibold text-[#244d61] underline-offset-4 hover:underline"
             type="button"
@@ -209,30 +224,32 @@ export function DashboardView({
         <StockAlertsTable alerts={data.stockAlerts} />
       </IndicatorSection>
 
-      <IndicatorSection
-        title="Vencimientos"
-        description="Lotes vencidos y con vencimiento durante los proximos 7 dias."
-        icon="expiration"
-        alert={hasExpirationAlerts}
-        count={
-          data.expirationAlerts.expired.length +
-          data.expirationAlerts.expiringSoon.length
-        }
-      >
-        <div className="grid gap-5 xl:grid-cols-2">
-          <ExpirationAlertsTable
-            title="Lotes vencidos"
-            alerts={data.expirationAlerts.expired}
-            emptyMessage="No hay lotes vencidos con stock disponible."
-            expired
-          />
-          <ExpirationAlertsTable
-            title="Proximos a vencer"
-            alerts={data.expirationAlerts.expiringSoon}
-            emptyMessage="No hay lotes que venzan durante los proximos 7 dias."
-          />
-        </div>
-      </IndicatorSection>
+      {hasExpirationAlerts ? (
+        <IndicatorSection
+          title="Vencimientos"
+          description="Lotes vencidos y con vencimiento durante los proximos 7 dias."
+          icon="expiration"
+          alert
+          count={
+            data.expirationAlerts.expired.length +
+            data.expirationAlerts.expiringSoon.length
+          }
+        >
+          <div className="grid gap-5 xl:grid-cols-2">
+            <ExpirationAlertsTable
+              title="Lotes vencidos"
+              alerts={data.expirationAlerts.expired}
+              emptyMessage="No hay lotes vencidos con stock disponible."
+              expired
+            />
+            <ExpirationAlertsTable
+              title="Proximos a vencer"
+              alerts={data.expirationAlerts.expiringSoon}
+              emptyMessage="No hay lotes que venzan durante los proximos 7 dias."
+            />
+          </div>
+        </IndicatorSection>
+      ) : null}
     </section>
   );
 }
@@ -491,6 +508,62 @@ function EmptyState({ message }: { message: string }): ReactElement {
     <p className="rounded-md bg-[#f5f8f6] px-4 py-4 text-sm font-medium text-[#466456]">
       {message}
     </p>
+  );
+}
+
+type AttendanceDisplay = {
+  alert: boolean;
+  description?: string;
+  primary: string;
+  secondary?: string;
+  title: string;
+};
+
+export function createDashboardRequest(
+  role: Role,
+  usuarioId?: string,
+): DashboardRequest | null {
+  if (role === 'trabajador') {
+    const authenticatedUserId = usuarioId?.trim();
+
+    if (!authenticatedUserId) {
+      return null;
+    }
+
+    return {
+      role,
+      usuarioId: authenticatedUserId,
+    };
+  }
+
+  return {
+    role,
+    usuarioId,
+  };
+}
+
+export function getAttendanceDisplay(
+  attendance: AttendanceSummary,
+): AttendanceDisplay {
+  const alert = attendance.workersWithoutAttendance > 0;
+
+  return {
+    alert,
+    description: 'trabajadores activos con entrada registrada',
+    primary: `${attendance.workersWithAttendance} de ${attendance.activeWorkers}`,
+    secondary: alert
+      ? `${attendance.workersWithoutAttendance} sin registro de asistencia`
+      : 'Todos los trabajadores activos registraron asistencia',
+    title: 'Asistencia de hoy',
+  };
+}
+
+export function shouldShowExpirationAlerts(
+  expirationAlerts: ExpirationAlerts,
+): boolean {
+  return (
+    expirationAlerts.expired.length > 0 ||
+    expirationAlerts.expiringSoon.length > 0
   );
 }
 
