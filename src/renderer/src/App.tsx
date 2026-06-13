@@ -18,6 +18,7 @@ import {
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import { DashboardView } from './views/DashboardView';
+import { CashClosingView } from './views/CashClosingView';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
 import { SaleRegisterView } from './views/SaleRegisterView';
@@ -350,6 +351,15 @@ function ViewRenderer({
 
   if (node.id === 'sale-register') {
     return <SaleRegisterView session={session} />;
+  }
+
+  if (node.id === 'cash-closing') {
+    return (
+      <CashClosingView
+        displayName={session.displayName}
+        usuarioId={session.usuarioId}
+      />
+    );
   }
 
   if (node.id === 'product-list' && session.role && session.usuarioId) {
