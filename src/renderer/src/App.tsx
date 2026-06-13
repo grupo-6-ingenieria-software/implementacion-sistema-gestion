@@ -26,6 +26,7 @@ import {
 import { findControllerById } from '../../shared/controllers';
 import type { ControllerMetadata } from '../../shared/controllers';
 import { AuditLogView } from './views/AuditLogView';
+import { DailySalesView } from './views/DailySalesView';
 import { DashboardView } from './views/DashboardView';
 import { AttendanceView } from './views/AttendanceView';
 import { CashClosingView } from './views/CashClosingView';
@@ -445,6 +446,10 @@ function ViewRenderer({
     return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === 'daily-sales') {
+    return <DailySalesView />;
+  }
+
   if (node.id === 'product-list' && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -645,6 +650,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'dashboard',
     'attendance',
     'cash-closing',
+    'daily-sales',
     'lot-create',
     'product-create',
     'product-edit',
