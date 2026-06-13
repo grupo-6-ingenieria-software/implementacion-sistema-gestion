@@ -7,6 +7,7 @@ export type ControllerModule =
   | 'ventas'
   | 'caja'
   | 'personal'
+  | 'administracion'
   | 'lector-ean';
 
 export type ControllerMetadata = {
@@ -168,7 +169,13 @@ export const controllers = [
     id: 'worker',
     name: 'TrabajadorHandler',
     module: 'personal',
-    channels: ['trabajador:registrar', 'trabajador:listar-activos'],
+    channels: [
+      'trabajador:listar',
+      'trabajador:registrar',
+      'trabajador:actualizar',
+      'trabajador:cambiar-estado',
+      'trabajador:listar-activos',
+    ],
   },
   {
     id: 'shift',
@@ -192,6 +199,12 @@ export const controllers = [
     name: 'LectorEANHandler',
     module: 'lector-ean',
     channels: ['ean:validar-captura'],
+  },
+  {
+    id: 'user-management',
+    name: 'GestionUsuariosHandler',
+    module: 'administracion',
+    channels: ['usuario:listar', 'usuario:solicitar-restablecimiento'],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

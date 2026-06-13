@@ -22,6 +22,7 @@ import { sessionController } from './session';
 import { shiftController } from './shift';
 import { stockAlertController } from './stock-alert';
 import { stockDiscountController } from './stock-discount';
+import { userManagementController } from './user-management';
 import { wasteController } from './waste';
 import { workerController } from './worker';
 import type { RegisteredController } from './base';
@@ -51,6 +52,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] = 
   shiftController,
   attendanceController,
   eanReaderController,
+  userManagementController,
 ];
 
 export function registerControllers(ipcMain: IpcMain): void {

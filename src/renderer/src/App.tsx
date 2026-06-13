@@ -35,6 +35,8 @@ import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
 import { ProductStatusView } from './views/ProductStatusView';
 import { SaleRegisterView } from './views/SaleRegisterView';
+import { UserManagementView } from './views/UserManagementView';
+import { WorkerManagementView } from './views/WorkerManagementView';
 import { WasteCreateView } from './views/WasteCreateView';
 
 type AppSession = SessionState & {
@@ -474,8 +476,21 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'audit-log') {
-    return <AuditLogView usuarioId={session.usuarioId} />;
+  if ((node.id === 'worker-list' || node.id === 'worker-create') && session.usuarioId) {
+    return (
+      <WorkerManagementView
+        initialCreate={node.id === 'worker-create'}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === 'user-management' && session.usuarioId) {
+    return (
+      <UserManagementView
+        usuarioId={session.usuarioId}
+      />
+    );
   }
 
   if (node.id === 'product-status' && session.usuarioId) {

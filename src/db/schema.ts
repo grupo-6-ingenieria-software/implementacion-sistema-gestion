@@ -93,7 +93,7 @@ export const usuario = sqliteTable(
     // PK VARCHAR(50) derivada del RUT (regla de negocio). No autogenera.
     usuarioId: text('usuario_id').primaryKey(),
     usuarioRol: text('usuario_rol', {
-      enum: ['dueño', 'cajero', 'reponedor'],
+      enum: ['dueno', 'trabajador'],
     }).notNull(),
     usuarioFechaCreacion: text('usuario_fecha_creacion')
       .notNull()
@@ -111,7 +111,7 @@ export const usuario = sqliteTable(
     ),
     check(
       'usuario_rol_enum',
-      sql`${t.usuarioRol} IN ('dueño','cajero','reponedor')`,
+      sql`${t.usuarioRol} IN ('dueno','trabajador')`,
     ),
   ],
 );
@@ -491,7 +491,7 @@ export const usuarioVersion = sqliteTable(
     usuarioVersionId: text('usuario_version_id').primaryKey().$defaultFn(uuid),
     usuarioVersionNombre: text('usuario_version_nombre').notNull(),
     usuarioVersionRol: text('usuario_version_rol', {
-      enum: ['dueño', 'cajero', 'reponedor'],
+      enum: ['dueno', 'trabajador'],
     }).notNull(),
     usuarioVersionFechaHoraVigenciaDesde: text(
       'usuario_version_fecha_hora_vigencia_desde',
@@ -509,7 +509,7 @@ export const usuarioVersion = sqliteTable(
     check('usuario_version_uuid', uuidCheck('usuario_version_id')),
     check(
       'usuario_version_rol_enum',
-      sql`${t.usuarioVersionRol} IN ('dueño','cajero','reponedor')`,
+      sql`${t.usuarioVersionRol} IN ('dueno','trabajador')`,
     ),
     check(
       'usuario_version_vigencia_rango',

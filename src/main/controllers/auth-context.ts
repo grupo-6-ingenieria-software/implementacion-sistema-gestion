@@ -92,7 +92,11 @@ export function mapDatabaseRoleToTechnicalRole(role: string): Role | null {
     return 'dueno';
   }
 
-  if (normalized === 'cajero' || normalized === 'reponedor') {
+  if (
+    normalized === 'trabajador' ||
+    normalized === 'cajero' ||
+    normalized === 'reponedor'
+  ) {
     return 'trabajador';
   }
 
@@ -143,6 +147,7 @@ async function getOrCreateCurrentUserVersion(
 function normalizeRole(role: string): string {
   return role
     .toLocaleLowerCase('es')
+    .replace(/ã±/g, 'n')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\u00c3\u00b1/g, 'n')
@@ -151,12 +156,12 @@ function normalizeRole(role: string): string {
 
 function toAuditRole(
   user: AuthenticatedUser,
-): 'due\u00f1o' | 'cajero' | 'reponedor' {
+): 'dueno' | 'trabajador' {
   if (user.role === 'dueno') {
-    return 'due\u00f1o';
+    return 'dueno';
   }
 
-  return user.usuarioRol === 'reponedor' ? 'reponedor' : 'cajero';
+  return 'trabajador';
 }
 
 type SchemaLike = typeof import('../../db/schema');

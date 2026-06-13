@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@libsql/client';
@@ -206,16 +206,20 @@ async function createTestDatabase() {
   const db = drizzle(client, { schema });
 
   await client.execute('PRAGMA foreign_keys = ON');
-  const migration = await readFile(
-    join(process.cwd(), 'drizzle/migrations/0000_brave_proteus.sql'),
-    'utf8',
-  );
+  const migrationsDir = join(process.cwd(), 'drizzle/migrations');
+  const migrationFiles = (await readdir(migrationsDir))
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
 
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    const sqlStatement = statement.trim();
+  for (const file of migrationFiles) {
+    const migration = await readFile(join(migrationsDir, file), 'utf8');
 
-    if (sqlStatement.length > 0) {
-      await client.execute(sqlStatement);
+    for (const statement of migration.split('--> statement-breakpoint')) {
+      const sqlStatement = statement.trim();
+
+      if (sqlStatement.length > 0) {
+        await client.execute(sqlStatement);
+      }
     }
   }
 
@@ -243,7 +247,7 @@ async function seedLotFixture(db: TestDatabase['db']): Promise<void> {
       usuario_fecha_creacion,
       trabajador_id
     )
-    VALUES ('12345678-9', 'dueño', '2026-01-01T00:00:00.000Z', 1)
+    VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1)
   `);
 
   await db.run(sql`
