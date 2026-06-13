@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.2.2",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
