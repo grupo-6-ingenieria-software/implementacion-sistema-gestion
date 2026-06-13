@@ -216,26 +216,15 @@ export function createProductQueryController(
       const input = normalizeProductSearchPayload(payload);
       const query = input.ean13?.trim() || input.query?.trim();
 
-      if (!query) {
-        return {
-          ok: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            controllerId: 'product-query',
-            message: 'Ingrese un EAN-13 o nombre de producto para buscar.',
-          },
-        };
-      }
-
       try {
         await dependencies.authorize(input.usuarioId, ['dueno', 'trabajador']);
 
-        const products = await dependencies.listActiveProducts?.({
+        const products = (await dependencies.listActiveProducts?.({
           query,
           limit: normalizeLimit(input.limit),
-        });
+        })) ?? [];
 
-        if (!products || products.length === 0) {
+        if (query && products.length === 0) {
           return {
             ok: false,
             error: {
