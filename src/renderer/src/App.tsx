@@ -47,6 +47,8 @@ import { ShiftCreateView } from './views/ShiftCreateView';
 import { UserManagementView } from './views/UserManagementView';
 import { WorkerManagementView } from './views/WorkerManagementView';
 import { WasteCreateView } from './views/WasteCreateView';
+import { WorkerFormView } from './views/WorkerFormView';
+import { WorkerListView } from './views/WorkerListView';
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -712,6 +714,18 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === 'worker-list' && session.usuarioId) {
+    return (
+      <WorkerListView usuarioId={session.usuarioId} onNavigate={onNavigate} />
+    );
+  }
+
+  if (node.id === 'worker-create' && session.usuarioId) {
+    return (
+      <WorkerFormView usuarioId={session.usuarioId} onNavigate={onNavigate} />
+    );
+  }
+
   return <ViewPlaceholder node={node} />;
 }
 
@@ -885,6 +899,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'shift-calendar',
     'shift-create',
     'waste-create',
+    'worker-create',
+    'worker-list',
   ].includes(nodeId);
 }
 

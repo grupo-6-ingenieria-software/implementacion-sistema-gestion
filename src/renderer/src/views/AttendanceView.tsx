@@ -259,117 +259,113 @@ export function AttendanceView({
         Registro de asistencia
       </h3>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
-          <div className="grid gap-5">
-            <div className="inline-grid w-fit grid-cols-2 rounded-md border border-[#9ba9b5] bg-[#f6f7f9] p-1">
-              <ModeButton
-                active={mode === 'entrada'}
-                label="Registrar entrada"
-                onClick={() => {
-                  setMode('entrada');
-                  setPendingNoShift(null);
-                  setMessage(null);
-                }}
-              />
-              <ModeButton
-                active={mode === 'salida'}
-                label="Registrar salida"
-                onClick={() => {
-                  setMode('salida');
-                  setPendingNoShift(null);
-                  setMessage(null);
-                }}
-              />
-            </div>
-
-            {role === 'dueno' ? (
-              <OwnerWorkerPicker
-                filteredWorkers={filteredWorkers}
-                rut={rut}
-                search={search}
-                selectedWorker={selectedWorker}
-                onRutChange={(value) => {
-                  setRut(value);
-                  setPendingNoShift(null);
-                  setMessage(null);
-                }}
-                onSearchChange={setSearch}
-                onSelectWorker={selectWorker}
-              />
-            ) : (
-              <WorkerSelfPanel worker={selectedWorker ?? workers[0]} />
-            )}
-
-            {message ? (
-              <StatusMessage
-                tone={messageTone}
-                title={getMessageTitle(messageTone)}
-                message={message}
-              />
-            ) : null}
-
-            {pendingNoShift ? (
-              <div className="rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4">
-                <p className="font-semibold text-[#7a3f0c]">
-                  Trabajador sin turno asignado
-                </p>
-                <p className="mt-1 text-sm text-[#6b4a24]">
-                  {pendingNoShift.trabajadorNombre} no tiene turno para hoy.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    className="rounded-md border border-[#9ba9b5] bg-white px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-                    disabled={isSubmitting}
-                    type="button"
-                    onClick={cancelWithoutShift}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                    disabled={isSubmitting}
-                    type="button"
-                    onClick={() => void confirmWithoutShift()}
-                  >
-                    Confirmar entrada
-                  </button>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-6">
+          <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
+            <div className="grid gap-6">
+              <div>
+                <h4 className="text-lg font-semibold text-[#17202a]">
+                  Operacion de asistencia
+                </h4>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <ModeButton
+                    active={mode === 'entrada'}
+                    description="Registra fecha y hora actual de entrada."
+                    label="Entrada"
+                    onClick={() => {
+                      setMode('entrada');
+                      setPendingNoShift(null);
+                      setMessage(null);
+                    }}
+                  />
+                  <ModeButton
+                    active={mode === 'salida'}
+                    description="Registra salida y calcula horas trabajadas."
+                    label="Salida"
+                    onClick={() => {
+                      setMode('salida');
+                      setPendingNoShift(null);
+                      setMessage(null);
+                    }}
+                  />
                 </div>
               </div>
-            ) : null}
 
-            <div className="flex flex-wrap gap-3 border-t border-[#e3e8ee] pt-5">
-              <button
-                className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                disabled={!canSubmit || Boolean(pendingNoShift)}
-                type="button"
-                onClick={() => void submit()}
-              >
-                {isSubmitting
-                  ? 'Registrando...'
-                  : mode === 'entrada'
-                    ? 'Registrar entrada'
-                    : 'Registrar salida'}
-              </button>
-              <button
-                className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-                disabled={isSubmitting}
-                type="button"
-                onClick={() => {
-                  setMessage(null);
-                  setPendingNoShift(null);
-                  if (role === 'dueno') {
-                    setRut('');
-                  }
-                }}
-              >
-                Limpiar
-              </button>
+              <div className="border-t border-[#e3e8ee] pt-6">
+                <h4 className="text-lg font-semibold text-[#17202a]">
+                  Trabajador
+                </h4>
+                <div className="mt-4">
+                  {role === 'dueno' ? (
+                    <OwnerWorkerPicker
+                      filteredWorkers={filteredWorkers}
+                      rut={rut}
+                      search={search}
+                      selectedWorker={selectedWorker}
+                      onRutChange={(value) => {
+                        setRut(value);
+                        setPendingNoShift(null);
+                        setMessage(null);
+                      }}
+                      onSearchChange={setSearch}
+                      onSelectWorker={selectWorker}
+                    />
+                  ) : (
+                    <WorkerSelfPanel worker={selectedWorker ?? workers[0]} />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3 border-t border-[#e3e8ee] pt-6">
+                <button
+                  className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
+                  disabled={!canSubmit || Boolean(pendingNoShift)}
+                  type="button"
+                  onClick={() => void submit()}
+                >
+                  {isSubmitting
+                    ? 'Registrando...'
+                    : mode === 'entrada'
+                      ? 'Registrar entrada'
+                      : 'Registrar salida'}
+                </button>
+                <button
+                  className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+                  disabled={isSubmitting}
+                  type="button"
+                  onClick={() => {
+                    setMessage(null);
+                    setPendingNoShift(null);
+                    if (role === 'dueno') {
+                      setRut('');
+                    }
+                  }}
+                >
+                  Limpiar
+                </button>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
 
-        <aside className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
+          {pendingNoShift ? (
+            <NoShiftConfirmation
+              isSubmitting={isSubmitting}
+              pendingNoShift={pendingNoShift}
+              onCancel={cancelWithoutShift}
+              onConfirm={() => void confirmWithoutShift()}
+            />
+          ) : null}
+
+          {message ? (
+            <StatusMessage
+              tone={messageTone}
+              title={getMessageTitle(messageTone)}
+              message={message}
+            />
+          ) : null}
+        </div>
+
+        <aside className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm self-start">
           <h4 className="text-lg font-semibold text-[#17202a]">
             Trabajador seleccionado
           </h4>
@@ -382,9 +378,17 @@ export function AttendanceView({
                 value={mode === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
               />
             </dl>
+          ) : rut.trim() ? (
+            <dl className="mt-5 grid gap-4 text-sm">
+              <Info label="RUT ingresado" value={normalizeRut(rut)} />
+              <Info
+                label="Operacion"
+                value={mode === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
+              />
+            </dl>
           ) : (
             <p className="mt-4 rounded-md bg-[#f6f7f9] px-3 py-3 text-sm font-semibold text-[#61717f]">
-              Seleccione un trabajador activo.
+              Seleccione un trabajador activo o ingrese su RUT.
             </p>
           )}
         </aside>
@@ -395,24 +399,27 @@ export function AttendanceView({
 
 function ModeButton({
   active,
+  description,
   label,
   onClick,
 }: {
   active: boolean;
+  description: string;
   label: string;
   onClick: () => void;
 }): ReactElement {
   return (
     <button
-      className={`rounded px-4 py-2 text-sm font-semibold transition ${
+      className={`rounded-md border px-4 py-4 text-left transition ${
         active
-          ? 'bg-white text-[#17202a] shadow-sm'
-          : 'text-[#61717f] hover:text-[#17202a]'
+          ? 'border-[#244d61] bg-[#eef6f2] text-[#17202a] shadow-sm'
+          : 'border-[#d7dee6] bg-white text-[#61717f] hover:border-[#9ba9b5] hover:text-[#17202a]'
       }`}
       type="button"
       onClick={onClick}
     >
-      {label}
+      <span className="block text-sm font-semibold">{label}</span>
+      <span className="mt-1 block text-xs font-medium">{description}</span>
     </button>
   );
 }
@@ -435,18 +442,23 @@ function OwnerWorkerPicker({
   selectedWorker?: AttendanceWorkerOption;
 }): ReactElement {
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
-      <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-        RUT del trabajador
-        <input
-          className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-          placeholder="12345678-9"
-          value={rut}
-          onChange={(event) => onRutChange(event.target.value)}
-        />
-      </label>
+    <div className="grid gap-5 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)]">
+      <div className="self-start rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4">
+        <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+          RUT del trabajador
+          <input
+            className="w-full rounded-md border border-[#9ba9b5] bg-white px-3 py-2 font-normal"
+            placeholder="12345678-9"
+            value={rut}
+            onChange={(event) => onRutChange(event.target.value)}
+          />
+        </label>
+        <p className="mt-3 text-xs font-medium text-[#61717f]">
+          Puede ingresar el RUT directamente o seleccionar un trabajador activo.
+        </p>
+      </div>
 
-      <div className="grid gap-2">
+      <div className="grid gap-2 rounded-md border border-[#d7dee6] bg-white p-4">
         <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
           Buscar trabajador activo
           <input
@@ -456,7 +468,7 @@ function OwnerWorkerPicker({
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </label>
-        <div className="max-h-56 overflow-y-auto rounded-md border border-[#d7dee6]">
+        <div className="max-h-64 overflow-y-auto rounded-md border border-[#d7dee6]">
           {filteredWorkers.map((worker) => (
             <button
               className={`grid w-full gap-1 border-t border-[#edf1f5] px-4 py-3 text-left first:border-t-0 transition hover:bg-[#f6f7f9] ${
@@ -506,6 +518,51 @@ function WorkerSelfPanel({
       </p>
       <p className="mt-1 text-sm text-[#61717f]">{worker.rut}</p>
     </div>
+  );
+}
+
+function NoShiftConfirmation({
+  isSubmitting,
+  onCancel,
+  onConfirm,
+  pendingNoShift,
+}: {
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pendingNoShift: PendingNoShift;
+}): ReactElement {
+  return (
+    <section className="rounded-md border border-[#e3ad72] bg-[#fff8ed] p-5 shadow-sm">
+      <p className="text-sm font-semibold uppercase text-[#9a5a16]">
+        Confirmacion requerida
+      </p>
+      <h4 className="mt-1 text-lg font-semibold text-[#7a3f0c]">
+        Trabajador sin turno asignado
+      </h4>
+      <p className="mt-2 text-sm text-[#6b4a24]">
+        {pendingNoShift.trabajadorNombre} no tiene turno para hoy. El registro de
+        entrada solo se guardara si confirma esta advertencia.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          className="rounded-md border border-[#9ba9b5] bg-white px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onCancel}
+        >
+          Cancelar
+        </button>
+        <button
+          className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onConfirm}
+        >
+          Confirmar entrada
+        </button>
+      </div>
+    </section>
   );
 }
 
