@@ -181,7 +181,12 @@ export const controllers = [
     id: 'shift',
     name: 'TurnoHandler',
     module: 'personal',
-    channels: ['turno:crear', 'turno:listar'],
+    channels: [
+      'turno:crear',
+      'turno:listar',
+      'turno:editar',
+      'turno:eliminar',
+    ],
   },
   {
     id: 'attendance',
