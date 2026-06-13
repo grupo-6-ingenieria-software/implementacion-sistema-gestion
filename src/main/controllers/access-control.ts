@@ -23,6 +23,8 @@ type AccessExecutor = Pick<typeof db, 'select' | 'insert'>;
 
 export type ValidateAccessPayload = {
   token?: string;
+  /** Token de sesión adjuntado por el preload en cada invoke. */
+  __authToken?: string;
   ruta?: string;
 };
 
@@ -48,7 +50,9 @@ export async function validateAccessWithExecutor(
   const input = payload as ValidateAccessPayload | null;
   const ruta = typeof input?.ruta === 'string' ? input.ruta.trim() : '';
 
-  const claims = deps.verifyToken(input?.token);
+  // El token llega como `token` (llamadas directas/legadas en pruebas) o como
+  // `__authToken` (adjuntado por el preload en cada invoke del renderer).
+  const claims = deps.verifyToken(input?.token ?? input?.__authToken);
 
   if (!claims) {
     return controllerError(

@@ -1,15 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { sql } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Role } from '../../shared/navigation';
 import type {
   UserListItem,
   UserListResponse,
   UserPasswordResetRequestResponse,
 } from '../../shared/users';
+import * as schema from '../../db/schema';
 import {
   AccessDeniedError,
   type AuthenticatedUser,
 } from './auth-context';
+import {
+  resetPasswordWithExecutor,
+  type PasswordDeps,
+} from './password';
 import { createUserManagementController } from './user-management';
+import {
+  createAuthTestDatabase,
+  removeAuthTempDir,
+  seedUser,
+  type AuthTestDatabase,
+} from './auth-fixtures';
 
 const users: UserListItem[] = [
   {
@@ -39,9 +51,12 @@ function createController() {
       authorizeTestUser(usuarioId, allowedRoles),
     listUsers: async () => users,
     requestPasswordReset: async (payload) => ({
-      estado: 'pendiente-auth',
-      mensaje: 'pendiente',
-      usuarioObjetivoId: payload.usuarioObjetivoId,
+      ok: true,
+      data: {
+        estado: 'completado',
+        contrasenaTemporal: 'TmpPass1',
+        usuarioObjetivoId: payload.usuarioObjetivoId,
+      },
     }),
   });
 }
@@ -98,7 +113,7 @@ describe('user management controller', () => {
     ]);
   });
 
-  it('prepares password reset without implementing auth password generation', async () => {
+  it('generates a temporary password through the auth reset generator', async () => {
     const response = await createController().handle(
       {
         usuarioId: 'dueno',
@@ -112,9 +127,10 @@ describe('user management controller', () => {
       throw new Error(response.error.message);
     }
 
-    expect((response.data as UserPasswordResetRequestResponse).estado).toBe(
-      'pendiente-auth',
-    );
+    const data = response.data as UserPasswordResetRequestResponse;
+    expect(data.estado).toBe('completado');
+    expect(data.contrasenaTemporal).toBe('TmpPass1');
+    expect(data.usuarioObjetivoId).toBe('23456789-0');
   });
 
   it('does not expose worker creation through the user module', async () => {
@@ -129,6 +145,122 @@ describe('user management controller', () => {
     }
 
     expect(response.error.code).toBe('INVALID_CHANNEL');
+  });
+});
+
+describe('user management password reset wiring (RF58)', () => {
+  const NOW = new Date('2026-06-13T12:00:00.000Z');
+  const deps: PasswordDeps = {
+    hashPassword: async (plain: string) => `hash:${plain}`,
+    comparePassword: async () => false,
+    generateTempPassword: () => 'TmpPass1',
+    now: () => NOW,
+  };
+
+  let testDb: AuthTestDatabase | undefined;
+
+  beforeEach(async () => {
+    testDb = await createAuthTestDatabase();
+    await seedUser(testDb.db, {
+      usuarioId: '11111111-1',
+      trabajadorId: 1,
+      rut: '11111111-1',
+      rolBd: 'dueno',
+    });
+    await seedUser(testDb.db, {
+      usuarioId: '22222222-2',
+      trabajadorId: 2,
+      rut: '22222222-2',
+      rolBd: 'trabajador',
+      nombre: 'Camila',
+      apellido: 'Rojas',
+    });
+  });
+
+  afterEach(async () => {
+    if (!testDb) {
+      return;
+    }
+
+    testDb.client.close();
+    await removeAuthTempDir(testDb.dir);
+    testDb = undefined;
+  });
+
+  function createDbBackedController() {
+    return createUserManagementController({
+      authorize: async () => {
+        throw new Error('authorize should not be used for the reset channel');
+      },
+      listUsers: async () => [],
+      requestPasswordReset: async (payload) =>
+        resetPasswordWithExecutor(
+          testDb!.db,
+          schema,
+          {
+            usuarioId: payload.usuarioId,
+            usuarioObjetivoId: payload.usuarioObjetivoId,
+          },
+          deps,
+        ).then((result) =>
+          result.ok
+            ? {
+                ok: true as const,
+                data: {
+                  estado: 'completado' as const,
+                  contrasenaTemporal: result.data.contrasenaTemporal,
+                  usuarioObjetivoId: result.data.usuarioObjetivoId,
+                },
+              }
+            : result,
+        ),
+    });
+  }
+
+  it('lets a dueno requester create a 24h temporary password row', async () => {
+    const response = await createDbBackedController().handle(
+      { usuarioId: '11111111-1', usuarioObjetivoId: '22222222-2' },
+      { channel: 'usuario:solicitar-restablecimiento' },
+    );
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    const data = response.data as UserPasswordResetRequestResponse;
+    expect(data.estado).toBe('completado');
+    expect(data.contrasenaTemporal).toBe('TmpPass1');
+
+    const rows = await testDb!.db.all<{
+      temporales: number;
+      expiraciones: number;
+      expiracion: string | null;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM contrasena WHERE usuario_id = '22222222-2' AND es_contrasena_temporal = 1) AS temporales,
+        (SELECT COUNT(*) FROM contrasena_temporal) AS expiraciones,
+        (SELECT contrasena_temporal_fecha_hora_expiracion FROM contrasena_temporal LIMIT 1) AS expiracion
+    `);
+
+    expect(rows[0].temporales).toBe(1);
+    expect(rows[0].expiraciones).toBe(1);
+    // Expiración a 24h del momento de generación.
+    expect(rows[0].expiracion).toBe('2026-06-14T12:00:00.000Z');
+  });
+
+  it('rejects a non-dueno requester', async () => {
+    const response = await createDbBackedController().handle(
+      { usuarioId: '22222222-2', usuarioObjetivoId: '11111111-1' },
+      { channel: 'usuario:solicitar-restablecimiento' },
+    );
+
+    expect(response.ok).toBe(false);
+    if (response.ok) {
+      throw new Error('Expected forbidden password reset');
+    }
+
+    expect(response.error.code).toBe('FORBIDDEN');
   });
 });
 

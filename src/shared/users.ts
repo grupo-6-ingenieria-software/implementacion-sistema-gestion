@@ -42,8 +42,8 @@ export type UserPasswordResetRequestPayload = {
 };
 
 export type UserPasswordResetRequestResponse = {
-  estado: 'pendiente-auth';
-  mensaje: string;
+  estado: 'completado';
+  contrasenaTemporal: string;
   usuarioObjetivoId: string;
 };
 
