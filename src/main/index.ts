@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
-import appIcon from '../../resources/icon.png?asset';
 import { registerControllers } from './controllers';
 
 let mainWindow: BrowserWindow | null = null;
@@ -13,7 +12,6 @@ function createMainWindow(): void {
     minHeight: 720,
     show: false,
     autoHideMenuBar: true,
-    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
@@ -49,12 +47,6 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
-  // En macOS el icono del Dock no se toma de BrowserWindow; se fija aquí para
-  // reemplazar el de Electron por defecto (sobre todo en desarrollo).
-  if (process.platform === 'darwin') {
-    app.dock?.setIcon(appIcon);
-  }
-
   registerControllers(ipcMain);
   createMainWindow();
 
