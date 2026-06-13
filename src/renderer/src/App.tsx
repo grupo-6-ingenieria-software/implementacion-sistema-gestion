@@ -39,6 +39,7 @@ import { AttendanceView } from './views/AttendanceView';
 import { CashClosingView } from './views/CashClosingView';
 import { LotCreateView } from './views/LotCreateView';
 import { ProductFormView } from './views/ProductFormView';
+import { ProductDeleteView } from './views/ProductDeleteView';
 import { ProductListView } from './views/ProductListView';
 import { ProductStatusView } from './views/ProductStatusView';
 import { SaleRegisterView } from './views/SaleRegisterView';
@@ -814,6 +815,16 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === 'product-delete' && session.usuarioId) {
+    return (
+      <ProductDeleteView
+        initialEan13={getProductDeleteEan13(currentPath)}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === 'worker-list' && session.usuarioId) {
     return (
       <WorkerListView usuarioId={session.usuarioId} onNavigate={onNavigate} />
@@ -992,6 +1003,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     'lot-create',
     'product-create',
     'product-edit',
+    'product-delete',
     'product-list',
     'product-status',
     'sale-register',
@@ -1017,6 +1029,13 @@ export function getLotCreateEan13(path: string): string | undefined {
 }
 
 export function getWasteCreateEan13(path: string): string | undefined {
+  const [, query = ''] = path.split('?');
+  const ean13 = new URLSearchParams(query).get('ean13');
+
+  return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getProductDeleteEan13(path: string): string | undefined {
   const [, query = ''] = path.split('?');
   const ean13 = new URLSearchParams(query).get('ean13');
 

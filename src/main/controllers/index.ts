@@ -14,6 +14,7 @@ import { expirationAlertController } from './expiration-alert';
 import { lotController } from './lot';
 import { passwordController } from './password';
 import { productCreateController } from './product-create';
+import { productDeleteController } from './product-delete';
 import { productEditController } from './product-edit';
 import { productQueryController } from './product-query';
 import { productStatusController } from './product-status';
@@ -54,6 +55,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] = 
   attendanceController,
   eanReaderController,
   userManagementController,
+  productDeleteController,
 ];
 
 export function registerControllers(ipcMain: IpcMain): void {

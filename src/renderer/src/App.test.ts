@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getLotCreateEan13,
+  getProductDeleteEan13,
   getProductStatusEan13,
   getWasteCreateEan13,
   isImplementedViewNodeId,
@@ -28,6 +29,10 @@ describe('App inventory route helpers', () => {
 
   it('treats product-status as an implemented view', () => {
     expect(isImplementedViewNodeId('product-status')).toBe(true);
+  });
+
+  it('treats product-delete as an implemented view', () => {
+    expect(isImplementedViewNodeId('product-delete')).toBe(true);
   });
 
   it('treats audit-log as an implemented view', () => {
@@ -178,6 +183,14 @@ describe('App inventory route helpers', () => {
   it('reads the contextual EAN-13 query parameter for waste registration', () => {
     expect(
       getWasteCreateEan13('/app/inventario/mermas/nueva?ean13=7802920000015'),
+    ).toBe('7802920000015');
+  });
+
+  it('reads the contextual EAN-13 query parameter for product deletion', () => {
+    expect(
+      getProductDeleteEan13(
+        '/app/inventario/productos/eliminar?ean13=7802920000015',
+      ),
     ).toBe('7802920000015');
   });
 });
