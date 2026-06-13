@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DASHBOARD_UPDATED_EVENT } from '../../../src/shared/dashboard';
 
-const { send, getAllWindows, logError, registerSale } = vi.hoisted(() => {
+const { closeCashRegister, send, getAllWindows, logError, registerSale } = vi.hoisted(() => {
   const sendMock = vi.fn();
 
   return {
     send: sendMock,
+    closeCashRegister: vi.fn(),
     getAllWindows: vi.fn(),
     logError: vi.fn(),
     registerSale: vi.fn(),
@@ -39,12 +40,25 @@ vi.mock('../../../src/main/controllers/sale-service', async () => {
   };
 });
 
+vi.mock('../../../src/main/controllers/cash-closing-service', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../src/main/controllers/cash-closing-service')
+  >('../../../src/main/controllers/cash-closing-service');
+
+  return {
+    ...actual,
+    closeCashRegister,
+  };
+});
+
 import { notifyDashboardUpdated } from '../../../src/main/controllers/dashboard-events';
 import {
   SaleBusinessError,
   type SaleReceipt,
 } from '../../../src/main/controllers/sale-service';
 import { saleController } from '../../../src/main/controllers/sale';
+import { cashClosingController } from '../../../src/main/controllers/cash-closing';
+import type { CashCloseResult } from '../../../src/shared/cash';
 
 beforeEach(() => {
   send.mockClear();
@@ -52,6 +66,7 @@ beforeEach(() => {
   getAllWindows.mockReturnValue([{ webContents: { send } }]);
   logError.mockReset();
   registerSale.mockReset();
+  closeCashRegister.mockReset();
 });
 
 afterEach(() => {
@@ -145,6 +160,19 @@ describe('dashboard update events', () => {
     expect(response.ok).toBe(false);
     expect(send).not.toHaveBeenCalled();
   });
+
+  it('emits an update after cash closing succeeds', async () => {
+    closeCashRegister.mockResolvedValueOnce(createCashCloseResult());
+
+    const response = await cashClosingController.handle(
+      { confirmacion: true, usuarioId: 'usuario-1' },
+      { channel: 'caja:cerrar' },
+    );
+
+    expect(response.ok).toBe(true);
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
+  });
 });
 
 function createSaleReceipt(): SaleReceipt {
@@ -164,5 +192,49 @@ function createSaleReceipt(): SaleReceipt {
     },
     total: 1000,
     detalle: [],
+  };
+}
+
+function createCashCloseResult(): CashCloseResult {
+  return {
+    cierreCajaId: 'caja-1',
+    closedAt: '2026-06-12T20:00:00.000Z',
+    closedBy: {
+      usuarioId: 'usuario-1',
+      nombre: 'Trabajador Prueba',
+    },
+    currentAmount: 1000,
+    currentTransactions: 1,
+    generatedAt: '2026-06-12T20:00:00.000Z',
+    openedAt: '2026-06-12T08:00:00.000Z',
+    payments: {
+      efectivo: {
+        currentAmount: 0,
+        currentTransactions: 0,
+        voidedAmount: 0,
+        voidedTransactions: 0,
+      },
+      debito: {
+        currentAmount: 1000,
+        currentTransactions: 1,
+        voidedAmount: 0,
+        voidedTransactions: 0,
+      },
+      credito: {
+        currentAmount: 0,
+        currentTransactions: 0,
+        voidedAmount: 0,
+        voidedTransactions: 0,
+      },
+      transferencia: {
+        currentAmount: 0,
+        currentTransactions: 0,
+        voidedAmount: 0,
+        voidedTransactions: 0,
+      },
+    },
+    status: 'cerrada',
+    voidedAmount: 0,
+    voidedTransactions: 0,
   };
 }
