@@ -338,7 +338,6 @@ function PasswordChangeView({
   onComplete: () => void;
   onLogout: () => void;
 }): ReactElement {
-  const [actual, setActual] = useState('');
   const [nueva, setNueva] = useState('');
   const [confirmacion, setConfirmacion] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -373,7 +372,6 @@ function PasswordChangeView({
 
     const response = await window.appApi.invoke('auth:cambiar-password', {
       usuarioId,
-      contrasenaActual: actual,
       contrasenaNueva: nueva,
     });
 
@@ -404,15 +402,6 @@ function PasswordChangeView({
           className="mt-6 grid gap-4"
           onSubmit={(event) => void handleSubmit(event)}
         >
-          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-            Contraseña actual
-            <input
-              className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-              type="password"
-              value={actual}
-              onChange={(event) => setActual(event.target.value)}
-            />
-          </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Nueva contraseña
             <input

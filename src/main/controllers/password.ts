@@ -109,10 +109,10 @@ export async function changePasswordWithExecutor(
   const nueva =
     typeof input?.contrasenaNueva === 'string' ? input.contrasenaNueva : '';
 
-  if (!usuarioId || !actual || !nueva) {
+  if (!usuarioId || !nueva) {
     return controllerError(
       'VALIDATION_ERROR',
-      'Ingrese la contraseña actual y la nueva contraseña.',
+      'Ingrese la nueva contraseña.',
       'password',
     );
   }
@@ -126,6 +126,7 @@ export async function changePasswordWithExecutor(
     const [vigente] = await database
       .select({
         contrasenaHash: schema.contrasena.contrasenaHash,
+        esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
       })
       .from(schema.contrasena)
       .where(eq(schema.contrasena.usuarioId, user.usuarioId))
@@ -140,14 +141,27 @@ export async function changePasswordWithExecutor(
       );
     }
 
-    const actualOk = await deps.comparePassword(actual, vigente.contrasenaHash);
+    // En el cambio obligatorio tras login con contraseña temporal el usuario ya
+    // demostró conocerla al autenticarse, así que no se vuelve a pedir la actual.
+    // Solo el cambio voluntario (contraseña definitiva vigente) la exige.
+    if (!vigente.esContrasenaTemporal) {
+      if (!actual) {
+        return controllerError(
+          'VALIDATION_ERROR',
+          'Ingrese la contraseña actual y la nueva contraseña.',
+          'password',
+        );
+      }
 
-    if (!actualOk) {
-      return controllerError(
-        'VALIDATION_ERROR',
-        'La contraseña actual es incorrecta.',
-        'password',
-      );
+      const actualOk = await deps.comparePassword(actual, vigente.contrasenaHash);
+
+      if (!actualOk) {
+        return controllerError(
+          'VALIDATION_ERROR',
+          'La contraseña actual es incorrecta.',
+          'password',
+        );
+      }
     }
 
     const complexity = validatePasswordComplexity(nueva);
