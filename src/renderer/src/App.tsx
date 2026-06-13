@@ -22,6 +22,8 @@ import { CashClosingView } from './views/CashClosingView';
 import { ProductFormView } from './views/ProductFormView';
 import { ProductListView } from './views/ProductListView';
 import { SaleRegisterView } from './views/SaleRegisterView';
+import { UserManagementView } from './views/UserManagementView';
+import { WorkerManagementView } from './views/WorkerManagementView';
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -382,6 +384,23 @@ function ViewRenderer({
         mode={node.id === 'product-create' ? 'create' : 'edit'}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if ((node.id === 'worker-list' || node.id === 'worker-create') && session.usuarioId) {
+    return (
+      <WorkerManagementView
+        initialCreate={node.id === 'worker-create'}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === 'user-management' && session.usuarioId) {
+    return (
+      <UserManagementView
+        usuarioId={session.usuarioId}
       />
     );
   }
