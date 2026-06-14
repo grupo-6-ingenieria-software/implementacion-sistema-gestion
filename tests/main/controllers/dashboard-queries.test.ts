@@ -86,21 +86,21 @@ describe('dashboard query mapping', () => {
       {
         lotId: 'expired',
         productName: 'Pan',
-        ean13: '7800000000123',
+        ean13: '7800000000122',
         availableQuantity: 4,
         expirationDate: '2026-06-10',
       },
       {
         lotId: 'today',
         productName: 'Yogur',
-        ean13: '7800000000124',
+        ean13: '7800000000139',
         availableQuantity: 6,
         expirationDate: '2026-06-11',
       },
       {
         lotId: 'week',
         productName: 'Queso',
-        ean13: '7800000000125',
+        ean13: '7800000000146',
         availableQuantity: 3,
         expirationDate: '2026-06-18',
       },
@@ -322,7 +322,7 @@ describe('dashboard presentation by role', () => {
           {
             lotId: 'lot-1',
             productName: 'Yogur',
-            ean13: '7800000000124',
+            ean13: '7800000000139',
             availableQuantity: 6,
             expirationDate: '2026-06-11',
             daysRemaining: 0,
