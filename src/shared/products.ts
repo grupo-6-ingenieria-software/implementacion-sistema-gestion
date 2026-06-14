@@ -97,7 +97,10 @@ export type ProductDetailPayload = {
 };
 
 export type ProductDetailResponse = {
-  product: ProductFormValues & {
+  // precioCosto es opcional: solo se incluye para el rol `dueno`.
+  // Para `trabajador` se omite y nunca sale de la capa de datos.
+  product: Omit<ProductFormValues, 'precioCosto'> & {
+    precioCosto?: number;
     estado: ProductStatus;
   };
   categories: ProductCategoryOption[];

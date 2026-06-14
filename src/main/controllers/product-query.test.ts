@@ -3,6 +3,7 @@ import type { ControllerResponse } from '../../shared/controllers';
 import type { Role } from '../../shared/navigation';
 import type {
   ActiveProductSearchItem,
+  ProductDetailResponse,
   ProductListItem,
   ProductListResponse,
 } from '../../shared/products';
@@ -70,21 +71,29 @@ function createController() {
       { id: 2, nombre: 'Lacteos' },
       { id: 3, nombre: 'Panaderia' },
     ],
-    findProduct: async (ean13) => {
+    findProduct: async (ean13, { includeCost }) => {
       const product = products.find((item) => item.ean13 === ean13);
 
       if (!product) {
         return null;
       }
 
-      return {
+      const detail = {
         ean13: product.ean13,
         nombre: product.nombre,
         categoriaId: product.categoriaId,
-        precioCosto: 1000,
         precioVenta: product.precioVenta,
         stockMinimo: product.stockMinimo,
         estado: product.estado,
+      };
+
+      if (!includeCost) {
+        return detail;
+      }
+
+      return {
+        ...detail,
+        precioCosto: 1000,
       };
     },
     listActiveProducts: async ({ query, ean13, limit }) => {
@@ -118,6 +127,14 @@ async function invokeProductList(
   return createController().handle(payload, {
     channel: 'producto:listar',
   }) as Promise<ControllerResponse<ProductListResponse>>;
+}
+
+async function invokeProductDetail(
+  payload?: unknown,
+): Promise<ControllerResponse<ProductDetailResponse>> {
+  return createController().handle(payload, {
+    channel: 'producto:estado',
+  }) as Promise<ControllerResponse<ProductDetailResponse>>;
 }
 
 describe('product query controller', () => {
@@ -279,14 +296,39 @@ describe('product query controller', () => {
     ]);
   });
 
+  it('includes cost data in product detail for the owner', async () => {
+    const response = await invokeProductDetail({
+      ean13: '7802920000015',
+      usuarioId: 'dueno',
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    expect(response.data.product).toHaveProperty('precioCosto', 1000);
+  });
+
+  it('omits cost data from product detail for workers', async () => {
+    const response = await invokeProductDetail({
+      ean13: '7802920000015',
+      usuarioId: 'trabajador',
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      throw new Error(response.error.message);
+    }
+
+    expect(response.data.product).not.toHaveProperty('precioCosto');
+  });
+
   it('allows workers to load product detail for status changes', async () => {
-    const response = (await createController().handle(
-      {
-        ean13: '7802920000015',
-        usuarioId: 'trabajador',
-      },
-      { channel: 'producto:estado' },
-    )) as ControllerResponse;
+    const response = await invokeProductDetail({
+      ean13: '7802920000015',
+      usuarioId: 'trabajador',
+    });
 
     expect(response.ok).toBe(true);
   });
