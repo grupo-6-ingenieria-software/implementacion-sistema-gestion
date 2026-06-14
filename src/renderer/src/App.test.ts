@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  VIEW_UNAVAILABLE_MESSAGE,
+  VIEW_UNAVAILABLE_TITLE,
   getLotCreateEan13,
   getProductDeleteEan13,
   getProductStatusEan13,
@@ -192,5 +194,17 @@ describe('App inventory route helpers', () => {
         '/app/inventario/productos/eliminar?ean13=7802920000015',
       ),
     ).toBe('7802920000015');
+  });
+
+  it('exposes a neutral fallback without internal traceability', () => {
+    expect(VIEW_UNAVAILABLE_TITLE).toBe('Vista no disponible');
+    expect(VIEW_UNAVAILABLE_MESSAGE).toBe(
+      'La vista solicitada no está disponible.',
+    );
+
+    const fallbackText = `${VIEW_UNAVAILABLE_TITLE} ${VIEW_UNAVAILABLE_MESSAGE}`;
+
+    expect(fallbackText).not.toContain('Controladores');
+    expect(fallbackText).not.toContain('Componentes internos');
   });
 });
