@@ -2,11 +2,19 @@
  * SesionHandler — Verificación de sesión, inactividad y cierre (RF55, CU56 e4).
  *
  * Es la única fuente de verdad sobre el estado de la sesión en la base de datos:
- *  - Canal auth:verificar-sesion: latido (heartbeat) del renderer. La sesión se
- *    cierra automáticamente tras 30 minutos de inactividad (motivo_cierre =
- *    'inactividad'); cada verificación válida refresca el último acceso.
+ *  - Canal auth:verificar-sesion: latido (heartbeat) del renderer. SÓLO consulta
+ *    el estado de la sesión: si lleva más de 30 minutos sin actividad real la
+ *    cierra (motivo_cierre = 'inactividad'); en caso contrario responde
+ *    active=true SIN refrescar el último acceso. El latido es de SÓLO LECTURA,
+ *    por lo que NO reinicia el contador de inactividad mientras la app está
+ *    abierta sin que el usuario haga nada.
  *  - Canal auth:logout: cierre manual de la sesión activa (motivo_cierre =
  *    'manual'), invocado por el renderer al cerrar sesión.
+ *
+ * El último acceso (sesion_fecha_hora_ultimo_acceso) lo refresca el dispatcher
+ * (ver index.ts) en cada IPC autenticado que represente una ACCIÓN real del
+ * usuario, EXCEPTO el propio latido (auth:verificar-sesion) y el logout
+ * (auth:logout). Así la inactividad sólo se acumula cuando no hay acciones.
  *
  * La identidad se deriva del JWT verificado por el guard del dispatcher; el
  * sesionId proviene de los claims firmados (ver auth-guard.ts / auth-jwt.ts).
@@ -26,6 +34,18 @@ type SchemaLike = typeof import('../../db/schema');
 type SessionExecutor = Pick<typeof db, 'select' | 'update'>;
 
 export const LOGOUT_CHANNEL = 'auth:logout';
+export const VERIFY_SESSION_CHANNEL = 'auth:verificar-sesion';
+
+/**
+ * Canales que NO cuentan como actividad del usuario y por tanto NO deben
+ * refrescar sesion_fecha_hora_ultimo_acceso: el latido (sólo consulta) y el
+ * cierre de sesión (no tiene sentido refrescar una sesión que se está cerrando).
+ * El dispatcher refresca el último acceso en cualquier otro canal autenticado.
+ */
+export const NON_ACTIVITY_CHANNELS: ReadonlySet<string> = new Set([
+  VERIFY_SESSION_CHANNEL,
+  LOGOUT_CHANNEL,
+]);
 
 export type LogoutData = {
   closed: boolean;
@@ -113,13 +133,43 @@ export async function verifySessionWithExecutor(
     });
   }
 
-  // Sesión activa: refrescar el último acceso.
+  // Sesión activa dentro de la ventana de actividad. El latido es de SÓLO
+  // LECTURA: NO refresca el último acceso, para que la inactividad se acumule
+  // mientras el usuario no realice ninguna acción (ver refreshSessionActivity,
+  // invocada por el dispatcher en los IPC de acción real).
+  return controllerSuccess<VerifySessionData>({ active: true });
+}
+
+/**
+ * Refresca sesion_fecha_hora_ultimo_acceso = ahora para la sesión indicada,
+ * marcando actividad real del usuario. Lo invoca el dispatcher (index.ts) tras
+ * un guard exitoso en cualquier IPC autenticado que NO sea el latido ni el
+ * logout. Sólo afecta a sesiones aún abiertas (cierre IS NULL): una sesión ya
+ * cerrada por inactividad o logout no se "revive" con un UPDATE de actividad.
+ * Es un único UPDATE; cualquier fallo de BD se ignora para no bloquear la
+ * acción del usuario (la actividad es un efecto secundario, no el objetivo).
+ */
+export async function refreshSessionActivity(
+  database: SessionExecutor,
+  schema: SchemaLike,
+  sesionId: string | undefined,
+  deps: SessionDeps = defaultDeps,
+): Promise<void> {
+  if (!sesionId) {
+    return;
+  }
+
+  const now = deps.now();
+
   await database
     .update(schema.sesionUsuario)
     .set({ sesionFechaHoraUltimoAcceso: now.toISOString() })
-    .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId));
-
-  return controllerSuccess<VerifySessionData>({ active: true });
+    .where(
+      and(
+        eq(schema.sesionUsuario.sesionUsuarioId, sesionId),
+        isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+      ),
+    );
 }
 
 /**

@@ -11,7 +11,11 @@ import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../db/schema';
 import { guardChannel } from './auth-guard';
-import { verifySessionWithExecutor } from './session';
+import {
+  NON_ACTIVITY_CHANNELS,
+  refreshSessionActivity,
+  verifySessionWithExecutor,
+} from './session';
 import { signSessionToken } from './auth-jwt';
 import {
   createAuthTestDatabase,
@@ -96,5 +100,83 @@ describe('heartbeat end-to-end (preload → guard → session)', () => {
     // El guard corta los canales autenticados sin token válido: el renderer ve
     // !response.ok y cierra la sesión, como corresponde.
     expect(guard.ok).toBe(false);
+  });
+});
+
+/**
+ * Modelo de actividad real (RF55): la fuente del último acceso es el dispatcher,
+ * que refresca sesion_fecha_hora_ultimo_acceso en cada IPC autenticado SALVO los
+ * canales de NON_ACTIVITY_CHANNELS (latido y logout). Estas pruebas reproducen la
+ * decisión exacta del dispatcher (index.ts):
+ *   if (sesionId && !NON_ACTIVITY_CHANNELS.has(channel)) refreshSessionActivity(...)
+ */
+describe('actividad de sesión a nivel del dispatcher (RF55)', () => {
+  const ULTIMO_ACCESO = '2026-06-13T12:00:00.000Z';
+  const ACCION_NOW = new Date('2026-06-13T12:10:00.000Z');
+
+  async function seedSessionAt(ultimoAccesoIso: string): Promise<void> {
+    await testDb!.db.run(sql`
+      INSERT INTO sesion_usuario (
+        sesion_usuario_id, sesion_fecha_hora_inicio,
+        sesion_fecha_hora_ultimo_acceso, usuario_id
+      ) VALUES (${SESSION_ID}, ${ultimoAccesoIso}, ${ultimoAccesoIso}, '11111111-1')
+    `);
+  }
+
+  async function readUltimoAcceso(): Promise<string | undefined> {
+    const rows = await testDb!.db.all<{ ultimo: string }>(
+      sql`SELECT sesion_fecha_hora_ultimo_acceso AS ultimo FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
+    );
+    return rows[0]?.ultimo;
+  }
+
+  // Réplica de la decisión del dispatcher: refresca sólo si el canal cuenta como
+  // actividad. Devuelve true si refrescó.
+  async function dispatchActivity(channel: string): Promise<boolean> {
+    const sesionId = SESSION_ID;
+    if (sesionId && !NON_ACTIVITY_CHANNELS.has(channel)) {
+      await refreshSessionActivity(testDb!.db, schema, sesionId, {
+        now: () => ACCION_NOW,
+      });
+      return true;
+    }
+    return false;
+  }
+
+  it('(a) the heartbeat alone never resets inactivity', async () => {
+    await seedSessionAt(ULTIMO_ACCESO);
+
+    // Varios latidos seguidos: el dispatcher NO refresca y el verify es de sólo
+    // lectura. El último acceso no se mueve.
+    for (let i = 0; i < 3; i += 1) {
+      expect(await dispatchActivity('auth:verificar-sesion')).toBe(false);
+      await verifySessionWithExecutor(testDb!.db, schema, SESSION_ID, {
+        now: () => new Date('2026-06-13T12:05:00.000Z'),
+      });
+    }
+
+    expect(await readUltimoAcceso()).toBe(ULTIMO_ACCESO);
+  });
+
+  it('(b) an action IPC through the dispatcher refreshes ultimo_acceso', async () => {
+    await seedSessionAt(ULTIMO_ACCESO);
+
+    const refreshed = await dispatchActivity('venta:registrar');
+
+    expect(refreshed).toBe(true);
+    expect(await readUltimoAcceso()).toBe(ACCION_NOW.toISOString());
+  });
+
+  it('(c) auth:verificar-sesion and auth:logout do NOT refresh ultimo_acceso', async () => {
+    await seedSessionAt(ULTIMO_ACCESO);
+
+    expect(NON_ACTIVITY_CHANNELS.has('auth:verificar-sesion')).toBe(true);
+    expect(NON_ACTIVITY_CHANNELS.has('auth:logout')).toBe(true);
+
+    expect(await dispatchActivity('auth:verificar-sesion')).toBe(false);
+    expect(await dispatchActivity('auth:logout')).toBe(false);
+
+    // Ninguno de los dos canales tocó el último acceso.
+    expect(await readUltimoAcceso()).toBe(ULTIMO_ACCESO);
   });
 });

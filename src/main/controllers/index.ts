@@ -20,7 +20,12 @@ import { productQueryController } from './product-query';
 import { productStatusController } from './product-status';
 import { saleController } from './sale';
 import { salesHistoryController } from './sales-history';
-import { sessionController } from './session';
+import {
+  sessionController,
+  refreshSessionActivity,
+  NON_ACTIVITY_CHANNELS,
+} from './session';
+import { db, schema as appSchema } from '../../db/client';
 import { shiftController } from './shift';
 import { stockAlertController } from './stock-alert';
 import { stockDiscountController } from './stock-discount';
@@ -83,9 +88,20 @@ export function registerControllers(ipcMain: IpcMain): void {
           return guard.response;
         }
 
-        // session.ts es la única fuente de verdad de inactividad: refresca
-        // ultimo_acceso en cada verificar-sesión válida y cierra la fila tras
-        // 30 min. El dispatcher ya no lleva un contador de actividad propio.
+        // Actividad real del usuario (RF55): cada IPC autenticado de ACCIÓN
+        // refresca sesion_fecha_hora_ultimo_acceso, de modo que la inactividad
+        // sólo se acumula cuando el usuario no hace nada. Se excluyen el latido
+        // (auth:verificar-sesion, de sólo lectura) y el logout (auth:logout):
+        // ninguno representa actividad. session.ts es la única fuente de verdad
+        // del cierre por inactividad; el latido sólo CONSULTA ese estado.
+        const sesionId = guard.context.claims?.sesionId;
+        if (sesionId && !NON_ACTIVITY_CHANNELS.has(channel)) {
+          // Efecto secundario: un fallo de BD no debe bloquear la acción.
+          await refreshSessionActivity(db, appSchema, sesionId).catch(
+            () => undefined,
+          );
+        }
+
         return controller.handle(guard.payload, guard.context);
       });
     }
