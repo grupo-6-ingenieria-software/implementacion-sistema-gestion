@@ -1,6 +1,9 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { controllers, type ControllerResponse } from '../../shared/controllers';
-import type { AttendanceWorkerOption } from '../../shared/attendance';
+import {
+  normalizeRut,
+  type AttendanceWorkerOption,
+} from '../../shared/attendance';
 import type { Role } from '../../shared/navigation';
 import {
   filterAndSortUserList,
@@ -73,11 +76,16 @@ export function createWorkerController(
 
       if (context.channel === 'trabajador:listar-activos') {
         const usuarioId = normalizeUsuarioId(payload);
-        await dependencies.authorize(usuarioId, ['dueno', 'trabajador']);
+        const user = await dependencies.authorize(usuarioId, [
+          'dueno',
+          'trabajador',
+        ]);
+
+        const activeWorkers = await dependencies.listActiveWorkers();
 
         return {
           ok: true,
-          data: await dependencies.listActiveWorkers(),
+          data: scopeActiveWorkersToUser(activeWorkers, user),
         };
       }
 
@@ -461,6 +469,29 @@ function mapWorkerRows(
     estado: row.estado as UserStatus,
     ultimoLoginFechaHora: row.ultimoLoginFechaHora ?? undefined,
   }));
+}
+
+/**
+ * Limita la lista de trabajadores activos segun el rol del solicitante.
+ *
+ * El dueno necesita la lista completa (p.ej. para asignar turnos), pero un
+ * trabajador solo debe ver su propio registro: exponerle la lista completa
+ * filtra RUT y nombres del resto del personal (issue #33). El propio registro
+ * se identifica por RUT (usuarioId == RUT de la sesion), nunca por posicion.
+ */
+function scopeActiveWorkersToUser(
+  activeWorkers: AttendanceWorkerOption[],
+  user: AuthenticatedUser,
+): AttendanceWorkerOption[] {
+  if (user.role === 'dueno') {
+    return activeWorkers;
+  }
+
+  const ownRut = normalizeRut(user.usuarioId);
+
+  return activeWorkers.filter(
+    (worker) => normalizeRut(worker.rut) === ownRut,
+  );
 }
 
 function normalizeUsuarioId(payload: unknown): string | undefined {
