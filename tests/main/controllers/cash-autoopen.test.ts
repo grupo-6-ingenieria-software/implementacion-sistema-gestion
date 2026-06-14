@@ -7,9 +7,10 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../../src/db/schema';
+import { closeCashRegister } from '../../../src/main/controllers/cash-closing-service';
 import {
+  getOpenCashRegister,
   registerSale,
-  SaleBusinessError,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -19,7 +20,9 @@ let testDb: TestDatabase | undefined;
 
 beforeEach(async () => {
   testDb = await createTestDatabase();
-  await seedSaleFixture(testDb.db as unknown as DbExecutor);
+  // Importante: el fixture NO inserta ningun cierre_caja. Simula una BD limpia
+  // (sin seed) o un dia recien cerrado, que es exactamente el escenario del #29.
+  await seedWithoutCashRegister(testDb.db as unknown as DbExecutor);
 });
 
 afterEach(async () => {
@@ -32,8 +35,22 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('registerSale', () => {
-  it('registers a cash sale, creates details and consumes FEFO lots', async () => {
+describe('caja autoabrir (#29)', () => {
+  it('auto-abre exactamente una caja en una BD sin cierre_caja', async () => {
+    await expectOpenCashRegisters(0);
+
+    const opened = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
+    );
+
+    expect(opened).not.toBeNull();
+    expect(opened?.cierreCajaId).toBeTruthy();
+    await expectOpenCashRegisters(1);
+  });
+
+  it('permite registrar la primera venta en una BD limpia auto-abriendo caja', async () => {
+    await expectOpenCashRegisters(0);
+
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
       metodoPago: 'efectivo',
@@ -42,104 +59,86 @@ describe('registerSale', () => {
     });
 
     expect(receipt.total).toBe(3000);
-    expect(receipt.vuelto).toBe(2000);
-    expect(receipt.detalle[0].lotesConsumidos).toEqual([
-      { loteId: '00000000-0000-4000-8000-000000000101', cantidad: 1 },
-      { loteId: '00000000-0000-4000-8000-000000000102', cantidad: 2 },
-    ]);
 
     const ventaRows = await testDb!.db.all<{ count: number }>(
       sql`SELECT COUNT(*) AS count FROM venta`,
     );
-    const detalleRows = await testDb!.db.all<{ count: number }>(
-      sql`SELECT COUNT(*) AS count FROM detalle_venta`,
-    );
-    const efectivoRows = await testDb!.db.all<{ count: number }>(
-      sql`SELECT COUNT(*) AS count FROM venta_efectivo`,
-    );
-    const lotRows = await testDb!.db.all<{
-      loteId: string;
-      cantidadActual: number;
-    }>(sql`
-      SELECT lote_id AS loteId, lote_cantidad_actual AS cantidadActual
-      FROM lote
-      ORDER BY lote_id ASC
-    `);
-
     expect(Number(ventaRows[0].count)).toBe(1);
-    expect(Number(detalleRows[0].count)).toBe(1);
-    expect(Number(efectivoRows[0].count)).toBe(1);
-    expect(lotRows).toEqual([
-      {
-        loteId: '00000000-0000-4000-8000-000000000101',
-        cantidadActual: 0,
-      },
-      {
-        loteId: '00000000-0000-4000-8000-000000000102',
-        cantidadActual: 3,
-      },
-    ]);
+    await expectOpenCashRegisters(1);
   });
 
-  it('registers an electronic sale without venta_efectivo', async () => {
+  it('tras cerrar caja, la siguiente venta auto-abre una caja NUEVA', async () => {
+    // 1. Primera venta abre la caja inicial.
     await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
       metodoPago: 'debito',
-      items: [{ productoId: 1, cantidad: 2 }],
+      items: [{ productoId: 1, cantidad: 1 }],
     });
-
-    const efectivoRows = await testDb!.db.all<{ count: number }>(
-      sql`SELECT COUNT(*) AS count FROM venta_efectivo`,
+    const firstOpen = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
     );
+    expect(firstOpen).not.toBeNull();
 
-    expect(Number(efectivoRows[0].count)).toBe(0);
-  });
-
-  it('rolls back when cash payment is insufficient', async () => {
-    await expect(
-      registerSale(testDb!.db as unknown as DbExecutor, {
-        usuarioId: '12345678-9',
-        metodoPago: 'efectivo',
-        montoRecibido: 500,
-        items: [{ productoId: 1, cantidad: 2 }],
-      }),
-    ).rejects.toBeInstanceOf(SaleBusinessError);
-
-    const ventaRows = await testDb!.db.all<{ count: number }>(
-      sql`SELECT COUNT(*) AS count FROM venta`,
+    // 2. Cerramos la caja del dia.
+    await closeCashRegister(
+      testDb!.db as unknown as DbExecutor,
+      { usuarioId: '12345678-9', confirmacion: true },
+      new Date(),
     );
-    const stockRows = await testDb!.db.all<{ stock: number }>(sql`
-      SELECT SUM(lote_cantidad_actual) AS stock
-      FROM lote
-      WHERE producto_id = 1
-    `);
+    await expectOpenCashRegisters(0);
 
-    expect(Number(ventaRows[0].count)).toBe(0);
-    expect(Number(stockRows[0].stock)).toBe(6);
-  });
-
-  it('auto-abre una caja nueva cuando la del dia esta cerrada (#29)', async () => {
-    await testDb!.db.run(sql`UPDATE cierre_caja SET cierre_estado = 'cerrado',
-      cierre_fecha_hora_fin = '2026-06-12T20:00:00.000Z',
-      usuario_cierre_id = '12345678-9'`);
-
-    const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
+    // 3. La siguiente venta debe abrir una caja nueva y distinta.
+    await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
-      metodoPago: 'credito',
+      metodoPago: 'debito',
       items: [{ productoId: 1, cantidad: 1 }],
     });
 
-    expect(receipt.total).toBe(1000);
-
-    const openRows = await testDb!.db.all<{ count: number }>(
-      sql`SELECT COUNT(*) AS count FROM cierre_caja WHERE cierre_estado = 'abierto'`,
+    const secondOpen = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
     );
-    expect(Number(openRows[0].count)).toBe(1);
+    expect(secondOpen).not.toBeNull();
+    expect(secondOpen?.cierreCajaId).not.toBe(firstOpen?.cierreCajaId);
+    await expectOpenCashRegisters(1);
+
+    const totalCajas = await testDb!.db.all<{ count: number }>(
+      sql`SELECT COUNT(*) AS count FROM cierre_caja`,
+    );
+    expect(Number(totalCajas[0].count)).toBe(2);
+  });
+
+  it('no crea cajas duplicadas al invocar getOpenCashRegister repetidamente', async () => {
+    const first = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
+    );
+    const second = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
+    );
+    const third = await getOpenCashRegister(
+      testDb!.db as unknown as DbExecutor,
+    );
+
+    expect(first?.cierreCajaId).toBeTruthy();
+    expect(second?.cierreCajaId).toBe(first?.cierreCajaId);
+    expect(third?.cierreCajaId).toBe(first?.cierreCajaId);
+
+    await expectOpenCashRegisters(1);
+    const totalCajas = await testDb!.db.all<{ count: number }>(
+      sql`SELECT COUNT(*) AS count FROM cierre_caja`,
+    );
+    expect(Number(totalCajas[0].count)).toBe(1);
   });
 });
 
+async function expectOpenCashRegisters(expected: number): Promise<void> {
+  const rows = await testDb!.db.all<{ count: number }>(
+    sql`SELECT COUNT(*) AS count FROM cierre_caja WHERE cierre_estado = 'abierto'`,
+  );
+  expect(Number(rows[0].count)).toBe(expected);
+}
+
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-sale-'));
+  const dir = await mkdtemp(join(tmpdir(), 'huascar-autoopen-'));
   const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
@@ -150,7 +149,7 @@ async function createTestDatabase() {
   return { client, db, dir };
 }
 
-async function seedSaleFixture(db: DbExecutor): Promise<void> {
+async function seedWithoutCashRegister(db: DbExecutor): Promise<void> {
   await db.run(sql`
     INSERT INTO trabajador (
       trabajador_id,
@@ -235,8 +234,7 @@ async function seedSaleFixture(db: DbExecutor): Promise<void> {
       producto_id
     )
     VALUES
-      ('00000000-0000-4000-8000-000000000101', 1, 1, 700, '2026-01-01T00:00:00.000Z', 1, 0, 1),
-      ('00000000-0000-4000-8000-000000000102', 5, 5, 700, '2026-01-02T00:00:00.000Z', 1, 0, 1)
+      ('00000000-0000-4000-8000-000000000101', 10, 10, 700, '2026-01-01T00:00:00.000Z', 1, 0, 1)
   `);
 
   await db.run(sql`
@@ -245,21 +243,7 @@ async function seedSaleFixture(db: DbExecutor): Promise<void> {
       lote_perecible_fecha_vencimiento
     )
     VALUES
-      ('00000000-0000-4000-8000-000000000101', '2026-07-01'),
-      ('00000000-0000-4000-8000-000000000102', '2026-08-01')
-  `);
-
-  await db.run(sql`
-    INSERT INTO cierre_caja (
-      cierre_caja_id,
-      cierre_fecha_hora_inicio,
-      cierre_estado
-    )
-    VALUES (
-      '00000000-0000-4000-8000-000000000201',
-      '2026-06-12T08:00:00.000Z',
-      'abierto'
-    )
+      ('00000000-0000-4000-8000-000000000101', '2026-08-01')
   `);
 }
 
