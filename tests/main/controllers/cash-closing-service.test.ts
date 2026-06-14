@@ -15,7 +15,6 @@ import {
 } from '../../../src/main/controllers/cash-closing-service';
 import {
   registerSale,
-  SaleBusinessError,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -145,21 +144,33 @@ describe('cash closing service', () => {
     expect(Number(auditRows[0].count)).toBe(1);
   });
 
-  it('blocks new sales after a successful close', async () => {
+  it('auto-abre una caja nueva para las ventas tras un cierre exitoso (#29)', async () => {
+    const before = await testDb!.db.all<{ cierreCajaId: string }>(
+      sql`SELECT cierre_caja_id AS cierreCajaId FROM cierre_caja WHERE cierre_estado = 'abierto'`,
+    );
+    const closedCajaId = before[0]?.cierreCajaId;
+    expect(closedCajaId).toBeTruthy();
+
     await closeCashRegister(
       testDb!.db as unknown as DbExecutor,
       { confirmacion: true, usuarioId: '12345678-9' },
       now,
     );
 
-    await expect(
-      registerSale(testDb!.db as unknown as DbExecutor, {
-        usuarioId: '12345678-9',
-        metodoPago: 'efectivo',
-        montoRecibido: 2000,
-        items: [{ productoId: 1, cantidad: 1 }],
-      }),
-    ).rejects.toBeInstanceOf(SaleBusinessError);
+    // Tras el cierre la venta ya no queda bloqueada: se abre una caja nueva.
+    const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
+      usuarioId: '12345678-9',
+      metodoPago: 'efectivo',
+      montoRecibido: 2000,
+      items: [{ productoId: 1, cantidad: 1 }],
+    });
+    expect(receipt.total).toBe(1000);
+
+    const open = await testDb!.db.all<{ cierreCajaId: string }>(
+      sql`SELECT cierre_caja_id AS cierreCajaId FROM cierre_caja WHERE cierre_estado = 'abierto'`,
+    );
+    expect(open).toHaveLength(1);
+    expect(open[0].cierreCajaId).not.toBe(closedCajaId);
   });
 });
 
