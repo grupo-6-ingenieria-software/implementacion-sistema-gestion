@@ -65,6 +65,10 @@
       {
         "from": "drizzle",
         "to": "drizzle"
+      },
+      {
+        "from": "src/db/triggers.sql",
+        "to": "triggers.sql"
       }
     ],
     "win": {

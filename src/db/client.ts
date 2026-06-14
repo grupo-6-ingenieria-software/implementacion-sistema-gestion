@@ -21,4 +21,4 @@ try {
 
 export const db = drizzle(client, { schema });
 export type DB = typeof db;
-export { schema };
+export { client, schema };
