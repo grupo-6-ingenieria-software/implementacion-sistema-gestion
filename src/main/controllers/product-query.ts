@@ -40,7 +40,10 @@ type ProductQueryDependencies = {
   ) => Promise<AuthenticatedUser>;
   listProducts: (options: { includeCost: boolean }) => Promise<ProductListItem[]>;
   listCategories: () => Promise<ProductCategoryOption[]>;
-  findProduct: (ean13: string) => Promise<ProductDetailResponse['product'] | null>;
+  findProduct: (
+    ean13: string,
+    options: { includeCost: boolean },
+  ) => Promise<ProductDetailResponse['product'] | null>;
   listActiveProducts?: (options: {
     query?: string;
     ean13?: string;
@@ -165,9 +168,14 @@ export function createProductQueryController(
       }
 
       try {
-        await dependencies.authorize(usuarioId, ['dueno', 'trabajador']);
+        const auth = await dependencies.authorize(usuarioId, [
+          'dueno',
+          'trabajador',
+        ]);
         const [product, categories] = await Promise.all([
-          dependencies.findProduct(ean13),
+          dependencies.findProduct(ean13, {
+            includeCost: auth.role === 'dueno',
+          }),
           dependencies.listCategories(),
         ]);
 
@@ -360,32 +368,49 @@ const productQueryDependencies: ProductQueryDependencies = {
       .from(schema.categoria)
       .orderBy(asc(schema.categoria.categoriaNombre));
   },
-  findProduct: async (ean13) => {
+  findProduct: async (ean13, { includeCost }) => {
     const { db, schema } = await import('../../db/client');
+
+    const baseColumns = {
+      ean13: schema.producto.productoEan13,
+      nombre: schema.producto.productoNombre,
+      categoriaId: schema.producto.categoriaId,
+      precioVenta: schema.producto.productoPrecioVenta,
+      stockMinimo: schema.producto.productoStockMinimo,
+      estado: schema.producto.productoEstado,
+    } as const;
+
+    const priceJoin = and(
+      eq(
+        schema.historialPrecioProducto.productoId,
+        schema.producto.productoId,
+      ),
+      isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
+    );
+
+    // Para `trabajador` (includeCost === false) el precio costo nunca se
+    // selecciona, de modo que el costo no sale de la capa de datos.
+    if (!includeCost) {
+      const [row] = await db
+        .select(baseColumns)
+        .from(schema.producto)
+        .leftJoin(schema.historialPrecioProducto, priceJoin)
+        .where(eq(schema.producto.productoEan13, ean13))
+        .orderBy(
+          desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
+        )
+        .limit(1);
+
+      return row ?? null;
+    }
 
     const [row] = await db
       .select({
-        ean13: schema.producto.productoEan13,
-        nombre: schema.producto.productoNombre,
-        categoriaId: schema.producto.categoriaId,
+        ...baseColumns,
         precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
-        precioVenta: schema.producto.productoPrecioVenta,
-        stockMinimo: schema.producto.productoStockMinimo,
-        estado: schema.producto.productoEstado,
       })
       .from(schema.producto)
-      .leftJoin(
-        schema.historialPrecioProducto,
-        and(
-          eq(
-            schema.historialPrecioProducto.productoId,
-            schema.producto.productoId,
-          ),
-          isNull(
-            schema.historialPrecioProducto.historialFechaHoraVigenciaHasta,
-          ),
-        ),
-      )
+      .leftJoin(schema.historialPrecioProducto, priceJoin)
       .where(eq(schema.producto.productoEan13, ean13))
       .orderBy(
         desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),

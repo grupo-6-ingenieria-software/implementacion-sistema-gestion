@@ -89,7 +89,7 @@ export function ProductFormView({
           ean13: detail.product.ean13,
           nombre: detail.product.nombre,
           categoriaId: String(detail.product.categoriaId),
-          precioCosto: String(detail.product.precioCosto),
+          precioCosto: String(detail.product.precioCosto ?? ''),
           precioVenta: String(detail.product.precioVenta),
           stockMinimo: String(detail.product.stockMinimo),
         });
