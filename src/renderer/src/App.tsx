@@ -134,11 +134,13 @@ export function App(): ReactElement {
   }, [path, session]);
 
   // Latido de sesión (RF55, CU56 e4): mientras haya sesión activa, consulta cada
-  // 60 s a auth:verificar-sesion (el preload adjunta el token). session.ts es la
-  // única fuente de verdad: cierra la fila sesion_usuario tras 30 min de
-  // inactividad y responde active=false; entonces se dispara la expiración. El
-  // latido NO reinicia el contador de inactividad porque session.ts sólo refresca
-  // ultimo_acceso si la sesión aún está dentro de la ventana de actividad.
+  // 60 s a auth:verificar-sesion (el preload adjunta el token). Este latido es de
+  // SÓLO LECTURA: sólo CONSULTA si la sesión sigue vigente y NO reinicia el
+  // contador de inactividad. El último acceso lo refresca el dispatcher en cada
+  // IPC de acción real del usuario (todo canal autenticado salvo el propio latido
+  // y el logout). Así, si la app queda abierta sin que el usuario haga nada,
+  // session.ts cierra la fila sesion_usuario tras 30 min de inactividad y responde
+  // active=false; entonces este latido detecta el cierre y dispara la expiración.
   useEffect(() => {
     if (!session.isAuthenticated) {
       return;
