@@ -3,7 +3,7 @@ import type { ProductListItem } from '../../../shared/products';
 import { getProductActionsForRole, orderProductsForList } from './ProductListView';
 
 const product: ProductListItem = {
-  ean13: '7802920000017',
+  ean13: '7802920000015',
   nombre: 'Coca-Cola 1.5L',
   categoria: 'Bebidas',
   categoriaId: 1,
@@ -17,7 +17,7 @@ const product: ProductListItem = {
 
 const inactiveProduct: ProductListItem = {
   ...product,
-  ean13: '7800000000123',
+  ean13: '7800000000122',
   nombre: 'Hallulla',
   estado: 'inactivo',
 };
