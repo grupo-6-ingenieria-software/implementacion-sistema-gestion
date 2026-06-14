@@ -15,7 +15,6 @@ import {
   evaluateRouteAccess,
   findNavNodeByPath,
   getVisibleMenu,
-  internalComponents,
   navGroupLabels,
   navigationTree,
   resolveInitialRoute,
@@ -24,8 +23,6 @@ import {
   type RouteGuardDecision,
   type SessionState,
 } from '../../shared/navigation';
-import { findControllerById } from '../../shared/controllers';
-import type { ControllerMetadata } from '../../shared/controllers';
 import {
   SESSION_EXPIRED_MESSAGE,
   SESSION_HEARTBEAT_MS,
@@ -137,11 +134,13 @@ export function App(): ReactElement {
   }, [path, session]);
 
   // Latido de sesión (RF55, CU56 e4): mientras haya sesión activa, consulta cada
-  // 60 s a auth:verificar-sesion (el preload adjunta el token). session.ts es la
-  // única fuente de verdad: cierra la fila sesion_usuario tras 30 min de
-  // inactividad y responde active=false; entonces se dispara la expiración. El
-  // latido NO reinicia el contador de inactividad porque session.ts sólo refresca
-  // ultimo_acceso si la sesión aún está dentro de la ventana de actividad.
+  // 60 s a auth:verificar-sesion (el preload adjunta el token). Este latido es de
+  // SÓLO LECTURA: sólo CONSULTA si la sesión sigue vigente y NO reinicia el
+  // contador de inactividad. El último acceso lo refresca el dispatcher en cada
+  // IPC de acción real del usuario (todo canal autenticado salvo el propio latido
+  // y el logout). Así, si la app queda abierta sin que el usuario haga nada,
+  // session.ts cierra la fila sesion_usuario tras 30 min de inactividad y responde
+  // active=false; entonces este latido detecta el cierre y dispara la expiración.
   useEffect(() => {
     if (!session.isAuthenticated) {
       return;
@@ -837,99 +836,25 @@ function ViewRenderer({
     );
   }
 
-  return <ViewPlaceholder node={node} />;
+  return <ViewUnavailable />;
 }
 
-function ViewPlaceholder({ node }: { node: NavNode }): ReactElement {
-  const relatedControllers = node.controllerIds
-    .map((id) => findControllerById(id))
-    .filter(isControllerMetadata);
+export const VIEW_UNAVAILABLE_TITLE = 'Vista no disponible';
+export const VIEW_UNAVAILABLE_MESSAGE =
+  'La vista solicitada no está disponible.';
 
+function ViewUnavailable(): ReactElement {
   return (
     <section className="px-8 py-8">
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-[#2d6a4f]">
-            {node.viewName}
-          </p>
-          <h3 className="mt-3 text-2xl font-semibold text-[#17202a]">
-            {node.label}
-          </h3>
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Info label="Ruta" value={node.path} />
-            <Info label="Grupo" value={navGroupLabels[node.group]} />
-            <Info
-              label="Roles"
-              value={node.roles.length > 0 ? node.roles.join(', ') : 'publico'}
-            />
-            <Info label="Entrada" value={node.entryFrom} />
-          </dl>
-        </article>
-        <aside className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-[#17202a]">
-            Controladores
-          </h3>
-          <div className="mt-4 grid gap-3">
-            {relatedControllers.map((controller) => (
-              <div
-                className="rounded-md border border-[#d7dee6] bg-[#f8fafb] p-3"
-                key={controller.id}
-              >
-                <p className="text-sm font-semibold text-[#244d61]">
-                  {controller.name}
-                </p>
-                <p className="mt-1 text-xs text-[#61717f]">
-                  {controller.channels.join(', ')}
-                </p>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
-      <InternalComponents />
+      <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
+        <h3 className="text-2xl font-semibold text-[#17202a]">
+          {VIEW_UNAVAILABLE_TITLE}
+        </h3>
+        <p className="mt-3 text-sm text-[#61717f]">
+          {VIEW_UNAVAILABLE_MESSAGE}
+        </p>
+      </article>
     </section>
-  );
-}
-
-function InternalComponents(): ReactElement {
-  return (
-    <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
-      <h3 className="text-base font-semibold text-[#17202a]">
-        Componentes internos
-      </h3>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        {internalComponents.map((component) => (
-          <div
-            className="rounded-md border border-[#d7dee6] bg-[#f8fafb] p-3"
-            key={component.id}
-          >
-            <p className="text-sm font-semibold text-[#244d61]">
-              {component.id} {component.name}
-            </p>
-            <p className="mt-1 text-xs text-[#61717f]">
-              {component.usedIn.join(', ')}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}): ReactElement {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-[#61717f]">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm font-medium text-[#24313d]">{value}</dd>
-    </div>
   );
 }
 
@@ -1040,10 +965,4 @@ export function getProductDeleteEan13(path: string): string | undefined {
   const ean13 = new URLSearchParams(query).get('ean13');
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
-}
-
-function isControllerMetadata(
-  controller: ControllerMetadata | undefined,
-): controller is ControllerMetadata {
-  return Boolean(controller);
 }

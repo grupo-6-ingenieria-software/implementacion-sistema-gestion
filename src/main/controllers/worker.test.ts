@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { AttendanceWorkerOption } from '../../shared/attendance';
 import type { Role } from '../../shared/navigation';
 import type {
   UserFormValues,
@@ -177,6 +178,58 @@ describe('worker controller', () => {
       usuarioObjetivoId: '23456789-0',
     });
   });
+
+  describe('trabajador:listar-activos', () => {
+    it('returns every active worker for owners', async () => {
+      const response = await createController().handle(
+        { usuarioId: '12345678-9' },
+        { channel: 'trabajador:listar-activos' },
+      );
+
+      expect(response.ok).toBe(true);
+      if (!response.ok) {
+        throw new Error(response.error.message);
+      }
+
+      expect(response.data as AttendanceWorkerOption[]).toEqual(activeWorkers);
+    });
+
+    it('returns only the calling worker for the trabajador role', async () => {
+      const response = await createController().handle(
+        { usuarioId: '23456789-0' },
+        { channel: 'trabajador:listar-activos' },
+      );
+
+      expect(response.ok).toBe(true);
+      if (!response.ok) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data as AttendanceWorkerOption[];
+      expect(data).toHaveLength(1);
+      expect(data[0]?.rut).toBe('23456789-0');
+      expect(data[0]?.nombreCompleto).toBe('Camila Rojas');
+    });
+
+    it('does not leak other workers rut or names to a trabajador', async () => {
+      const response = await createController().handle(
+        { usuarioId: '23456789-0' },
+        { channel: 'trabajador:listar-activos' },
+      );
+
+      expect(response.ok).toBe(true);
+      if (!response.ok) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data as AttendanceWorkerOption[];
+      const ruts = data.map((worker) => worker.rut);
+      const names = data.map((worker) => worker.nombreCompleto);
+
+      expect(ruts).not.toContain('12345678-9');
+      expect(names).not.toContain('Maria Huascar');
+    });
+  });
 });
 
 type Dependencies = NonNullable<Parameters<typeof createWorkerController>[0]>;
@@ -185,7 +238,7 @@ function authorizeTestUser(
   usuarioId: string | undefined,
   allowedRoles: readonly Role[],
 ): AuthenticatedUser {
-  const role = usuarioId === 'dueno' ? 'dueno' : usuarioId === 'trabajador' ? 'trabajador' : null;
+  const role = resolveTestRole(usuarioId);
 
   if (!role || !allowedRoles.includes(role)) {
     throw new AccessDeniedError();
@@ -197,4 +250,21 @@ function authorizeTestUser(
     usuarioRol: role,
     trabajadorNombre: role === 'dueno' ? 'Dueno Prueba' : 'Trabajador Prueba',
   };
+}
+
+// Identidades de sesion para las pruebas: ademas de los alias 'dueno'/'trabajador',
+// se reconocen los RUT de la fixture `workers` (usuarioId == RUT) para poder
+// ejercitar el self-scoping del canal por RUT real.
+function resolveTestRole(usuarioId: string | undefined): Role | null {
+  if (usuarioId === 'dueno') {
+    return 'dueno';
+  }
+
+  if (usuarioId === 'trabajador') {
+    return 'trabajador';
+  }
+
+  const known = workers.find((worker) => worker.usuarioId === usuarioId);
+
+  return known?.rol ?? null;
 }

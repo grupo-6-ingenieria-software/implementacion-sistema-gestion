@@ -343,6 +343,26 @@ export async function consumeStockForSale(
 export async function getOpenCashRegister(
   database: DbExecutor,
 ): Promise<{ cierreCajaId: string } | null> {
+  const existing = await selectOpenCashRegister(database);
+
+  if (existing) {
+    return existing;
+  }
+
+  // No hay caja abierta: la primera venta/login del dia la abre de forma
+  // transparente. El seed solo crea una caja abierta, asi que en una BD limpia
+  // o tras un cierre no existiria ninguna y las ventas quedarian bloqueadas.
+  await openCashRegister(database);
+
+  // Re-consultamos: si otra operacion concurrente abrio la caja primero, el
+  // INSERT con guarda NOT EXISTS no agrega un duplicado y aqui recuperamos la
+  // caja abierta que efectivamente quedo vigente.
+  return selectOpenCashRegister(database);
+}
+
+async function selectOpenCashRegister(
+  database: Pick<DbExecutor, 'all'>,
+): Promise<{ cierreCajaId: string } | null> {
   const rows = await database.all<{ cierreCajaId: string }>(sql`
     SELECT cierre_caja_id AS cierreCajaId
     FROM cierre_caja
@@ -352,6 +372,23 @@ export async function getOpenCashRegister(
   `);
 
   return rows[0] ?? null;
+}
+
+async function openCashRegister(database: Pick<DbExecutor, 'run'>): Promise<void> {
+  // Mismo "shape" de columnas que el seed (cierre_estado='abierto', fin/usuario
+  // nulos para cumplir el check cierre_fin_coherente). La guarda NOT EXISTS hace
+  // que el INSERT sea atomico: solo puede existir una caja abierta a la vez.
+  await database.run(sql`
+    INSERT INTO cierre_caja (
+      cierre_caja_id,
+      cierre_fecha_hora_inicio,
+      cierre_estado
+    )
+    SELECT ${randomUUID()}, ${new Date().toISOString()}, 'abierto'
+    WHERE NOT EXISTS (
+      SELECT 1 FROM cierre_caja WHERE cierre_estado = 'abierto'
+    )
+  `);
 }
 
 export async function registerAuditLog(

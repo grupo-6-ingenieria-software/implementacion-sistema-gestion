@@ -1,5 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
+import log from 'electron-log/main';
+import { client, db } from '../db/client';
+import { initializeDatabase, resolveDatabaseInitPaths } from '../db/init';
 import { registerControllers } from './controllers';
 import { isDebugLoginEnabled, registerDebugLogin } from './controllers/debug-login';
 
@@ -47,7 +50,31 @@ function createMainWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Aplica migraciones de esquema y triggers ANTES de abrir cualquier ventana
+  // dependiente de la BD. Ambos pasos son idempotentes. En la app empaquetada
+  // esto reemplaza a los scripts de dev `db:migrate` / `db:triggers` (issue #30).
+  try {
+    await initializeDatabase(
+      db,
+      client,
+      resolveDatabaseInitPaths({
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+      }),
+    );
+  } catch (error) {
+    log.error('Fallo al inicializar la base de datos (migraciones/triggers):', error);
+    dialog.showErrorBox(
+      'Error al iniciar la base de datos',
+      'No se pudieron aplicar las migraciones o los triggers de la base de datos. ' +
+        'La aplicación se cerrará.\n\n' +
+        String(error instanceof Error ? error.message : error),
+    );
+    app.quit();
+    return;
+  }
+
   registerControllers(ipcMain);
 
   // Sólo en `npm run dev:debug`: canales IPC que listan usuarios y emiten una

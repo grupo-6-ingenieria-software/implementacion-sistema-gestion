@@ -157,7 +157,7 @@ await db.insert(s.proveedorCategoria).values([
 const [coca] = await db
   .insert(s.producto)
   .values({
-    productoEan13: '7802920000017',
+    productoEan13: '7802920000015',
     productoNombre: 'Coca-Cola 1.5L',
     productoPrecioVenta: 1800,
     productoStockMinimo: 20,
@@ -181,7 +181,7 @@ const [leche] = await db
 const [hallulla] = await db
   .insert(s.producto)
   .values({
-    productoEan13: '7800000000123',
+    productoEan13: '7800000000122',
     productoNombre: 'Hallulla (unidad)',
     productoPrecioVenta: 250,
     productoStockMinimo: 50,

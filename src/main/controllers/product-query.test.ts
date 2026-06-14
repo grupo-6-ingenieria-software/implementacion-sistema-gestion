@@ -27,7 +27,7 @@ const products: ProductListItem[] = [
     fechaRegistro: '2026-06-01',
   },
   {
-    ean13: '7802920000017',
+    ean13: '7802920000015',
     nombre: 'Coca-Cola 1.5L',
     categoria: 'Bebidas',
     categoriaId: 1,
@@ -39,7 +39,7 @@ const products: ProductListItem[] = [
     fechaRegistro: '2026-06-01',
   },
   {
-    ean13: '7800000000123',
+    ean13: '7800000000122',
     nombre: 'Hallulla',
     categoria: 'Panaderia',
     categoriaId: 3,
@@ -148,7 +148,7 @@ describe('product query controller', () => {
 
     expect(response.data.products).toHaveLength(2);
     expect(response.data.products[0]).toMatchObject({
-      ean13: '7802920000017',
+      ean13: '7802920000015',
       nombre: 'Coca-Cola 1.5L',
       precioCosto: 1200,
       stockActual: 48,
@@ -271,7 +271,7 @@ describe('product query controller', () => {
     }
 
     expect(response.data.map((product) => product.ean13)).toEqual([
-      '7802920000017',
+      '7802920000015',
     ]);
   });
 
@@ -298,7 +298,7 @@ describe('product query controller', () => {
 
   it('includes cost data in product detail for the owner', async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000017',
+      ean13: '7802920000015',
       usuarioId: 'dueno',
     });
 
@@ -312,7 +312,7 @@ describe('product query controller', () => {
 
   it('omits cost data from product detail for workers', async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000017',
+      ean13: '7802920000015',
       usuarioId: 'trabajador',
     });
 
@@ -326,7 +326,7 @@ describe('product query controller', () => {
 
   it('allows workers to load product detail for status changes', async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000017',
+      ean13: '7802920000015',
       usuarioId: 'trabajador',
     });
 
