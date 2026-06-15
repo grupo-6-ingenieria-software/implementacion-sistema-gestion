@@ -6,7 +6,19 @@ on:
   push:
     branches: [main]
   # Disparo manual desde la pestaña Actions ("Run workflow"): corre tests y luego release.
+  # `bump` elige el incremento de version SOLO en disparo manual. Un push normal a
+  # main siempre usa patch (la entrada llega vacia y el step cae al default).
   workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Tipo de bump de version (solo para disparo manual)'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+        required: true
 
 # Cancel redundant PR runs, but never cancel a run on main (a release may be mid-publish)
 concurrency:
@@ -63,12 +75,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Sube el patch en package.json (0.1.0 -> 0.1.1 -> ...).
-      - name: Bump patch version
+      # Sube la version en package.json. Push a main -> patch (0.1.0 -> 0.1.1 ...).
+      # Disparo manual -> usa el input `bump` (patch/minor/major), p.ej. minor para
+      # cerrar un incremento (0.1.20 -> 0.2.0).
+      - name: Bump version
         id: bump
         shell: pwsh
         run: |
-          npm version patch --no-git-tag-version
+          $bump = "${{ github.event.inputs.bump }}"
+          if (-not $bump) { $bump = "patch" }
+          npm version $bump --no-git-tag-version
           $v = node -p "require('./package.json').version"
           echo "version=$v" >> $env:GITHUB_OUTPUT
 
