@@ -88,3 +88,7 @@ jobs:
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          # Inyectadas en el bundle del proceso main por electron.vite.config.ts.
+          # Sin esto el exe cae al fallback file:./local.db y no conecta a Turso.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
