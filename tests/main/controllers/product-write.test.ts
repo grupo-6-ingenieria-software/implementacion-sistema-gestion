@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { controllers } from '../../shared/controllers';
-import type { ProductCreatePayload, ProductEditPayload } from '../../shared/products';
+import { controllers } from '../../../src/shared/controllers';
+import type { ProductCreatePayload, ProductEditPayload } from '../../../src/shared/products';
 import {
   ProductWriteError,
   createProductWriteController,
@@ -8,8 +8,8 @@ import {
   normalizeEditPayload,
   validateCreatePayload,
   validateEditPayload,
-} from './product-write';
-import { AccessDeniedError } from './auth-context';
+} from '../../../src/main/controllers/product-write';
+import { AccessDeniedError } from '../../../src/main/controllers/auth-context';
 
 const validCreatePayload: ProductCreatePayload = {
   usuarioId: '12345678-9',

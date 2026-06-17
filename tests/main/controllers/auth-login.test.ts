@@ -1,14 +1,14 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
-import { authenticateWithExecutor, type LoginDeps } from './auth-login';
+import * as schema from '../../../src/db/schema';
+import { authenticateWithExecutor, type LoginDeps } from '../../../src/main/controllers/auth-login';
 import {
   createAuthTestDatabase,
   insertLoginAttempt,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 const NOW = new Date('2026-06-13T12:00:00.000Z');
 

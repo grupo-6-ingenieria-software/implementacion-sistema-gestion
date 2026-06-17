@@ -1,17 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
+import * as schema from '../../../src/db/schema';
 import {
   validateAccessWithExecutor,
   type AccessControlDeps,
-} from './access-control';
-import type { SessionTokenClaims } from './auth-jwt';
+} from '../../../src/main/controllers/access-control';
+import type { SessionTokenClaims } from '../../../src/main/controllers/auth-jwt';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 function claimsFor(rol: 'dueno' | 'trabajador'): SessionTokenClaims {
   return {

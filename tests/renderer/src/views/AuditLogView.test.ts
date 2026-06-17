@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { defaultAuditLogPageSize } from '../../../shared/audit';
+import { defaultAuditLogPageSize } from '../../../../src/shared/audit';
 import {
   buildAuditLogQueryPayload,
   formatDateTime,
   type AuditLogFilters,
-} from './AuditLogView';
+} from '../../../../src/renderer/src/views/AuditLogView';
 
 describe('AuditLogView helpers', () => {
   it('builds a compact query payload from visible filters', () => {

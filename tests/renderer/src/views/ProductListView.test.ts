@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ProductListItem } from '../../../shared/products';
-import { getProductActionsForRole, orderProductsForList } from './ProductListView';
+import type { ProductListItem } from '../../../../src/shared/products';
+import { getProductActionsForRole, orderProductsForList } from '../../../../src/renderer/src/views/ProductListView';
 
 const product: ProductListItem = {
   ean13: '7802920000015',

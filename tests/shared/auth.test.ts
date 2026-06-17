@@ -6,7 +6,7 @@ import {
   isValidUsernameFormat,
   validatePasswordComplexity,
   type LoginAttempt,
-} from './auth';
+} from '../../src/shared/auth';
 
 const BASE = Date.parse('2026-06-13T10:00:00.000Z');
 

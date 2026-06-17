@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { ControllerResponse } from '../../shared/controllers';
-import type { Role } from '../../shared/navigation';
+import type { ControllerResponse } from '../../../src/shared/controllers';
+import type { Role } from '../../../src/shared/navigation';
 import type {
   ActiveProductSearchItem,
   ProductDetailResponse,
   ProductListItem,
   ProductListResponse,
-} from '../../shared/products';
-import { createProductQueryController } from './product-query';
+} from '../../../src/shared/products';
+import { createProductQueryController } from '../../../src/main/controllers/product-query';
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from './auth-context';
+} from '../../../src/main/controllers/auth-context';
 
 const products: ProductListItem[] = [
   {

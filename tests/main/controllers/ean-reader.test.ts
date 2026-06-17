@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eanReaderController } from './ean-reader';
+import { eanReaderController } from '../../../src/main/controllers/ean-reader';
 
 describe('ean reader controller', () => {
   it('accepts a valid EAN-13 capture', async () => {

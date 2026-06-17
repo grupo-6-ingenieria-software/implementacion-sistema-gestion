@@ -5,13 +5,13 @@ import { createClient } from '@libsql/client';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
-import { AccessDeniedError } from './auth-context';
+import * as schema from '../../../src/db/schema';
+import { AccessDeniedError } from '../../../src/main/controllers/auth-context';
 import {
   createLotController,
   registerLotWithExecutor,
   type LotError,
-} from './lot';
+} from '../../../src/main/controllers/lot';
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

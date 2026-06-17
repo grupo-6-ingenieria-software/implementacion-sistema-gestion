@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AttendanceWorkerOption } from '../../shared/attendance';
-import type { Role } from '../../shared/navigation';
+import type { AttendanceWorkerOption } from '../../../src/shared/attendance';
+import type { Role } from '../../../src/shared/navigation';
 import type {
   UserFormValues,
   UserListItem,
   UserListResponse,
   UserStatusChangePayload,
-} from '../../shared/users';
+} from '../../../src/shared/users';
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from './auth-context';
-import { createWorkerController } from './worker';
+} from '../../../src/main/controllers/auth-context';
+import { createWorkerController } from '../../../src/main/controllers/worker';
 
 const workers: UserListItem[] = [
   {
