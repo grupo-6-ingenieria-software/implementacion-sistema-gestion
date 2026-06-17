@@ -3,7 +3,7 @@ import {
   normalizeWorkerFormValues,
   roleLabel,
   validateWorkerFormValues,
-} from './workers';
+} from '../../src/shared/workers';
 
 describe('worker form contract', () => {
   it('normalizes the fields required to register a worker', () => {

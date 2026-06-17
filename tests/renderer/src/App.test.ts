@@ -7,18 +7,18 @@ import {
   getProductStatusEan13,
   getWasteCreateEan13,
   isImplementedViewNodeId,
-} from './App';
+} from '../../../src/renderer/src/App';
 import {
   buildShiftCreatePath,
   getShiftResultMessage,
   isLatestShiftCalendarRequest,
   loadShiftCalendarData,
-} from './views/ShiftCalendarView';
+} from '../../../src/renderer/src/views/ShiftCalendarView';
 import {
   getActivePreselectedWorkerId,
   getShiftCreateContext,
-} from './views/ShiftCreateView';
-import type { ControllerResponse } from '../../shared/controllers';
+} from '../../../src/renderer/src/views/ShiftCreateView';
+import type { ControllerResponse } from '../../../src/shared/controllers';
 
 describe('App inventory route helpers', () => {
   it('treats lot-create as an implemented view', () => {

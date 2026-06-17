@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AccessDeniedError } from './auth-context';
-import { createProductStatusController, ProductStatusError } from './product-status';
+import { AccessDeniedError } from '../../../src/main/controllers/auth-context';
+import { createProductStatusController, ProductStatusError } from '../../../src/main/controllers/product-status';
 
 describe('product status controller', () => {
   it('rejects channels not declared for the controller', async () => {

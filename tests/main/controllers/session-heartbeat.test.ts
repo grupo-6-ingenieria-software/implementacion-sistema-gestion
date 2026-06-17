@@ -9,20 +9,20 @@
 
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
-import { guardChannel } from './auth-guard';
+import * as schema from '../../../src/db/schema';
+import { guardChannel } from '../../../src/main/controllers/auth-guard';
 import {
   NON_ACTIVITY_CHANNELS,
   refreshSessionActivity,
   verifySessionWithExecutor,
-} from './session';
-import { signSessionToken } from './auth-jwt';
+} from '../../../src/main/controllers/session';
+import { signSessionToken } from '../../../src/main/controllers/auth-jwt';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 const SESSION_ID = '123e4567-e89b-42d3-a456-556642440000';
 

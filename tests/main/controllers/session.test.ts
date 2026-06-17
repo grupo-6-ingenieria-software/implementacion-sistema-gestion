@@ -1,18 +1,18 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
+import * as schema from '../../../src/db/schema';
 import {
   closeSessionWithExecutor,
   refreshSessionActivity,
   verifySessionWithExecutor,
   type SessionDeps,
-} from './session';
+} from '../../../src/main/controllers/session';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 const NOW = new Date('2026-06-13T12:00:00.000Z');
 const SESSION_ID = '00000000-0000-4000-8000-000000000777';

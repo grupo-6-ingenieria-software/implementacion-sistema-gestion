@@ -1,17 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../db/schema';
+import * as schema from '../../../src/db/schema';
 import {
   changePasswordWithExecutor,
   resetPasswordWithExecutor,
   type PasswordDeps,
-} from './password';
+} from '../../../src/main/controllers/password';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 const NOW = new Date('2026-06-13T12:00:00.000Z');
 const CURRENT = 'Current123';

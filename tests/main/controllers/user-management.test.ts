@@ -1,27 +1,27 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Role } from '../../shared/navigation';
+import type { Role } from '../../../src/shared/navigation';
 import type {
   UserListItem,
   UserListResponse,
   UserPasswordResetRequestResponse,
-} from '../../shared/users';
-import * as schema from '../../db/schema';
+} from '../../../src/shared/users';
+import * as schema from '../../../src/db/schema';
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from './auth-context';
+} from '../../../src/main/controllers/auth-context';
 import {
   resetPasswordWithExecutor,
   type PasswordDeps,
-} from './password';
-import { createUserManagementController } from './user-management';
+} from '../../../src/main/controllers/password';
+import { createUserManagementController } from '../../../src/main/controllers/user-management';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 const users: UserListItem[] = [
   {

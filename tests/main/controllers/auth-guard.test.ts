@@ -1,20 +1,20 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as schema from '../../db/schema';
+import * as schema from '../../../src/db/schema';
 import {
   CHANNEL_ROLES,
   PUBLIC_CHANNELS,
   guardChannel,
   type GuardDeps,
-} from './auth-guard';
-import { registerAuditLog } from './auth-context';
-import type { SessionTokenClaims } from './auth-jwt';
+} from '../../../src/main/controllers/auth-guard';
+import { registerAuditLog } from '../../../src/main/controllers/auth-context';
+import type { SessionTokenClaims } from '../../../src/main/controllers/auth-jwt';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from './auth-fixtures';
+} from '../../../src/main/controllers/auth-fixtures';
 
 function claimsFor(rol: 'dueno' | 'trabajador'): SessionTokenClaims {
   return {
