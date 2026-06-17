@@ -11,7 +11,7 @@ procesos de Electron y un patrón MVC sobre IPC.
 | [`main/`](./main) | Main (Node) | Arranque de la app, ventana, dispatcher IPC y **controladores** (lógica de negocio). |
 | [`preload/`](./preload) | Preload | Puente seguro `contextBridge` entre renderer y main. Adjunta el JWT de sesión a cada `invoke`. |
 | [`renderer/`](./renderer/src) | Renderer (Chromium) | UI React: vistas, componentes y enrutado. |
-| `db/` | Main | Cliente libSQL/Drizzle, esquema, migraciones, triggers y seed. |
+| [`db/`](./db) | Main | Cliente libSQL/Drizzle, esquema, inicialización en runtime, triggers y seed. |
 | `shared/` | Ambos | Tipos y lógica pura compartida (navegación, contratos de controllers, validaciones, EAN-13, etc.). |
 
 ## Flujo de una petición
