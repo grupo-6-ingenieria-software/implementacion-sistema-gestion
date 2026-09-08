@@ -8,6 +8,7 @@ import {
 describe('C17 stock discount service', () => {
   it('plans FEFO before persistence and applies UPDATE before venta_lote', async () => {
     const all = vi.fn()
+      .mockResolvedValueOnce([{ available: 7, sufficient: 1 }])
       .mockResolvedValueOnce([
         { loteId: 'late', cantidadActual: 5, fechaIngreso: '2026-01-01' },
         { loteId: 'early', cantidadActual: 2, fechaIngreso: '2026-02-01' },
@@ -37,12 +38,7 @@ describe('C17 stock discount service', () => {
 
   it('rechaza stock insuficiente durante la planificación sin ejecutar escrituras', async () => {
     const all = vi.fn()
-      .mockResolvedValueOnce([
-        { loteId: 'only', cantidadActual: 2, fechaIngreso: '2026-01-01' },
-      ])
-      .mockResolvedValueOnce([
-        { loteId: 'only', fechaVencimiento: '2026-09-01' },
-    ]);
+      .mockResolvedValueOnce([{ available: 2, sufficient: 0 }]);
     const run = vi.fn();
     const database = { all, run };
 

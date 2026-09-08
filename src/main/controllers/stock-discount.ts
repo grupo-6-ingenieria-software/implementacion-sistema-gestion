@@ -30,6 +30,21 @@ export async function planStockDiscount(
   const plan: PlannedLotConsumption[] = [];
 
   for (const item of items) {
+    const availability = await database.all<{ available: number; sufficient: number }>(sql`
+      SELECT
+        COALESCE(SUM(lote_cantidad_actual), 0) AS available,
+        CASE WHEN COALESCE(SUM(lote_cantidad_actual), 0) >= ${item.cantidad}
+          THEN 1 ELSE 0 END AS sufficient
+      FROM lote
+      WHERE producto_id = ${item.productoId}
+        AND lote_cantidad_actual > 0
+    `);
+    const available = Number(availability[0]?.available ?? 0);
+    if (Number(availability[0]?.sufficient ?? 0) !== 1) {
+      throw new StockDiscountBusinessError(
+        `Stock insuficiente para confirmar la venta. Disponible: ${available}.`,
+      );
+    }
     const lots = await database.all<{
       loteId: string;
       cantidadActual: number;
@@ -79,7 +94,6 @@ export async function planStockDiscount(
     }
 
     if (remaining > 0) {
-      const available = item.cantidad - remaining;
       throw new StockDiscountBusinessError(
         `Stock insuficiente para confirmar la venta. Disponible: ${available}.`,
       );

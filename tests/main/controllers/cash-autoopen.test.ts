@@ -68,6 +68,56 @@ describe('caja autoabrir (#29)', () => {
     await expectOpenCashRegisters(1);
   });
 
+  it('planifica stock antes de abrir caja y conserva el orden normalizado de consumo', async () => {
+    const trace: string[] = [];
+    const traced = traceDatabase(testDb!.db as unknown as DbExecutor, trace);
+
+    await registerSale(traced, {
+      usuarioId: '12345678-9',
+      metodoPago: 'debito',
+      items: [{ productoId: 1, cantidad: 1 }],
+    });
+
+    const stockPlan = trace.findIndex((entry) =>
+      entry.includes('SUM(lote_cantidad_actual)') && entry.includes('sufficient'),
+    );
+    const user = trace.findIndex((entry) => entry.includes('FROM usuario'));
+    const worker = trace.findIndex((entry) => entry.includes('FROM trabajador'));
+    const product = trace.findIndex((entry) => entry.includes('FROM producto'));
+    const category = trace.findIndex((entry) => entry.includes('FROM categoria'));
+    const price = trace.findIndex((entry) => entry.includes('FROM historial_precio_producto'));
+    const stockSnapshot = trace.findIndex((entry) =>
+      entry.includes('FROM lote') && entry.includes('stockDisponible'),
+    );
+    const openCash = trace.findIndex((entry) => entry.includes('INSERT INTO cierre_caja'));
+    const insertSale = trace.findIndex((entry) => entry.includes('INSERT INTO venta ('));
+    const updateLot = trace.findIndex((entry) => entry.includes('UPDATE lote'));
+    const insertSaleLot = trace.findIndex((entry) => entry.includes('INSERT INTO venta_lote'));
+
+    expect(stockPlan).toBeGreaterThanOrEqual(0);
+    expect(worker).toBeGreaterThan(user);
+    expect(category).toBeGreaterThan(product);
+    expect(price).toBeGreaterThan(category);
+    expect(stockSnapshot).toBeGreaterThan(price);
+    expect(stockPlan).toBeGreaterThan(stockSnapshot);
+    expect(openCash).toBeGreaterThan(stockPlan);
+    expect(insertSale).toBeGreaterThan(openCash);
+    expect(updateLot).toBeGreaterThan(insertSale);
+    expect(insertSaleLot).toBeGreaterThan(updateLot);
+  });
+
+  it('no abre caja cuando la planificación SQL detecta stock insuficiente', async () => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 99 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
+
+    await expectOpenCashRegisters(0);
+  });
+
   it('tras cerrar caja, bloquea nuevas ventas durante el mismo día', async () => {
     // 1. Primera venta abre la caja inicial.
     await registerSale(testDb!.db as unknown as DbExecutor, {
@@ -175,6 +225,29 @@ async function expectOpenCashRegisters(expected: number): Promise<void> {
     sql`SELECT COUNT(*) AS count FROM cierre_caja WHERE cierre_estado = 'abierto'`,
   );
   expect(Number(rows[0].count)).toBe(expected);
+}
+
+function traceDatabase(database: DbExecutor, trace: string[]): DbExecutor {
+  return {
+    all: (query) => {
+      trace.push(extractSqlText(query));
+      return database.all(query);
+    },
+    run: (query) => {
+      trace.push(extractSqlText(query));
+      return database.run(query);
+    },
+    transaction: (callback) =>
+      database.transaction((tx) => callback(traceDatabase(tx, trace))),
+  };
+}
+
+function extractSqlText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(extractSqlText).join(' ');
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  return [record.value, record.queryChunks].map(extractSqlText).join(' ');
 }
 
 async function createTestDatabase() {
