@@ -1,5 +1,6 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import type { ControllerId } from '../../shared/navigation';
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import type { ControllerId } from "../../shared/navigation";
 import {
   hasProductFieldErrors,
   normalizeProductEditPayload,
@@ -10,13 +11,13 @@ import {
   type ProductFieldErrors,
   type ProductFormValues,
   type ProductMutationResponse,
-} from '../../shared/products';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/products";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
+} from "./auth-context";
 
 type ProductWriteDependencies<TPayload> = {
   save: (payload: TPayload) => Promise<ProductMutationResponse>;
@@ -25,9 +26,9 @@ type ProductWriteDependencies<TPayload> = {
 type ProductWriteConfig<TPayload> = {
   controllerId: ControllerId;
   channel: string;
-  metadata: RegisteredController['metadata'];
+  metadata: RegisteredController["metadata"];
   normalize: (payload: unknown) => TPayload;
-  validate: (payload: TPayload) => ProductFieldErrors;
+  validate?: (payload: TPayload) => ProductFieldErrors;
   dependencies: ProductWriteDependencies<TPayload>;
 };
 
@@ -37,7 +38,6 @@ export function createProductWriteController<TPayload>({
   dependencies,
   metadata,
   normalize,
-  validate,
 }: ProductWriteConfig<TPayload>): RegisteredController {
   const handle: ControllerHandler<unknown, ProductMutationResponse> = async (
     payload,
@@ -47,7 +47,7 @@ export function createProductWriteController<TPayload>({
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
+          code: "INVALID_CHANNEL",
           controllerId,
           message: `Canal IPC no registrado: ${context.channel}`,
         },
@@ -55,19 +55,6 @@ export function createProductWriteController<TPayload>({
     }
 
     const normalizedPayload = normalize(payload);
-    const fieldErrors = validate(normalizedPayload);
-
-    if (hasProductFieldErrors(fieldErrors)) {
-      return {
-        ok: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          controllerId,
-          fieldErrors,
-          message: 'Revise los campos marcados antes de continuar.',
-        },
-      };
-    }
 
     try {
       return {
@@ -84,9 +71,9 @@ export function createProductWriteController<TPayload>({
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
+          code: "DATABASE_ERROR",
           controllerId,
-          message: 'No fue posible guardar el producto. Intente nuevamente.',
+          message: "No fue posible guardar el producto. Intente nuevamente.",
         },
       };
     }
@@ -130,7 +117,7 @@ export function validateEditPayload(
   };
 
   if (!payload.originalEan13 || payload.ean13 !== payload.originalEan13) {
-    fieldErrors.ean13 = 'El codigo EAN-13 no se puede modificar al editar.';
+    fieldErrors.ean13 = "El codigo EAN-13 no se puede modificar al editar.";
   }
 
   return fieldErrors;
@@ -139,101 +126,126 @@ export function validateEditPayload(
 async function createProduct(
   payload: ProductCreatePayload,
 ): Promise<ProductMutationResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const user = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
-    await ensureCategoryExists(tx, schema, payload.categoriaId);
-    await ensureProductDoesNotExist(tx, schema, payload.ean13);
-
-    const [createdProduct] = await tx
-      .insert(schema.producto)
-      .values({
-        productoEan13: payload.ean13,
-        productoNombre: payload.nombre,
-        productoPrecioVenta: payload.precioVenta,
-        productoStockMinimo: payload.stockMinimo,
-        productoEstado: 'activo',
-        categoriaId: payload.categoriaId,
-      })
-      .returning({ productoId: schema.producto.productoId });
-
-    await tx.insert(schema.historialPrecioProducto).values({
-      historialPrecioCosto: payload.precioCosto,
-      historialPrecioVenta: payload.precioVenta,
-      productoId: createdProduct.productoId,
-    });
-
-    await registerAuditLog(tx, schema, {
-      tipoAccion: 'registro',
-      modulo: 'inventario',
-      descripcion: `Producto registrado: ${payload.ean13}`,
-      usuarioId: user.usuarioId,
-    });
+    await createProductWithExecutor(tx, schema, payload);
   });
 
   return { ean13: payload.ean13 };
 }
 
+export async function createProductWithExecutor(
+  tx: TransactionLike,
+  schema: SchemaLike,
+  payload: ProductCreatePayload,
+): Promise<void> {
+  const user = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+  const priceHistoryId = randomUUID();
+  await ensureProductDoesNotExist(tx, schema, payload.ean13);
+  await ensureCategoryExists(tx, schema, payload.categoriaId);
+  assertValidProductPayload(validateCreatePayload(payload));
+
+  const [createdProduct] = await tx
+    .insert(schema.producto)
+    .values({
+      productoEan13: payload.ean13,
+      productoNombre: payload.nombre,
+      productoPrecioVenta: payload.precioVenta,
+      productoStockMinimo: payload.stockMinimo,
+      productoEstado: "activo",
+      categoriaId: payload.categoriaId,
+    })
+    .returning({ productoId: schema.producto.productoId });
+
+  await tx.insert(schema.historialPrecioProducto).values({
+    historialPrecioProductoId: priceHistoryId,
+    historialPrecioCosto: payload.precioCosto,
+    historialPrecioVenta: payload.precioVenta,
+    productoId: createdProduct.productoId,
+  });
+
+  await registerAuditLog(tx, schema, {
+    tipoAccion: "registro",
+    modulo: "inventario",
+    descripcion: `Producto registrado: ${payload.ean13}`,
+    usuarioId: user.usuarioId,
+  });
+}
+
 async function editProduct(
   payload: ProductEditPayload,
 ): Promise<ProductMutationResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const user = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
-    await ensureCategoryExists(tx, schema, payload.categoriaId);
-    const product = await findProductByEan13(tx, schema, payload.originalEan13);
-
-    if (!product) {
-      throw new ProductWriteError('not-found', 'No se encontro el producto solicitado.');
-    }
-
-    const currentPrice = await findCurrentPrice(tx, schema, product.productoId);
-    const priceChanged =
-      !currentPrice ||
-      currentPrice.historialPrecioCosto !== payload.precioCosto ||
-      currentPrice.historialPrecioVenta !== payload.precioVenta;
-
-    await tx
-      .update(schema.producto)
-      .set({
-        productoNombre: payload.nombre,
-        productoPrecioVenta: payload.precioVenta,
-        productoStockMinimo: payload.stockMinimo,
-        categoriaId: payload.categoriaId,
-      })
-      .where(eq(schema.producto.productoId, product.productoId));
-
-    if (priceChanged) {
-      await tx
-        .update(schema.historialPrecioProducto)
-        .set({ historialFechaHoraVigenciaHasta: sql`datetime('now')` })
-        .where(
-          and(
-            eq(schema.historialPrecioProducto.productoId, product.productoId),
-            isNull(
-              schema.historialPrecioProducto.historialFechaHoraVigenciaHasta,
-            ),
-          ),
-        );
-
-      await tx.insert(schema.historialPrecioProducto).values({
-        historialPrecioCosto: payload.precioCosto,
-        historialPrecioVenta: payload.precioVenta,
-        productoId: product.productoId,
-      });
-    }
-
-    await registerAuditLog(tx, schema, {
-      tipoAccion: 'edicion',
-      modulo: 'inventario',
-      descripcion: `Producto actualizado: ${payload.originalEan13}`,
-      usuarioId: user.usuarioId,
-    });
+    await editProductWithExecutor(tx, schema, payload);
   });
 
   return { ean13: payload.originalEan13 };
+}
+
+export async function editProductWithExecutor(
+  tx: TransactionLike,
+  schema: SchemaLike,
+  payload: ProductEditPayload,
+): Promise<void> {
+  assertValidProductPayload(validateEditPayload(payload));
+  const user = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+  await ensureCategoryExists(tx, schema, payload.categoriaId);
+  const product = await findProductByEan13(tx, schema, payload.originalEan13);
+
+  if (!product) {
+    throw new ProductWriteError(
+      "not-found",
+      "No se encontro el producto solicitado.",
+    );
+  }
+
+  const currentPrice = await findCurrentPrice(tx, schema, product.productoId);
+  const priceChanged =
+    !currentPrice ||
+    currentPrice.historialPrecioCosto !== payload.precioCosto ||
+    currentPrice.historialPrecioVenta !== payload.precioVenta;
+
+  await tx
+    .update(schema.producto)
+    .set({
+      productoNombre: payload.nombre,
+      productoPrecioVenta: payload.precioVenta,
+      productoStockMinimo: payload.stockMinimo,
+      categoriaId: payload.categoriaId,
+    })
+    .where(eq(schema.producto.productoId, product.productoId));
+
+  if (priceChanged) {
+    const priceHistoryId = randomUUID();
+    await tx
+      .update(schema.historialPrecioProducto)
+      .set({ historialFechaHoraVigenciaHasta: sql`datetime('now')` })
+      .where(
+        and(
+          eq(schema.historialPrecioProducto.productoId, product.productoId),
+          isNull(
+            schema.historialPrecioProducto.historialFechaHoraVigenciaHasta,
+          ),
+        ),
+      );
+
+    await tx.insert(schema.historialPrecioProducto).values({
+      historialPrecioProductoId: priceHistoryId,
+      historialPrecioCosto: payload.precioCosto,
+      historialPrecioVenta: payload.precioVenta,
+      productoId: product.productoId,
+    });
+  }
+
+  await registerAuditLog(tx, schema, {
+    tipoAccion: "edicion",
+    modulo: "inventario",
+    descripcion: `Producto actualizado: ${payload.originalEan13}`,
+    usuarioId: user.usuarioId,
+  });
 }
 
 async function ensureCategoryExists(
@@ -248,7 +260,10 @@ async function ensureCategoryExists(
     .limit(1);
 
   if (!category) {
-    throw new ProductWriteError('category-not-found', 'Seleccione una categoria valida.');
+    throw new ProductWriteError(
+      "category-not-found",
+      "Seleccione una categoria valida.",
+    );
   }
 }
 
@@ -260,7 +275,10 @@ async function ensureProductDoesNotExist(
   const product = await findProductByEan13(tx, schema, ean13);
 
   if (product) {
-    throw new ProductWriteError('duplicate-ean', 'Ya existe un producto con ese EAN-13.');
+    throw new ProductWriteError(
+      "duplicate-ean",
+      "Ya existe un producto con ese EAN-13.",
+    );
   }
 }
 
@@ -298,7 +316,9 @@ async function findCurrentPrice(
         isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
       ),
     )
-    .orderBy(desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde))
+    .orderBy(
+      desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
+    )
     .limit(1);
 
   return price;
@@ -312,7 +332,7 @@ function normalizeProductWriteError(
     return {
       ok: false as const,
       error: {
-        code: 'FORBIDDEN' as const,
+        code: "FORBIDDEN" as const,
         controllerId,
         message: error.message,
       },
@@ -323,35 +343,47 @@ function normalizeProductWriteError(
     return null;
   }
 
-  if (error.reason === 'duplicate-ean') {
+  if (error.reason === "validation") {
     return {
       ok: false as const,
       error: {
-        code: 'VALIDATION_ERROR' as const,
+        code: "VALIDATION_ERROR" as const,
+        controllerId,
+        fieldErrors: error.fieldErrors,
+        message: "Revise los campos marcados antes de continuar.",
+      },
+    };
+  }
+
+  if (error.reason === "duplicate-ean") {
+    return {
+      ok: false as const,
+      error: {
+        code: "VALIDATION_ERROR" as const,
         controllerId,
         fieldErrors: { ean13: error.message },
-        message: 'Revise los campos marcados antes de continuar.',
+        message: "Revise los campos marcados antes de continuar.",
       },
     };
   }
 
-  if (error.reason === 'category-not-found') {
+  if (error.reason === "category-not-found") {
     return {
       ok: false as const,
       error: {
-        code: 'VALIDATION_ERROR' as const,
+        code: "VALIDATION_ERROR" as const,
         controllerId,
         fieldErrors: { categoriaId: error.message },
-        message: 'Revise los campos marcados antes de continuar.',
+        message: "Revise los campos marcados antes de continuar.",
       },
     };
   }
 
-  if (error.reason === 'not-found') {
+  if (error.reason === "not-found") {
     return {
       ok: false as const,
       error: {
-        code: 'NOT_FOUND' as const,
+        code: "NOT_FOUND" as const,
         controllerId,
         message: error.message,
       },
@@ -361,9 +393,9 @@ function normalizeProductWriteError(
   return {
     ok: false as const,
     error: {
-      code: 'DATABASE_ERROR' as const,
+      code: "DATABASE_ERROR" as const,
       controllerId,
-      message: 'No fue posible registrar la auditoria temporal.',
+      message: "No fue posible registrar la auditoria temporal.",
     },
   };
 }
@@ -371,18 +403,27 @@ function normalizeProductWriteError(
 export class ProductWriteError extends Error {
   constructor(
     readonly reason:
-      | 'category-not-found'
-      | 'duplicate-ean'
-      | 'not-found',
+      "category-not-found" | "duplicate-ean" | "not-found" | "validation",
     message: string,
+    readonly fieldErrors?: ProductFieldErrors,
   ) {
     super(message);
   }
 }
 
-type SchemaLike = typeof import('../../db/schema');
+function assertValidProductPayload(fieldErrors: ProductFieldErrors): void {
+  if (hasProductFieldErrors(fieldErrors)) {
+    throw new ProductWriteError(
+      "validation",
+      "Revise los campos marcados antes de continuar.",
+      fieldErrors,
+    );
+  }
+}
+
+type SchemaLike = typeof import("../../db/schema");
 type TransactionLike = {
-  select: typeof import('../../db/client').db.select;
-  insert: typeof import('../../db/client').db.insert;
-  update: typeof import('../../db/client').db.update;
+  select: typeof import("../../db/client").db.select;
+  insert: typeof import("../../db/client").db.insert;
+  update: typeof import("../../db/client").db.update;
 };

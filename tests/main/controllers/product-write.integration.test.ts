@@ -1,0 +1,129 @@
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
+import {
+  ProductWriteError,
+  createProductWithExecutor,
+  editProductWithExecutor,
+} from "../../../src/main/controllers/product-write";
+
+type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
+let testDb: TestDatabase | undefined;
+
+beforeEach(async () => {
+  testDb = await createTestDatabase();
+  await seedFixture(testDb.db);
+});
+
+afterEach(async () => {
+  testDb?.client.close();
+  if (testDb) await rm(testDb.dir, { recursive: true, force: true });
+  testDb = undefined;
+});
+
+describe("product write persistence", () => {
+  it("checks EAN and category before field validation without partial writes", async () => {
+    const invalid = {
+      usuarioId: "12345678-9",
+      ean13: "123",
+      nombre: "",
+      categoriaId: 99,
+      precioCosto: -1,
+      precioVenta: 0,
+      stockMinimo: -1,
+    };
+
+    await expect(
+      testDb!.db.transaction((tx) =>
+        createProductWithExecutor(tx, schema, invalid),
+      ),
+    ).rejects.toMatchObject({
+      reason: "category-not-found",
+    } satisfies Partial<ProductWriteError>);
+
+    await expect(
+      testDb!.db.transaction((tx) =>
+        createProductWithExecutor(tx, schema, { ...invalid, categoriaId: 1 }),
+      ),
+    ).rejects.toMatchObject({
+      reason: "validation",
+    } satisfies Partial<ProductWriteError>);
+
+    const rows = await testDb!.db.all<{ products: number; prices: number }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM producto) AS products,
+        (SELECT COUNT(*) FROM historial_precio_producto) AS prices
+    `);
+    expect(rows[0]).toEqual({ products: 0, prices: 0 });
+  });
+
+  it("creates product, current price, user version and audit atomically", async () => {
+    await testDb!.db.transaction((tx) =>
+      createProductWithExecutor(tx, schema, {
+        usuarioId: "12345678-9",
+        ean13: "7802920000015",
+        nombre: "Leche",
+        categoriaId: 1,
+        precioCosto: 700,
+        precioVenta: 1000,
+        stockMinimo: 3,
+      }),
+    );
+
+    const rows = await testDb!.db.all<{
+      products: number;
+      prices: number;
+      versions: number;
+      audits: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM producto) AS products,
+        (SELECT COUNT(*) FROM historial_precio_producto WHERE historial_fecha_hora_vigencia_hasta IS NULL) AS prices,
+        (SELECT COUNT(*) FROM usuario_version) AS versions,
+        (SELECT COUNT(*) FROM log_auditoria) AS audits
+    `);
+    expect(rows[0]).toEqual({ products: 1, prices: 1, versions: 1, audits: 1 });
+  });
+
+});
+
+async function createTestDatabase() {
+  const dir = await mkdtemp(join(tmpdir(), "huascar-product-write-"));
+  const client = createClient({
+    url: `file:${join(dir, "test.db").replace(/\\/g, "/")}`,
+  });
+  const db = drizzle(client, { schema });
+  await client.execute("PRAGMA foreign_keys = ON");
+  const migrationsDir = join(process.cwd(), "drizzle/migrations");
+  for (const file of (await readdir(migrationsDir))
+    .filter((name) => name.endsWith(".sql"))
+    .sort()) {
+    const migration = await readFile(join(migrationsDir, file), "utf8");
+    for (const statement of migration.split("--> statement-breakpoint")) {
+      if (statement.trim()) await client.execute(statement.trim());
+    }
+  }
+  return { client, db, dir };
+}
+
+async function seedFixture(db: TestDatabase["db"]): Promise<void> {
+  await db.run(sql`
+    INSERT INTO trabajador
+      (trabajador_id, trabajador_rut, trabajador_nombre, trabajador_apellido,
+       trabajador_telefono, trabajador_fecha_ingreso, trabajador_estado)
+    VALUES (1, '12345678-9', 'Maria', 'Huascar', '987654321', '2024-01-01', 'activo')
+  `);
+  await db.run(sql`
+    INSERT INTO usuario (usuario_id, usuario_rol, usuario_fecha_creacion, trabajador_id)
+    VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1)
+  `);
+  await db.run(sql`
+    INSERT INTO categoria (categoria_id, categoria_nombre, categoria_exige_vencimiento)
+    VALUES (1, 'Lacteos', 1)
+  `);
+}
