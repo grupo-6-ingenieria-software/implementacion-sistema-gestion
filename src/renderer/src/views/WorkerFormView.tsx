@@ -1,13 +1,24 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
-  emptyWorkerForm,
-  normalizeWorkerFormValues,
-  roleLabel,
-  validateWorkerFormValues,
-  type WorkerCreateResponse,
-  type WorkerFieldErrors,
-  type WorkerFormValues,
-} from '../../../shared/workers';
+  normalizeUserFormPayload,
+  validateUserFormValues,
+  type UserFieldErrors,
+  type UserFormValues,
+  type UserMutationResponse,
+  type UserRole,
+} from '../../../shared/users';
+
+const emptyWorkerForm: UserFormValues = {
+  correoElectronico: '',
+  nombreCompleto: '',
+  rol: 'trabajador',
+  rut: '',
+  telefono: '',
+};
+
+function roleLabel(role: UserRole): string {
+  return role === 'dueno' ? 'Dueño' : 'Trabajador';
+}
 
 type WorkerFormViewProps = {
   usuarioId: string;
@@ -18,16 +29,16 @@ export function WorkerFormView({
   onNavigate,
   usuarioId,
 }: WorkerFormViewProps): ReactElement {
-  const [form, setForm] = useState<WorkerFormValues>(emptyWorkerForm);
-  const [fieldErrors, setFieldErrors] = useState<WorkerFieldErrors>({});
+  const [form, setForm] = useState<UserFormValues>(emptyWorkerForm);
+  const [fieldErrors, setFieldErrors] = useState<UserFieldErrors>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [created, setCreated] = useState<WorkerCreateResponse | null>(null);
+  const [created, setCreated] = useState<UserMutationResponse | null>(null);
 
-  const parsedValues = useMemo(() => normalizeWorkerFormValues(form), [form]);
+  const parsedValues = useMemo(() => normalizeUserFormPayload(form), [form]);
 
   async function handleSubmit(): Promise<void> {
-    const errors = validateWorkerFormValues(parsedValues);
+    const errors = validateUserFormValues(parsedValues);
     setFieldErrors(errors);
     setMessage(null);
     setCreated(null);
@@ -38,7 +49,7 @@ export function WorkerFormView({
 
     setSaving(true);
 
-    const response = await window.appApi.invoke<WorkerCreateResponse>(
+    const response = await window.appApi.invoke<UserMutationResponse>(
       'trabajador:registrar',
       {
         ...parsedValues,
@@ -148,15 +159,18 @@ export function WorkerFormView({
               />
             </Field>
 
-            <Field label="Correo opcional" error={fieldErrors.correo}>
+            <Field label="Correo opcional" error={fieldErrors.correoElectronico}>
               <input
                 className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
                 maxLength={50}
                 placeholder="correo@dominio.cl"
                 type="email"
-                value={form.correo ?? ''}
+                value={form.correoElectronico ?? ''}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, correo: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    correoElectronico: event.target.value,
+                  }))
                 }
               />
             </Field>
@@ -174,16 +188,16 @@ export function WorkerFormView({
             </p>
           ) : null}
 
-          {created ? (
+          {created?.contrasenaTemporal ? (
             <section className="rounded-md border border-[#cbd5df] bg-[#f8fafb] p-5">
               <p className="text-sm font-semibold text-[#24313d]">
                 Credenciales temporales
               </p>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Info label="Usuario" value={created.credenciales.usuario} />
+                <Info label="Usuario" value={created.usuarioId} />
                 <Info
                   label="Contrasena temporal"
-                  value={created.credenciales.contrasenaTemporal}
+                  value={created.contrasenaTemporal}
                 />
               </dl>
               <p className="mt-3 text-sm text-[#61717f]">

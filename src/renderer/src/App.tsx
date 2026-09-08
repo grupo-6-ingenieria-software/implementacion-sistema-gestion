@@ -43,7 +43,6 @@ import { SaleRegisterView } from './views/SaleRegisterView';
 import { ShiftCalendarView } from './views/ShiftCalendarView';
 import { ShiftCreateView } from './views/ShiftCreateView';
 import { UserManagementView } from './views/UserManagementView';
-import { WorkerManagementView } from './views/WorkerManagementView';
 import { WasteCreateView } from './views/WasteCreateView';
 import { WorkerFormView } from './views/WorkerFormView';
 import { WorkerListView } from './views/WorkerListView';
@@ -783,15 +782,6 @@ function ViewRenderer({
         mode={node.id === 'product-create' ? 'create' : 'edit'}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
-      />
-    );
-  }
-
-  if ((node.id === 'worker-list' || node.id === 'worker-create') && session.usuarioId) {
-    return (
-      <WorkerManagementView
-        initialCreate={node.id === 'worker-create'}
-        usuarioId={session.usuarioId}
       />
     );
   }
