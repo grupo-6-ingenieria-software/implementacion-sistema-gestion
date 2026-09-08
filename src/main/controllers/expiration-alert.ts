@@ -1,7 +1,7 @@
 import { controllers } from '../../shared/controllers';
 import { db } from '../../db/client';
 import { controllerError, controllerSuccess, type RegisteredController } from './base';
-import { loadExpirationAlerts, type DashboardDb } from './dashboard-service';
+import { loadExpirationAlerts, type DashboardDb } from './dashboard-queries';
 
 const metadata = controllers[7];
 
@@ -10,7 +10,7 @@ export const expirationAlertController: RegisteredController = {
   handle: async () => {
     try {
       return controllerSuccess(
-        await loadExpirationAlerts(db as unknown as DashboardDb),
+        await loadExpirationIndicator(db as unknown as DashboardDb),
       );
     } catch (error) {
       console.error(error);
@@ -22,3 +22,6 @@ export const expirationAlertController: RegisteredController = {
     }
   },
 };
+
+// Operación C08 compartida entre IPC y C06.
+export const loadExpirationIndicator = loadExpirationAlerts;
