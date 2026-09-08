@@ -1,54 +1,54 @@
-import { describe, expect, it } from 'vitest';
-import type { ControllerResponse } from '../../../src/shared/controllers';
-import type { Role } from '../../../src/shared/navigation';
+import { describe, expect, it } from "vitest";
+import type { ControllerResponse } from "../../../src/shared/controllers";
+import type { Role } from "../../../src/shared/navigation";
 import type {
   ActiveProductSearchItem,
   ProductDetailResponse,
   ProductListItem,
   ProductListResponse,
-} from '../../../src/shared/products';
-import { createProductQueryController } from '../../../src/main/controllers/product-query';
+} from "../../../src/shared/products";
+import { createProductQueryController } from "../../../src/main/controllers/product-query";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from '../../../src/main/controllers/auth-context';
+} from "../../../src/main/controllers/auth-context";
 
 const products: ProductListItem[] = [
   {
-    ean13: '7802345600012',
-    nombre: 'Leche Soprole 1L',
-    categoria: 'Lacteos',
+    ean13: "7802345600012",
+    nombre: "Leche Soprole 1L",
+    categoria: "Lacteos",
     categoriaId: 2,
     precioCosto: 950,
     precioVenta: 1390,
     stockActual: 60,
     stockMinimo: 30,
-    estado: 'activo',
-    fechaRegistro: '2026-06-01',
+    estado: "activo",
+    fechaRegistro: "2026-06-01",
   },
   {
-    ean13: '7802920000015',
-    nombre: 'Coca-Cola 1.5L',
-    categoria: 'Bebidas',
+    ean13: "7802920000015",
+    nombre: "Coca-Cola 1.5L",
+    categoria: "Bebidas",
     categoriaId: 1,
     precioCosto: 1200,
     precioVenta: 1800,
     stockActual: 48,
     stockMinimo: 20,
-    estado: 'activo',
-    fechaRegistro: '2026-06-01',
+    estado: "activo",
+    fechaRegistro: "2026-06-01",
   },
   {
-    ean13: '7800000000122',
-    nombre: 'Hallulla',
-    categoria: 'Panaderia',
+    ean13: "7800000000122",
+    nombre: "Hallulla",
+    categoria: "Panaderia",
     categoriaId: 3,
     precioCosto: 150,
     precioVenta: 250,
     stockActual: 0,
     stockMinimo: 50,
-    estado: 'inactivo',
-    fechaRegistro: '2026-06-01',
+    estado: "inactivo",
+    fechaRegistro: "2026-06-01",
   },
 ];
 
@@ -56,20 +56,41 @@ function createController() {
   return createProductQueryController({
     authorize: async (usuarioId, allowedRoles) =>
       authorizeTestUser(usuarioId, allowedRoles),
-    listProducts: async ({ includeCost }) =>
-      products.map((product) => {
-        if (includeCost) {
-          return product;
-        }
+    listProducts: async ({ filters, includeCost }) =>
+      products
+        .filter((product) => product.estado === "activo")
+        .filter(
+          (product) =>
+            !filters.categoriaId || product.categoriaId === filters.categoriaId,
+        )
+        .filter((product) => {
+          if (!filters.search) return true;
+          return /^\d{13}$/.test(filters.search)
+            ? product.ean13 === filters.search
+            : product.nombre
+                .toLocaleLowerCase("es")
+                .includes(filters.search.toLocaleLowerCase("es"));
+        })
+        .sort((left, right) => {
+          const result =
+            filters.sortBy === "stockActual"
+              ? left.stockActual - right.stockActual
+              : left[filters.sortBy].localeCompare(right[filters.sortBy], "es");
+          return filters.sortDirection === "asc" ? result : -result;
+        })
+        .map((product) => {
+          if (includeCost) {
+            return product;
+          }
 
-        const { precioCosto, ...productWithoutCost } = product;
-        void precioCosto;
-        return productWithoutCost;
-      }),
+          const { precioCosto, ...productWithoutCost } = product;
+          void precioCosto;
+          return productWithoutCost;
+        }),
     listCategories: async () => [
-      { id: 1, nombre: 'Bebidas' },
-      { id: 2, nombre: 'Lacteos' },
-      { id: 3, nombre: 'Panaderia' },
+      { id: 1, nombre: "Bebidas" },
+      { id: 2, nombre: "Lacteos" },
+      { id: 3, nombre: "Panaderia" },
     ],
     findProduct: async (ean13, { includeCost }) => {
       const product = products.find((item) => item.ean13 === ean13);
@@ -97,15 +118,15 @@ function createController() {
       };
     },
     listActiveProducts: async ({ query, ean13, limit }) => {
-      const search = ean13 ?? query ?? '';
+      const search = ean13 ?? query ?? "";
       return products
         .filter(
           (product) =>
-            product.estado === 'activo' &&
+            product.estado === "activo" &&
             (product.ean13.includes(search) ||
-              product.nombre.toLocaleLowerCase('es').includes(
-                search.toLocaleLowerCase('es'),
-              )),
+              product.nombre
+                .toLocaleLowerCase("es")
+                .includes(search.toLocaleLowerCase("es"))),
         )
         .slice(0, limit)
         .map<ActiveProductSearchItem>((product) => ({
@@ -113,7 +134,7 @@ function createController() {
           ean13: product.ean13,
           nombre: product.nombre,
           categoria: product.categoria,
-          exigeVencimiento: product.categoria === 'Lacteos',
+          exigeVencimiento: product.categoria === "Lacteos",
           precioVenta: product.precioVenta,
           stockDisponible: product.stockActual,
         }));
@@ -125,7 +146,7 @@ async function invokeProductList(
   payload?: unknown,
 ): Promise<ControllerResponse<ProductListResponse>> {
   return createController().handle(payload, {
-    channel: 'producto:listar',
+    channel: "producto:listar",
   }) as Promise<ControllerResponse<ProductListResponse>>;
 }
 
@@ -133,13 +154,13 @@ async function invokeProductDetail(
   payload?: unknown,
 ): Promise<ControllerResponse<ProductDetailResponse>> {
   return createController().handle(payload, {
-    channel: 'producto:estado',
+    channel: "producto:estado",
   }) as Promise<ControllerResponse<ProductDetailResponse>>;
 }
 
-describe('product query controller', () => {
-  it('lists active products by default with stock data', async () => {
-    const response = await invokeProductList({ usuarioId: 'dueno' });
+describe("product query controller", () => {
+  it("lists active products by default with stock data", async () => {
+    const response = await invokeProductList({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);
     if (!response.ok) {
@@ -148,39 +169,77 @@ describe('product query controller', () => {
 
     expect(response.data.products).toHaveLength(2);
     expect(response.data.products[0]).toMatchObject({
-      ean13: '7802920000015',
-      nombre: 'Coca-Cola 1.5L',
+      ean13: "7802920000015",
+      nombre: "Coca-Cola 1.5L",
       precioCosto: 1200,
       stockActual: 48,
     });
     expect(response.data.categories).toHaveLength(3);
   });
 
-  it('filters products by name and EAN-13', async () => {
-    const byName = await invokeProductList({ search: 'leche', usuarioId: 'dueno' });
+  it("filters products by name and EAN-13", async () => {
+    const byName = await invokeProductList({
+      search: "leche",
+      usuarioId: "dueno",
+    });
     const byEan = await invokeProductList({
-      search: '292000001',
-      usuarioId: 'dueno',
+      search: "7802920000015",
+      usuarioId: "dueno",
     });
 
     expect(byName.ok).toBe(true);
     expect(byEan.ok).toBe(true);
     if (!byName.ok || !byEan.ok) {
-      throw new Error('Expected successful product queries');
+      throw new Error("Expected successful product queries");
     }
 
     expect(byName.data.products.map((product) => product.nombre)).toEqual([
-      'Leche Soprole 1L',
+      "Leche Soprole 1L",
     ]);
     expect(byEan.data.products.map((product) => product.nombre)).toEqual([
-      'Coca-Cola 1.5L',
+      "Coca-Cola 1.5L",
     ]);
   });
 
-  it('returns an empty list when filters do not match products', async () => {
+  it("requires an exact EAN-13 in the CU6 listing", async () => {
     const response = await invokeProductList({
-      search: 'producto inexistente',
-      usuarioId: 'dueno',
+      search: "292000001",
+      usuarioId: "dueno",
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) throw new Error(response.error.message);
+    expect(response.data.products).toEqual([]);
+  });
+
+  it("loads products before category options", async () => {
+    const calls: string[] = [];
+    const controller = createProductQueryController({
+      authorize: async (usuarioId, roles) =>
+        authorizeTestUser(usuarioId, roles),
+      listProducts: async () => {
+        calls.push("products");
+        return [];
+      },
+      listCategories: async () => {
+        calls.push("categories");
+        return [];
+      },
+      findProduct: async () => null,
+      listActiveProducts: async () => [],
+    });
+
+    await controller.handle(
+      { usuarioId: "dueno" },
+      { channel: "producto:listar" },
+    );
+    expect(calls).toEqual(["products", "categories"]);
+  });
+
+  it("returns an empty list when filters do not match products", async () => {
+    const response = await invokeProductList({
+      search: "producto inexistente",
+      usuarioId: "dueno",
     });
 
     expect(response.ok).toBe(true);
@@ -191,11 +250,11 @@ describe('product query controller', () => {
     expect(response.data.products).toEqual([]);
   });
 
-  it('can include inactive products when requested', async () => {
+  it("keeps the CU6 listing active even when another state is requested", async () => {
     const response = await invokeProductList({
-      estado: 'todos',
-      sortBy: 'stockActual',
-      usuarioId: 'dueno',
+      estado: "todos",
+      sortBy: "stockActual",
+      usuarioId: "dueno",
     });
 
     expect(response.ok).toBe(true);
@@ -203,43 +262,42 @@ describe('product query controller', () => {
       throw new Error(response.error.message);
     }
 
-    expect(response.data.products[0]).toMatchObject({
-      nombre: 'Hallulla',
-      estado: 'inactivo',
-      stockActual: 0,
-    });
+    expect(response.data.products).toHaveLength(2);
+    expect(
+      response.data.products.every((product) => product.estado === "activo"),
+    ).toBe(true);
   });
 
-  it('omits cost data for worker product lists', async () => {
-    const response = await invokeProductList({ usuarioId: 'trabajador' });
+  it("omits cost data for worker product lists", async () => {
+    const response = await invokeProductList({ usuarioId: "trabajador" });
 
     expect(response.ok).toBe(true);
     if (!response.ok) {
       throw new Error(response.error.message);
     }
 
-    expect(response.data.products[0]).not.toHaveProperty('precioCosto');
+    expect(response.data.products[0]).not.toHaveProperty("precioCosto");
   });
 
-  it('rejects product lists without an authorized user', async () => {
+  it("rejects product lists without an authorized user", async () => {
     const response = await invokeProductList();
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden product list');
+      throw new Error("Expected forbidden product list");
     }
 
-    expect(response.error.code).toBe('FORBIDDEN');
+    expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it('searches active products with expiration requirement for lot registration', async () => {
+  it("searches active products with expiration requirement for lot registration", async () => {
     const response = (await createController().handle(
       {
-        query: 'leche',
+        query: "leche",
         limit: 10,
-        usuarioId: 'dueno',
+        usuarioId: "dueno",
       },
-      { channel: 'producto:buscar-activo' },
+      { channel: "producto:buscar-activo" },
     )) as ControllerResponse<ActiveProductSearchItem[]>;
 
     expect(response.ok).toBe(true);
@@ -249,20 +307,20 @@ describe('product query controller', () => {
 
     expect(response.data).toEqual([
       expect.objectContaining({
-        ean13: '7802345600012',
+        ean13: "7802345600012",
         exigeVencimiento: true,
       }),
     ]);
   });
 
-  it('searches active products by partial EAN-13 for lot and waste registration', async () => {
+  it("searches active products by partial EAN-13 for lot and waste registration", async () => {
     const response = (await createController().handle(
       {
-        query: '292000001',
+        query: "292000001",
         limit: 10,
-        usuarioId: 'trabajador',
+        usuarioId: "trabajador",
       },
-      { channel: 'producto:buscar-activo' },
+      { channel: "producto:buscar-activo" },
     )) as ControllerResponse<ActiveProductSearchItem[]>;
 
     expect(response.ok).toBe(true);
@@ -271,18 +329,18 @@ describe('product query controller', () => {
     }
 
     expect(response.data.map((product) => product.ean13)).toEqual([
-      '7802920000015',
+      "7802920000015",
     ]);
   });
 
-  it('lists active products when search is empty for sale registration', async () => {
+  it("lists active products when search is empty for sale registration", async () => {
     const response = (await createController().handle(
       {
-        query: '',
+        query: "",
         limit: 10,
-        usuarioId: 'trabajador',
+        usuarioId: "trabajador",
       },
-      { channel: 'producto:buscar-activo' },
+      { channel: "producto:buscar-activo" },
     )) as ControllerResponse<ActiveProductSearchItem[]>;
 
     expect(response.ok).toBe(true);
@@ -291,15 +349,15 @@ describe('product query controller', () => {
     }
 
     expect(response.data.map((product) => product.nombre)).toEqual([
-      'Leche Soprole 1L',
-      'Coca-Cola 1.5L',
+      "Leche Soprole 1L",
+      "Coca-Cola 1.5L",
     ]);
   });
 
-  it('includes cost data in product detail for the owner', async () => {
+  it("includes cost data in product detail for the owner", async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000015',
-      usuarioId: 'dueno',
+      ean13: "7802920000015",
+      usuarioId: "dueno",
     });
 
     expect(response.ok).toBe(true);
@@ -307,13 +365,13 @@ describe('product query controller', () => {
       throw new Error(response.error.message);
     }
 
-    expect(response.data.product).toHaveProperty('precioCosto', 1000);
+    expect(response.data.product).toHaveProperty("precioCosto", 1000);
   });
 
-  it('omits cost data from product detail for workers', async () => {
+  it("omits cost data from product detail for workers", async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000015',
-      usuarioId: 'trabajador',
+      ean13: "7802920000015",
+      usuarioId: "trabajador",
     });
 
     expect(response.ok).toBe(true);
@@ -321,33 +379,33 @@ describe('product query controller', () => {
       throw new Error(response.error.message);
     }
 
-    expect(response.data.product).not.toHaveProperty('precioCosto');
+    expect(response.data.product).not.toHaveProperty("precioCosto");
   });
 
-  it('allows workers to load product detail for status changes', async () => {
+  it("allows workers to load product detail for status changes", async () => {
     const response = await invokeProductDetail({
-      ean13: '7802920000015',
-      usuarioId: 'trabajador',
+      ean13: "7802920000015",
+      usuarioId: "trabajador",
     });
 
     expect(response.ok).toBe(true);
   });
 
-  it('requires authorization to search active products', async () => {
+  it("requires authorization to search active products", async () => {
     const response = (await createController().handle(
       {
-        query: 'leche',
+        query: "leche",
         limit: 10,
       },
-      { channel: 'producto:buscar-activo' },
+      { channel: "producto:buscar-activo" },
     )) as ControllerResponse<ActiveProductSearchItem[]>;
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden active product search');
+      throw new Error("Expected forbidden active product search");
     }
 
-    expect(response.error.code).toBe('FORBIDDEN');
+    expect(response.error.code).toBe("FORBIDDEN");
   });
 });
 
@@ -355,7 +413,12 @@ function authorizeTestUser(
   usuarioId: string | undefined,
   allowedRoles: readonly Role[],
 ): AuthenticatedUser {
-  const role = usuarioId === 'dueno' ? 'dueno' : usuarioId === 'trabajador' ? 'trabajador' : null;
+  const role =
+    usuarioId === "dueno"
+      ? "dueno"
+      : usuarioId === "trabajador"
+        ? "trabajador"
+        : null;
 
   if (!role || !allowedRoles.includes(role)) {
     throw new AccessDeniedError();
@@ -363,8 +426,8 @@ function authorizeTestUser(
 
   return {
     role,
-    usuarioId: usuarioId ?? '',
+    usuarioId: usuarioId ?? "",
     usuarioRol: role,
-    trabajadorNombre: role === 'dueno' ? 'Dueno Prueba' : 'Trabajador Prueba',
+    trabajadorNombre: role === "dueno" ? "Dueno Prueba" : "Trabajador Prueba",
   };
 }

@@ -1,28 +1,28 @@
-import { isValidEan13 } from './ean13';
+import { isValidEan13 } from "./ean13";
 
 export { isValidEan13 };
 
-export type ProductStatus = 'activo' | 'inactivo';
-export type ProductStatusFilter = ProductStatus | 'todos';
-export type ProductSortBy = 'nombre' | 'categoria' | 'stockActual';
-export type ProductSortDirection = 'asc' | 'desc';
+export type ProductStatus = "activo" | "inactivo";
+export type ProductStatusFilter = ProductStatus | "todos";
+export type ProductSortBy = "nombre" | "categoria" | "stockActual";
+export type ProductSortDirection = "asc" | "desc";
 export type ProductFieldErrors = Partial<
   Record<
-    | 'ean13'
-    | 'nombre'
-    | 'categoriaId'
-    | 'precioCosto'
-    | 'precioVenta'
-    | 'stockMinimo'
-    | 'usuarioId',
+    | "ean13"
+    | "nombre"
+    | "categoriaId"
+    | "precioCosto"
+    | "precioVenta"
+    | "stockMinimo"
+    | "usuarioId",
     string
   >
 >;
 export type ProductStatusFieldErrors = Partial<
-  Record<'ean13' | 'estado' | 'usuarioId', string>
+  Record<"ean13" | "estado" | "usuarioId", string>
 >;
 export type ProductDeleteFieldErrors = Partial<
-  Record<'ean13' | 'confirmacion' | 'usuarioId', string>
+  Record<"ean13" | "confirmacion" | "usuarioId", string>
 >;
 
 export type ProductListFilters = {
@@ -99,7 +99,7 @@ export type ProductDetailPayload = {
 export type ProductDetailResponse = {
   // precioCosto es opcional: solo se incluye para el rol `dueno`.
   // Para `trabajador` se omite y nunca sale de la capa de datos.
-  product: Omit<ProductFormValues, 'precioCosto'> & {
+  product: Omit<ProductFormValues, "precioCosto"> & {
     precioCosto?: number;
     estado: ProductStatus;
   };
@@ -128,25 +128,25 @@ export type ProductDeleteResponse = {
 };
 
 export const invalidEan13Message =
-  'El codigo EAN-13 debe tener exactamente 13 digitos numericos.';
+  "El codigo EAN-13 debe tener exactamente 13 digitos numericos.";
 
 const productStatusFilters = new Set<ProductStatusFilter>([
-  'activo',
-  'inactivo',
-  'todos',
+  "activo",
+  "inactivo",
+  "todos",
 ]);
 const productSortFields = new Set<ProductSortBy>([
-  'nombre',
-  'categoria',
-  'stockActual',
+  "nombre",
+  "categoria",
+  "stockActual",
 ]);
-const productSortDirections = new Set<ProductSortDirection>(['asc', 'desc']);
+const productSortDirections = new Set<ProductSortDirection>(["asc", "desc"]);
 
 export const defaultProductListFilters: ProductListFilters = {
-  search: '',
-  estado: 'activo',
-  sortBy: 'nombre',
-  sortDirection: 'asc',
+  search: "",
+  estado: "activo",
+  sortBy: "nombre",
+  sortDirection: "asc",
 };
 
 export function normalizeProductListPayload(
@@ -157,7 +157,9 @@ export function normalizeProductListPayload(
   }
 
   const search =
-    typeof payload.search === 'string' ? payload.search.trim().slice(0, 100) : '';
+    typeof payload.search === "string"
+      ? payload.search.trim().slice(0, 100)
+      : "";
   const estado = productStatusFilters.has(payload.estado as ProductStatusFilter)
     ? (payload.estado as ProductStatusFilter)
     : defaultProductListFilters.estado;
@@ -170,7 +172,7 @@ export function normalizeProductListPayload(
     ? (payload.sortDirection as ProductSortDirection)
     : defaultProductListFilters.sortDirection;
   const categoriaId =
-    typeof payload.categoriaId === 'number' &&
+    typeof payload.categoriaId === "number" &&
     Number.isInteger(payload.categoriaId) &&
     payload.categoriaId > 0
       ? payload.categoriaId
@@ -192,9 +194,11 @@ export function normalizeProductFormPayload(
 
   return {
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
-    nombre: typeof record.nombre === 'string' ? record.nombre.trim() : '',
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
+    ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
+    nombre: typeof record.nombre === "string" ? record.nombre.trim() : "",
     categoriaId: normalizeInteger(record.categoriaId),
     precioCosto: normalizeInteger(record.precioCosto),
     precioVenta: normalizeInteger(record.precioVenta),
@@ -211,7 +215,9 @@ export function normalizeProductEditPayload(
   return {
     ...formPayload,
     originalEan13:
-      typeof record.originalEan13 === 'string' ? record.originalEan13.trim() : '',
+      typeof record.originalEan13 === "string"
+        ? record.originalEan13.trim()
+        : "",
   };
 }
 
@@ -220,15 +226,17 @@ export function normalizeProductStatusPayload(
 ): ProductStatusPayload {
   const record = isRecord(payload) ? payload : {};
   const estado =
-    record.estado === 'activo' || record.estado === 'inactivo'
+    record.estado === "activo" || record.estado === "inactivo"
       ? record.estado
       : undefined;
 
   return {
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     estado,
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
   };
 }
 
@@ -238,10 +246,12 @@ export function normalizeProductDeletePayload(
   const record = isRecord(payload) ? payload : {};
 
   return {
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     confirmacion: record.confirmacion === true,
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
   };
 }
 
@@ -255,19 +265,21 @@ export function validateProductFormValues(
   }
 
   if (!values.nombre) {
-    fieldErrors.nombre = 'El nombre del producto es obligatorio.';
+    fieldErrors.nombre = "El nombre del producto es obligatorio.";
   }
 
   if (!Number.isInteger(values.categoriaId) || values.categoriaId <= 0) {
-    fieldErrors.categoriaId = 'Seleccione una categoria valida.';
+    fieldErrors.categoriaId = "Seleccione una categoria valida.";
   }
 
   if (!Number.isInteger(values.precioCosto) || values.precioCosto < 0) {
-    fieldErrors.precioCosto = 'El precio costo debe ser un entero mayor o igual a 0.';
+    fieldErrors.precioCosto =
+      "El precio costo debe ser un entero mayor o igual a 0.";
   }
 
   if (!Number.isInteger(values.precioVenta) || values.precioVenta < 0) {
-    fieldErrors.precioVenta = 'El precio venta debe ser un entero mayor o igual a 0.';
+    fieldErrors.precioVenta =
+      "El precio venta debe ser un entero mayor o igual a 0.";
   }
 
   if (
@@ -275,11 +287,13 @@ export function validateProductFormValues(
     Number.isInteger(values.precioVenta) &&
     values.precioVenta <= values.precioCosto
   ) {
-    fieldErrors.precioVenta = 'El precio venta debe ser mayor que el precio costo.';
+    fieldErrors.precioVenta =
+      "El precio venta debe ser mayor que el precio costo.";
   }
 
   if (!Number.isInteger(values.stockMinimo) || values.stockMinimo < 0) {
-    fieldErrors.stockMinimo = 'El stock minimo debe ser un entero mayor o igual a 0.';
+    fieldErrors.stockMinimo =
+      "El stock minimo debe ser un entero mayor o igual a 0.";
   }
 
   return fieldErrors;
@@ -298,12 +312,13 @@ export function validateProductStatusPayload(
     fieldErrors.ean13 = invalidEan13Message;
   }
 
-  if (values.estado !== 'activo' && values.estado !== 'inactivo') {
-    fieldErrors.estado = 'Seleccione un estado valido.';
+  if (values.estado !== "activo" && values.estado !== "inactivo") {
+    fieldErrors.estado = "Seleccione un estado valido.";
   }
 
   if (!values.usuarioId) {
-    fieldErrors.usuarioId = 'No hay un usuario responsable para cambiar el estado.';
+    fieldErrors.usuarioId =
+      "No hay un usuario responsable para cambiar el estado.";
   }
 
   return fieldErrors;
@@ -325,11 +340,12 @@ export function validateProductDeletePayload(
   }
 
   if (!values.confirmacion) {
-    fieldErrors.confirmacion = 'Debe confirmar la eliminacion del producto.';
+    fieldErrors.confirmacion = "Debe confirmar la eliminacion del producto.";
   }
 
   if (!values.usuarioId) {
-    fieldErrors.usuarioId = 'No hay un usuario responsable para eliminar el producto.';
+    fieldErrors.usuarioId =
+      "No hay un usuario responsable para eliminar el producto.";
   }
 
   return fieldErrors;
@@ -348,7 +364,7 @@ export function filterAndSortProductList(
   const normalizedSearch = normalizeSearch(filters.search);
   const filtered = products.filter((product) => {
     const matchesStatus =
-      filters.estado === 'todos' || product.estado === filters.estado;
+      filters.estado === "todos" || product.estado === filters.estado;
     const matchesCategory =
       !filters.categoriaId || product.categoriaId === filters.categoriaId;
     const matchesSearch =
@@ -362,7 +378,7 @@ export function filterAndSortProductList(
 
   return filtered.sort((left, right) => {
     const comparison = compareProducts(left, right, filters.sortBy);
-    return filters.sortDirection === 'asc' ? comparison : comparison * -1;
+    return filters.sortDirection === "asc" ? comparison : comparison * -1;
   });
 }
 
@@ -371,34 +387,34 @@ function compareProducts(
   right: ProductListItem,
   sortBy: ProductSortBy,
 ): number {
-  if (sortBy === 'stockActual') {
+  if (sortBy === "stockActual") {
     return left[sortBy] - right[sortBy];
   }
 
-  return left[sortBy].localeCompare(right[sortBy], 'es');
+  return left[sortBy].localeCompare(right[sortBy], "es");
 }
 
 function normalizeSearch(value: string): string {
   return value
     .trim()
-    .toLocaleLowerCase('es')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function normalizeInteger(value: unknown): number {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? Math.trunc(value) : Number.NaN;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
-  if (typeof value === 'string' && value.trim() !== '') {
+  if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? Math.trunc(parsed) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
   }
 
   return Number.NaN;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }

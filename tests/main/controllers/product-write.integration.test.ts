@@ -11,6 +11,7 @@ import {
   createProductWithExecutor,
   editProductWithExecutor,
 } from "../../../src/main/controllers/product-write";
+import { queryInventoryProducts } from "../../../src/main/controllers/product-query";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
@@ -145,6 +146,61 @@ describe("product write persistence", () => {
     expect(prices[0]).toEqual({ current: 1, closed: 1 });
   });
 
+  it("filters active products, requires exact EAN and orders the SQL result", async () => {
+    await testDb!.db.run(sql`
+      INSERT INTO producto
+        (producto_id, producto_ean_13, producto_nombre, producto_precio_venta,
+         producto_stock_minimo, producto_estado, producto_fecha_registro, categoria_id)
+      VALUES
+        (1, '7802920000015', 'Leche', 1000, 1, 'activo', '2026-01-01T00:00:00.000Z', 1),
+        (2, '7802920000022', 'Yogur', 900, 1, 'activo', '2026-01-01T00:00:00.000Z', 1),
+        (3, '7802920000039', 'Queso', 2500, 1, 'inactivo', '2026-01-01T00:00:00.000Z', 1)
+    `);
+    await testDb!.db.run(sql`
+      INSERT INTO lote
+        (lote_id, lote_cantidad_inicial, lote_cantidad_actual, lote_precio_costo,
+         lote_fecha_hora_ingreso, es_lote_perecible, es_lote_no_perecible, producto_id)
+      VALUES
+        ('00000000-0000-4000-8000-000000000101', 2, 2, 700, '2026-01-01', 1, 0, 1),
+        ('00000000-0000-4000-8000-000000000102', 5, 5, 600, '2026-01-01', 1, 0, 2),
+        ('00000000-0000-4000-8000-000000000103', 9, 9, 1500, '2026-01-01', 1, 0, 3)
+    `);
+
+    const ordered = await queryInventoryProducts(testDb!.db, schema, {
+      filters: {
+        search: "",
+        estado: "activo",
+        sortBy: "stockActual",
+        sortDirection: "desc",
+      },
+      includeCost: false,
+    });
+    const partialEan = await queryInventoryProducts(testDb!.db, schema, {
+      filters: {
+        search: "780292000001",
+        estado: "activo",
+        sortBy: "nombre",
+        sortDirection: "asc",
+      },
+      includeCost: false,
+    });
+    const exactEan = await queryInventoryProducts(testDb!.db, schema, {
+      filters: {
+        search: "7802920000015",
+        estado: "activo",
+        sortBy: "nombre",
+        sortDirection: "asc",
+      },
+      includeCost: false,
+    });
+
+    expect(ordered.map((product) => product.ean13)).toEqual([
+      "7802920000022",
+      "7802920000015",
+    ]);
+    expect(partialEan).toEqual([]);
+    expect(exactEan.map((product) => product.ean13)).toEqual(["7802920000015"]);
+  });
 });
 
 async function createTestDatabase() {

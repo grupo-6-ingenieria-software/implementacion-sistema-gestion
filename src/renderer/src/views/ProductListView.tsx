@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { Role } from '../../../shared/navigation';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import type { Role } from "../../../shared/navigation";
 import {
   defaultProductListFilters,
   type ProductCategoryOption,
@@ -7,8 +7,8 @@ import {
   type ProductListResponse,
   type ProductSortBy,
   type ProductSortDirection,
-} from '../../../shared/products';
-import { CampoEAN13Input } from '../components';
+} from "../../../shared/products";
+import { CampoEAN13Input } from "../components";
 
 type ProductListViewProps = {
   role: Role;
@@ -21,10 +21,10 @@ export type ProductAction = {
   path: string;
 };
 
-const currencyFormatter = new Intl.NumberFormat('es-CL', {
-  currency: 'CLP',
+const currencyFormatter = new Intl.NumberFormat("es-CL", {
+  currency: "CLP",
   maximumFractionDigits: 0,
-  style: 'currency',
+  style: "currency",
 });
 
 export function ProductListView({
@@ -34,9 +34,9 @@ export function ProductListView({
 }: ProductListViewProps): ReactElement {
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [categories, setCategories] = useState<ProductCategoryOption[]>([]);
-  const [textSearch, setTextSearch] = useState('');
-  const [eanSearch, setEanSearch] = useState('');
-  const [categoriaId, setCategoriaId] = useState('');
+  const [textSearch, setTextSearch] = useState("");
+  const [eanSearch, setEanSearch] = useState("");
+  const [categoriaId, setCategoriaId] = useState("");
   const [sortBy, setSortBy] = useState<ProductSortBy>(
     defaultProductListFilters.sortBy,
   );
@@ -51,7 +51,7 @@ export function ProductListView({
     () => ({
       usuarioId,
       search: eanSearch.trim() || textSearch.trim(),
-      estado: 'todos',
+      estado: "activo",
       categoriaId: categoriaId ? Number(categoriaId) : undefined,
       sortBy,
       sortDirection,
@@ -67,7 +67,7 @@ export function ProductListView({
       setError(null);
 
       const response = await window.appApi.invoke<ProductListResponse>(
-        'producto:listar',
+        "producto:listar",
         payload,
       );
 
@@ -76,13 +76,13 @@ export function ProductListView({
       }
 
       if (response.ok) {
-        setProducts(orderProductsForList(response.data.products));
+        setProducts(response.data.products);
         setCategories(response.data.categories);
       } else {
         setProducts([]);
         setError(
           response.error.message ||
-            'No fue posible cargar los productos. Intente nuevamente.',
+            "No fue posible cargar los productos. Intente nuevamente.",
         );
       }
 
@@ -95,7 +95,7 @@ export function ProductListView({
       }
 
       setProducts([]);
-      setError('No fue posible cargar los productos. Intente nuevamente.');
+      setError("No fue posible cargar los productos. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -107,11 +107,11 @@ export function ProductListView({
   return (
     <section className="px-8 py-8">
       <div className="flex flex-wrap items-start justify-end gap-4">
-        {role === 'dueno' ? (
+        {role === "dueno" ? (
           <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
             type="button"
-            onClick={() => onNavigate('/app/inventario/productos/nuevo')}
+            onClick={() => onNavigate("/app/inventario/productos/nuevo")}
           >
             Nuevo producto
           </button>
@@ -156,7 +156,9 @@ export function ProductListView({
               <select
                 className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
                 value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as ProductSortBy)}
+                onChange={(event) =>
+                  setSortBy(event.target.value as ProductSortBy)
+                }
               >
                 <option value="nombre">Nombre</option>
                 <option value="categoria">Categoria</option>
@@ -190,7 +192,7 @@ export function ProductListView({
       <section className="mt-6 overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-[#e3e8ee] px-5 py-4">
           <p className="text-sm font-semibold text-[#24313d]">
-            {loading ? 'Cargando productos...' : `${products.length} productos`}
+            {loading ? "Cargando productos..." : `${products.length} productos`}
           </p>
           <p className="text-xs font-semibold uppercase text-[#61717f]">
             Stock critico cuando stock actual es menor o igual al minimo
@@ -221,7 +223,7 @@ export function ProductListView({
                   <th className="px-5 py-3 font-semibold">Producto</th>
                   <th className="px-5 py-3 font-semibold">EAN-13</th>
                   <th className="px-5 py-3 font-semibold">Categoria</th>
-                  {role === 'dueno' ? (
+                  {role === "dueno" ? (
                     <th className="px-5 py-3 font-semibold">Precio costo</th>
                   ) : null}
                   <th className="px-5 py-3 font-semibold">Precio venta</th>
@@ -271,7 +273,7 @@ function ProductRow({
         {product.ean13}
       </td>
       <td className="px-5 py-4 text-[#24313d]">{product.categoria}</td>
-      {role === 'dueno' ? (
+      {role === "dueno" ? (
         <td className="px-5 py-4 font-semibold text-[#24313d]">
           {currencyFormatter.format(product.precioCosto ?? 0)}
         </td>
@@ -293,9 +295,9 @@ function ProductRow({
       <td className="px-5 py-4">
         <span
           className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
-            product.estado === 'activo'
-              ? 'bg-[#e3f4ea] text-[#2d6a4f]'
-              : 'bg-[#edf1f5] text-[#61717f]'
+            product.estado === "activo"
+              ? "bg-[#e3f4ea] text-[#2d6a4f]"
+              : "bg-[#edf1f5] text-[#61717f]"
           }`}
         >
           {product.estado}
@@ -350,30 +352,30 @@ export function getProductActionsForRole(
 ): ProductAction[] {
   const ean13 = encodeURIComponent(product.ean13);
 
-  if (role === 'dueno') {
+  if (role === "dueno") {
     const actions: ProductAction[] = [
       {
-        label: 'Editar',
+        label: "Editar",
         path: `/app/inventario/productos/${ean13}/editar`,
       },
       {
-        label: 'Cambiar estado',
+        label: "Cambiar estado",
         path: `/app/inventario/productos/${ean13}/estado`,
       },
       {
-        label: 'Eliminar',
+        label: "Eliminar",
         path: `/app/inventario/productos/eliminar?ean13=${ean13}`,
       },
     ];
 
-    if (product.estado === 'activo') {
+    if (product.estado === "activo") {
       actions.push(
         {
-          label: 'Registrar lote',
+          label: "Registrar lote",
           path: `/app/inventario/lotes/nuevo?ean13=${ean13}`,
         },
         {
-          label: 'Registrar merma',
+          label: "Registrar merma",
           path: `/app/inventario/mermas/nueva?ean13=${ean13}`,
         },
       );
@@ -384,18 +386,18 @@ export function getProductActionsForRole(
 
   const actions: ProductAction[] = [
     {
-      label: 'Cambiar estado',
+      label: "Cambiar estado",
       path: `/app/inventario/productos/${ean13}/estado`,
     },
     {
-      label: 'Eliminar',
+      label: "Eliminar",
       path: `/app/inventario/productos/eliminar?ean13=${ean13}`,
     },
   ];
 
-  if (product.estado === 'activo') {
+  if (product.estado === "activo") {
     actions.push({
-      label: 'Registrar merma',
+      label: "Registrar merma",
       path: `/app/inventario/mermas/nueva?ean13=${ean13}`,
     });
   }
@@ -407,14 +409,14 @@ export function orderProductsForList(
   products: ProductListItem[],
 ): ProductListItem[] {
   return [
-    ...products.filter((product) => product.estado === 'activo'),
-    ...products.filter((product) => product.estado === 'inactivo'),
+    ...products.filter((product) => product.estado === "activo"),
+    ...products.filter((product) => product.estado === "inactivo"),
   ];
 }
 
 function formatDate(value: string): string {
   if (!value) {
-    return 'sin fecha';
+    return "sin fecha";
   }
 
   return value.slice(0, 10);
