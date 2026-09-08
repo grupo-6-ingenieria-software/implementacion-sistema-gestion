@@ -123,7 +123,7 @@ function createController() {
         .filter(
           (product) =>
             product.estado === "activo" &&
-            (product.ean13.includes(search) ||
+            (product.ean13 === search ||
               product.nombre
                 .toLocaleLowerCase("es")
                 .includes(search.toLocaleLowerCase("es"))),
@@ -313,7 +313,7 @@ describe("product query controller", () => {
     ]);
   });
 
-  it("searches active products by partial EAN-13 for lot and waste registration", async () => {
+  it("requires exact EAN-13 while retaining partial name search for active products", async () => {
     const response = (await createController().handle(
       {
         query: "292000001",
@@ -323,14 +323,9 @@ describe("product query controller", () => {
       { channel: "producto:buscar-activo" },
     )) as ControllerResponse<ActiveProductSearchItem[]>;
 
-    expect(response.ok).toBe(true);
-    if (!response.ok) {
-      throw new Error(response.error.message);
-    }
-
-    expect(response.data.map((product) => product.ean13)).toEqual([
-      "7802920000015",
-    ]);
+    expect(response.ok).toBe(false);
+    if (response.ok) throw new Error("Expected exact EAN miss");
+    expect(response.error.code).toBe("BUSINESS_RULE");
   });
 
   it("lists active products when search is empty for sale registration", async () => {
@@ -389,6 +384,23 @@ describe("product query controller", () => {
     });
 
     expect(response.ok).toBe(true);
+  });
+
+  it("returns not found before categories when product detail is missing", async () => {
+    const calls: string[] = [];
+    const controller = createProductQueryController({
+      authorize: async (usuarioId, roles) => authorizeTestUser(usuarioId, roles),
+      listProducts: async () => [],
+      listCategories: async () => { calls.push("categories"); return []; },
+      findProduct: async () => { calls.push("product"); return null; },
+      listActiveProducts: async () => [],
+    });
+    const response = await controller.handle(
+      { ean13: "7802920000992", usuarioId: "dueno" },
+      { channel: "producto:estado" },
+    );
+    expect(response).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(calls).toEqual(["product"]);
   });
 
   it("requires authorization to search active products", async () => {

@@ -11,7 +11,12 @@ import {
   createProductWithExecutor,
   editProductWithExecutor,
 } from "../../../src/main/controllers/product-write";
-import { queryInventoryProducts } from "../../../src/main/controllers/product-query";
+import {
+  queryActiveProductsWithExecutor,
+  queryInventoryProducts,
+  queryProductCategoriesWithExecutor,
+  queryProductDetailWithExecutor,
+} from "../../../src/main/controllers/product-query";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
@@ -272,7 +277,46 @@ describe("product write persistence", () => {
     expect(exactEan.map((product) => product.ean13)).toEqual(["7802920000015"]);
   });
 
+  it("resolves active product, category, stock and current price in separate ordered queries", async () => {
+    await testDb!.db.run(sql`INSERT INTO producto
+      (producto_id, producto_ean_13, producto_nombre, producto_precio_venta,
+       producto_stock_minimo, producto_estado, producto_fecha_registro, categoria_id)
+      VALUES (1, '7802920000015', 'Leche', 1000, 1, 'activo', '2026-01-01', 1)`);
+    testDb!.queries.length = 0;
 
+    const products = await queryActiveProductsWithExecutor(testDb!.db, schema, {
+      ean13: "7802920000015", limit: 1,
+    });
+    expect(products).toEqual([expect.objectContaining({
+      ean13: "7802920000015", categoria: "Lacteos", stockDisponible: 0,
+    })]);
+    expect(relevantStatements(testDb!.queries).slice(0, 4)).toEqual([
+      "select:producto", "select:categoria", "select:lote",
+      "select:historial_precio_producto",
+    ]);
+
+    const partial = await queryActiveProductsWithExecutor(testDb!.db, schema, {
+      query: "292000001", limit: 10,
+    });
+    expect(partial).toEqual([]);
+  });
+
+  it("loads product detail, current history and category options sequentially", async () => {
+    await testDb!.db.transaction((tx) => createProductWithExecutor(tx, schema, {
+      usuarioId: "12345678-9", ean13: "7802920000015", nombre: "Producto",
+      categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
+    }));
+    testDb!.queries.length = 0;
+    const detail = await queryProductDetailWithExecutor(
+      testDb!.db, schema, "7802920000015", true,
+    );
+    const categories = await queryProductCategoriesWithExecutor(testDb!.db, schema);
+    expect(detail).toMatchObject({ ean13: "7802920000015", precioCosto: 700 });
+    expect(categories).toEqual([{ id: 1, nombre: "Lacteos" }]);
+    expect(relevantStatements(testDb!.queries)).toEqual([
+      "select:producto", "select:historial_precio_producto", "select:categoria",
+    ]);
+  });
 });
 
 async function createTestDatabase() {
