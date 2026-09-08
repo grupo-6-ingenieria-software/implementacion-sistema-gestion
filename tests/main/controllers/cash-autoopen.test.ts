@@ -11,6 +11,7 @@ import { closeCashRegister } from '../../../src/main/controllers/cash-closing-se
 import {
   getOpenCashRegister,
   registerSale,
+  SaleBusinessError,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -67,7 +68,7 @@ describe('caja autoabrir (#29)', () => {
     await expectOpenCashRegisters(1);
   });
 
-  it('tras cerrar caja, la siguiente venta auto-abre una caja NUEVA', async () => {
+  it('tras cerrar caja, bloquea nuevas ventas durante el mismo día', async () => {
     // 1. Primera venta abre la caja inicial.
     await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
@@ -87,24 +88,25 @@ describe('caja autoabrir (#29)', () => {
     );
     await expectOpenCashRegisters(0);
 
-    // 3. La siguiente venta debe abrir una caja nueva y distinta.
-    await registerSale(testDb!.db as unknown as DbExecutor, {
-      usuarioId: '12345678-9',
-      metodoPago: 'debito',
-      items: [{ productoId: 1, cantidad: 1 }],
-    });
+    // 3. La siguiente venta del mismo día debe ser rechazada.
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
 
     const secondOpen = await getOpenCashRegister(
       testDb!.db as unknown as DbExecutor,
     );
-    expect(secondOpen).not.toBeNull();
-    expect(secondOpen?.cierreCajaId).not.toBe(firstOpen?.cierreCajaId);
-    await expectOpenCashRegisters(1);
+    expect(secondOpen).toBeNull();
+    await expectOpenCashRegisters(0);
 
     const totalCajas = await testDb!.db.all<{ count: number }>(
       sql`SELECT COUNT(*) AS count FROM cierre_caja`,
     );
-    expect(Number(totalCajas[0].count)).toBe(2);
+    expect(Number(totalCajas[0].count)).toBe(1);
   });
 
   it('no crea cajas duplicadas al invocar getOpenCashRegister repetidamente', async () => {
@@ -127,6 +129,44 @@ describe('caja autoabrir (#29)', () => {
       sql`SELECT COUNT(*) AS count FROM cierre_caja`,
     );
     expect(Number(totalCajas[0].count)).toBe(1);
+  });
+
+  it('prioriza una caja cerrada ante una apertura heredada posterior del mismo día', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000).toISOString();
+    const later = now.toISOString();
+
+    await testDb!.db.run(sql`
+      INSERT INTO cierre_caja (
+        cierre_caja_id,
+        cierre_fecha_hora_inicio,
+        cierre_fecha_hora_fin,
+        cierre_estado,
+        usuario_cierre_id
+      ) VALUES (
+        ${randomUUID()}, ${earlier}, ${later}, 'cerrado', '12345678-9'
+      )
+    `);
+    await testDb!.db.run(sql`
+      INSERT INTO cierre_caja (
+        cierre_caja_id,
+        cierre_fecha_hora_inicio,
+        cierre_estado
+      ) VALUES (${randomUUID()}, ${later}, 'abierto')
+    `);
+
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      }, now),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
+
+    const ventaRows = await testDb!.db.all<{ count: number }>(
+      sql`SELECT COUNT(*) AS count FROM venta`,
+    );
+    expect(Number(ventaRows[0].count)).toBe(0);
   });
 });
 

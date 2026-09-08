@@ -142,9 +142,17 @@ describe('cash closing service', () => {
     );
 
     expect(Number(auditRows[0].count)).toBe(1);
+
+    await expect(
+      getCashClosingSummary(
+        testDb!.db as unknown as DbExecutor,
+        { usuarioId: '12345678-9' },
+        now,
+      ),
+    ).rejects.toBeInstanceOf(CashClosingBusinessError);
   });
 
-  it('auto-abre una caja nueva para las ventas tras un cierre exitoso (#29)', async () => {
+  it('abre una caja nueva para ventas del día siguiente al cierre', async () => {
     const before = await testDb!.db.all<{ cierreCajaId: string }>(
       sql`SELECT cierre_caja_id AS cierreCajaId FROM cierre_caja WHERE cierre_estado = 'abierto'`,
     );
@@ -158,12 +166,16 @@ describe('cash closing service', () => {
     );
 
     // Tras el cierre la venta ya no queda bloqueada: se abre una caja nueva.
-    const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
-      usuarioId: '12345678-9',
-      metodoPago: 'efectivo',
-      montoRecibido: 2000,
-      items: [{ productoId: 1, cantidad: 1 }],
-    });
+    const receipt = await registerSale(
+      testDb!.db as unknown as DbExecutor,
+      {
+        usuarioId: '12345678-9',
+        metodoPago: 'efectivo',
+        montoRecibido: 2000,
+        items: [{ productoId: 1, cantidad: 1 }],
+      },
+      new Date('2026-06-13T12:00:00.000Z'),
+    );
     expect(receipt.total).toBe(1000);
 
     const open = await testDb!.db.all<{ cierreCajaId: string }>(

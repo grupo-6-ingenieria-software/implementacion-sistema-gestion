@@ -170,7 +170,8 @@ describe('dashboard update events', () => {
     );
 
     expect(response.ok).toBe(true);
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(1, 'caja:actualizada');
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 });
