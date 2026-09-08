@@ -190,6 +190,13 @@ export function WorkerListView({
         </div>
         <div className="flex flex-wrap gap-3">
           <button
+            className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            type="button"
+            onClick={() => onNavigate('/app/personal/turnos')}
+          >
+            Turnos
+          </button>
+          <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
             type="button"
             onClick={() => onNavigate('/app/personal/trabajadores/nuevo')}

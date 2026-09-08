@@ -138,10 +138,6 @@ export function ShiftCreateView({
     setFieldErrors(errors);
     setMessage(null);
 
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
     setSaving(true);
 
     try {

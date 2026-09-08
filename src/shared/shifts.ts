@@ -10,6 +10,13 @@ export type ShiftFieldErrors = Partial<
   >
 >;
 
+/** Persistencia legacy: el estado funcional "Pendiente" se guarda como planificado. */
+export const PENDING_SHIFT_DB_STATE = 'planificado' as const;
+
+export function shiftStateLabel(value: string): string {
+  return value === PENDING_SHIFT_DB_STATE ? 'Pendiente' : value;
+}
+
 export type ShiftFormValues = {
   usuarioId?: string;
   trabajadorId: number;

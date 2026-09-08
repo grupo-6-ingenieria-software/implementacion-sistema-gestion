@@ -9,6 +9,7 @@ import {
   normalizeShiftDeletePayload,
   normalizeShiftEditPayload,
   normalizeShiftListPayload,
+  PENDING_SHIFT_DB_STATE,
   parseShiftRange,
   validateShiftCreatePayload,
   validateShiftDeletePayload,
@@ -75,7 +76,6 @@ export const shiftController: RegisteredController = {
 
       if (context.channel === 'turno:crear') {
         const input = normalizeShiftCreatePayload(payload);
-        assertValid(validateShiftCreatePayload(input));
         const actor = await requireOwner(input.usuarioId);
         return controllerSuccess(
           await createShift(db as unknown as DbExecutor, input, actor),
@@ -187,8 +187,6 @@ export async function createShift(
   payload: ShiftCreatePayload,
   actor: ShiftActor,
 ): Promise<ShiftMutationResponse> {
-  const range = requireRange(payload);
-
   return database.transaction(async (tx) => {
     assertOwnerActor(actor);
     const worker = await findActiveWorker(tx, payload.trabajadorId);
@@ -198,6 +196,9 @@ export async function createShift(
         trabajadorId: 'Seleccione un trabajador activo.',
       });
     }
+
+    assertValid(validateShiftCreatePayload(payload));
+    const range = requireRange(payload);
 
     await assertNoOverlap(
       tx,
@@ -219,7 +220,7 @@ export async function createShift(
         ${turnoId},
         ${range.inicioAt},
         ${range.terminoAt},
-        'planificado',
+        ${PENDING_SHIFT_DB_STATE},
         ${payload.trabajadorId}
       )
     `);
