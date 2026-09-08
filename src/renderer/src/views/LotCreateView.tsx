@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
   normalizeLotRegisterPayload,
-  validateLotRegisterPayload,
   type LotFieldErrors,
   type LotProviderOption,
   type LotRegisterPayload,
@@ -16,7 +15,7 @@ type LotCreateViewProps = {
   onNavigate: (path: string) => void;
 };
 
-type FormState = {
+export type LotFormState = {
   ean13: string;
   cantidad: string;
   precioCosto: string;
@@ -24,7 +23,7 @@ type FormState = {
   proveedorId: string;
 };
 
-const emptyForm: FormState = {
+const emptyForm: LotFormState = {
   ean13: '',
   cantidad: '',
   precioCosto: '',
@@ -37,7 +36,7 @@ export function LotCreateView({
   onNavigate,
   usuarioId,
 }: LotCreateViewProps): ReactElement {
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<LotFormState>({
     ...emptyForm,
     ean13: initialEan13 ?? '',
   });
@@ -157,11 +156,7 @@ export function LotCreateView({
   }, [usuarioId]);
 
   const payload = useMemo<LotRegisterPayload>(
-    () =>
-      normalizeLotRegisterPayload({
-        ...form,
-        usuarioId,
-      }),
+    () => buildLotRegisterPayload(form, usuarioId),
     [form, usuarioId],
   );
 
@@ -216,16 +211,8 @@ export function LotCreateView({
   }
 
   async function submitForm(): Promise<void> {
-    const nextErrors = validateLotRegisterPayload(payload, {
-      productRequiresExpiration: selectedProduct?.exigeVencimiento,
-    });
-
-    setFieldErrors(nextErrors);
+    setFieldErrors({});
     setMessage(null);
-
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
@@ -280,6 +267,7 @@ export function LotCreateView({
 
         {!loading && !loadError ? (
           <form
+            noValidate
             className="grid gap-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -437,6 +425,13 @@ export function LotCreateView({
       </section>
     </section>
   );
+}
+
+export function buildLotRegisterPayload(
+  form: LotFormState,
+  usuarioId: string,
+): LotRegisterPayload {
+  return normalizeLotRegisterPayload({ ...form, usuarioId });
 }
 
 function ProductSummary({

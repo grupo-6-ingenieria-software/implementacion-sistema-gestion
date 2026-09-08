@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import {
   hasLotFieldErrors,
+  getTodayIsoDate,
   normalizeLotRegisterPayload,
-  validateLotRegisterPayload,
   type LotFieldErrors,
   type LotProviderOption,
   type LotRegisterPayload,
@@ -17,6 +17,11 @@ import {
 } from "./auth-context";
 import { notifyDashboardUpdated } from "./dashboard-events";
 import { queryActiveProductByEan13 } from "./product-query";
+import {
+  validateLotBasicsInSql,
+  validateLotExpirationInSql,
+} from "./lot-sql-validation";
+import { numericSqlValue } from "./sql-validation-primitives";
 
 type LotDependencies = {
   register: (payload: LotRegisterPayload) => Promise<LotRegisterResponse>;
@@ -73,11 +78,6 @@ export function createLotController(
     }
 
     const input = normalizeLotRegisterPayload(payload);
-    const fieldErrors = validateLotRegisterPayload(input);
-
-    if (hasLotFieldErrors(fieldErrors)) {
-      return validationResponse(fieldErrors);
-    }
 
     try {
       return {
@@ -167,9 +167,17 @@ export async function registerLotWithExecutor(
     });
   }
 
-  const fieldErrors = validateLotRegisterPayload(payload, {
-    productRequiresExpiration: product.exigeVencimiento,
-  });
+  const basicErrors = await validateLotBasicsInSql(executor, payload);
+  if (hasLotFieldErrors(basicErrors)) {
+    throw new LotError("validation", basicErrors);
+  }
+
+  const fieldErrors = await validateLotExpirationInSql(
+    executor,
+    payload,
+    product.exigeVencimiento,
+    getTodayIsoDate(),
+  );
 
   if (hasLotFieldErrors(fieldErrors)) {
     throw new LotError("validation", fieldErrors);
@@ -236,7 +244,7 @@ async function findProviderById(
   const [provider] = await executor
     .select({ id: schema.proveedor.proveedorId })
     .from(schema.proveedor)
-    .where(eq(schema.proveedor.proveedorId, proveedorId))
+    .where(sql`${schema.proveedor.proveedorId} = ${numericSqlValue(proveedorId)}`)
     .limit(1);
 
   return provider ? { id: Number(provider.id) } : null;
@@ -321,6 +329,7 @@ export class LotError extends Error {
 
 type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = {
+  all: typeof import("../../db/client").db.all;
   select: typeof import("../../db/client").db.select;
   insert: typeof import("../../db/client").db.insert;
 };
