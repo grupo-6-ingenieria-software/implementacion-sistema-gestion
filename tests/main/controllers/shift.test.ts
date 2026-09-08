@@ -359,6 +359,7 @@ describe('shift service', () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       {
+        fase: 'confirmar',
         usuarioId: '12345678-9',
         trabajadorRut: '23456789-0',
       },

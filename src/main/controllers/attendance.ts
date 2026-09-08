@@ -45,7 +45,7 @@ export const attendanceController: RegisteredController = {
         );
 
         if (result.status === 'registered') {
-          notifyDashboardUpdated();
+          if (result.status === 'registered') notifyDashboardUpdated();
         }
 
         return controllerSuccess(result);
@@ -56,7 +56,7 @@ export const attendanceController: RegisteredController = {
           db as unknown as DbExecutor,
           payload ?? {},
         );
-        notifyDashboardUpdated();
+        if (result.status === 'registered') notifyDashboardUpdated();
         return controllerSuccess(result);
       }
 
@@ -65,7 +65,7 @@ export const attendanceController: RegisteredController = {
           db as unknown as DbExecutor,
           payload ?? {},
         );
-        notifyDashboardUpdated();
+        if (result.status === 'registered') notifyDashboardUpdated();
         return controllerSuccess(result);
       }
 

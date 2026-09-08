@@ -182,12 +182,29 @@ async function registerEntry(
 
     const shift = await findTodayShift(tx, worker.trabajadorId, now);
 
-    if (!shift && !allowWithoutShift) {
+    if (
+      !shift &&
+      (normalized.fase === 'prevalidar' || !allowWithoutShift)
+    ) {
       return {
         status: 'requires_no_shift_confirmation',
         message:
           'El trabajador no tiene turno asignado para el dia de hoy. Desea registrar la entrada igualmente?',
         trabajador: summarizeWorker(worker),
+      };
+    }
+
+    if (shift && allowWithoutShift) {
+      throw new AttendanceBusinessError(
+        'El trabajador ahora tiene un turno asignado. Vuelva a validar la entrada.',
+      );
+    }
+
+    if (normalized.fase === 'prevalidar') {
+      return {
+        status: 'ready_for_confirmation',
+        message: 'Confirme el registro de entrada para este trabajador.',
+        trabajador: summarizeWorker(worker, shift),
       };
     }
 
@@ -309,7 +326,11 @@ function normalizeAttendanceRequest(
     throw new AttendanceValidationError('Ingrese un RUT valido.');
   }
 
-  return { usuarioId, trabajadorRut };
+  return {
+    fase: payload.fase === 'confirmar' ? 'confirmar' : 'prevalidar',
+    usuarioId,
+    trabajadorRut,
+  };
 }
 
 async function findWorkerByRut(
@@ -405,6 +426,29 @@ async function findTodayAttendance(
       asistencia_fecha_hora_salida AS salidaAt
     FROM asistencia
     WHERE trabajador_id = ${trabajadorId}
+      AND datetime(asistencia_fecha_hora_entrada) >= datetime(${startUtc})
+      AND datetime(asistencia_fecha_hora_entrada) < datetime(${endUtc})
+    ORDER BY datetime(asistencia_fecha_hora_entrada) DESC
+    LIMIT 1
+  `);
+
+  return rows[0] ?? null;
+}
+
+async function findOpenTodayAttendance(
+  database: Pick<DbExecutor, 'all'>,
+  trabajadorId: number,
+  now: Date,
+): Promise<AttendanceRow | null> {
+  const { startUtc, endUtc } = getDashboardDay(now);
+  const rows = await database.all<AttendanceRow>(sql`
+    SELECT
+      asistencia_id AS asistenciaId,
+      asistencia_fecha_hora_entrada AS entradaAt,
+      asistencia_fecha_hora_salida AS salidaAt
+    FROM asistencia
+    WHERE trabajador_id = ${trabajadorId}
+      AND asistencia_fecha_hora_salida IS NULL
       AND datetime(asistencia_fecha_hora_entrada) >= datetime(${startUtc})
       AND datetime(asistencia_fecha_hora_entrada) < datetime(${endUtc})
     ORDER BY datetime(asistencia_fecha_hora_entrada) DESC

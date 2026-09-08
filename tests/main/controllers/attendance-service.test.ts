@@ -65,9 +65,30 @@ describe('attendance service', () => {
   it('registers an entry with the worker shift', async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
 
-    const result = await registerAttendanceEntry(
+    const preview = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       { usuarioId: '12345678-9', trabajadorRut: '23.456.789-0' },
+      now,
+    );
+
+    expect(preview.status).toBe('ready_for_confirmation');
+    expect(
+      Number(
+        (
+          await testDb!.db.all<{ count: number }>(
+            sql`SELECT COUNT(*) AS count FROM asistencia`,
+          )
+        )[0].count,
+      ),
+    ).toBe(0);
+
+    const result = await registerAttendanceEntry(
+      testDb!.db as unknown as DbExecutor,
+      {
+        fase: 'confirmar',
+        usuarioId: '12345678-9',
+        trabajadorRut: '23.456.789-0',
+      },
       now,
     );
 
@@ -90,6 +111,74 @@ describe('attendance service', () => {
     expect(Number(rows[0].count)).toBe(1);
   });
 
+  it('revalidates an absence added between entry preview and confirmation', async () => {
+    await seedShift(testDb!.db as unknown as DbExecutor, 2);
+    const request = {
+      usuarioId: '12345678-9',
+      trabajadorRut: '23456789-0',
+    };
+
+    await expect(
+      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
+    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+    await seedAbsence(testDb!.db as unknown as DbExecutor, 2);
+
+    await expect(
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        { ...request, fase: 'confirmar' },
+        now,
+      ),
+    ).rejects.toBeInstanceOf(AttendanceBusinessError);
+    await expect(countAttendanceRows()).resolves.toBe(0);
+  });
+
+  it('revalidates a shift removed between entry preview and confirmation', async () => {
+    await seedShift(testDb!.db as unknown as DbExecutor, 2);
+    const request = {
+      usuarioId: '12345678-9',
+      trabajadorRut: '23456789-0',
+    };
+
+    await expect(
+      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
+    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+    await testDb!.db.run(sql`DELETE FROM turno WHERE trabajador_id = 2`);
+
+    await expect(
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        { ...request, fase: 'confirmar' },
+        now,
+      ),
+    ).resolves.toMatchObject({ status: 'requires_no_shift_confirmation' });
+    await expect(countAttendanceRows()).resolves.toBe(0);
+  });
+
+  it('revalidates worker state changed between entry preview and confirmation', async () => {
+    await seedShift(testDb!.db as unknown as DbExecutor, 2);
+    const request = {
+      usuarioId: '12345678-9',
+      trabajadorRut: '23456789-0',
+    };
+
+    await expect(
+      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
+    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+    await testDb!.db.run(sql`
+      UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 2
+    `);
+
+    await expect(
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        { ...request, fase: 'confirmar' },
+        now,
+      ),
+    ).rejects.toBeInstanceOf(AttendanceBusinessError);
+    await expect(countAttendanceRows()).resolves.toBe(0);
+  });
+
   it('registers an entry when the stored worker rut has dots', async () => {
     await testDb!.db.run(sql`
       UPDATE trabajador
@@ -99,7 +188,11 @@ describe('attendance service', () => {
 
     const result = await registerAttendanceEntryWithoutShift(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+      {
+        fase: 'confirmar',
+        usuarioId: '12345678-9',
+        trabajadorRut: '23456789-0',
+      },
       now,
     );
 
@@ -135,7 +228,11 @@ describe('attendance service', () => {
   it('registers an entry without shift after confirmation', async () => {
     const result = await registerAttendanceEntryWithoutShift(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+      {
+        fase: 'confirmar',
+        usuarioId: '12345678-9',
+        trabajadorRut: '23456789-0',
+      },
       now,
     );
 
@@ -241,6 +338,13 @@ describe('attendance service', () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 });
+
+async function countAttendanceRows(): Promise<number> {
+  const rows = await testDb!.db.all<{ count: number }>(
+    sql`SELECT COUNT(*) AS count FROM asistencia`,
+  );
+  return Number(rows[0].count);
+}
 
 async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), 'huascar-attendance-'));

@@ -5,6 +5,7 @@ export type AttendanceWorkerOption = {
 };
 
 export type AttendanceRequest = {
+  fase?: 'prevalidar' | 'confirmar';
   usuarioId?: string;
   trabajadorRut?: string;
 };
@@ -17,6 +18,11 @@ export type AttendanceWorkerSummary = AttendanceWorkerOption & {
 
 export type AttendanceEntryResult =
   | {
+      status: 'ready_for_confirmation';
+      message: string;
+      trabajador: AttendanceWorkerSummary;
+    }
+  | {
       status: 'requires_no_shift_confirmation';
       message: string;
       trabajador: AttendanceWorkerSummary;
@@ -28,14 +34,21 @@ export type AttendanceEntryResult =
       trabajador: AttendanceWorkerSummary;
     };
 
-export type AttendanceExitResult = {
-  status: 'registered';
-  asistenciaId: string;
-  entradaAt: string;
-  salidaAt: string;
-  horasTrabajadas: string;
-  trabajador: AttendanceWorkerSummary;
-};
+export type AttendanceExitResult =
+  | {
+      status: 'ready_for_confirmation';
+      asistenciaId: string;
+      entradaAt: string;
+      trabajador: AttendanceWorkerSummary;
+    }
+  | {
+      status: 'registered';
+      asistenciaId: string;
+      entradaAt: string;
+      salidaAt: string;
+      horasTrabajadas: string;
+      trabajador: AttendanceWorkerSummary;
+    };
 
 export function normalizeRut(value: string): string {
   const cleaned = value
