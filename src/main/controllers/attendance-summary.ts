@@ -11,11 +11,18 @@ export async function loadAttendanceIndicator(
     return { scope: 'global', ...await loadAttendanceSummary(database, now) };
   }
   const { startUtc, endUtc } = getDashboardDay(now);
+  const users = await database.all<{ workerId: number }>(sql`
+    SELECT trabajador_id AS workerId
+    FROM usuario
+    WHERE usuario_id = ${request.usuarioId}
+  `);
+  const user = users[0];
+  if (!user) throw new Error('No se encontró el usuario de la sesión');
   const workers = await database.all<{ workerId: number; fullName: string }>(sql`
-    SELECT t.trabajador_id AS workerId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS fullName
-    FROM usuario u JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-    WHERE u.usuario_id = ${request.usuarioId} AND t.trabajador_estado = 'activo'
+    SELECT trabajador_id AS workerId,
+      trim(trabajador_nombre || ' ' || trabajador_apellido) AS fullName
+    FROM trabajador
+    WHERE trabajador_id = ${user.workerId} AND trabajador_estado = 'activo'
   `);
   const worker = workers[0];
   if (!worker) throw new Error('No se encontró el trabajador de la sesión');

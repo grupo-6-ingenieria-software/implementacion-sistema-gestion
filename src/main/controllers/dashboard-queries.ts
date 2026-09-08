@@ -16,6 +16,7 @@ import {
   getDashboardDay,
 } from './dashboard-date';
 import { calculateRecordedSaleTotal } from '../../shared/sales';
+import { inspectDailyCashRegister } from './cash-check';
 
 export type DashboardDb = {
   all: <TRow = Record<string, unknown>>(query: SQL) => Promise<TRow[]>;
@@ -173,38 +174,13 @@ export async function loadDailyCashRegister(
   database: DashboardDb,
   now = new Date(),
 ): Promise<CashRegisterRow | undefined> {
-  const { startUtc, endUtc } = getDashboardDay(now);
-  const rows = await database.all<CashRegisterRow>(sql`
-    SELECT
-      c.cierre_estado AS status,
-      c.cierre_fecha_hora_inicio AS openedAt,
-      c.cierre_fecha_hora_fin AS closedAt
-    FROM cierre_caja c
-    WHERE
-      (
-        datetime(c.cierre_fecha_hora_inicio) >= datetime(${startUtc})
-        AND datetime(c.cierre_fecha_hora_inicio) < datetime(${endUtc})
-      )
-      OR (
-        c.cierre_fecha_hora_fin IS NOT NULL
-        AND datetime(c.cierre_fecha_hora_fin) >= datetime(${startUtc})
-        AND datetime(c.cierre_fecha_hora_fin) < datetime(${endUtc})
-      )
-      OR EXISTS (
-        SELECT 1
-        FROM venta v
-        WHERE
-          v.cierre_caja_id = c.cierre_caja_id
-          AND datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-          AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
-      )
-    ORDER BY
-      CASE WHEN c.cierre_estado = 'abierto' THEN 0 ELSE 1 END,
-      datetime(COALESCE(c.cierre_fecha_hora_fin, c.cierre_fecha_hora_inicio)) DESC
-    LIMIT 1
-  `);
-
-  return rows[0];
+  const state = await inspectDailyCashRegister(database, now);
+  if (state.status === 'sin_registro') return undefined;
+  return {
+    status: state.status === 'abierta' ? 'abierto' : 'cerrado',
+    openedAt: state.openedAt,
+    closedAt: state.status === 'cerrada' ? state.closedAt : null,
+  };
 }
 
 export function buildCashSummary(

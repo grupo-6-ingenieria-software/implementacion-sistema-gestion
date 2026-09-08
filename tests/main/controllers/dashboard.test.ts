@@ -160,7 +160,8 @@ describe('dashboard attendance controller', () => {
   });
 
   it('filters attendance using trusted identity and role, ignoring forged payload', async () => {
-    allMock.mockResolvedValueOnce([{ workerId: 2, fullName: 'Luis Soto' }])
+    allMock.mockResolvedValueOnce([{ workerId: 2 }])
+      .mockResolvedValueOnce([{ workerId: 2, fullName: 'Luis Soto' }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ workerId: 1, fullName: 'Ana Perez' }, { workerId: 2, fullName: 'Luis Soto' }])
       .mockResolvedValueOnce([{ workerId: 1 }]);

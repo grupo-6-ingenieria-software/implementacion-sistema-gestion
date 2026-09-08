@@ -1,6 +1,20 @@
 # Consistencia del incremento 1
 
-22 casos de uso, 82 escenarios y 19 requisitos funcionales. La matriz relaciona cada escenario con su diagrama, vista, canal, controlador, operación de modelo y pruebas.
+La [matriz portable](matriz.json) relaciona 19 requisitos funcionales, 22 casos de uso y 82 escenarios con su especificación, diagrama, vista, canal, controlador, operaciones de modelo y evidencia de prueba. Cada fila distingue consistencia funcional y consistencia de secuencia.
+
+## Decisiones de alcance
+
+- RF39 documenta la extensión de descuento de stock separada del registro de venta de RF36.
+- Los nombres de YAML, Drawio y PNG se conservan con sus SHA-256; los artefactos gráficos viven en el repositorio documental y no se duplican aquí.
+
+## Validación
+
+- 372 pruebas automatizadas aprobadas en 48 archivos.
+- TypeScript y build aprobados.
+- Flujos dedicados de interfaz ejecutados en Chromium para inventario, personal y ventas/caja.
+- 82 Drawio auditados por CLI y 82 PNG revisados individualmente; las imágenes que excedían el visor se inspeccionaron mediante copias proporcionales reducidas.
+
+## Índice
 
 - [RF01](RF01.md)
 - [RF02](RF02.md)
@@ -21,17 +35,3 @@
 - [RF42](RF42.md)
 - [RF55](RF55.md)
 - [RF56](RF56.md)
-
-## Decisiones
-
-- Ventas conserva su modelo normalizado; C17 actualiza lote antes de insertar venta_lote dentro de la transacción.
-- Pendiente corresponde a planificado; Confirmada corresponde a completada. No se migran estados.
-- Se conservan auditoría, usuario_version, movimientos de inventario y eventos.
-- El trabajador recibe su propia asistencia; el dueño recibe el resumen global.
-- CU7 pertenece al incremento 2. CU56-E1b y las excepciones antiguas de CU29 quedan fuera del conjunto canónico.
-
-## Validación
-
-334 pruebas automatizadas aprobadas, TypeScript y build. Diez comprobaciones de interfaz en Chromium con el límite IPC simulado verifican navegación, confirmaciones y cancelaciones. Las pruebas de integración utilizan SQLite en memoria o archivos temporales.
-
-La verificación documental local comprueba los 82 conjuntos YAML/Draw.io/PNG y sus referencias de código y pruebas. La coincidencia de mensajes no demuestra por sí sola equivalencia semántica. Los PNG se revisan visualmente; las imágenes de gran tamaño se inspeccionan mediante copias reducidas. Los artefactos gráficos permanecen en el repositorio documental y no forman parte de este PR.
