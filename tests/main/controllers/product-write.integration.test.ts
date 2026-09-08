@@ -46,6 +46,28 @@ describe("product write persistence", () => {
     expect(Number(rows[0]?.total)).toBe(0);
   });
 
+  it.each([
+    ["CU2 E2 nombre obligatorio", { nombre: "" }, "nombre"],
+    ["CU2 E3 margen de precio", { precioCosto: 1000, precioVenta: 1000 }, "precioVenta"],
+    ["CU2 E4 valor decimal", { stockMinimo: 2.5 }, "stockMinimo"],
+  ] as const)("rejects %s after product, category and history reads", async (_scenario, override, field) => {
+    await testDb!.db.transaction((tx) => createProductWithExecutor(tx, schema, {
+      usuarioId: "12345678-9", ean13: "7802920000015", nombre: "Producto",
+      categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
+    }));
+    testDb!.queries.length = 0;
+    await expect(testDb!.db.transaction((tx) => editProductWithExecutor(tx, schema, {
+      usuarioId: "12345678-9", originalEan13: "7802920000015",
+      ean13: "7802920000015", nombre: "Producto editado", categoriaId: 1,
+      precioCosto: 800, precioVenta: 1200, stockMinimo: 4, ...override,
+    }))).rejects.toMatchObject({ reason: "validation", fieldErrors: { [field]: expect.any(String) } });
+    expect(relevantStatements(testDb!.queries).slice(2, 6)).toEqual([
+      "select:producto", "select:categoria", "select:historial_precio_producto", "select:validation",
+    ]);
+    const rows = await testDb!.db.all<{ nombre: string }>(sql`SELECT producto_nombre AS nombre FROM producto`);
+    expect(rows[0]?.nombre).toBe("Producto");
+  });
+
   it("checks EAN and category before field validation without partial writes", async () => {
     testDb!.queries.length = 0;
     const invalid = {

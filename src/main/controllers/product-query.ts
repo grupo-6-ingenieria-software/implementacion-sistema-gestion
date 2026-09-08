@@ -179,12 +179,9 @@ export function createProductQueryController(
           "dueno",
           "trabajador",
         ]);
-        const [product, categories] = await Promise.all([
-          dependencies.findProduct(ean13, {
-            includeCost: auth.role === "dueno",
-          }),
-          dependencies.listCategories(),
-        ]);
+        const product = await dependencies.findProduct(ean13, {
+          includeCost: auth.role === "dueno",
+        });
 
         if (!product) {
           return {
@@ -196,6 +193,8 @@ export function createProductQueryController(
             },
           };
         }
+
+        const categories = await dependencies.listCategories();
 
         return {
           ok: true,
@@ -383,6 +382,46 @@ export async function queryInventoryProducts(
   });
 }
 
+export async function queryProductDetailWithExecutor(
+  db: Pick<typeof import("../../db/client").db, "select">,
+  schema: typeof import("../../db/schema"),
+  ean13: string,
+  includeCost: boolean,
+): Promise<ProductDetailResponse["product"] | null> {
+  const [product] = await db
+    .select({
+      productoId: schema.producto.productoId,
+      ean13: schema.producto.productoEan13,
+      nombre: schema.producto.productoNombre,
+      categoriaId: schema.producto.categoriaId,
+      precioVenta: schema.producto.productoPrecioVenta,
+      stockMinimo: schema.producto.productoStockMinimo,
+      estado: schema.producto.productoEstado,
+    })
+    .from(schema.producto)
+    .where(eq(schema.producto.productoEan13, ean13))
+    .limit(1);
+  if (!product) return null;
+  if (!includeCost) {
+    const { productoId: _productoId, ...visible } = product;
+    return visible;
+  }
+  const [price] = await db
+    .select({ precioCosto: schema.historialPrecioProducto.historialPrecioCosto })
+    .from(schema.historialPrecioProducto)
+    .where(
+      and(
+        eq(schema.historialPrecioProducto.productoId, product.productoId),
+        isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
+      ),
+    )
+    .orderBy(desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde))
+    .limit(1);
+  const { productoId: _productoId, ...visible } = product;
+  return { ...visible, precioCosto: Number(price?.precioCosto ?? 0) };
+}
+
+
 const productQueryDependencies: ProductQueryDependencies = {
   authorize: async (usuarioId, allowedRoles) => {
     const { db, schema } = await import("../../db/client");
@@ -407,58 +446,7 @@ const productQueryDependencies: ProductQueryDependencies = {
   },
   findProduct: async (ean13, { includeCost }) => {
     const { db, schema } = await import("../../db/client");
-
-    const baseColumns = {
-      ean13: schema.producto.productoEan13,
-      nombre: schema.producto.productoNombre,
-      categoriaId: schema.producto.categoriaId,
-      precioVenta: schema.producto.productoPrecioVenta,
-      stockMinimo: schema.producto.productoStockMinimo,
-      estado: schema.producto.productoEstado,
-    } as const;
-
-    const priceJoin = and(
-      eq(schema.historialPrecioProducto.productoId, schema.producto.productoId),
-      isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
-    );
-
-    // Para `trabajador` (includeCost === false) el precio costo nunca se
-    // selecciona, de modo que el costo no sale de la capa de datos.
-    if (!includeCost) {
-      const [row] = await db
-        .select(baseColumns)
-        .from(schema.producto)
-        .leftJoin(schema.historialPrecioProducto, priceJoin)
-        .where(eq(schema.producto.productoEan13, ean13))
-        .orderBy(
-          desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
-        )
-        .limit(1);
-
-      return row ?? null;
-    }
-
-    const [row] = await db
-      .select({
-        ...baseColumns,
-        precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
-      })
-      .from(schema.producto)
-      .leftJoin(schema.historialPrecioProducto, priceJoin)
-      .where(eq(schema.producto.productoEan13, ean13))
-      .orderBy(
-        desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
-      )
-      .limit(1);
-
-    if (!row) {
-      return null;
-    }
-
-    return {
-      ...row,
-      precioCosto: Number(row.precioCosto ?? 0),
-    };
+    return queryProductDetailWithExecutor(db, schema, ean13, includeCost);
   },
   listActiveProducts: async ({ ean13, limit, query }) => {
     const { db, schema } = await import("../../db/client");

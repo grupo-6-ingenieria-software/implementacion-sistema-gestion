@@ -204,7 +204,9 @@ export async function editProductWithExecutor(
   await ensureCategoryExists(tx, schema, payload.categoriaId);
 
   const currentPrice = await findCurrentPrice(tx, schema, product.productoId);
-  assertValidProductPayload(validateEditPayload(payload));
+  assertValidProductPayload(
+    await validateProductInSql(tx, payload, payload.originalEan13),
+  );
   const priceChanged =
     !currentPrice ||
     currentPrice.historialPrecioCosto !== payload.precioCosto ||
