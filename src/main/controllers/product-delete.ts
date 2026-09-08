@@ -1,19 +1,22 @@
-import { eq, sql } from 'drizzle-orm';
-import { findControllerById, type ControllerMetadata } from '../../shared/controllers';
+import { eq, sql } from "drizzle-orm";
+import {
+  findControllerById,
+  type ControllerMetadata,
+} from "../../shared/controllers";
 import {
   hasProductDeleteFieldErrors,
   normalizeProductDeletePayload,
   validateProductDeletePayload,
   type ProductDeletePayload,
   type ProductDeleteResponse,
-} from '../../shared/products';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/products";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
-import { notifyDashboardUpdated } from './dashboard-events';
+} from "./auth-context";
+import { notifyDashboardUpdated } from "./dashboard-events";
 
 type ProductDeleteDependencies = {
   deleteProduct: (
@@ -30,12 +33,12 @@ export function createProductDeleteController(
     payload,
     context,
   ) => {
-    if (context.channel !== 'producto:eliminar') {
+    if (context.channel !== "producto:eliminar") {
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
-          controllerId: 'product-delete',
+          code: "INVALID_CHANNEL",
+          controllerId: "product-delete",
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
@@ -48,10 +51,10 @@ export function createProductDeleteController(
       return {
         ok: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          controllerId: 'product-delete',
+          code: "VALIDATION_ERROR",
+          controllerId: "product-delete",
           fieldErrors,
-          message: 'Revise los campos marcados antes de continuar.',
+          message: "Revise los campos marcados antes de continuar.",
         },
       };
     }
@@ -66,8 +69,8 @@ export function createProductDeleteController(
         return {
           ok: false,
           error: {
-            code: 'FORBIDDEN',
-            controllerId: 'product-delete',
+            code: "FORBIDDEN",
+            controllerId: "product-delete",
             message: error.message,
           },
         };
@@ -77,8 +80,8 @@ export function createProductDeleteController(
         return {
           ok: false,
           error: {
-            code: error.reason === 'not-found' ? 'NOT_FOUND' : 'BUSINESS_RULE',
-            controllerId: 'product-delete',
+            code: error.reason === "not-found" ? "NOT_FOUND" : "BUSINESS_RULE",
+            controllerId: "product-delete",
             message: error.message,
           },
         };
@@ -87,9 +90,9 @@ export function createProductDeleteController(
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
-          controllerId: 'product-delete',
-          message: 'No fue posible eliminar el producto. Intente nuevamente.',
+          code: "DATABASE_ERROR",
+          controllerId: "product-delete",
+          message: "No fue posible eliminar el producto. Intente nuevamente.",
         },
       };
     }
@@ -108,20 +111,20 @@ const productDeleteDependencies: ProductDeleteDependencies = {
 async function deleteProduct(
   payload: ProductDeletePayload,
 ): Promise<ProductDeleteResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
   let response: ProductDeleteResponse | undefined;
 
   await db.transaction(async (tx) => {
     const user = await authorizeUser(tx, schema, payload.usuarioId, [
-      'dueno',
-      'trabajador',
+      "dueno",
+      "trabajador",
     ]);
-    const product = await findProductByEan13(tx, schema, payload.ean13 ?? '');
+    const product = await findProductByEan13(tx, schema, payload.ean13 ?? "");
 
     if (!product) {
       throw new ProductDeleteError(
-        'not-found',
-        'No se encontro el producto solicitado.',
+        "not-found",
+        "No se encontro el producto solicitado.",
       );
     }
 
@@ -133,31 +136,29 @@ async function deleteProduct(
 
     if (blockers.length > 0) {
       throw new ProductDeleteError(
-        'has-relations',
+        "has-relations",
         `El producto no puede eliminarse porque tiene registros asociados (${blockers.join(
-          ', ',
+          ", ",
         )}). Debe desactivarlo para impedir su uso en nuevas operaciones.`,
       );
     }
 
     await tx
       .delete(schema.historialPrecioProducto)
-      .where(
-        eq(schema.historialPrecioProducto.productoId, product.productoId),
-      );
+      .where(eq(schema.historialPrecioProducto.productoId, product.productoId));
     await tx
       .delete(schema.producto)
       .where(eq(schema.producto.productoId, product.productoId));
 
     await registerAuditLog(tx, schema, {
-      tipoAccion: 'eliminacion',
-      modulo: 'inventario',
+      tipoAccion: "eliminacion",
+      modulo: "inventario",
       descripcion: `Producto eliminado: ${payload.ean13} ${product.productoNombre}`,
       usuarioId: user.usuarioId,
     });
 
     response = {
-      ean13: payload.ean13 ?? '',
+      ean13: payload.ean13 ?? "",
     };
   });
 
@@ -191,20 +192,7 @@ async function findProductRelationBlockers(
   const blockers: string[] = [];
   const relationCounts = [
     {
-      label: 'lotes',
-      count: await countByProduct(tx, schema.lote, schema.lote.productoId, productoId),
-    },
-    {
-      label: 'mermas',
-      count: await countByProduct(
-        tx,
-        schema.merma,
-        schema.merma.productoId,
-        productoId,
-      ),
-    },
-    {
-      label: 'ventas',
+      label: "ventas",
       count: await countByProduct(
         tx,
         schema.detalleVenta,
@@ -213,7 +201,25 @@ async function findProductRelationBlockers(
       ),
     },
     {
-      label: 'movimientos de inventario',
+      label: "mermas",
+      count: await countByProduct(
+        tx,
+        schema.merma,
+        schema.merma.productoId,
+        productoId,
+      ),
+    },
+    {
+      label: "lotes",
+      count: await countByProduct(
+        tx,
+        schema.lote,
+        schema.lote.productoId,
+        productoId,
+      ),
+    },
+    {
+      label: "movimientos de inventario",
       count: await countByProduct(
         tx,
         schema.ajusteInventario,
@@ -248,37 +254,37 @@ async function countByProduct(
 
 export class ProductDeleteError extends Error {
   constructor(
-    readonly reason: 'not-found' | 'has-relations',
+    readonly reason: "not-found" | "has-relations",
     message: string,
   ) {
     super(message);
   }
 }
 
-type SchemaLike = typeof import('../../db/schema');
+type SchemaLike = typeof import("../../db/schema");
 type TransactionLike = {
-  select: typeof import('../../db/client').db.select;
-  delete: typeof import('../../db/client').db.delete;
-  insert: typeof import('../../db/client').db.insert;
+  select: typeof import("../../db/client").db.select;
+  delete: typeof import("../../db/client").db.delete;
+  insert: typeof import("../../db/client").db.insert;
 };
 type ProductRelationTable =
-  | SchemaLike['lote']
-  | SchemaLike['merma']
-  | SchemaLike['detalleVenta']
-  | SchemaLike['ajusteInventario'];
+  | SchemaLike["lote"]
+  | SchemaLike["merma"]
+  | SchemaLike["detalleVenta"]
+  | SchemaLike["ajusteInventario"];
 type ProductRelationColumn =
-  | SchemaLike['lote']['productoId']
-  | SchemaLike['merma']['productoId']
-  | SchemaLike['detalleVenta']['productoId']
-  | SchemaLike['ajusteInventario']['productoId'];
+  | SchemaLike["lote"]["productoId"]
+  | SchemaLike["merma"]["productoId"]
+  | SchemaLike["detalleVenta"]["productoId"]
+  | SchemaLike["ajusteInventario"]["productoId"];
 
 export const productDeleteController = createProductDeleteController();
 
 function requireProductDeleteMetadata(): ControllerMetadata {
-  const controllerMetadata = findControllerById('product-delete');
+  const controllerMetadata = findControllerById("product-delete");
 
   if (!controllerMetadata) {
-    throw new Error('No se encontro metadata para product-delete.');
+    throw new Error("No se encontro metadata para product-delete.");
   }
 
   return controllerMetadata;
