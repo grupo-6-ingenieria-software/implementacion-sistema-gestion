@@ -1,5 +1,17 @@
 export type PaymentMethod = 'efectivo' | 'debito' | 'credito' | 'transferencia';
 
+export type DailyCashState =
+  | { status: 'sin_registro' }
+  | { status: 'abierta'; cierreCajaId: string; openedAt: string }
+  | {
+      status: 'cerrada';
+      cierreCajaId: string;
+      openedAt: string;
+      closedAt: string;
+      closedByUserId?: string;
+      closedByName?: string;
+    };
+
 /** Estado contractual expuesto por C18; la BD conserva `completada`. */
 export type SaleState = 'confirmada' | 'anulada';
 

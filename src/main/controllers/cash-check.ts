@@ -4,6 +4,7 @@ import { controllers } from '../../shared/controllers';
 import { db } from '../../db/client';
 import { controllerError, controllerSuccess, type RegisteredController } from './base';
 import { getDashboardDay } from './dashboard-date';
+import type { DailyCashState } from '../../shared/sales';
 
 type CashCheckResponse = {
   disponible: boolean;
@@ -15,17 +16,7 @@ export type CashCheckDb = {
   run: (query: SQL) => Promise<{ rowsAffected?: number }>;
 };
 
-export type DailyCashRegisterState =
-  | { status: 'sin_registro' }
-  | { status: 'abierta'; cierreCajaId: string; openedAt: string }
-  | {
-      status: 'cerrada';
-      cierreCajaId: string;
-      openedAt: string;
-      closedAt: string;
-      closedByUserId?: string;
-      closedByName?: string;
-    };
+export type DailyCashRegisterState = DailyCashState;
 
 /** C20: obtiene el estado de caja correspondiente únicamente al día consultado. */
 export async function inspectDailyCashRegister(
@@ -39,18 +30,14 @@ export async function inspectDailyCashRegister(
     openedAt: string;
     closedAt: string | null;
     closedByUserId: string | null;
-    closedByName: string | null;
   }>(sql`
     SELECT
       c.cierre_caja_id AS cierreCajaId,
       c.cierre_estado AS status,
       c.cierre_fecha_hora_inicio AS openedAt,
       c.cierre_fecha_hora_fin AS closedAt,
-      c.usuario_cierre_id AS closedByUserId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS closedByName
+      c.usuario_cierre_id AS closedByUserId
     FROM cierre_caja c
-    LEFT JOIN usuario u ON u.usuario_id = c.usuario_cierre_id
-    LEFT JOIN trabajador t ON t.trabajador_id = u.trabajador_id
     WHERE datetime(c.cierre_fecha_hora_inicio) >= datetime(${startUtc})
       AND datetime(c.cierre_fecha_hora_inicio) < datetime(${endUtc})
     ORDER BY
@@ -63,13 +50,31 @@ export async function inspectDailyCashRegister(
   if (row.status === 'abierto') {
     return { status: 'abierta', cierreCajaId: row.cierreCajaId, openedAt: row.openedAt };
   }
+  let closedByName: string | undefined;
+  if (row.closedByUserId) {
+    const users = await database.all<{ trabajadorId: number }>(sql`
+      SELECT trabajador_id AS trabajadorId
+      FROM usuario
+      WHERE usuario_id = ${row.closedByUserId}
+      LIMIT 1
+    `);
+    if (users[0]) {
+      const workers = await database.all<{ nombre: string }>(sql`
+        SELECT trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
+        FROM trabajador
+        WHERE trabajador_id = ${users[0].trabajadorId}
+        LIMIT 1
+      `);
+      closedByName = workers[0]?.nombre;
+    }
+  }
   return {
     status: 'cerrada',
     cierreCajaId: row.cierreCajaId,
     openedAt: row.openedAt,
     closedAt: row.closedAt ?? row.openedAt,
     closedByUserId: row.closedByUserId ?? undefined,
-    closedByName: row.closedByName ?? undefined,
+    closedByName,
   };
 }
 
