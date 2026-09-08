@@ -356,6 +356,32 @@ describe('attendance service', () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
+  it('rolls back an exit when the audit insert fails', async () => {
+    const asistenciaId = await seedAttendance(
+      testDb!.db as unknown as DbExecutor,
+      2,
+    );
+    await abortAttendanceAuditWrites(testDb!.db as unknown as DbExecutor);
+
+    await expect(
+      registerAttendanceExit(
+        testDb!.db as unknown as DbExecutor,
+        {
+          fase: 'confirmar',
+          usuarioId: '12345678-9',
+          trabajadorRut: '23456789-0',
+        },
+        new Date('2026-06-12T20:00:00.000Z'),
+      ),
+    ).rejects.toThrow();
+
+    const rows = await testDb!.db.all<{ salidaAt: string | null }>(sql`
+      SELECT asistencia_fecha_hora_salida AS salidaAt
+      FROM asistencia
+      WHERE asistencia_id = ${asistenciaId}
+    `);
+    expect(rows).toEqual([{ salidaAt: null }]);
+  });
 
   it('blocks exits without a previous entry', async () => {
     await expect(
