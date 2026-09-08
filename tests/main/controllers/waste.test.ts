@@ -172,6 +172,7 @@ describe("waste controller", () => {
   });
 
   it("registers waste and discounts perishable lots using FEFO", async () => {
+    testDb!.queries.length = 0;
     const result = await testDb!.db.transaction((tx) =>
       registerWasteWithExecutor(tx, schema, {
         ean13: "7802920000015",
@@ -217,6 +218,13 @@ describe("waste controller", () => {
       loteA: 3,
       loteB: 0,
     });
+    const statements = testDb!.queries.map((query) => query.toLowerCase());
+    expect(firstBusinessOperations(statements).slice(0, 10)).toEqual([
+      "select:producto", "select:categoria", "select:lote",
+      "select:lote_perecible", "select:validation", "update:lote",
+      "update:lote", "insert:merma", "insert:merma_lote",
+      "insert:ajuste_inventario",
+    ]);
   });
 
   it("discounts non-perishable lots by entry date", async () => {
@@ -338,7 +346,8 @@ async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), "huascar-waste-"));
   const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
-  const db = drizzle(client, { schema });
+  const queries: string[] = [];
+  const db = drizzle(client, { schema, logger: { logQuery(query) { queries.push(query); } } });
 
   await client.execute("PRAGMA foreign_keys = ON");
   const migrationsDir = join(process.cwd(), "drizzle/migrations");
@@ -358,7 +367,17 @@ async function createTestDatabase() {
     }
   }
 
-  return { client, db, dir };
+  return { client, db, dir, queries };
+}
+
+function firstBusinessOperations(queries: string[]): string[] {
+  const tables = ["lote_perecible", "merma_lote", "ajuste_inventario", "categoria", "producto", "merma", "lote"];
+  return queries.flatMap((query) => {
+    const verb = query.trimStart().split(/\s+/, 1)[0];
+    const table = tables.find((name) => query.includes(`\"${name}\"`));
+    if (verb === "select" && !query.includes(" from ")) return ["select:validation"];
+    return table ? [`${verb}:${table}`] : [];
+  });
 }
 
 async function seedWasteFixture(db: TestDatabase["db"]): Promise<void> {

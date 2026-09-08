@@ -1,16 +1,15 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { controllers } from "../../shared/controllers";
 import {
   hasWasteFieldErrors,
-  isWasteReason,
   normalizeWasteRegisterPayload,
-  validateWasteRegisterPayload,
   type WasteDiscountedLot,
   type WasteFieldErrors,
   type WasteAvailabilityResponse,
   type WasteRegisterPayload,
   type WasteRegisterResponse,
+  type WasteReason,
 } from "../../shared/waste";
 import type { ControllerHandler, RegisteredController } from "./base";
 import {
@@ -20,6 +19,7 @@ import {
 } from "./auth-context";
 import { notifyDashboardUpdated } from "./dashboard-events";
 import { queryActiveProductByEan13 } from "./product-query";
+import { validateWasteInSql } from "./waste-sql-validation";
 
 type WasteDependencies = {
   register: (payload: WasteRegisterPayload) => Promise<WasteRegisterResponse>;
@@ -117,27 +117,24 @@ async function getWasteAvailability(
   payload: WasteRegisterPayload,
 ): Promise<WasteAvailabilityResponse> {
   const { db, schema } = await import("../../db/client");
-  const user = await authorizeUser(db, schema, payload.usuarioId, [
-    "dueno",
-    "trabajador",
-  ]);
-  void user;
-  const product = await queryActiveProductByEan13(db, schema, payload.ean13);
-  if (!product) {
-    throw new WasteError("product-not-found", {
-      ean13: "El producto no existe o se encuentra inactivo.",
-    });
-  }
-  const lots = await findAvailableLotsForProduct(
-    db,
-    schema,
-    product.productoId,
-  );
-  return {
-    ean13: payload.ean13,
-    stockDisponible: lots.reduce((total, lot) => total + lot.cantidadActual, 0),
-    criterioSalida: product.exigeVencimiento ? "fefo" : "fecha_ingreso",
-  };
+  return db.transaction(async (tx) => {
+    const user = await authorizeUser(tx, schema, payload.usuarioId, [
+      "dueno", "trabajador",
+    ]);
+    void user;
+    const product = await queryActiveProductByEan13(tx, schema, payload.ean13);
+    if (!product) {
+      throw new WasteError("product-not-found", {
+        ean13: "El producto no existe o se encuentra inactivo.",
+      });
+    }
+    const lots = await findAvailableLotsForProduct(tx, schema, product.productoId);
+    return {
+      ean13: payload.ean13,
+      stockDisponible: lots.reduce((total, lot) => total + lot.cantidadActual, 0),
+      criterioSalida: product.exigeVencimiento ? "fefo" : "fecha_ingreso",
+    };
+  });
 }
 
 async function registerWaste(
@@ -180,8 +177,6 @@ export async function registerWasteWithExecutor(
     });
   }
 
-  const mermaId = randomUUID();
-
   const lots = await findAvailableLotsForProduct(
     executor,
     schema,
@@ -191,31 +186,29 @@ export async function registerWasteWithExecutor(
     (total, lot) => total + lot.cantidadActual,
     0,
   );
-  const fieldErrors = validateWasteRegisterPayload(payload, {
-    requireUser: true,
+  const validation = await validateWasteInSql(
+    executor,
+    payload,
     stockDisponible,
-  });
+  );
+  const fieldErrors = validation.errors;
 
   if (hasWasteFieldErrors(fieldErrors)) {
     throw new WasteError(
-      stockDisponible < payload.cantidad ? "stock-insufficient" : "validation",
+      validation.stockInsufficient ? "stock-insufficient" : "validation",
       fieldErrors,
     );
   }
 
-  if (!isWasteReason(payload.motivo)) {
-    throw new WasteError("validation", {
-      motivo: "Seleccione un motivo de merma valido.",
-    });
-  }
-
+  const mermaId = randomUUID();
   const lotesDescontados = planWasteDiscounts(product, lots, payload.cantidad);
+  const motivo = payload.motivo as WasteReason;
 
   await updateWasteLots(executor, schema, lotesDescontados);
 
   await executor.insert(schema.merma).values({
     mermaId,
-    mermaMotivo: payload.motivo,
+    mermaMotivo: motivo,
     mermaObservacion: payload.observacion ?? null,
     productoId: product.productoId,
     usuarioId: user.usuarioId,
@@ -335,25 +328,34 @@ async function findAvailableLotsForProduct(
       loteId: schema.lote.loteId,
       cantidadActual: schema.lote.loteCantidadActual,
       fechaIngreso: schema.lote.loteFechaHoraIngreso,
-      fechaVencimiento: schema.lotePerecible.lotePerecibleFechaVencimiento,
     })
     .from(schema.lote)
-    .leftJoin(
-      schema.lotePerecible,
-      eq(schema.lotePerecible.loteId, schema.lote.loteId),
-    )
     .where(
       and(
         eq(schema.lote.productoId, productoId),
         sql`${schema.lote.loteCantidadActual} > 0`,
       ),
-    );
+    )
+    .orderBy(asc(schema.lote.loteFechaHoraIngreso));
+
+  if (lots.length === 0) return [];
+  const expirations = await executor
+    .select({
+      loteId: schema.lotePerecible.loteId,
+      fechaVencimiento: schema.lotePerecible.lotePerecibleFechaVencimiento,
+    })
+    .from(schema.lotePerecible)
+    .where(inArray(schema.lotePerecible.loteId, lots.map((lot) => lot.loteId)))
+    .orderBy(asc(schema.lotePerecible.lotePerecibleFechaVencimiento));
+  const expirationByLot = new Map(
+    expirations.map((row) => [row.loteId, row.fechaVencimiento]),
+  );
 
   return lots.map((lot) => ({
     loteId: lot.loteId,
     cantidadActual: Number(lot.cantidadActual),
     fechaIngreso: lot.fechaIngreso,
-    fechaVencimiento: lot.fechaVencimiento ?? null,
+    fechaVencimiento: expirationByLot.get(lot.loteId) ?? null,
   }));
 }
 
@@ -432,6 +434,7 @@ export class WasteError extends Error {
 
 type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = {
+  all: typeof import("../../db/client").db.all;
   select: typeof import("../../db/client").db.select;
 };
 type MutationExecutor = QueryExecutor & {

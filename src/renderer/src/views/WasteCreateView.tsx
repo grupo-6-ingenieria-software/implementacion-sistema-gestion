@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import type { ActiveProductSearchItem } from "../../../shared/products";
 import {
   normalizeWasteRegisterPayload,
-  validateWasteRegisterPayload,
   wasteReasons,
   type WasteFieldErrors,
   type WasteAvailabilityResponse,
@@ -18,14 +17,14 @@ type WasteCreateViewProps = {
   onNavigate: (path: string) => void;
 };
 
-type FormState = {
+export type WasteFormState = {
   ean13: string;
   cantidad: string;
   motivo: WasteReason | "";
   observacion: string;
 };
 
-const emptyForm: FormState = {
+const emptyForm: WasteFormState = {
   ean13: "",
   cantidad: "",
   motivo: "",
@@ -44,7 +43,7 @@ export function WasteCreateView({
   onNavigate,
   usuarioId,
 }: WasteCreateViewProps): ReactElement {
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<WasteFormState>({
     ...emptyForm,
     ean13: initialEan13 ?? "",
   });
@@ -113,11 +112,7 @@ export function WasteCreateView({
   }, [initialEan13, usuarioId]);
 
   const payload = useMemo<WasteRegisterPayload>(
-    () =>
-      normalizeWasteRegisterPayload({
-        ...form,
-        usuarioId,
-      }),
+    () => buildWasteRegisterPayload(form, usuarioId),
     [form, usuarioId],
   );
 
@@ -188,22 +183,8 @@ export function WasteCreateView({
   }
 
   async function submitForm(): Promise<void> {
-    const nextErrors = validateWasteRegisterPayload(payload, {
-      requireUser: true,
-      stockDisponible: selectedProduct?.stockDisponible,
-    });
-
-    if (!selectedProduct) {
-      nextErrors.ean13 =
-        "Seleccione un producto activo para registrar la merma.";
-    }
-
-    setFieldErrors(nextErrors);
+    setFieldErrors({});
     setMessage(null);
-
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
@@ -258,6 +239,7 @@ export function WasteCreateView({
 
         {!loading && !loadError ? (
           <form
+            noValidate
             className="grid gap-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -397,6 +379,13 @@ export function WasteCreateView({
       </section>
     </section>
   );
+}
+
+export function buildWasteRegisterPayload(
+  form: WasteFormState,
+  usuarioId: string,
+): WasteRegisterPayload {
+  return normalizeWasteRegisterPayload({ ...form, usuarioId });
 }
 
 function ProductSummary({
