@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const allMock = vi.hoisted(() => vi.fn());
 
@@ -10,6 +10,11 @@ vi.mock('../../../src/db/client', () => ({
 
 import { dashboardController } from '../../../src/main/controllers/dashboard';
 import { attendanceController } from '../../../src/main/controllers/attendance';
+
+const claims = (rol: 'dueno' | 'trabajador', usuarioId = 'usuario-1') => ({
+  rol, usuarioId, usuarioRol: rol, passwordTemporal: false, sesionId: 'session-1',
+});
+beforeEach(() => allMock.mockReset().mockResolvedValue([]));
 
 describe('dashboard controller', () => {
   it('rejects requests without a supported development role', async () => {
@@ -50,8 +55,8 @@ describe('dashboard controller', () => {
       .mockResolvedValueOnce([]);
 
     const response = await dashboardController.handle(
-      { role: 'dueno' },
-      { channel: 'dashboard:cargar' },
+      { role: 'trabajador' },
+      { channel: 'dashboard:cargar', claims: claims('dueno') },
     );
 
     expect(response.ok).toBe(true);
@@ -121,14 +126,14 @@ describe('dashboard controller', () => {
     await expect(
       dashboardController.handle(
         { role: 'trabajador', usuarioId: 'trabajador-1' },
-        { channel: 'dashboard:cargar' },
+        { channel: 'dashboard:cargar', claims: claims('trabajador') },
       ),
     ).resolves.toEqual({
       ok: false,
       error: {
         code: 'TECHNICAL_ERROR',
         controllerId: 'dashboard',
-        message: 'No fue posible cargar la informacion solicitada.',
+        message: 'No fue posible cargar los indicadores. Intente nuevamente',
       },
     });
 
@@ -154,33 +159,22 @@ describe('dashboard attendance controller', () => {
     });
   });
 
-  it('returns the same global attendance summary for owner and worker', async () => {
-    const attendanceRows = [
-      { workerId: 1, fullName: 'Ana Perez', hasAttendance: 1 },
-      { workerId: 2, fullName: 'Luis Soto', hasAttendance: 0 },
-    ];
-    allMock
-      .mockResolvedValueOnce(attendanceRows)
-      .mockResolvedValueOnce(attendanceRows);
-
+  it('filters attendance using trusted identity and role, ignoring forged payload', async () => {
+    allMock.mockResolvedValueOnce([{ workerId: 2, fullName: 'Luis Soto' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ workerId: 1, fullName: 'Ana Perez' }, { workerId: 2, fullName: 'Luis Soto' }])
+      .mockResolvedValueOnce([{ workerId: 1 }]);
     const workerResponse = await attendanceController.handle(
-      { role: 'trabajador', usuarioId: 'usuario-luis' },
-      { channel: 'asistencia:resumen-dashboard' },
+      { role: 'dueno', usuarioId: 'usuario-ana' },
+      { channel: 'asistencia:resumen-dashboard', claims: claims('trabajador', 'usuario-luis') },
     );
-    const ownerResponse = await attendanceController.handle(
-      { role: 'dueno', usuarioId: 'usuario-dueno' },
-      { channel: 'asistencia:resumen-dashboard' },
-    );
-
-    expect(workerResponse).toMatchObject({
-      ok: true,
-      data: {
-        activeWorkers: 2,
-        workersWithAttendance: 1,
-        workersWithoutAttendance: 1,
-        pendingWorkers: [{ workerId: 2, fullName: 'Luis Soto' }],
-      },
-    });
-    expect(ownerResponse).toEqual(workerResponse);
+    const ownerResponse = await attendanceController.handle({},
+      { channel: 'asistencia:resumen-dashboard', claims: claims('dueno') });
+    expect(workerResponse).toEqual({ ok: true, data: {
+      scope: 'own', workerId: 2, fullName: 'Luis Soto', enteredAt: null, exitedAt: null,
+    } });
+    expect(ownerResponse).toMatchObject({ ok: true, data: {
+      scope: 'global', activeWorkers: 2, workersWithAttendance: 1, workersWithoutAttendance: 1,
+    } });
   });
 });

@@ -8,7 +8,8 @@ const metadata = controllers[5];
 
 export const dashboardController: RegisteredController = {
   metadata,
-  handle: async (payload) => {
+  handle: async (_payload, context) => {
+    const payload = context.claims && { role: context.claims.rol, usuarioId: context.claims.usuarioId };
     if (!isDashboardRequest(payload)) {
       return controllerError(
         'VALIDATION_ERROR',
@@ -25,7 +26,7 @@ export const dashboardController: RegisteredController = {
       console.error(error);
       return controllerError(
         'TECHNICAL_ERROR',
-        'No fue posible cargar la informacion solicitada.',
+        'No fue posible cargar los indicadores. Intente nuevamente',
         metadata.id,
       );
     }

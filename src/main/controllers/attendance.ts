@@ -6,7 +6,8 @@ import {
 } from './base';
 import { db } from '../../db/client';
 import { isDashboardRequest } from '../../shared/dashboard';
-import { loadAttendanceSummary, type DashboardDb } from './dashboard-service';
+import { type DashboardDb } from './dashboard-queries';
+import { loadAttendanceIndicator } from './attendance-summary';
 import { notifyDashboardUpdated } from './dashboard-events';
 import type { DbExecutor } from './sale-service';
 import {
@@ -25,7 +26,8 @@ export const attendanceController: RegisteredController = {
   handle: async (payload, context) => {
     try {
       if (context.channel === 'asistencia:resumen-dashboard') {
-        if (!isDashboardRequest(payload)) {
+        const request = context.claims && { role: context.claims.rol, usuarioId: context.claims.usuarioId };
+        if (!isDashboardRequest(request)) {
           return controllerError(
             'VALIDATION_ERROR',
             'Se requiere una sesion valida para cargar el resumen de asistencia.',
@@ -34,7 +36,7 @@ export const attendanceController: RegisteredController = {
         }
 
         return controllerSuccess(
-          await loadAttendanceSummary(db as unknown as DashboardDb),
+          await loadAttendanceIndicator(db as unknown as DashboardDb, request),
         );
       }
 
@@ -45,7 +47,7 @@ export const attendanceController: RegisteredController = {
         );
 
         if (result.status === 'registered') {
-          if (result.status === 'registered') notifyDashboardUpdated();
+          notifyDashboardUpdated();
         }
 
         return controllerSuccess(result);
@@ -56,7 +58,9 @@ export const attendanceController: RegisteredController = {
           db as unknown as DbExecutor,
           payload ?? {},
         );
-        if (result.status === 'registered') notifyDashboardUpdated();
+        if (result.status === 'registered') {
+          notifyDashboardUpdated();
+        }
         return controllerSuccess(result);
       }
 
@@ -65,7 +69,9 @@ export const attendanceController: RegisteredController = {
           db as unknown as DbExecutor,
           payload ?? {},
         );
-        if (result.status === 'registered') notifyDashboardUpdated();
+        if (result.status === 'registered') {
+          notifyDashboardUpdated();
+        }
         return controllerSuccess(result);
       }
 

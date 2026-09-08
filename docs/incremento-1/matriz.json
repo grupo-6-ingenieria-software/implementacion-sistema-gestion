@@ -1,0 +1,5487 @@
+{
+  "casosDeUso": 22,
+  "escenarios": 82,
+  "filas": [
+    {
+      "cu": "CU1",
+      "escenario": "happy",
+      "nombre": "CU1-RegistrarProducto",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#createProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Insertar producto",
+          "modo": "write"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Insertar historial de precios",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de registro de producto",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "creates a valid product payload",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-write.integration.test.ts",
+          "nombre": "creates product, current price, user version and audit atomically",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF01",
+      "diagrama": "cu1-registrar-producto-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 62,
+      "sha256": {
+        "drawio": "5019e20ba483b2fa6509287f2ea6a0ddf6d75a5ccbc450469b875843ab73b2d2",
+        "png": "23c6d88b90b109ca1107af5b647660cd0394d4e7d61eed995a2fbf11525e67ac"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "producto: Insertar producto",
+        "historial_precio_producto: Insertar historial de precios",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de producto"
+      ]
+    },
+    {
+      "cu": "CU1",
+      "escenario": "E1",
+      "nombre": "CU1-E1-EanDuplicado",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#createProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "maps duplicated EAN-13 errors to field validation",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "La duplicidad se prueba como error simulado; falta una restricción UNIQUE real en integración."
+      ],
+      "rf": "RF01",
+      "diagrama": "cu1-registrar-producto-e1-ean-duplicado.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 26,
+      "sha256": {
+        "drawio": "242d556d0e1cb80f74d26744cc2ea86a55fdc329b1dfe514ae11525f12a1c3f4",
+        "png": "39d361bc1fcb2f7dbea1a157ad0f1194b8532ea361190a2aa618661f4eefee4b"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13"
+      ]
+    },
+    {
+      "cu": "CU1",
+      "escenario": "E2",
+      "nombre": "CU1-E2-CampoObligatorioVacio",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#createProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar restricciones del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects invalid EAN-13 and price rules",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF01",
+      "diagrama": "cu1-registrar-producto-e2-campo-obligatorio-vacio.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 38,
+      "sha256": {
+        "drawio": "172640d07a6eb965f2e1e90f99f2268c8241e40cd26c98d2585075816256cdb6",
+        "png": "987e6c9ed9e0e1332f8f6fd80e1d3d7af9441d0ca0065e3ac398936c4daa3716"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "producto: Validar restricciones del producto"
+      ]
+    },
+    {
+      "cu": "CU1",
+      "escenario": "E3",
+      "nombre": "CU1-E3-PrecioVentaNoMayor",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#createProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar relación entre precio de venta y costo",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects invalid EAN-13 and price rules",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF01",
+      "diagrama": "cu1-registrar-producto-e3-precio-venta-menor-igual-costo.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 38,
+      "sha256": {
+        "drawio": "c2c695825c5ca55a66eff58f0d4f5c014b4d823c65365475d3c92a1b906a42cc",
+        "png": "cf17291592a8815f6186e302b06042e87435922aada69bded27b40c05ab79caf"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "producto: Validar relación entre precio de venta y costo"
+      ]
+    },
+    {
+      "cu": "CU1",
+      "escenario": "E4",
+      "nombre": "CU1-E4-ValorNumericoInvalido",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#createProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar valores numéricos del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects decimal inventory values instead of truncating them",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF01",
+      "diagrama": "cu1-registrar-producto-e4-valor-numerico-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 38,
+      "sha256": {
+        "drawio": "3f54e26d03ec105c6d346ff59b847f4af44f3481cc922f6a7ec3566a8ad9fce5",
+        "png": "fac7aa9aeba4342aa2d132175282c62c390a08cae0ff0e2951a291d414a5a378"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "producto: Validar valores numéricos del producto"
+      ]
+    },
+    {
+      "cu": "CU2",
+      "escenario": "happy",
+      "nombre": "CU2-EditarProducto",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:editar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#editProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar precio vigente del producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Actualizar producto",
+          "modo": "write"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Actualizar historial de precio vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Insertar historial de precio",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de modificación de producto",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "edits a valid product payload with locked EAN-13",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-write.integration.test.ts",
+          "nombre": "checks product, category and current price before editing the normalized history",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF02",
+      "diagrama": "cu2-editar-producto-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 75,
+      "sha256": {
+        "drawio": "9376f4480e6559aaffb0abeedca108c4a7cd26592dd845f94730d453ff82d0a5",
+        "png": "28a427dc181daf6fb20e68f8a54897bdda636c62c97f060cd82f24058130ad51"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "historial_precio_producto: Consultar precio vigente del producto",
+        "producto: Actualizar producto",
+        "historial_precio_producto: Actualizar historial de precio vigente",
+        "historial_precio_producto: Insertar historial de precio",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de modificación de producto"
+      ]
+    },
+    {
+      "cu": "CU2",
+      "escenario": "E1",
+      "nombre": "CU2-E1-ProductoNoEncontrado",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:editar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#editProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects product edit when EAN-13 changes or product does not exist",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF02",
+      "diagrama": "cu2-editar-producto-e1-producto-no-encontrado.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 26,
+      "sha256": {
+        "drawio": "11e99760e20091db417ddf77bbe5ab8247ce59b1fbebb0d6fa426a2ceafa26dd",
+        "png": "87da1afaef9811584820a4e25954628e273950c96a5e304bb23de4b083d291f3"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13"
+      ]
+    },
+    {
+      "cu": "CU2",
+      "escenario": "E2",
+      "nombre": "CU2-E2-NombreVacio",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:editar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#editProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar precio vigente del producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar nombre obligatorio del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects empty names, invalid prices and decimal values when editing",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF02",
+      "diagrama": "cu2-editar-producto-e2-nombre-vacio.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 44,
+      "sha256": {
+        "drawio": "75af66df393ad2fbd7895afe0e091c0c46e2d60464252764d59e8a9ae3c302d7",
+        "png": "1237488cecac6fdbed409c363c3fb2267bf377a6e7bbcb2d4c04e1fdd1d1d321"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "historial_precio_producto: Consultar precio vigente del producto",
+        "producto: Validar nombre obligatorio del producto"
+      ]
+    },
+    {
+      "cu": "CU2",
+      "escenario": "E3",
+      "nombre": "CU2-E3-PrecioVentaMenorIgualCosto",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:editar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#editProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar precio vigente del producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar precio de venta mayor que precio de costo",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects empty names, invalid prices and decimal values when editing",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF02",
+      "diagrama": "cu2-editar-producto-e3-precio-venta-menor-igual-costo.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 44,
+      "sha256": {
+        "drawio": "e7dd75f9b2c757775450468cc79233943270fb2573234ef01fbf70965e2ab3c0",
+        "png": "7cf22edc33c09414ca2baeb018ba1430f17f34b3945468a97e76632ad46bf159"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "historial_precio_producto: Consultar precio vigente del producto",
+        "producto: Validar precio de venta mayor que precio de costo"
+      ]
+    },
+    {
+      "cu": "CU2",
+      "escenario": "E4",
+      "nombre": "CU2-E4-ValorNumericoInvalido",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductFormView.tsx"
+      ],
+      "canales": [
+        "producto:editar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-write.ts#createProductWriteController",
+        "src/main/controllers/product-write.ts#editProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar precio vigente del producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Validar valores numéricos del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-write.test.ts",
+          "nombre": "rejects empty names, invalid prices and decimal values when editing",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF02",
+      "diagrama": "cu2-editar-producto-e4-valor-numerico-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/product-write.ts"
+      ],
+      "mensajes": 44,
+      "sha256": {
+        "drawio": "cbf8bfe49ff0fa599538f203692b333a91ec5c2ebe5663223eda0142d2c931b5",
+        "png": "1dc939e75f94f3f3d2ae5e754e86893f69b0f1ec7ce2c9e0d1684621f2c22e1c"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "categoria: Consultar categoría",
+        "historial_precio_producto: Consultar precio vigente del producto",
+        "producto: Validar valores numéricos del producto"
+      ]
+    },
+    {
+      "cu": "CU3",
+      "escenario": "happy",
+      "nombre": "CU3-EliminarProducto",
+      "vista": [
+        "src/renderer/src/views/ProductDeleteView.tsx"
+      ],
+      "canales": [
+        "producto:buscar",
+        "producto:eliminar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController",
+        "src/main/controllers/product-delete.ts#createProductDeleteController",
+        "src/main/controllers/product-delete.ts#deleteProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TDV",
+          "operación": "Consultar detalles de venta asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TM",
+          "operación": "Consultar mermas asociadas",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TI",
+          "operación": "Consultar ajustes de inventario asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Eliminar historial_precio_producto asociado",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Eliminar producto",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de eliminación de producto",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-delete.test.ts",
+          "nombre": "deletes products without associated records",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Falta prueba de integración del orden historial→producto, auditoría y evento dashboard."
+      ],
+      "rf": "RF03",
+      "diagrama": "cu3-eliminar-producto-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/product-delete.ts"
+      ],
+      "mensajes": 98,
+      "sha256": {
+        "drawio": "95e48d0715fd9a5ec9a0f2f7ad4df114fde994b88c4ca719acac56f1e1ebad39",
+        "png": "6e387bbb2a1c8f5a96db417b30e1b6ffae6f43b8ae216a1d1fd6eed25cae8cc9"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "detalle_venta: Consultar detalles de venta asociados",
+        "merma: Consultar mermas asociadas",
+        "lote: Consultar lotes asociados",
+        "ajuste_inventario: Consultar ajustes de inventario asociados",
+        "historial_precio_producto: Eliminar historial_precio_producto asociado",
+        "producto: Eliminar producto",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de eliminación de producto"
+      ]
+    },
+    {
+      "cu": "CU3",
+      "escenario": "E1",
+      "nombre": "CU3-E1-RegistrosAsociados",
+      "vista": [
+        "src/renderer/src/views/ProductDeleteView.tsx"
+      ],
+      "canales": [
+        "producto:buscar",
+        "producto:eliminar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController",
+        "src/main/controllers/product-delete.ts#createProductDeleteController",
+        "src/main/controllers/product-delete.ts#deleteProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TDV",
+          "operación": "Consultar detalles de venta asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TM",
+          "operación": "Consultar mermas asociadas",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TI",
+          "operación": "Consultar ajustes de inventario asociados",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-delete.test.ts",
+          "nombre": "blocks products with associated records",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "El bloqueo por relaciones se simula; falta verificar cada tabla bloqueante en integración."
+      ],
+      "rf": "RF03",
+      "diagrama": "cu3-eliminar-producto-e1-registros-asociados.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/product-delete.ts"
+      ],
+      "mensajes": 68,
+      "sha256": {
+        "drawio": "b148da370fd8a7f989357daed10b650fc89f3f04f0946a00f46342abbe71a7fa",
+        "png": "eb5bc66d1a84452132ceadf586d72ceb21e7af3c65a3b3460bd140bc1305c858"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "detalle_venta: Consultar detalles de venta asociados",
+        "merma: Consultar mermas asociadas",
+        "lote: Consultar lotes asociados",
+        "ajuste_inventario: Consultar ajustes de inventario asociados"
+      ]
+    },
+    {
+      "cu": "CU3",
+      "escenario": "E2",
+      "nombre": "CU3-E2-ProductoNoEncontrado",
+      "vista": [
+        "src/renderer/src/views/ProductDeleteView.tsx"
+      ],
+      "canales": [
+        "producto:buscar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController",
+        "src/main/controllers/product-delete.ts#createProductDeleteController",
+        "src/main/controllers/product-delete.ts#deleteProduct"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-delete.test.ts",
+          "nombre": "maps missing products to not found responses",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Falta prueba directa del canal producto:buscar usado antes de eliminar."
+      ],
+      "rf": "RF03",
+      "diagrama": "cu3-eliminar-producto-e2-producto-no-encontrado.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/product-delete.ts"
+      ],
+      "mensajes": 22,
+      "sha256": {
+        "drawio": "7272c8a47ab3c0c722b713cfc9f3f341071e04cc002d6f35ada93831c4de2ddb",
+        "png": "d786402af37b8670f8acd5dd3e827cb8d9ba66bbabc976cd991206802fb756bc"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13"
+      ]
+    },
+    {
+      "cu": "CU3",
+      "escenario": "E3",
+      "nombre": "CU3-E3-CanceladoPorUsuario",
+      "vista": [
+        "src/renderer/src/views/ProductDeleteView.tsx"
+      ],
+      "canales": [],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController",
+        "src/main/controllers/product-delete.ts#createProductDeleteController",
+        "src/main/controllers/product-delete.ts#deleteProduct"
+      ],
+      "operacionesModelo": [],
+      "pruebas": [
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "cancelación de producto sin escritura",
+          "nivel": "UI Chromium"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "cancelación de producto sin escritura"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF03",
+      "diagrama": "cu3-eliminar-producto-e3-cancelado-por-usuario.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/product-delete.ts"
+      ],
+      "mensajes": 2,
+      "sha256": {
+        "drawio": "64bde39d38e81dd386dfb27f0cc84170b47906326abb359fa16524377996291c",
+        "png": "67d499695edb8c2c967bef5151448b08db559cf526117f30ba5f5690d0be6113"
+      },
+      "llamadasModeloDiagrama": []
+    },
+    {
+      "cu": "CU4",
+      "escenario": "happy",
+      "nombre": "CU4-CambiarEstadoProducto",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductStatusView.tsx"
+      ],
+      "canales": [
+        "producto:cambiar-estado"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-status.ts#createProductStatusController",
+        "src/main/controllers/product-query.ts#queryProductStateByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Actualizar estado del producto",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de cambio de estado",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-status.test.ts",
+          "nombre": "changes the product status",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Falta prueba de integración de la actualización, auditoría, usuario_version y evento dashboard."
+      ],
+      "rf": "RF04",
+      "diagrama": "cu4-cambiar-estado-producto-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/product-status.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 54,
+      "sha256": {
+        "drawio": "59ed5830b2cfd7d9474e88b439ec6abd2b1db54fadcce8ba580544c6ce31b8c3",
+        "png": "6c56ab0ad8e8c13461594466c1242a73197706517de6fca242f716a528f10d94"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13",
+        "producto: Actualizar estado del producto",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de cambio de estado"
+      ]
+    },
+    {
+      "cu": "CU4",
+      "escenario": "E1",
+      "nombre": "CU4-E1-ProductoNoEncontrado",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductStatusView.tsx"
+      ],
+      "canales": [
+        "producto:cambiar-estado"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-status.ts#createProductStatusController",
+        "src/main/controllers/product-query.ts#queryProductStateByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto por EAN-13",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-status.test.ts",
+          "nombre": "maps missing products to not found responses",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Producto ausente cubierto con dependencia simulada; falta integración."
+      ],
+      "rf": "RF04",
+      "diagrama": "cu4-cambiar-estado-producto-e1-producto-no-encontrado.drawio",
+      "codigo": [
+        "src/main/controllers/product-status.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 28,
+      "sha256": {
+        "drawio": "7362e34ed2fc4bdbd65797ccc4ab0e8380538d74ee0d42d57a7fd2cb32658deb",
+        "png": "d87ca34f1c5decd26dc93f443f51031a19be7827df765daca433ce34a90cb58b"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto por EAN-13"
+      ]
+    },
+    {
+      "cu": "CU4",
+      "escenario": "E2",
+      "nombre": "CU4-E2-CanceladoPorUsuario",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/ProductStatusView.tsx"
+      ],
+      "canales": [],
+      "controlador/símbolos": [
+        "src/main/controllers/product-status.ts#createProductStatusController",
+        "src/main/controllers/product-query.ts#queryProductStateByEan13"
+      ],
+      "operacionesModelo": [],
+      "pruebas": [
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "cancelación de producto sin escritura",
+          "nivel": "UI Chromium"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "cancelación de producto sin escritura"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF04",
+      "diagrama": "cu4-cambiar-estado-producto-e2-cancelado-por-usuario.drawio",
+      "codigo": [
+        "src/main/controllers/product-status.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 4,
+      "sha256": {
+        "drawio": "b9ca7e7ce415744c714162e6b1562579de81d0c9f61ed73ec390487e8d92248f",
+        "png": "86c37c887404ef8825f1c4485b8312d2a95a9c6a1b3696e9abfa4298881b0b9d"
+      },
+      "llamadasModeloDiagrama": []
+    },
+    {
+      "cu": "CU5",
+      "escenario": "happy",
+      "nombre": "CU5-RegistrarLote",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Consultar proveedor por identificador",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Insertar lote",
+          "modo": "write"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Insertar lote_perecible cuando corresponde",
+          "modo": "write"
+        },
+        {
+          "modelo": "TI",
+          "operación": "Insertar ajuste_inventario de entrada",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de registro de lote",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/lot.test.ts",
+          "nombre": "registers a non-perishable lot, movement and audit log",
+          "nivel": "integración libSQL"
+        },
+        {
+          "archivo": "tests/main/controllers/lot.test.ts",
+          "nombre": "registers a perishable lot with expiration subtype",
+          "nivel": "integración libSQL"
+        },
+        {
+          "archivo": "tests/main/controllers/lot.test.ts",
+          "nombre": "lists providers for lot registration",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 96,
+      "sha256": {
+        "drawio": "a66e5b612cfcbad211e59cbb8ca91e32f2cd6dbd8ccca3d625a2e2219bc6d627",
+        "png": "9dcc7b676b3f7410e5a736cae5646796c65cfadc1af09134d17d17ff82945ea4"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "proveedor: Consultar proveedor por identificador",
+        "lote: Insertar lote",
+        "lote_perecible: Insertar lote_perecible cuando corresponde",
+        "ajuste_inventario: Insertar ajuste_inventario de entrada",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de lote"
+      ]
+    },
+    {
+      "cu": "CU5",
+      "escenario": "E1",
+      "nombre": "CU5-E1-ProductoNoEncontrado",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/lot.test.ts",
+          "nombre": "rejects inactive products and missing providers",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-e1-producto-no-encontrado.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 48,
+      "sha256": {
+        "drawio": "598986eb1cfb5c8cd452a7aa8d150df6c45a6de43e576f7749462e9bc01ed5a0",
+        "png": "94886dd9f48ecd2cbe7d7f040a7594a887b157e317cfd2bfb41de62facade0e9"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13"
+      ]
+    },
+    {
+      "cu": "CU5",
+      "escenario": "E2",
+      "nombre": "CU5-E2-ProveedorInexistente",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Consultar proveedor por identificador",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/lot.test.ts",
+          "nombre": "rejects inactive products and missing providers",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-e2-proveedor-inexistente.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 60,
+      "sha256": {
+        "drawio": "ac0736bf39ae558654d03885f06d39bf58af650523ff796af5dbffbe58b9bca6",
+        "png": "3a329bc48303c0626a353a70fa8941b2eb24dac30b157760c9a6564614cdf734"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "proveedor: Consultar proveedor por identificador"
+      ]
+    },
+    {
+      "cu": "CU5",
+      "escenario": "E3",
+      "nombre": "CU5-E3-CantidadInvalida",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Validar cantidad entera mayor que cero",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/shared/lots.test.ts",
+          "nombre": "rejects invalid quantity, cost and provider",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/shared/lots.test.ts",
+          "nombre": "rejects decimal quantity and cost instead of truncating them",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Validación cubierta en shared; falta prueba del renderer y del canal IPC completo."
+      ],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-e3-cantidad-invalida.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 42,
+      "sha256": {
+        "drawio": "143e935ec302bb459880152836e8c314f3c1dd05bdd89b4e8b4bcd130d5ce0ef",
+        "png": "62c40dcd5e96fc07714cc2e153ff696f1f9fbeb1c3772cc8d3cfb89c00024004"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Validar cantidad entera mayor que cero"
+      ]
+    },
+    {
+      "cu": "CU5",
+      "escenario": "E4",
+      "nombre": "CU5-E4-CostoInvalido",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Validar precio de costo mayor que cero",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/shared/lots.test.ts",
+          "nombre": "rejects invalid quantity, cost and provider",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/shared/lots.test.ts",
+          "nombre": "rejects decimal quantity and cost instead of truncating them",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Validación cubierta en shared; falta prueba del renderer y del canal IPC completo."
+      ],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-e4-costo-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 42,
+      "sha256": {
+        "drawio": "fdd7f65408afe0993487104a4a6112fb6823820628129cb9cbb17a4595b21090",
+        "png": "88212bc82de063845f4e58b52bcb18c277a76ac40c0fe43e604402e2a886ba9f"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Validar precio de costo mayor que cero"
+      ]
+    },
+    {
+      "cu": "CU5",
+      "escenario": "E5",
+      "nombre": "CU5-E5-FechaVencimientoInvalida",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/LotCreateView.tsx"
+      ],
+      "canales": [
+        "lote:proveedores",
+        "lote:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/lot.ts#createLotController",
+        "src/main/controllers/lot.ts#registerLotWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TPR",
+          "operación": "Listar proveedores registrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Aplicar regla de vencimiento de la categoría",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/shared/lots.test.ts",
+          "nombre": "requires a future expiration date when the category needs it",
+          "nivel": "backend"
+        }
+      ],
+      "brechas": [
+        "Validación cubierta en shared; falta prueba del renderer y del canal IPC completo."
+      ],
+      "rf": "RF05",
+      "diagrama": "cu5-registrar-lote-e5-fecha-vencimiento-invalida.drawio",
+      "codigo": [
+        "src/main/controllers/lot.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 60,
+      "sha256": {
+        "drawio": "a5820928281f2a01c5c0a151e64243b1b8d6af59fe01848db23984a82b15f72c",
+        "png": "0e1aaaa72c62d5a80c28b4ce5553807850204575695e48df441c0d5b8e2c3f73"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "proveedor: Listar proveedores registrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote_perecible: Aplicar regla de vencimiento de la categoría"
+      ]
+    },
+    {
+      "cu": "CU6",
+      "escenario": "happy",
+      "nombre": "CU6-ListadoProductos",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx"
+      ],
+      "canales": [
+        "producto:listar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TSU",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría de cada producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar stock actual derivado y precio de costo de lotes",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos con nombre parcial o EAN-13 exacto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría de cada producto coincidente",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar stock actual derivado y precio de costo de lotes coincidentes",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos activos con categoria_id",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría de cada producto filtrado",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar stock actual derivado y precio de costo de lotes filtrados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos activos ordenados por stock actual o categoría",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría de cada producto ordenado",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar stock actual derivado y precio de costo de lotes ordenados",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-query.test.ts",
+          "nombre": "lists active products by default with stock data",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-query.test.ts",
+          "nombre": "loads products before category options",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-write.integration.test.ts",
+          "nombre": "filters active products, requires exact EAN and orders the SQL result",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF06",
+      "diagrama": "cu6-listado-productos-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 136,
+      "sha256": {
+        "drawio": "88bf6805a93bc911f7cbd79444ff3716ce3598fe69ce8f40b665fc3d5d8f3f34",
+        "png": "dda02f0cdb09cdce2ce290bd63a350f825cee6e25c6c63e5d24c391d1e651783"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta",
+        "categoria: Consultar categoría de cada producto",
+        "lote: Consultar stock actual derivado y precio de costo de lotes",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos con nombre parcial o EAN-13 exacto",
+        "categoria: Consultar categoría de cada producto coincidente",
+        "lote: Consultar stock actual derivado y precio de costo de lotes coincidentes",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos con categoria_id",
+        "categoria: Consultar categoría de cada producto filtrado",
+        "lote: Consultar stock actual derivado y precio de costo de lotes filtrados",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos ordenados por stock actual o categoría",
+        "categoria: Consultar categoría de cada producto ordenado",
+        "lote: Consultar stock actual derivado y precio de costo de lotes ordenados"
+      ]
+    },
+    {
+      "cu": "CU6",
+      "escenario": "E1",
+      "nombre": "CU6-E1-BusquedaSinResultados",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx"
+      ],
+      "canales": [
+        "producto:listar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TSU",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría de cada producto",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar stock actual derivado y precio de costo de lotes",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos con nombre parcial o EAN-13 exacto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-query.test.ts",
+          "nombre": "returns an empty list when filters do not match products",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-query.test.ts",
+          "nombre": "requires an exact EAN-13 in the CU6 listing",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-write.integration.test.ts",
+          "nombre": "filters active products, requires exact EAN and orders the SQL result",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF06",
+      "diagrama": "cu6-listado-productos-e1-busqueda-sin-resultados.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 56,
+      "sha256": {
+        "drawio": "b2ab3f3dd3f79766351353234c642d0fe560d27d1a6ee6d57ab2936bd2e79d73",
+        "png": "31b51c350025a3d860e2a64d52d084714062bb4de0808cae203df4f4836c096e"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta",
+        "categoria: Consultar categoría de cada producto",
+        "lote: Consultar stock actual derivado y precio de costo de lotes",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos con nombre parcial o EAN-13 exacto"
+      ]
+    },
+    {
+      "cu": "CU6",
+      "escenario": "E2",
+      "nombre": "CU6-E2-SinProductosActivos",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx"
+      ],
+      "canales": [
+        "producto:listar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/product-query.ts#createProductQueryController"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TSU",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/product-query.test.ts",
+          "nombre": "keeps the CU6 listing active even when another state is requested",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/product-write.integration.test.ts",
+          "nombre": "filters active products, requires exact EAN and orders the SQL result",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF06",
+      "diagrama": "cu6-listado-productos-e2-sin-productos-activos.drawio",
+      "codigo": [
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 22,
+      "sha256": {
+        "drawio": "16b7d1f4df3c5734585a850d012c97bf0e9e902218201f766dc2f9d446df486b",
+        "png": "f3e92a9284c5dd73c7bbc26f93b84bd32a6aa7d0f9ceb654dfce07216851db0e"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos con EAN-13, nombre, stock mínimo y precio de venta"
+      ]
+    },
+    {
+      "cu": "CU8",
+      "escenario": "happy",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 loadDashboardData → C07 loadStockIndicator / loadStockAlerts",
+      "operacionesModelo": "SELECT producto activo → categoria → SUM lote; filtrar stock <= mínimo",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/dashboard-queries.test.ts",
+          "nombre": "maps stock totals returned by SQLite to numbers"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF08",
+      "diagrama": "cu8-alerta-stock-minimo-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/stock-alert.ts",
+        "src/main/controllers/dashboard-queries.ts"
+      ],
+      "mensajes": 36,
+      "sha256": {
+        "drawio": "33122cb59eed37f490311dea455278252e9a9aa86fb79e050f07fd4afd834b35",
+        "png": "dbcaa3af125c966f7b750fce3945859442d1443040a766b6404b404ab6678bed"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos y su stock mínimo",
+        "categoria: Consultar categorías",
+        "lote: Consultar sumas de cantidades de lotes por producto"
+      ]
+    },
+    {
+      "cu": "CU8",
+      "escenario": "E1",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 loadDashboardData → C07 loadStockIndicator / loadStockAlerts",
+      "operacionesModelo": "SELECT producto activo → categoria → SUM lote; filtrar stock <= mínimo",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/dashboard-queries.test.ts",
+          "nombre": "returns no stock alerts when every active product has sufficient stock (CU8-E1)"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF08",
+      "diagrama": "cu8-alerta-stock-minimo-e1-sin-productos-criticos.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/stock-alert.ts",
+        "src/main/controllers/dashboard-queries.ts"
+      ],
+      "mensajes": 36,
+      "sha256": {
+        "drawio": "7b5a5494880c667ee5750498cd3f005e845253925b8a930236e7d59d0ea902ae",
+        "png": "e615af7be397304f352f8e94aa89634f055d2d57a3dd32f4fe7fe64ea0c05b25"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos y su stock mínimo",
+        "categoria: Consultar categorías",
+        "lote: Consultar sumas de cantidades de lotes por producto"
+      ]
+    },
+    {
+      "cu": "CU9",
+      "escenario": "happy",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 loadDashboardData → C08 loadExpirationIndicator / loadExpirationAlerts",
+      "operacionesModelo": "SELECT lote con stock → lote_perecible hasta hoy+7 → producto activo; clasificar",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/expiration-alert.test.ts",
+          "nombre": "loads only active lots with stock in the expiration horizon"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF09",
+      "diagrama": "cu9-alerta-vencimiento-lotes-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/expiration-alert.ts",
+        "src/main/controllers/dashboard-queries.ts"
+      ],
+      "mensajes": 36,
+      "sha256": {
+        "drawio": "2e52e562ac67db23895de2bd2ed9bdc95437ebf18a7b67d9b7df373f415f72e0",
+        "png": "fcad4382b85fed8fa7f7499a271ac603b3a7b56d11f8bfa06f1727740252b159"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Consultar lotes activos con cantidad disponible",
+        "lote_perecible: Consultar fechas de vencimiento por lote",
+        "producto: Consultar nombre y EAN-13 del producto asociado"
+      ]
+    },
+    {
+      "cu": "CU9",
+      "escenario": "E1",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 loadDashboardData → C08 loadExpirationIndicator / loadExpirationAlerts",
+      "operacionesModelo": "SELECT lote con stock → lote_perecible hasta hoy+7 → producto activo; clasificar",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/dashboard-queries.test.ts",
+          "nombre": "returns no expiration alerts when no relevant lot exists (CU9-E1)"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF09",
+      "diagrama": "cu9-alerta-vencimiento-lotes-e1-sin-lotes-por-vencer.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/expiration-alert.ts",
+        "src/main/controllers/dashboard-queries.ts"
+      ],
+      "mensajes": 36,
+      "sha256": {
+        "drawio": "1c43d164a038a666ff32906fcc895cfbc32c65b843e07beca06a4828299ea253",
+        "png": "51268a685be2492b036bce264920254755f6d53bbf093427dbd0450801aec03b"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Consultar lotes activos con cantidad disponible",
+        "lote_perecible: Consultar fechas de vencimiento por lote",
+        "producto: Consultar nombre y EAN-13 del producto asociado"
+      ]
+    },
+    {
+      "cu": "CU10",
+      "escenario": "happy",
+      "nombre": "CU10-RegistrarMerma",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/WasteCreateView.tsx"
+      ],
+      "canales": [
+        "producto:buscar-activo",
+        "merma:disponibilidad",
+        "merma:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/waste.ts#createWasteController",
+        "src/main/controllers/waste.ts#registerWasteWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar historial de precio vigente",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes activos y fechas de vencimiento",
+          "modo": "read"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Consultar lote_perecible asociado",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes con stock y orden de salida FEFO o por fecha de ingreso",
+          "modo": "read"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Consultar fechas de vencimiento de lotes perecibles",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Actualizar cantidad actual de cada lote afectado",
+          "modo": "write"
+        },
+        {
+          "modelo": "TM",
+          "operación": "Insertar registro de merma",
+          "modo": "write"
+        },
+        {
+          "modelo": "TML",
+          "operación": "Insertar filas de merma_lote con cantidad descontada",
+          "modo": "write"
+        },
+        {
+          "modelo": "TI",
+          "operación": "Insertar filas de ajuste_inventario",
+          "modo": "write"
+        },
+        {
+          "modelo": "TUV",
+          "operación": "Consultar o insertar usuario_version vigente",
+          "modo": "write"
+        },
+        {
+          "modelo": "TA",
+          "operación": "Insertar evento de registro de merma",
+          "modo": "write"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "loads stock availability through the dedicated C15 operation",
+          "nivel": "backend"
+        },
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "registers waste and discounts perishable lots using FEFO",
+          "nivel": "integración libSQL"
+        },
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "discounts non-perishable lots by entry date",
+          "nivel": "integración libSQL"
+        },
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "accepts 200 observation characters and rejects 201 in the backend",
+          "nivel": "integración libSQL"
+        },
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "rolls back lot updates when a later merma_lote insert fails",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [
+        "No hay prueba renderer del flujo selección→disponibilidad→confirmación."
+      ],
+      "rf": "RF10",
+      "diagrama": "cu10-registrar-merma-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/waste.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 170,
+      "sha256": {
+        "drawio": "60232fef1b758927280ea57c888c56281788b5d4411cc651a7a536220b6f117d",
+        "png": "8d0a22fa0073ef8608055c5a197a23e581055413a9446e5d8a9e0e3411c601db"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes asociados",
+        "historial_precio_producto: Consultar historial de precio vigente",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes activos y fechas de vencimiento",
+        "lote_perecible: Consultar lote_perecible asociado",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes con stock y orden de salida FEFO o por fecha de ingreso",
+        "lote_perecible: Consultar fechas de vencimiento de lotes perecibles",
+        "lote: Actualizar cantidad actual de cada lote afectado",
+        "merma: Insertar registro de merma",
+        "merma_lote: Insertar filas de merma_lote con cantidad descontada",
+        "ajuste_inventario: Insertar filas de ajuste_inventario",
+        "usuario_version: Consultar o insertar usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de merma"
+      ]
+    },
+    {
+      "cu": "CU10",
+      "escenario": "E1",
+      "nombre": "CU10-E1-StockInsuficiente",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/WasteCreateView.tsx"
+      ],
+      "canales": [
+        "producto:buscar-activo",
+        "merma:disponibilidad",
+        "merma:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/waste.ts#createWasteController",
+        "src/main/controllers/waste.ts#registerWasteWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar historial de precio vigente",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes activos y fechas de vencimiento",
+          "modo": "read"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Consultar lote_perecible asociado",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes activos del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "rejects inactive products and insufficient stock without partial writes",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF10",
+      "diagrama": "cu10-registrar-merma-e1-stock-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/waste.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 126,
+      "sha256": {
+        "drawio": "3b6c2f29a369a77fd6b790a543ea1e8c5d5fb8078c2e5f817ef598a6d30c824f",
+        "png": "fea48af9fcc296afe31abf0e8118e54355482e6d8532f097bde4e36ab6b7f5e8"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes asociados",
+        "historial_precio_producto: Consultar historial de precio vigente",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes activos y fechas de vencimiento",
+        "lote_perecible: Consultar lote_perecible asociado",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes activos del producto",
+        "lote_perecible: Consultar lote_perecible asociado"
+      ]
+    },
+    {
+      "cu": "CU10",
+      "escenario": "E2",
+      "nombre": "CU10-E2-CantidadInvalida",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/WasteCreateView.tsx"
+      ],
+      "canales": [
+        "producto:buscar-activo",
+        "merma:disponibilidad",
+        "merma:registrar"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/waste.ts#createWasteController",
+        "src/main/controllers/waste.ts#registerWasteWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo",
+          "modo": "read"
+        },
+        {
+          "modelo": "TC",
+          "operación": "Consultar categoría asociada",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes asociados",
+          "modo": "read"
+        },
+        {
+          "modelo": "TH",
+          "operación": "Consultar historial de precio vigente",
+          "modo": "read"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes activos y fechas de vencimiento",
+          "modo": "read"
+        },
+        {
+          "modelo": "TLP",
+          "operación": "Consultar lote_perecible asociado",
+          "modo": "read"
+        },
+        {
+          "modelo": "TL",
+          "operación": "Consultar lotes activos del producto",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "rejects zero, negative and decimal waste quantities in the backend",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF10",
+      "diagrama": "cu10-registrar-merma-e2-cantidad-invalida.drawio",
+      "codigo": [
+        "src/main/controllers/waste.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 126,
+      "sha256": {
+        "drawio": "cb5475d5e000b399b9d37d51cadee75aad5d19ec428149d38932d61f07cd51e2",
+        "png": "c20f7b632fd6138c6f686335649915eb62876f58ab907b0c9c1af98ca16a344c"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes asociados",
+        "historial_precio_producto: Consultar historial de precio vigente",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes activos y fechas de vencimiento",
+        "lote_perecible: Consultar lote_perecible asociado",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13",
+        "categoria: Consultar categoría asociada",
+        "lote: Consultar lotes activos del producto",
+        "lote_perecible: Consultar lote_perecible asociado"
+      ]
+    },
+    {
+      "cu": "CU10",
+      "escenario": "E3",
+      "nombre": "CU10-E3-ProductoNoEncontrado",
+      "vista": [
+        "src/renderer/src/views/ProductListView.tsx",
+        "src/renderer/src/views/WasteCreateView.tsx"
+      ],
+      "canales": [
+        "producto:buscar-activo"
+      ],
+      "controlador/símbolos": [
+        "src/main/controllers/waste.ts#createWasteController",
+        "src/main/controllers/waste.ts#registerWasteWithExecutor",
+        "src/main/controllers/product-query.ts#queryActiveProductByEan13"
+      ],
+      "operacionesModelo": [
+        {
+          "modelo": "TS",
+          "operación": "Consultar sesión vigente y actualizar último acceso",
+          "modo": "write"
+        },
+        {
+          "modelo": "TP",
+          "operación": "Consultar producto activo por EAN-13 o nombre",
+          "modo": "read"
+        }
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/waste.test.ts",
+          "nombre": "rejects inactive products and insufficient stock without partial writes",
+          "nivel": "integración libSQL"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF10",
+      "diagrama": "cu10-registrar-merma-e3-producto-no-encontrado.drawio",
+      "codigo": [
+        "src/main/controllers/waste.ts",
+        "src/main/controllers/product-query.ts"
+      ],
+      "mensajes": 26,
+      "sha256": {
+        "drawio": "cff50a9e587ddbb88e8d90cd69742fbb3b7eb0be3c34bd40ad4e78a513970c4e",
+        "png": "680d1bb2a9acd3b12a5375f0af6f057ce4a66e762df836a291d755b2fe2519dd"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13 o nombre"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "happy",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador por RUT -> TR",
+        "Insertar registro de trabajador -> TR",
+        "Insertar cuenta de usuario con rol ingresado -> TU",
+        "Insertar snapshot inicial de nombre y rol -> TUV",
+        "Insertar contraseña temporal asociada al usuario -> TC",
+        "Insertar detalle de contraseña temporal con expiración de veinticuatro horas -> TCT",
+        "Insertar evento de registro de trabajador -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker.test.ts",
+          "nombre": "creates worker accounts in the worker module"
+        },
+        {
+          "archivo": "tests/main/controllers/worker-temp-password.test.ts",
+          "nombre": "generates a 24h temporary password and returns it once"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU21 navegación al formulario"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 82,
+      "sha256": {
+        "drawio": "e5c10137eb3a8bc25004caebfb46d6464436c5c7e2653b446049366cfc603368",
+        "png": "c8ba7d550f91866ba62cae2512ed8ae55059b7267e765fb439e1c04dc196dc9d"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador por RUT",
+        "trabajador: Insertar registro de trabajador",
+        "usuario: Insertar cuenta de usuario con rol ingresado",
+        "usuario_version: Insertar snapshot inicial de nombre y rol",
+        "contrasena: Insertar contraseña temporal asociada al usuario",
+        "contrasena_temporal: Insertar detalle de contraseña temporal con expiración de veinticuatro horas",
+        "log_auditoria: Insertar evento de registro de trabajador"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "E1",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador por RUT -> TR"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker-temp-password.test.ts",
+          "nombre": "rolls back the whole alta when the RUT is already registered"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-e1-rut-duplicado.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 34,
+      "sha256": {
+        "drawio": "af643b2b98390e8816f8f98a9593ad46310dd369dd358f6ae96c25a8f1cca372",
+        "png": "d5e8341a3684b9011ea1cf622ee47a1e03994e397f5a20fd83cb8175cae05c57"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador por RUT"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "E2",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker.test.ts",
+          "nombre": "returns field errors for invalid worker creation payloads"
+        },
+        {
+          "archivo": "tests/shared/users.test.ts",
+          "nombre": "returns field errors for invalid RF21 values"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-e2-telefono-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 26,
+      "sha256": {
+        "drawio": "5c6aa6421cbb09b2c2846e78982759a2861b9d88eac33e76f131695b54e9fac3",
+        "png": "e6cf5c0882358bc6ea38c4b95296c941a90666898615ad808346bb8ba37e5912"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "E3",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker.test.ts",
+          "nombre": "returns field errors for invalid worker creation payloads"
+        },
+        {
+          "archivo": "tests/shared/users.test.ts",
+          "nombre": "returns field errors for invalid RF21 values"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-e3-correo-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 28,
+      "sha256": {
+        "drawio": "347c6c243c8f82ef008dda78d6c47c0e48dc59191ae11425146230af59c3c60c",
+        "png": "152e0020e7ca5fb76b9e9963f74d747b8f81339a5b298eed7edea4c474f32772"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "E4",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker.test.ts",
+          "nombre": "returns field errors for invalid worker creation payloads"
+        },
+        {
+          "archivo": "tests/shared/users.test.ts",
+          "nombre": "returns field errors for invalid RF21 values"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-e4-campo-obligatorio-vacio.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "b6cc00de796b9dcafcc6d649eb502bd5e32599e85a2647c85712be80c0403ab6",
+        "png": "7638c627cb1e8e0f66c0a61230210386f9d28272895cf2f3dfeef93a932a77c0"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso"
+      ]
+    },
+    {
+      "cu": "CU21",
+      "escenario": "E5",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_FormularioTrabajadorView"
+      ],
+      "canales": [
+        "trabajador:registrar"
+      ],
+      "controlador/símbolos": [
+        "createWorkerController",
+        "createWorkerWithExecutor",
+        "createTemporaryPasswordRecord",
+        "WorkerListView",
+        "WorkerFormView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Insertar evento de acceso denegado -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/worker.test.ts",
+          "nombre": "rejects worker sessions for worker administration"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF21",
+      "diagrama": "cu21-registrar-trabajador-e5-no-autorizado.drawio",
+      "codigo": [
+        "src/main/controllers/worker.ts"
+      ],
+      "mensajes": 30,
+      "sha256": {
+        "drawio": "597f68bac30f2e3cef5d0b0470b3d7e1fee629519d3e0c649dcc8982a0a1788b",
+        "png": "f865a49c5b27782df914fe03dd4b18687c545bd4fe19ef03d9c0b162924d943f"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "log_auditoria: Insertar evento de acceso denegado"
+      ]
+    },
+    {
+      "cu": "CU25",
+      "escenario": "happy",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_CalendarioTurnosView",
+        "V_CrearTurnoView"
+      ],
+      "canales": [
+        "turno:crear"
+      ],
+      "controlador/símbolos": [
+        "shiftController",
+        "createShift",
+        "ShiftCalendarView",
+        "ShiftCreateView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador activo por identificador -> TW",
+        "Consultar turnos del trabajador en la fecha solicitada -> TT",
+        "Insertar turno con turno_estado planificado -> TT",
+        "Insertar evento de creación de turno -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/shift.test.ts",
+          "nombre": "creates a shift for an active worker and audits it"
+        },
+        {
+          "archivo": "tests/shared/shifts.test.ts",
+          "nombre": "maps the persisted initial state to the documented Pendiente label"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU25 navegación desde trabajadores a turnos"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF25",
+      "diagrama": "cu25-crear-turno-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/shift.ts"
+      ],
+      "mensajes": 52,
+      "sha256": {
+        "drawio": "8540d529b7ed18a62617af5fa71a30c3b70da13252eb10b8a296786aa7cb7994",
+        "png": "d993ac547fc4ea882fce9bc128235e577b264bef1574ee319b9589bacaf2ae66"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador activo por identificador",
+        "turno: Consultar turnos del trabajador en la fecha solicitada",
+        "turno: Insertar turno con turno_estado planificado",
+        "log_auditoria: Insertar evento de creación de turno"
+      ]
+    },
+    {
+      "cu": "CU25",
+      "escenario": "E1",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_CalendarioTurnosView",
+        "V_CrearTurnoView"
+      ],
+      "canales": [
+        "turno:crear"
+      ],
+      "controlador/símbolos": [
+        "shiftController",
+        "createShift",
+        "ShiftCalendarView",
+        "ShiftCreateView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador activo por identificador -> TW"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/shared/shifts.test.ts",
+          "nombre": "rejects invalid times and shifts that cross midnight"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF25",
+      "diagrama": "cu25-crear-turno-e1-hora-termino-invalida.drawio",
+      "codigo": [
+        "src/main/controllers/shift.ts"
+      ],
+      "mensajes": 30,
+      "sha256": {
+        "drawio": "6d18366f6960634578a25eaa51912d513219f94c7aed3b51c9c112ced99561b8",
+        "png": "ea4a46352e661ac031d4003f6acbf5f0cafc42998b85377a997104f2a822f3c6"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador activo por identificador"
+      ]
+    },
+    {
+      "cu": "CU25",
+      "escenario": "E2",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_CalendarioTurnosView",
+        "V_CrearTurnoView"
+      ],
+      "canales": [
+        "turno:crear"
+      ],
+      "controlador/símbolos": [
+        "shiftController",
+        "createShift",
+        "ShiftCalendarView",
+        "ShiftCreateView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador activo por identificador -> TW",
+        "Consultar turnos del trabajador en la fecha solicitada -> TT"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/shift.test.ts",
+          "nombre": "rejects overlaps and accepts contiguous shifts"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF25",
+      "diagrama": "cu25-crear-turno-e2-conflicto-horario.drawio",
+      "codigo": [
+        "src/main/controllers/shift.ts"
+      ],
+      "mensajes": 36,
+      "sha256": {
+        "drawio": "351fca8a48fa120eedd31c22634a4743b34725e3830f16f72b37a42f154e886f",
+        "png": "e6fee9fcb03a939ea0f75434f6cd2866fa5733d03a0d1da4a3f94d2233cfdbdd"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador activo por identificador",
+        "turno: Consultar turnos del trabajador en la fecha solicitada"
+      ]
+    },
+    {
+      "cu": "CU25",
+      "escenario": "E3",
+      "vista": [
+        "V_ListadoTrabajadoresView",
+        "V_CalendarioTurnosView",
+        "V_CrearTurnoView"
+      ],
+      "canales": [
+        "turno:crear"
+      ],
+      "controlador/símbolos": [
+        "shiftController",
+        "createShift",
+        "ShiftCalendarView",
+        "ShiftCreateView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador activo por identificador -> TW"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/shared/shifts.test.ts",
+          "nombre": "validates documented date and time formats"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF25",
+      "diagrama": "cu25-crear-turno-e3-formato-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/shift.ts"
+      ],
+      "mensajes": 31,
+      "sha256": {
+        "drawio": "77081d299946c971d16bb3bbeb88a78bcb01906cf6accca192f4d0e632070a12",
+        "png": "1273cab6414f186bf65a7866f203aaa5c65cf8144c4443be3923f8fdd0dc7553"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador activo por identificador"
+      ]
+    },
+    {
+      "cu": "CU29",
+      "escenario": "happy",
+      "vista": [
+        "V_RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntry",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador asociado al usuario autenticado -> TR",
+        "Consultar ausencia del día por trabajador -> TU",
+        "Consultar asistencia de entrada del día por trabajador -> TA",
+        "Consultar turno del día por trabajador -> TT",
+        "Consultar trabajador autorizado por RUT -> TR",
+        "Insertar asistencia de entrada -> TA",
+        "Insertar evento de entrada de asistencia -> TL"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "registers an entry with the worker shift"
+        },
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "revalidates an absence added between entry preview and confirmation"
+        },
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "revalidates a shift removed between entry preview and confirmation"
+        },
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "revalidates worker state changed between entry preview and confirmation"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU29 confirmación explícita"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF29",
+      "diagrama": "cu29-registrar-entrada-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 101,
+      "sha256": {
+        "drawio": "8b1a0c37d3ed600c30510cd6bf533a83a03dece18b9f96a1fb7e881e7ee4410e",
+        "png": "9400dd7b5a75c6297bf47cfa5d7d892d5df550c9924b7e37b818a2288a8e4403"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador asociado al usuario autenticado",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día por trabajador",
+        "turno: Consultar turno del día por trabajador",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador autorizado por RUT",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día por trabajador",
+        "turno: Consultar turno del día por trabajador",
+        "asistencia: Insertar asistencia de entrada",
+        "log_auditoria: Insertar evento de entrada de asistencia"
+      ]
+    },
+    {
+      "cu": "CU29",
+      "escenario": "E1",
+      "vista": [
+        "V_RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntry",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador asociado al usuario autenticado -> TR",
+        "Consultar ausencia del día por trabajador -> TU",
+        "Consultar asistencia de entrada del día por trabajador -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "blocks duplicate entries"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF29",
+      "diagrama": "cu29-registrar-entrada-e1-entrada-duplicada.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 34,
+      "sha256": {
+        "drawio": "2c77917b2d670f35cd93d12d9d870c1f0cdba7cc9aa3d4694561ac2bf43373db",
+        "png": "e76276832b0d9a4c45c44f716edda0d912c9650bfe9a037c5b496e8e1a66fd4b"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador asociado al usuario autenticado",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU29",
+      "escenario": "E2",
+      "vista": [
+        "V_RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntry",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador por identificador -> TR",
+        "Consultar ausencia del día por trabajador -> TU"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "blocks entries when the worker has an absence for the day"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF29",
+      "diagrama": "cu29-registrar-entrada-e2-ausencia-registrada.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 28,
+      "sha256": {
+        "drawio": "3cc9e3e490d0ac29db84f697a1f7f2bc5150212bde3accd789cbdb0e9213a148",
+        "png": "45c5fb5d542cae7de2e52a723199663816455c0efdfb3c972fe39f503f8b7d74"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador por identificador",
+        "ausencia: Consultar ausencia del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU29",
+      "escenario": "E3",
+      "vista": [
+        "V_RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntry",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar trabajador asociado al usuario autenticado -> TR",
+        "Consultar ausencia del día por trabajador -> TU",
+        "Consultar asistencia de entrada del día por trabajador -> TA",
+        "Consultar turno del día por trabajador -> TT"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "asks for confirmation when the worker has no shift"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF29",
+      "diagrama": "cu29-registrar-entrada-e3-sin-turno-asignado.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 40,
+      "sha256": {
+        "drawio": "d1c95a8d51e3dcea02cd1a5a56de3fb146ee204678f9831cc96e0f82634ad8cd",
+        "png": "27b3a72ceecd380478bf21949a0f442acd7497befc458877bd5101f48104ed48"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "trabajador: Consultar trabajador asociado al usuario autenticado",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día por trabajador",
+        "turno: Consultar turno del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU29b",
+      "escenario": "happy",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada",
+        "asistencia:entrada-sin-turno"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntryWithoutShift",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar usuario de la sesión y obtener rol -> US",
+        "Consultar trabajador asociado a la sesión -> TW",
+        "Consultar trabajador activo según rol -> TW",
+        "Consultar ausencia del día por trabajador -> AU",
+        "Consultar asistencia de entrada del día -> AS",
+        "Consultar turno del día por trabajador -> TU",
+        "Consultar trabajador autorizado por RUT -> TW",
+        "Consultar asistencia de entrada del día por trabajador -> AS",
+        "Insertar asistencia de entrada sin turno -> AS",
+        "Insertar evento de entrada sin turno -> TL"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "registers an entry without shift after confirmation"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF29",
+      "diagrama": "cu29b-registrar-entrada-sin-turno-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 125,
+      "sha256": {
+        "drawio": "3d08e6697359ee3627765ecc806033938ca05d8ce0be68cbc4440c52069c531a",
+        "png": "a32ce46fa365625b28102a219d90a54704cb40c6741369df3143d962fcd98b71"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario de la sesión y obtener rol",
+        "trabajador: Consultar trabajador asociado a la sesión",
+        "trabajador: Consultar trabajador activo según rol",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día",
+        "turno: Consultar turno del día por trabajador",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario de la sesión y obtener rol",
+        "trabajador: Consultar trabajador asociado a la sesión",
+        "trabajador: Consultar trabajador autorizado por RUT",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día por trabajador",
+        "turno: Consultar turno del día por trabajador",
+        "asistencia: Insertar asistencia de entrada sin turno",
+        "log_auditoria: Insertar evento de entrada sin turno"
+      ]
+    },
+    {
+      "cu": "CU29b",
+      "escenario": "E1",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:entrada"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceEntryWithoutShift",
+        "registerEntry",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar usuario de la sesión y obtener rol -> US",
+        "Consultar trabajador asociado a la sesión -> TW",
+        "Consultar trabajador activo según rol -> TW",
+        "Consultar ausencia del día por trabajador -> AU",
+        "Consultar asistencia de entrada del día -> AS",
+        "Consultar turno del día por trabajador -> TU"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU29b cancelación de advertencia"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF29",
+      "diagrama": "cu29b-registrar-entrada-sin-turno-e1-cancela-advertencia.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 54,
+      "sha256": {
+        "drawio": "60b959747d69298a87ff0749f5d9e220ed52a9d54aedb79f01b236c6a5fdce49",
+        "png": "f5ffd265442adace3bc3afaeaaf7628e17fd570f8b971e833fcf86da0d1d8ff6"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario de la sesión y obtener rol",
+        "trabajador: Consultar trabajador asociado a la sesión",
+        "trabajador: Consultar trabajador activo según rol",
+        "ausencia: Consultar ausencia del día por trabajador",
+        "asistencia: Consultar asistencia de entrada del día",
+        "turno: Consultar turno del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU30",
+      "escenario": "happy",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:salida"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceExit",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar usuario por identificador de sesión -> TU",
+        "Consultar trabajador por RUT -> TW",
+        "Consultar asistencia abierta del día con salida nula -> TA",
+        "Actualizar fila exacta de asistencia abierta y horas trabajadas -> TA",
+        "Insertar evento de salida de asistencia -> TL"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "registers an exit and calculates worked hours"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU30 confirmación explícita"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF30",
+      "diagrama": "cu30-registrar-salida-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 88,
+      "sha256": {
+        "drawio": "33bbe8913dc05a34463cdde214bbec581ea5cd8f6a09c00757e4f69a2f3ba941",
+        "png": "e68a82ccb68f5ff1b4e984602862eb605484b2e75580298016e4d3d2a6d4840f"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario por identificador de sesión",
+        "trabajador: Consultar trabajador por RUT",
+        "asistencia: Consultar asistencia abierta del día con salida nula",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario por identificador de sesión",
+        "trabajador: Consultar trabajador por RUT",
+        "asistencia: Consultar asistencia abierta del día con salida nula",
+        "asistencia: Actualizar fila exacta de asistencia abierta y horas trabajadas",
+        "log_auditoria: Insertar evento de salida de asistencia"
+      ]
+    },
+    {
+      "cu": "CU30",
+      "escenario": "E1",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:salida"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceExit",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar usuario por identificador de sesión -> TU",
+        "Consultar trabajador por RUT -> TW",
+        "Consultar asistencia abierta del día con salida nula -> TA",
+        "Consultar registros de asistencia del día por trabajador -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "blocks exits without a previous entry"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF30",
+      "diagrama": "cu30-registrar-salida-e1-sin-entrada-previa.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 42,
+      "sha256": {
+        "drawio": "b0519e385878e32310eae26c5e6fef06afe04fe1a0ce26495b410c70162c0d59",
+        "png": "443d1e5a3a5994a3ee6144dd77f1f03301b3217d062f1e0be970e658d2fadff3"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario por identificador de sesión",
+        "trabajador: Consultar trabajador por RUT",
+        "asistencia: Consultar asistencia abierta del día con salida nula",
+        "asistencia: Consultar registros de asistencia del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU30",
+      "escenario": "E2",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:salida"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceExit",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar usuario por identificador de sesión -> TU",
+        "Consultar trabajador por RUT -> TW",
+        "Consultar asistencia abierta del día con salida nula -> TA",
+        "Consultar registros de asistencia del día por trabajador -> TA"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "blocks duplicate exits"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF30",
+      "diagrama": "cu30-registrar-salida-e2-salida-duplicada.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 42,
+      "sha256": {
+        "drawio": "497c1bce2e6b7172e3d6f03f37953fd54e4957363521999fef353fc9212e66f2",
+        "png": "496d96823231bb494cb061724d9189602935edf76bb7668f030228adb0045e9b"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar usuario por identificador de sesión",
+        "trabajador: Consultar trabajador por RUT",
+        "asistencia: Consultar asistencia abierta del día con salida nula",
+        "asistencia: Consultar registros de asistencia del día por trabajador"
+      ]
+    },
+    {
+      "cu": "CU30",
+      "escenario": "E3",
+      "vista": [
+        "RegistroAsistenciaView"
+      ],
+      "canales": [
+        "asistencia:salida"
+      ],
+      "controlador/símbolos": [
+        "attendanceController",
+        "registerAttendanceExit",
+        "AttendanceView"
+      ],
+      "operacionesModelo": [
+        "Consultar sesión vigente y actualizar último acceso -> TS",
+        "Consultar asociación Usuario y Trabajador de la sesión -> TU",
+        "Consultar trabajador por identificador asociado a Usuario -> TW"
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/attendance-service.test.ts",
+          "nombre": "blocks a worker from registering another worker exit"
+        }
+      ],
+      "brechas": null,
+      "rf": "RF30",
+      "diagrama": "cu30-registrar-salida-e3-no-autorizado.drawio",
+      "codigo": [
+        "src/main/controllers/attendance.ts",
+        "src/main/controllers/attendance-service.ts"
+      ],
+      "mensajes": 30,
+      "sha256": {
+        "drawio": "2b1d2c8fbee61709ab62db566ee37022f29701c94dd739bfe898e086f062c092",
+        "png": "2a7986e344e003bbb2938750f3065e3f15a276ab5958f765908bd244ec648232"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "usuario: Consultar asociación Usuario y Trabajador de la sesión",
+        "trabajador: Consultar trabajador por identificador asociado a Usuario"
+      ]
+    },
+    {
+      "cu": "CU36",
+      "escenario": "happy",
+      "nombre": "CU36-RegistrarVenta",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        "venta:verificar-caja",
+        "venta:producto",
+        "venta:registrar",
+        "dashboard:actualizado"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        },
+        {
+          "id": "C13",
+          "simbolos": [
+            {
+              "nombre": "searchActiveProducts",
+              "archivo": "src/main/controllers/product-query.ts"
+            }
+          ]
+        },
+        {
+          "id": "C04",
+          "simbolos": [
+            {
+              "nombre": "registerAuditLog",
+              "archivo": "src/main/controllers/sale-service.ts"
+            },
+            {
+              "nombre": "getOrCreateCurrentUserVersion",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre de caja por fecha",
+        "Consultar producto activo por EAN-13 o nombre",
+        "Consultar producto activo del carrito",
+        "Consultar stock disponible por producto",
+        "Consultar o insertar cierre de caja por fecha",
+        "Consultar lotes con stock por vencimiento o fecha de ingreso",
+        "Insertar venta",
+        "Insertar detalle de venta",
+        "Actualizar stock de lotes",
+        "Insertar filas de venta_lote",
+        "Consultar o crear usuario_version vigente",
+        "Insertar evento de registro de venta"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts ejecuta C20; planStockDiscount hace SELECT lote y, para perecibles, SELECT lote_perecible; después INSERT venta/detalle, UPDATE lote, INSERT venta_lote, usuario_version y log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "registers a cash sale, creates details and consumes FEFO lots"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "registers an electronic sale without venta_efectivo"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "serializa ventas concurrentes sin stock negativo ni registros parciales"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "revierte venta, detalle y stock si falla venta_lote después del descuento"
+        },
+        {
+          "archivo": "tests/main/controllers/cash-autoopen.test.ts",
+          "nombre": "permite registrar la primera venta en una BD limpia auto-abriendo caja"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36-registrar-venta-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 158,
+      "sha256": {
+        "drawio": "07dc7cf66b2c1750c13019bb7f10c60e51c9b6a50ec15b955844059ae721a81c",
+        "png": "41df8763bc7f172e7b23f82ef83f103e65d23f1cf33f0fc3cd1a26be17444f90"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13 o nombre",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo del carrito",
+        "lote: Consultar stock disponible por producto",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar o insertar cierre de caja por fecha",
+        "lote: Consultar lotes con stock por vencimiento o fecha de ingreso",
+        "venta: Insertar venta",
+        "detalle_venta: Insertar detalle de venta",
+        "lote: Actualizar stock de lotes",
+        "venta_lote: Insertar filas de venta_lote",
+        "usuario_version: Consultar o crear usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de venta"
+      ]
+    },
+    {
+      "cu": "CU36",
+      "escenario": "E1",
+      "nombre": "CU36-E1-ProductoInvalido",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        [
+          "tests/main/controllers/sale-service.test.ts",
+          "rechaza un producto %s sin persistir la venta"
+        ]
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C13",
+          "simbolos": [
+            {
+              "nombre": "searchActiveProducts",
+              "archivo": "src/main/controllers/product-query.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar producto activo por EAN-13 o nombre"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts ejecuta C20; planStockDiscount hace SELECT lote y, para perecibles, SELECT lote_perecible; después INSERT venta/detalle, UPDATE lote, INSERT venta_lote, usuario_version y log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza un producto %s sin persistir la venta"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36-registrar-venta-e1-producto-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 49,
+      "sha256": {
+        "drawio": "c0770801d3dccaef5a6770df7e34ef3b0d956063a90944a492a51a80a83a9284",
+        "png": "09a4c8856bbd83b95a4f06c91710958bfee3b3d72857f65054e56c2801b83653"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13 o nombre"
+      ]
+    },
+    {
+      "cu": "CU36",
+      "escenario": "E2",
+      "nombre": "CU36-E2-StockInsuficiente",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        [
+          "tests/main/controllers/sale-service.test.ts",
+          "rechaza stock insuficiente con pago %s sin escrituras parciales"
+        ]
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar producto activo del carrito",
+        "Consultar stock disponible por producto"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts ejecuta C20; planStockDiscount hace SELECT lote y, para perecibles, SELECT lote_perecible; después INSERT venta/detalle, UPDATE lote, INSERT venta_lote, usuario_version y log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza stock insuficiente con pago %s sin escrituras parciales"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36-registrar-venta-e2-stock-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 77,
+      "sha256": {
+        "drawio": "a98567ea0b6a4da3c9a60638c9124578bfaf2490c35c68df4655abe5237db759",
+        "png": "6f0c66c10c5b5b3608e15a83b11a7af5f5c4ee28766e4037618843f9209f9851"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo por EAN-13 o nombre",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar producto activo del carrito",
+        "lote: Consultar stock disponible por producto"
+      ]
+    },
+    {
+      "cu": "CU36",
+      "escenario": "E3",
+      "nombre": "CU36-E3-CajaCerrada",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        "venta:verificar-caja"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre de caja por fecha"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts ejecuta C20; planStockDiscount hace SELECT lote y, para perecibles, SELECT lote_perecible; después INSERT venta/detalle, UPDATE lote, INSERT venta_lote, usuario_version y log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-autoopen.test.ts",
+          "nombre": "tras cerrar caja, bloquea nuevas ventas durante el mismo día"
+        },
+        {
+          "archivo": "tests/main/controllers/cash-autoopen.test.ts",
+          "nombre": "prioriza una caja cerrada ante una apertura heredada posterior del mismo día"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36-registrar-venta-e3-caja-cerrada.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/product-query.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "a2407e94291d5f5fa165fa2885e4a9b42b4cb7527826f90d784c31566a85e23a",
+        "png": "f076ec6abd545c8759753a198052b440b76620235f48aa1df77cabfca46fbb62"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha"
+      ]
+    },
+    {
+      "cu": "CU36b",
+      "escenario": "happy",
+      "nombre": "CU36B-VentaPagoEfectivo",
+      "vista": "SaleRegisterView / diálogo de pago efectivo (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar",
+        "dashboard:actualizado"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        },
+        {
+          "id": "C04",
+          "simbolos": [
+            {
+              "nombre": "registerAuditLog",
+              "archivo": "src/main/controllers/sale-service.ts"
+            },
+            {
+              "nombre": "getOrCreateCurrentUserVersion",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar precios persistidos y cantidades del carrito",
+        "Comparar monto recibido con total recalculado",
+        "Consultar o crear cierre de caja abierto",
+        "Consultar lotes con stock disponible",
+        "Insertar Venta padre con referencias normalizadas",
+        "Insertar venta_efectivo con monto recibido",
+        "Insertar filas de DetalleVenta",
+        "Actualizar stock de Lote según FEFO o ingreso",
+        "Insertar filas de VentaLote con lote_id y cantidad consumida",
+        "Consultar o crear usuario_version vigente",
+        "Insertar evento de registro de venta"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts agrega INSERT venta_efectivo al flujo normalizado; stock-discount.ts conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "registers a cash sale, creates details and consumes FEFO lots"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36b-venta-pago-efectivo-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 108,
+      "sha256": {
+        "drawio": "e53e35184eaf3d5dd2f7716906ec01adfe62ef4b0ab65efcf5e59ed86ce14441",
+        "png": "23d89d3e7734a4611e8a31a0be472280b7c69ab49c9f5b5ba47f93ce6ed29cce"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar precios persistidos y cantidades del carrito",
+        "producto: Comparar monto recibido con total recalculado",
+        "cierre_caja: Consultar o crear cierre de caja abierto",
+        "lote: Consultar lotes con stock disponible",
+        "venta: Insertar Venta padre con referencias normalizadas",
+        "venta_efectivo: Insertar venta_efectivo con monto recibido",
+        "detalle_venta: Insertar filas de DetalleVenta",
+        "lote: Actualizar stock de Lote según FEFO o ingreso",
+        "venta_lote: Insertar filas de VentaLote con lote_id y cantidad consumida",
+        "usuario_version: Consultar o crear usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de venta"
+      ]
+    },
+    {
+      "cu": "CU36b",
+      "escenario": "E1",
+      "nombre": "CU36B-E1-MontoInsuficiente",
+      "vista": "SaleRegisterView / diálogo de pago efectivo (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Recalcular subtotal y total desde carrito y cantidades"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts agrega INSERT venta_efectivo al flujo normalizado; stock-discount.ts conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rolls back when cash payment is insufficient"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36b-venta-pago-efectivo-e1-monto-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 27,
+      "sha256": {
+        "drawio": "4212886f2fc5282ca976cd2db6705afd3bf257264131eec55e471827d2f7cc3b",
+        "png": "2c9fe08edd2a6aa4bb7e9c3efde6c55490804f9c5ca672d0861403e5932c1200"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Recalcular subtotal y total desde carrito y cantidades"
+      ]
+    },
+    {
+      "cu": "CU36b",
+      "escenario": "E2",
+      "nombre": "CU36B-E2-ProductoInvalido",
+      "vista": "SaleRegisterView / diálogo de pago efectivo (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar productos por identificador y estado Activo"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts agrega INSERT venta_efectivo al flujo normalizado; stock-discount.ts conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza un producto %s sin persistir la venta"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36b-venta-pago-efectivo-e2-producto-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 22,
+      "sha256": {
+        "drawio": "50ad774beb38e2974f15435cae7912a4ced54ec4690ffa8a320843265e8ab25d",
+        "png": "ed8c54354a3adfa58c93ef22e6aeec9b85c22dfa5884201d68621f7a10fa51ca"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos por identificador y estado Activo"
+      ]
+    },
+    {
+      "cu": "CU36b",
+      "escenario": "E3",
+      "nombre": "CU36B-E3-StockInsuficiente",
+      "vista": "SaleRegisterView / diálogo de pago efectivo (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar precios persistidos y cantidades del carrito",
+        "Consultar cierre de caja abierto del día",
+        "Consultar cantidades actuales de lotes para la cantidad solicitada"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts agrega INSERT venta_efectivo al flujo normalizado; stock-discount.ts conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza stock insuficiente con pago %s sin escrituras parciales"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36b-venta-pago-efectivo-e3-stock-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 40,
+      "sha256": {
+        "drawio": "398196e1c56cf51aeb55faf9869c92ccc450eeebebe7c2cddaccda516f91d455",
+        "png": "cbcd72a900002d7f45c05b709612feb6ba2726a8d2e576a345ded08755bc0299"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar precios persistidos y cantidades del carrito",
+        "cierre_caja: Consultar cierre de caja abierto del día",
+        "lote: Consultar cantidades actuales de lotes para la cantidad solicitada"
+      ]
+    },
+    {
+      "cu": "CU36b",
+      "escenario": "E4",
+      "nombre": "CU36B-E4-CajaCerrada",
+      "vista": "SaleRegisterView / diálogo de pago efectivo (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre de caja por fecha actual"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts agrega INSERT venta_efectivo al flujo normalizado; stock-discount.ts conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-autoopen.test.ts",
+          "nombre": "tras cerrar caja, bloquea nuevas ventas durante el mismo día"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36b-venta-pago-efectivo-e4-caja-cerrada.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "532c4d441fc25f8f8341cb4730b19cc6438af639ca40360b2f9cc5145a60a74a",
+        "png": "2d7875d7d49d668ce1b085c49906a4347b3dec7c72a27d9b3cd2e79bfea4bde0"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha actual"
+      ]
+    },
+    {
+      "cu": "CU36c",
+      "escenario": "happy",
+      "nombre": "CU36c-VentaPagoElectronico",
+      "vista": "SaleRegisterView / confirmación electrónica (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar",
+        "dashboard:actualizado"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        },
+        {
+          "id": "C04",
+          "simbolos": [
+            {
+              "nombre": "registerAuditLog",
+              "archivo": "src/main/controllers/sale-service.ts"
+            },
+            {
+              "nombre": "getOrCreateCurrentUserVersion",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar productos activos y precios de venta",
+        "Consultar o insertar cierre de caja por fecha actual",
+        "Consultar lotes con stock disponible para aplicar FEFO o fecha de ingreso",
+        "Insertar venta electrónica con referencias normalizadas",
+        "Insertar filas de detalle de venta",
+        "Actualizar stock de lotes consumidos por la venta",
+        "Insertar filas de venta_lote con cantidad consumida",
+        "Consultar o crear usuario_version vigente",
+        "Insertar evento de registro de venta electrónica"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts omite venta_efectivo y conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "registers an electronic sale without venta_efectivo"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36c-venta-pago-electronico-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 91,
+      "sha256": {
+        "drawio": "5c301ac11f778a51a63744337572df2227f857b2b5253135a03520a9e68f957f",
+        "png": "59f4be3b1aa2197e41ba53e7173456ed762d5b14de75ffcd2519567c68efd927"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos y precios de venta",
+        "cierre_caja: Consultar o insertar cierre de caja por fecha actual",
+        "lote: Consultar lotes con stock disponible para aplicar FEFO o fecha de ingreso",
+        "venta: Insertar venta electrónica con referencias normalizadas",
+        "detalle_venta: Insertar filas de detalle de venta",
+        "lote: Actualizar stock de lotes consumidos por la venta",
+        "venta_lote: Insertar filas de venta_lote con cantidad consumida",
+        "usuario_version: Consultar o crear usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de venta electrónica"
+      ]
+    },
+    {
+      "cu": "CU36c",
+      "escenario": "E1",
+      "nombre": "CU36c-E1-MetodoInvalido",
+      "vista": "SaleRegisterView / confirmación electrónica (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [],
+      "equivalenciaDrizzle": [
+        "sale-service.ts omite venta_efectivo y conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza un método de pago electrónico inválido"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36c-venta-pago-electronico-e1-metodo-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 18,
+      "sha256": {
+        "drawio": "1b623a15454282683fdde535938821c75750a65453008b252f2bc57801645c1d",
+        "png": "5fafccfcbec38b4f3bc0695752358a554119d4e47346ac2a9a2e42168fc2f672"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "venta: Validar método de pago electrónico contra la regla de Venta"
+      ]
+    },
+    {
+      "cu": "CU36c",
+      "escenario": "E2",
+      "nombre": "CU36c-E2-ProductoInvalido",
+      "vista": "SaleRegisterView / confirmación electrónica (V_RegistrarVentaView)",
+      "canales": [
+        "venta:producto"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C13",
+          "simbolos": [
+            {
+              "nombre": "searchActiveProducts",
+              "archivo": "src/main/controllers/product-query.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar productos por identificador y estado Activo"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts omite venta_efectivo y conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza un producto %s sin persistir la venta"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36c-venta-pago-electronico-e2-producto-invalido.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "f8c54885d2e03315d11bda32e45d6e4f1ae4172fab287573d58105c3f008c488",
+        "png": "eddd022302ceaa328e9b9f6a54dc72d30b9477daa2b7ecd07cfa0450738744c8"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos por identificador y estado Activo"
+      ]
+    },
+    {
+      "cu": "CU36c",
+      "escenario": "E3",
+      "nombre": "CU36c-E3-StockInsuficiente",
+      "vista": "SaleRegisterView / confirmación electrónica (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar productos por identificador y estado Activo",
+        "Consultar cierre de caja por fecha actual",
+        "Consultar cantidades actuales de lotes para la cantidad solicitada"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts omite venta_efectivo y conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza stock insuficiente con pago %s sin escrituras parciales"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36c-venta-pago-electronico-e3-stock-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 43,
+      "sha256": {
+        "drawio": "fc5a83b9f1f0536855900a86e276961e6ce1d50b214677f948cc43002c3e5df8",
+        "png": "2671cf34ca852239ef403cb755b6655b95b71126bcfefdee388ab4aa504baf41"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos por identificador y estado Activo",
+        "cierre_caja: Consultar cierre de caja por fecha actual",
+        "lote: Consultar cantidades actuales de lotes para la cantidad solicitada"
+      ]
+    },
+    {
+      "cu": "CU36c",
+      "escenario": "E4",
+      "nombre": "CU36c-E4-CajaCerrada",
+      "vista": "SaleRegisterView / confirmación electrónica (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C16",
+          "simbolos": [
+            {
+              "nombre": "saleController",
+              "archivo": "src/main/controllers/sale.ts"
+            },
+            {
+              "nombre": "registerSale",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre de caja por fecha actual"
+      ],
+      "equivalenciaDrizzle": [
+        "sale-service.ts omite venta_efectivo y conserva SELECT lote → SELECT lote_perecible → UPDATE lote → INSERT venta_lote."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-autoopen.test.ts",
+          "nombre": "tras cerrar caja, bloquea nuevas ventas durante el mismo día"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF36",
+      "diagrama": "cu36c-venta-pago-electronico-e4-caja-cerrada.drawio",
+      "codigo": [
+        "src/main/controllers/sale.ts",
+        "src/main/controllers/sale-service.ts",
+        "src/main/controllers/cash-check.ts",
+        "src/main/controllers/stock-discount.ts"
+      ],
+      "mensajes": 27,
+      "sha256": {
+        "drawio": "5eddb73c6eb5b87303908078af4ccdebdc6f5d45fcab87d5b1493c0ba0afba65",
+        "png": "d08da8e7259a64f5bb483d056aa1b7c4c4f0b5f7d5414f0c663f516108f436fa"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre de caja por fecha actual"
+      ]
+    },
+    {
+      "cu": "CU39",
+      "escenario": "happy",
+      "nombre": "CU39-DescuentoStockVenta",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar",
+        "dashboard:actualizado"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        },
+        {
+          "id": "C04",
+          "simbolos": [
+            {
+              "nombre": "registerAuditLog",
+              "archivo": "src/main/controllers/sale-service.ts"
+            },
+            {
+              "nombre": "getOrCreateCurrentUserVersion",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar lotes activos por producto",
+        "Consultar fechas de vencimiento por lote_id",
+        "Actualizar cantidad actual de los lotes afectados por la venta según FEFO o fecha de ingreso",
+        "Insertar filas de venta_lote con cantidad consumida por lote",
+        "Consultar o crear usuario_version vigente",
+        "Insertar evento de registro de venta"
+      ],
+      "equivalenciaDrizzle": [
+        "stock-discount.ts traduce las operaciones de modelo a dos SELECT separados (lote y lote_perecible), luego un UPDATE lote guardado y un INSERT venta_lote por consumo."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/stock-discount.test.ts",
+          "nombre": "plans FEFO before persistence and applies UPDATE before venta_lote"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "registers a cash sale, creates details and consumes FEFO lots"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "serializa ventas concurrentes sin stock negativo ni registros parciales"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "revierte venta, detalle y stock si falla venta_lote después del descuento"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF39",
+      "diagrama": "cu39-descuento-stock-venta-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/stock-discount.ts",
+        "src/main/controllers/sale-service.ts"
+      ],
+      "mensajes": 62,
+      "sha256": {
+        "drawio": "21102ded7a12ed1fc439282b73d8e5b6e4b254dea7311ea734bf2617fe7f3127",
+        "png": "30680fa10176c8b831320eceb9ab6cb40419f2d8c503ff9f59098e55fd133d5d"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Consultar lotes activos por producto",
+        "lote_perecible: Consultar fechas de vencimiento por lote_id",
+        "lote: Actualizar cantidad actual de los lotes afectados por la venta según FEFO o fecha de ingreso",
+        "venta_lote: Insertar filas de venta_lote con cantidad consumida por lote",
+        "usuario_version: Consultar o crear usuario_version vigente",
+        "log_auditoria: Insertar evento de registro de venta"
+      ]
+    },
+    {
+      "cu": "CU39",
+      "escenario": "E1",
+      "nombre": "CU39-E1-StockInsuficiente",
+      "vista": "SaleRegisterView (V_RegistrarVentaView)",
+      "canales": [
+        "venta:registrar"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C17",
+          "simbolos": [
+            {
+              "nombre": "planStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            },
+            {
+              "nombre": "applyStockDiscount",
+              "archivo": "src/main/controllers/stock-discount.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar stock total de lotes activos por producto"
+      ],
+      "equivalenciaDrizzle": [
+        "stock-discount.ts traduce las operaciones de modelo a dos SELECT separados (lote y lote_perecible), luego un UPDATE lote guardado y un INSERT venta_lote por consumo."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/stock-discount.test.ts",
+          "nombre": "rechaza stock insuficiente durante la planificación sin ejecutar escrituras"
+        },
+        {
+          "archivo": "tests/main/controllers/sale-service.test.ts",
+          "nombre": "rechaza stock insuficiente con pago %s sin escrituras parciales"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF39",
+      "diagrama": "cu39-descuento-stock-venta-e1-stock-insuficiente.drawio",
+      "codigo": [
+        "src/main/controllers/stock-discount.ts",
+        "src/main/controllers/sale-service.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "6a689307848923643270df60efdd3cf493a1f7c746988443dd457ab15b01f9aa",
+        "png": "9f49a62f8e771dd4128ddee02b76dd8a7b976c96c18dd7f30e7c7cd811e8b3a9"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "lote: Consultar stock total de lotes activos por producto"
+      ]
+    },
+    {
+      "cu": "CU40",
+      "escenario": "happy",
+      "nombre": "CU40-ListadoVentasDia",
+      "vista": "DailySalesView (V_ListadoVentasDiaView)",
+      "canales": [
+        "venta:historial-dia"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C18",
+          "simbolos": [
+            {
+              "nombre": "loadDailySalesHistory",
+              "archivo": "src/main/controllers/sales-history.ts"
+            },
+            {
+              "nombre": "salesHistoryController",
+              "archivo": "src/main/controllers/sales-history.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar ventas por fecha actual con estado Confirmada o Anulada",
+        "Consultar detalle de ventas por venta_id",
+        "Consultar usuario cajero y su trabajador_id asociado a cada venta",
+        "Consultar trabajador asociado mediante usuario.trabajador_id",
+        "Consultar anulaciones asociadas a ventas del día"
+      ],
+      "equivalenciaDrizzle": [
+        "sales-history.ts ejecuta SELECT separados en el orden Venta → DetalleVenta → Usuario → Trabajador → AnulacionVenta y traduce completada a Confirmada."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sales-history.test.ts",
+          "nombre": "maps sales and excludes voided sales from current totals"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF40",
+      "diagrama": "cu40-listado-ventas-dia-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/sales-history.ts"
+      ],
+      "mensajes": 48,
+      "sha256": {
+        "drawio": "a82c33cfdc9e6e6d0586a26a2f7200ab61830e0c3672aa750f02c8183ab3ee5a",
+        "png": "300260e9cdf52437d8371df467afbca54f441d8c63876ae774bc6c107be5ce73"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "venta: Consultar ventas por fecha actual con estado Confirmada o Anulada",
+        "detalle_venta: Consultar detalle de ventas por venta_id",
+        "usuario: Consultar usuario cajero y su trabajador_id asociado a cada venta",
+        "trabajador: Consultar trabajador asociado mediante usuario.trabajador_id",
+        "anulacion_venta: Consultar anulaciones asociadas a ventas del día"
+      ]
+    },
+    {
+      "cu": "CU40",
+      "escenario": "E1",
+      "nombre": "CU40-E1-SinVentas",
+      "vista": "DailySalesView (V_ListadoVentasDiaView)",
+      "canales": [
+        "venta:historial-dia"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C18",
+          "simbolos": [
+            {
+              "nombre": "loadDailySalesHistory",
+              "archivo": "src/main/controllers/sales-history.ts"
+            },
+            {
+              "nombre": "salesHistoryController",
+              "archivo": "src/main/controllers/sales-history.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar ventas por fecha actual con estado Confirmada o Anulada"
+      ],
+      "equivalenciaDrizzle": [
+        "sales-history.ts ejecuta SELECT separados en el orden Venta → DetalleVenta → Usuario → Trabajador → AnulacionVenta y traduce completada a Confirmada."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/sales-history.test.ts",
+          "nombre": "returns an empty list and zeroed summary when the day has no sales"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF40",
+      "diagrama": "cu40-listado-ventas-dia-e1-sin-ventas.drawio",
+      "codigo": [
+        "src/main/controllers/sales-history.ts"
+      ],
+      "mensajes": 22,
+      "sha256": {
+        "drawio": "7b5fd6c27770a7e105dc0cc93b570848138f7c8233b102481ba69be055163835",
+        "png": "d9783fce24523bb6f5a4d1a836cbc27833533c46b9a7d25254a08bccdcea4c07"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "venta: Consultar ventas por fecha actual con estado Confirmada o Anulada"
+      ]
+    },
+    {
+      "cu": "CU42",
+      "escenario": "happy",
+      "nombre": "CU42-CierreCajaDiaria",
+      "vista": "CashClosingView (V_CierreCajaView)",
+      "canales": [
+        "caja:resumen-cierre",
+        "caja:cerrar",
+        "caja:actualizada",
+        "dashboard:actualizado"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C19",
+          "simbolos": [
+            {
+              "nombre": "getCashClosingSummary",
+              "archivo": "src/main/controllers/cash-closing-service.ts"
+            },
+            {
+              "nombre": "closeCashRegister",
+              "archivo": "src/main/controllers/cash-closing-service.ts"
+            },
+            {
+              "nombre": "cashClosingController",
+              "archivo": "src/main/controllers/cash-closing.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        },
+        {
+          "id": "C04",
+          "simbolos": [
+            {
+              "nombre": "registerAuditLog",
+              "archivo": "src/main/controllers/sale-service.ts"
+            },
+            {
+              "nombre": "getOrCreateCurrentUserVersion",
+              "archivo": "src/main/controllers/sale-service.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre_caja por fecha actual",
+        "Consultar ventas vigentes por fecha actual y método de pago",
+        "Consultar anulaciones por fecha actual",
+        "Consultar ventas por caja y fecha actual",
+        "Consultar anulacion_venta por caja y fecha actual",
+        "Actualizar cierre_caja abierto a estado cerrado",
+        "Consultar o crear usuario_version vigente",
+        "Insertar evento de cierre de caja en log_auditoria"
+      ],
+      "equivalenciaDrizzle": [
+        "cash-closing-service.ts delega el estado diario en C20, consulta Venta antes de AnulacionVenta, actualiza cierre_caja y luego registra usuario_version antes de log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-closing-service.test.ts",
+          "nombre": "loads a daily summary for an open cash register"
+        },
+        {
+          "archivo": "tests/main/controllers/cash-closing-service.test.ts",
+          "nombre": "closes the open cash register and registers audit data"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF42",
+      "diagrama": "cu42-cierre-caja-diaria-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/cash-closing.ts",
+        "src/main/controllers/cash-closing-service.ts",
+        "src/main/controllers/cash-check.ts"
+      ],
+      "mensajes": 100,
+      "sha256": {
+        "drawio": "942b12d1f090b73135862f40fab498432242dbeddb4ea7ab579f23b1e2320c3e",
+        "png": "613e00dd18b670acc9d739e17de50be093367d83df2e9eebcf1a8da9c831a4b6"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre_caja por fecha actual",
+        "venta: Consultar ventas vigentes por fecha actual y método de pago",
+        "anulacion_venta: Consultar anulaciones por fecha actual",
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre_caja por fecha actual",
+        "venta: Consultar ventas por caja y fecha actual",
+        "anulacion_venta: Consultar anulacion_venta por caja y fecha actual",
+        "cierre_caja: Actualizar cierre_caja abierto a estado cerrado",
+        "usuario_version: Consultar o crear usuario_version vigente",
+        "log_auditoria: Insertar evento de cierre de caja en log_auditoria"
+      ]
+    },
+    {
+      "cu": "CU42",
+      "escenario": "E1",
+      "nombre": "CU42-E1-CajaYaCerrada",
+      "vista": "CashClosingView (V_CierreCajaView)",
+      "canales": [
+        "caja:resumen-cierre"
+      ],
+      "controlador/símbolos": [
+        {
+          "id": "C03",
+          "simbolos": [
+            {
+              "nombre": "authorizeUser",
+              "archivo": "src/main/controllers/auth-context.ts"
+            }
+          ]
+        },
+        {
+          "id": "C19",
+          "simbolos": [
+            {
+              "nombre": "getCashClosingSummary",
+              "archivo": "src/main/controllers/cash-closing-service.ts"
+            },
+            {
+              "nombre": "closeCashRegister",
+              "archivo": "src/main/controllers/cash-closing-service.ts"
+            },
+            {
+              "nombre": "cashClosingController",
+              "archivo": "src/main/controllers/cash-closing.ts"
+            }
+          ]
+        },
+        {
+          "id": "C20",
+          "simbolos": [
+            {
+              "nombre": "inspectDailyCashRegister",
+              "archivo": "src/main/controllers/cash-check.ts"
+            },
+            {
+              "nombre": "ensureDailyCashRegisterForSale",
+              "archivo": "src/main/controllers/cash-check.ts"
+            }
+          ]
+        }
+      ],
+      "operacionesModelo": [
+        "Consultar cierre_caja por fecha actual"
+      ],
+      "equivalenciaDrizzle": [
+        "cash-closing-service.ts delega el estado diario en C20, consulta Venta antes de AnulacionVenta, actualiza cierre_caja y luego registra usuario_version antes de log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-closing-service.test.ts",
+          "nombre": "blocks a second close when the cash register is already closed"
+        }
+      ],
+      "brechas": [
+        "La cobertura citada es de servicio/modelo; no prueba el recorrido UI + IPC completo."
+      ],
+      "rf": "RF42",
+      "diagrama": "cu42-cierre-caja-diaria-e1-caja-ya-cerrada.drawio",
+      "codigo": [
+        "src/main/controllers/cash-closing.ts",
+        "src/main/controllers/cash-closing-service.ts",
+        "src/main/controllers/cash-check.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "076e460131d4b94653636cf98e8b135b518592ff147769b97324b42be99b4de3",
+        "png": "60fa07b1c69b50dde3af972e433c8e0ad0f38e63d29000a2eb140320a030347f"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "cierre_caja: Consultar cierre_caja por fecha actual"
+      ]
+    },
+    {
+      "cu": "CU42",
+      "escenario": "E2",
+      "nombre": "CU42-E2-CancelaCierre",
+      "vista": "CashClosingView (V_CierreCajaView)",
+      "canales": [],
+      "controlador/símbolos": [],
+      "operacionesModelo": [],
+      "equivalenciaDrizzle": [
+        "cash-closing-service.ts delega el estado diario en C20, consulta Venta antes de AnulacionVenta, actualiza cierre_caja y luego registra usuario_version antes de log_auditoria."
+      ],
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/cash-closing-service.test.ts",
+          "nombre": "does not close when confirmation is cancelled"
+        },
+        {
+          "archivo": "tests/renderer/incremento1-ui.mjs",
+          "nombre": "CU42 cancelación de cierre sin escritura"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF42",
+      "diagrama": "cu42-cierre-caja-diaria-e2-cancela-cierre.drawio",
+      "codigo": [
+        "src/main/controllers/cash-closing.ts",
+        "src/main/controllers/cash-closing-service.ts",
+        "src/main/controllers/cash-check.ts"
+      ],
+      "mensajes": 2,
+      "sha256": {
+        "drawio": "bf2aa82511dd603dd4934bda36184363899ed5c89a5263b0180c644f4d6f3806",
+        "png": "8c26f8a6925dadec96d2c9a417f4f5dbda43acbd99dd62ea55afb9596d1eb1b5"
+      },
+      "llamadasModeloDiagrama": []
+    },
+    {
+      "cu": "CU55",
+      "escenario": "happy",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 loadDashboardData → C07 → C08 → C09 → C23 loadAttendanceIndicator",
+      "operacionesModelo": "producto → categoria → lote; lote → lote_perecible → producto; venta → detalle_venta → historial_precio_producto → cierre_caja; usuario/trabajador según rol → asistencia filtrada",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "returns only the authenticated worker, while the owner sees the global summary"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard.test.ts",
+          "nombre": "filters attendance using trusted identity and role, ignoring forged payload"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF55",
+      "diagrama": "cu55-mostrar-dashboard-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/dashboard-queries.ts",
+        "src/main/controllers/attendance-summary.ts"
+      ],
+      "mensajes": 102,
+      "sha256": {
+        "drawio": "0553d5281d9c221544ce558a59e5b2396389d2d0b08656569c3fe977205a5020",
+        "png": "aff0bc77c2e06b6c2dcf08433bd3aea345a74c915eda9ad954b93e7224e053fb"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos y su stock mínimo",
+        "categoria: Consultar categorías asociadas a los productos",
+        "lote: Consultar stock actual de lotes por producto",
+        "lote: Consultar lotes con stock disponible",
+        "lote_perecible: Consultar fechas de vencimiento hasta hoy más siete días",
+        "producto: Consultar productos asociados a los lotes",
+        "venta: Consultar ventas vigentes y anuladas de la fecha actual",
+        "detalle_venta: Consultar detalle de ventas asociado a las ventas del día",
+        "historial_precio_producto: Consultar historial de precios vigente por producto",
+        "cierre_caja: Consultar cierre_caja del día",
+        "usuario: Consultar usuario autenticado cuando corresponde asistencia propia",
+        "trabajador: Consultar trabajadores con estado Activo según alcance del rol",
+        "asistencia: Consultar asistencias de la fecha actual por trabajador según alcance del rol"
+      ]
+    },
+    {
+      "cu": "CU55",
+      "escenario": "E1",
+      "vista": "DashboardView",
+      "canales": [
+        "dashboard:cargar"
+      ],
+      "controlador": "C06 dashboardController → C07",
+      "operacionesModelo": "Fallo SELECT producto; cortar llamadas posteriores; mensaje exacto",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/dashboard.test.ts",
+          "nombre": "returns a technical error when dashboard data cannot be read"
+        },
+        {
+          "archivo": "tests/main/controllers/dashboard-consistency.test.ts",
+          "nombre": "delegates C07 → C08 → C09 → C23 and stops at the first failure"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF55",
+      "diagrama": "cu55-mostrar-dashboard-e1-error-carga-indicadores.drawio",
+      "codigo": [
+        "src/main/controllers/dashboard.ts",
+        "src/main/controllers/dashboard-service.ts",
+        "src/main/controllers/dashboard-queries.ts",
+        "src/main/controllers/attendance-summary.ts"
+      ],
+      "mensajes": 24,
+      "sha256": {
+        "drawio": "fbf11c1a9ff083400e8574d2bb927b50ad6a6b3186841cf7f790c3868bea70ae",
+        "png": "5e53ef90392cf8aa440fcec22f9cc4642aff4dfac7ed0ae2b8f5296cfe714005"
+      },
+      "llamadasModeloDiagrama": [
+        "SesionUsuario: Consultar sesión vigente y actualizar último acceso",
+        "producto: Consultar productos activos y su stock mínimo"
+      ]
+    },
+    {
+      "cu": "CU56",
+      "escenario": "happy",
+      "vista": "App.LoginView / DashboardView",
+      "canales": [
+        "auth:login"
+      ],
+      "controlador": "C01 authenticateWithExecutor",
+      "operacionesModelo": "SELECT usuario → intento_login → trabajador → contrasena → bcrypt; contraseña temporal opcional; INSERT intento exitoso → UUID/JWT → INSERT sesion_usuario → UPDATE usuario → usuario_version/auditoría",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "authenticates a valid owner and creates a session, attempt and audit log"
+        },
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "queries user → attempts → worker → password and signs before inserting the session"
+        },
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "rolls back successful attempts when signing fails before session persistence"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF56",
+      "diagrama": "cu56-autenticar-usuario-secuencia.drawio",
+      "codigo": [
+        "src/main/controllers/auth-login.ts",
+        "src/main/controllers/auth-guard.ts",
+        "src/main/controllers/session.ts"
+      ],
+      "mensajes": 76,
+      "sha256": {
+        "drawio": "d4b142da92ad02a013f6b1628c29e37ef41fa43d5a958ff89ac0db891f2015cd",
+        "png": "8f5d4c94a260eb588105da02a0e3b9602cadc7d90bc45df3f2fbccc71e758db1"
+      },
+      "llamadasModeloDiagrama": [
+        "usuario: Consultar usuario por nombre de usuario",
+        "intento_login: Consultar intento_login por usuario y fecha",
+        "trabajador: Consultar trabajador por trabajador_id",
+        "contrasena: Consultar contrasena vigente por usuario_id",
+        "contrasena_temporal: Consultar vigencia de contraseña temporal si corresponde",
+        "intento_login: Insertar intento_login exitoso y reiniciar contador",
+        "sesion_usuario: Insertar SesionUsuario con fecha de inicio y último acceso",
+        "usuario: Actualizar fecha del último inicio de sesión",
+        "usuario_version: Consultar o crear versión vigente del usuario",
+        "log_auditoria: Insertar log de inicio de sesión"
+      ]
+    },
+    {
+      "cu": "CU56",
+      "escenario": "E1",
+      "vista": "App.LoginView / DashboardView",
+      "canales": [
+        "auth:login"
+      ],
+      "controlador": "C01 authenticateWithExecutor",
+      "operacionesModelo": "usuario → intento_login → trabajador → contrasena → bcrypt → INSERT intento fallido; bloqueo por cuenta al quinto fallo",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "returns the generic error and records a failed attempt on wrong password (e1)"
+        },
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "shares lockout between equivalent RUT spellings and keeps the generic message"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF56",
+      "diagrama": "cu56-autenticar-usuario-e1-credenciales-incorrectas.drawio",
+      "codigo": [
+        "src/main/controllers/auth-login.ts",
+        "src/main/controllers/auth-guard.ts",
+        "src/main/controllers/session.ts"
+      ],
+      "mensajes": 38,
+      "sha256": {
+        "drawio": "617b0c577b668d4296c8fb377d0eedfd3ea92a558979edf04db9a9ff1b52d1c0",
+        "png": "53f8dcca77310b9cb6795aea5e6242cf2f0cff9bf65602b744d63d44754c0d4f"
+      },
+      "llamadasModeloDiagrama": [
+        "usuario: Consultar usuario por nombre de usuario",
+        "intento_login: Consultar intento_login por usuario y fecha",
+        "trabajador: Consultar trabajador por trabajador_id",
+        "contrasena: Consultar contrasena vigente por usuario_id",
+        "intento_login: Insertar intento_login fallido"
+      ]
+    },
+    {
+      "cu": "CU56",
+      "escenario": "E2",
+      "vista": "App.LoginView / DashboardView",
+      "canales": [
+        "auth:login"
+      ],
+      "controlador": "C01 authenticateWithExecutor",
+      "operacionesModelo": "usuario → intento_login → confirmar intento_login; no trabajador/contraseña/sesión",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "rejects login while the account is already locked (e2)"
+        },
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "unlocks at the fifteen minute boundary"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF56",
+      "diagrama": "cu56-autenticar-usuario-e2-cuenta-bloqueada.drawio",
+      "codigo": [
+        "src/main/controllers/auth-login.ts",
+        "src/main/controllers/auth-guard.ts",
+        "src/main/controllers/session.ts"
+      ],
+      "mensajes": 23,
+      "sha256": {
+        "drawio": "8f9cb79725c6980eedcd5d80fa17c22371f38ffe7b1c83465f275c1bc319b6d1",
+        "png": "491972a0c6a8239d49f8b3b0166e819c82986e6720d01ed03ae8aa002cd97f2f"
+      },
+      "llamadasModeloDiagrama": [
+        "usuario: Consultar usuario por nombre de usuario",
+        "intento_login: Consultar intento_login por usuario y fecha",
+        "intento_login: Consultar intento_login y fecha de expiración del bloqueo"
+      ]
+    },
+    {
+      "cu": "CU56",
+      "escenario": "E3",
+      "vista": "App.LoginView / DashboardView",
+      "canales": [
+        "auth:login"
+      ],
+      "controlador": "C01 authenticateWithExecutor",
+      "operacionesModelo": "usuario → intento_login → trabajador inactivo; sin contraseña/sesión",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/auth-login.test.ts",
+          "nombre": "rejects an inactive worker account (e3)"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF56",
+      "diagrama": "cu56-autenticar-usuario-e3-usuario-inactivo.drawio",
+      "codigo": [
+        "src/main/controllers/auth-login.ts",
+        "src/main/controllers/auth-guard.ts",
+        "src/main/controllers/session.ts"
+      ],
+      "mensajes": 23,
+      "sha256": {
+        "drawio": "7f01f38e0c0792ade756156b425db5bb4e8d87725497c1f22ccc19d8d9ef7099",
+        "png": "f5b78e23ef652b93f97a719f7b85fe1b8072cff9896595d87b4ae24a449a4787"
+      },
+      "llamadasModeloDiagrama": [
+        "usuario: Consultar usuario por nombre de usuario",
+        "intento_login: Consultar intento_login por usuario y fecha",
+        "trabajador: Consultar trabajador por trabajador_id"
+      ]
+    },
+    {
+      "cu": "CU56",
+      "escenario": "E4",
+      "vista": "App / DashboardView → LoginView",
+      "canales": [
+        "auth:verificar-sesion"
+      ],
+      "controlador": "C03 authorizeRequest → C05 validateAndRefreshActiveSession / verifySessionWithExecutor",
+      "operacionesModelo": "SELECT propietario/estado/último acceso → UPDATE cierre → session:expirada → SELECT confirmar cierre; no renovación",
+      "pruebas": [
+        {
+          "archivo": "tests/main/controllers/request-session.test.ts",
+          "nombre": "expires exactly at 30 minutes and sends the event"
+        },
+        {
+          "archivo": "tests/main/controllers/request-session.test.ts",
+          "nombre": "checks without renewing a heartbeat, then renews real activity"
+        },
+        {
+          "archivo": "tests/main/controllers/request-session.test.ts",
+          "nombre": "fails closed when session persistence fails"
+        }
+      ],
+      "brechas": [],
+      "rf": "RF56",
+      "diagrama": "cu56-autenticar-usuario-e4-sesion-expirada.drawio",
+      "codigo": [
+        "src/main/controllers/auth-login.ts",
+        "src/main/controllers/auth-guard.ts",
+        "src/main/controllers/session.ts"
+      ],
+      "mensajes": 34,
+      "sha256": {
+        "drawio": "93c44c73bb65395b98ef71aa6082183a2465d9bbd24d4e9cef80eb5f260ed9e9",
+        "png": "6e28e8354f6a5eabd9cd31d85458d908cf318f5f9135bea4c6c554623ad017b7"
+      },
+      "llamadasModeloDiagrama": [
+        "sesion_usuario: Consultar fecha_ultimo_acceso de SesionUsuario activa y verificar 30 minutos de inactividad",
+        "sesion_usuario: Actualizar SesionUsuario con fecha de cierre y motivo inactividad",
+        "sesion_usuario: Consultar SesionUsuario cerrada por inactividad"
+      ]
+    }
+  ]
+}

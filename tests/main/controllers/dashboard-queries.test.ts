@@ -23,6 +23,19 @@ beforeEach(() => {
   allMock.mockReset();
 });
 
+
+function queueSales(rows: any[]) {
+  allMock.mockResolvedValueOnce(rows.map((row, i) => ({ ...row, saleId: String(i) })))
+    .mockResolvedValueOnce(rows.map((row, i) => ({ saleId: String(i), quantity: 1, priceId: String(i) })))
+    .mockResolvedValueOnce(rows.map((row, i) => ({ priceId: String(i), price: row.subtotal })));
+  return allMock;
+}
+function queueExpiration(rows: any[]) {
+  allMock.mockResolvedValueOnce(rows.map((row, i) => ({ ...row, productId: i })))
+    .mockResolvedValueOnce(rows.map(row => ({ lotId: row.lotId, expirationDate: row.expirationDate })))
+    .mockResolvedValueOnce(rows.map((row, i) => ({ productId: i, productName: row.productName, ean13: row.ean13 })));
+}
+
 describe('daily sales calculation', () => {
   it('keeps the subtotal when there is no discount', () => {
     expect(
@@ -59,9 +72,23 @@ describe('daily sales calculation', () => {
 });
 
 describe('dashboard query mapping', () => {
+  it('returns no stock alerts when every active product has sufficient stock (CU8-E1)', async () => {
+    allMock.mockResolvedValueOnce([{ productId: 1, productName: 'Leche', categoryId: 1, minimumStock: 5 }])
+      .mockResolvedValueOnce([{ categoryId: 1, categoryName: 'Lácteos' }])
+      .mockResolvedValueOnce([{ productId: 1, currentStock: 6 }]);
+    expect(await loadStockAlerts(database)).toEqual([]);
+    expect(allMock).toHaveBeenCalledTimes(3);
+  });
+  it('returns no expiration alerts when no relevant lot exists (CU9-E1)', async () => {
+    allMock.mockResolvedValueOnce([{ lotId: 'lote', productId: 1, availableQuantity: 4 }])
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([{ productId: 1, productName: 'Leche' }]);
+    expect(await loadExpirationAlerts(database)).toEqual({ expired: [], expiringSoon: [] });
+    expect(allMock).toHaveBeenCalledTimes(3);
+  });
   it('maps stock totals returned by SQLite to numbers', async () => {
     allMock.mockResolvedValueOnce([
       {
+        productId: 1, categoryId: 1,
         productName: 'Leche',
         ean13: '7802345600012',
         categoryName: 'Lacteos',
@@ -70,6 +97,8 @@ describe('dashboard query mapping', () => {
       },
     ]);
 
+    allMock.mockResolvedValueOnce([{ categoryId: 1, categoryName: 'Lacteos' }])
+      .mockResolvedValueOnce([{ productId: 1, currentStock: '8' }]);
     await expect(loadStockAlerts(database)).resolves.toEqual([
       {
         productName: 'Leche',
@@ -82,7 +111,7 @@ describe('dashboard query mapping', () => {
   });
 
   it('separates expired lots from the fixed seven-day horizon', async () => {
-    allMock.mockResolvedValueOnce([
+    queueExpiration([
       {
         lotId: 'expired',
         productName: 'Pan',
@@ -124,7 +153,7 @@ describe('dashboard query mapping', () => {
   });
 
   it('separates current and voided daily sales', async () => {
-    allMock.mockResolvedValueOnce([
+    queueSales([
       {
         state: 'completada',
         paymentMethod: 'efectivo',
@@ -164,6 +193,7 @@ describe('dashboard query mapping', () => {
       { workerId: 2, fullName: 'Luis Soto', hasAttendance: 0 },
     ]);
 
+    allMock.mockResolvedValueOnce([{ workerId: 1 }]);
     await expect(
       loadAttendanceSummary(database, new Date('2026-06-11T12:00:00Z')),
     ).resolves.toEqual({
@@ -189,8 +219,7 @@ describe('dashboard query mapping', () => {
   });
 
   it('builds an open cash summary from current and voided sales', async () => {
-    allMock
-      .mockResolvedValueOnce([
+    queueSales([
         {
           state: 'completada',
           paymentMethod: 'efectivo',
