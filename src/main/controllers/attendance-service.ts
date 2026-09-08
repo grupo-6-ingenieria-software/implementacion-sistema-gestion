@@ -277,35 +277,51 @@ async function authorizeAttendanceUser(
     );
   }
 
-  const rows = await database.all<{
+  const accountRows = await database.all<{
     usuarioId: string;
     usuarioRol: string;
+    trabajadorId: number;
+  }>(sql`
+    SELECT
+      u.usuario_id AS usuarioId,
+      u.usuario_rol AS usuarioRol,
+      u.trabajador_id AS trabajadorId
+    FROM usuario u
+    WHERE u.usuario_id = ${normalizedUsuarioId}
+    LIMIT 1
+  `);
+  const account = accountRows[0];
+
+  if (!account) {
+    throw new AttendanceAccessError(
+      'El usuario autenticado no esta activo o no existe.',
+    );
+  }
+
+  const workerRows = await database.all<{
     trabajadorId: number;
     trabajadorRut: string;
     trabajadorEstado: string;
     nombreCompleto: string;
   }>(sql`
     SELECT
-      u.usuario_id AS usuarioId,
-      u.usuario_rol AS usuarioRol,
-      t.trabajador_id AS trabajadorId,
-      t.trabajador_rut AS trabajadorRut,
-      t.trabajador_estado AS trabajadorEstado,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombreCompleto
-    FROM usuario u
-    INNER JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-    WHERE u.usuario_id = ${normalizedUsuarioId}
+      trabajador_id AS trabajadorId,
+      trabajador_rut AS trabajadorRut,
+      trabajador_estado AS trabajadorEstado,
+      trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombreCompleto
+    FROM trabajador
+    WHERE trabajador_id = ${account.trabajadorId}
     LIMIT 1
   `);
-  const user = rows[0];
+  const worker = workerRows[0];
 
-  if (!user || user.trabajadorEstado !== 'activo') {
+  if (!worker || worker.trabajadorEstado !== 'activo') {
     throw new AttendanceAccessError(
       'El usuario autenticado no esta activo o no existe.',
     );
   }
 
-  const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
+  const role = mapDatabaseRoleToTechnicalRole(account.usuarioRol);
 
   if (!role || !['dueno', 'trabajador'].includes(role)) {
     throw new AttendanceAccessError(
@@ -315,11 +331,11 @@ async function authorizeAttendanceUser(
 
   return {
     role,
-    usuarioId: user.usuarioId,
-    usuarioRol: user.usuarioRol,
-    trabajadorId: Number(user.trabajadorId),
-    trabajadorRut: normalizeRut(user.trabajadorRut),
-    nombreCompleto: user.nombreCompleto,
+    usuarioId: account.usuarioId,
+    usuarioRol: account.usuarioRol,
+    trabajadorId: Number(worker.trabajadorId),
+    trabajadorRut: normalizeRut(worker.trabajadorRut),
+    nombreCompleto: worker.nombreCompleto,
   };
 }
 

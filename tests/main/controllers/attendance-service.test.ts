@@ -337,6 +337,26 @@ describe('attendance service', () => {
     });
   });
 
+  it('rolls back an entry when the audit insert fails', async () => {
+    await seedShift(testDb!.db as unknown as DbExecutor, 2);
+    await abortAttendanceAuditWrites(testDb!.db as unknown as DbExecutor);
+
+    await expect(
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        {
+          fase: 'confirmar',
+          usuarioId: '12345678-9',
+          trabajadorRut: '23456789-0',
+        },
+        now,
+      ),
+    ).rejects.toThrow();
+
+    await expect(countAttendanceRows()).resolves.toBe(0);
+  });
+
+
   it('blocks exits without a previous entry', async () => {
     await expect(
       registerAttendanceExit(
@@ -379,6 +399,21 @@ async function countAttendanceRows(): Promise<number> {
     sql`SELECT COUNT(*) AS count FROM asistencia`,
   );
   return Number(rows[0].count);
+}
+
+async function abortAttendanceAuditWrites(database: DbExecutor): Promise<void> {
+  await database.run(sql`
+    CREATE TRIGGER abort_attendance_audit
+    BEFORE INSERT ON log_auditoria
+    WHEN NEW.log_tipo_accion IN (
+      'registrar_entrada_asistencia',
+      'registrar_entrada_sin_turno',
+      'registrar_salida_asistencia'
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'fallo auditoria asistencia');
+    END
+  `);
 }
 
 async function createTestDatabase() {
