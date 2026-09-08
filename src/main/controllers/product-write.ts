@@ -28,7 +28,6 @@ type ProductWriteConfig<TPayload> = {
   channel: string;
   metadata: RegisteredController["metadata"];
   normalize: (payload: unknown) => TPayload;
-  validate?: (payload: TPayload) => ProductFieldErrors;
   dependencies: ProductWriteDependencies<TPayload>;
 };
 
@@ -190,9 +189,7 @@ export async function editProductWithExecutor(
   schema: SchemaLike,
   payload: ProductEditPayload,
 ): Promise<void> {
-  assertValidProductPayload(validateEditPayload(payload));
   const user = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
-  await ensureCategoryExists(tx, schema, payload.categoriaId);
   const product = await findProductByEan13(tx, schema, payload.originalEan13);
 
   if (!product) {
@@ -202,7 +199,10 @@ export async function editProductWithExecutor(
     );
   }
 
+  await ensureCategoryExists(tx, schema, payload.categoriaId);
+
   const currentPrice = await findCurrentPrice(tx, schema, product.productoId);
+  assertValidProductPayload(validateEditPayload(payload));
   const priceChanged =
     !currentPrice ||
     currentPrice.historialPrecioCosto !== payload.precioCosto ||

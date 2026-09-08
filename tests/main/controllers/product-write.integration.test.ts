@@ -90,6 +90,61 @@ describe("product write persistence", () => {
     expect(rows[0]).toEqual({ products: 1, prices: 1, versions: 1, audits: 1 });
   });
 
+  it("checks product, category and current price before editing the normalized history", async () => {
+    await testDb!.db.transaction((tx) =>
+      createProductWithExecutor(tx, schema, {
+        usuarioId: "12345678-9",
+        ean13: "7802920000015",
+        nombre: "Leche",
+        categoriaId: 1,
+        precioCosto: 700,
+        precioVenta: 1000,
+        stockMinimo: 3,
+      }),
+    );
+
+    await expect(
+      testDb!.db.transaction((tx) =>
+        editProductWithExecutor(tx, schema, {
+          usuarioId: "12345678-9",
+          originalEan13: "7802920000015",
+          ean13: "7802920000015",
+          nombre: "",
+          categoriaId: 99,
+          precioCosto: 800,
+          precioVenta: 1200,
+          stockMinimo: 3,
+        }),
+      ),
+    ).rejects.toMatchObject({
+      reason: "category-not-found",
+    } satisfies Partial<ProductWriteError>);
+
+    await testDb!.db.transaction((tx) =>
+      editProductWithExecutor(tx, schema, {
+        usuarioId: "12345678-9",
+        originalEan13: "7802920000015",
+        ean13: "7802920000015",
+        nombre: "Leche editada",
+        categoriaId: 1,
+        precioCosto: 800,
+        precioVenta: 1200,
+        stockMinimo: 4,
+      }),
+    );
+
+    const prices = await testDb!.db.all<{
+      current: number;
+      closed: number;
+    }>(sql`
+      SELECT
+        SUM(CASE WHEN historial_fecha_hora_vigencia_hasta IS NULL THEN 1 ELSE 0 END) AS current,
+        SUM(CASE WHEN historial_fecha_hora_vigencia_hasta IS NOT NULL THEN 1 ELSE 0 END) AS closed
+      FROM historial_precio_producto
+    `);
+    expect(prices[0]).toEqual({ current: 1, closed: 1 });
+  });
+
 });
 
 async function createTestDatabase() {
