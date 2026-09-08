@@ -11,7 +11,6 @@ import {
   normalizeShiftListPayload,
   PENDING_SHIFT_DB_STATE,
   parseShiftRange,
-  validateShiftCreatePayload,
   validateShiftDeletePayload,
   validateShiftEditPayload,
   validateShiftListPayload,
@@ -197,7 +196,7 @@ export async function createShift(
       });
     }
 
-    assertValid(validateShiftCreatePayload(payload));
+    assertValid(await validateShiftCreateInDatabase(tx, payload));
     const range = requireRange(payload);
 
     await assertNoOverlap(
@@ -234,6 +233,57 @@ export async function createShift(
 
     return { turnoId };
   });
+}
+
+export async function validateShiftCreateInDatabase(
+  database: Pick<DbExecutor, 'all'>,
+  payload: ShiftCreatePayload,
+): Promise<ShiftFieldErrors> {
+  const [validation] = await database.all<{
+    fechaValida: number;
+    inicioValido: number;
+    terminoValido: number;
+    ordenValido: number;
+  }>(sql`
+    SELECT
+      CASE WHEN
+        length(${payload.fecha}) = 10
+        AND ${payload.fecha} GLOB '[0-3][0-9]/[0-1][0-9]/[0-9][0-9][0-9][0-9]'
+        AND strftime(
+          '%d/%m/%Y',
+          substr(${payload.fecha}, 7, 4) || '-' || substr(${payload.fecha}, 4, 2) || '-' || substr(${payload.fecha}, 1, 2)
+        ) = ${payload.fecha}
+      THEN 1 ELSE 0 END AS fechaValida,
+      CASE WHEN
+        length(${payload.horaInicio}) = 5
+        AND ${payload.horaInicio} GLOB '[0-2][0-9]:[0-5][0-9]'
+        AND time(${payload.horaInicio}) IS NOT NULL
+        AND CAST(substr(${payload.horaInicio}, 1, 2) AS INTEGER) BETWEEN 0 AND 23
+      THEN 1 ELSE 0 END AS inicioValido,
+      CASE WHEN
+        length(${payload.horaTermino}) = 5
+        AND ${payload.horaTermino} GLOB '[0-2][0-9]:[0-5][0-9]'
+        AND time(${payload.horaTermino}) IS NOT NULL
+        AND CAST(substr(${payload.horaTermino}, 1, 2) AS INTEGER) BETWEEN 0 AND 23
+      THEN 1 ELSE 0 END AS terminoValido,
+      CASE WHEN time(${payload.horaTermino}) > time(${payload.horaInicio})
+      THEN 1 ELSE 0 END AS ordenValido
+  `);
+  const errors: ShiftFieldErrors = {};
+
+  if (!validation?.fechaValida) {
+    errors.fecha = 'Ingrese la fecha en formato DD/MM/AAAA.';
+  }
+  if (!validation?.inicioValido) {
+    errors.horaInicio = 'Ingrese la hora de inicio en formato HH:MM.';
+  }
+  if (!validation?.terminoValido) {
+    errors.horaTermino = 'Ingrese la hora de termino en formato HH:MM.';
+  } else if (validation.inicioValido && !validation.ordenValido) {
+    errors.horaTermino = 'La hora de termino debe ser posterior a la hora de inicio.';
+  }
+
+  return errors;
 }
 
 export async function editShift(
