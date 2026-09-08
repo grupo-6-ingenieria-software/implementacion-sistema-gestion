@@ -1,7 +1,6 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   normalizeUserFormPayload,
-  validateUserFormValues,
   type UserFieldErrors,
   type UserFormValues,
   type UserMutationResponse,
@@ -38,14 +37,12 @@ export function WorkerFormView({
   const parsedValues = useMemo(() => normalizeUserFormPayload(form), [form]);
 
   async function handleSubmit(): Promise<void> {
-    const errors = validateUserFormValues(parsedValues);
-    setFieldErrors(errors);
+    // El backend es la fuente de verdad de RF21-E2/E3/E4. Enviar también los
+    // valores inválidos permite que el recorrido Vista → Controlador → Modelo
+    // retorne los errores de campo con el mismo contrato que una llamada IPC.
+    setFieldErrors({});
     setMessage(null);
     setCreated(null);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
@@ -96,6 +93,7 @@ export function WorkerFormView({
       <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
         <form
           className="grid gap-5"
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
             void handleSubmit();
