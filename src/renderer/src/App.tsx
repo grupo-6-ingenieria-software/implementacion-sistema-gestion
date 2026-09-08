@@ -90,6 +90,10 @@ export function App(): ReactElement {
     navigate(PUBLIC_LOGIN_PATH);
   }).current;
 
+  useEffect(() => window.appApi.onSessionExpired(() => {
+    if (isAuthenticatedRef.current) expireSession();
+  }), [expireSession]);
+
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
     window.addEventListener('hashchange', handleHashChange);

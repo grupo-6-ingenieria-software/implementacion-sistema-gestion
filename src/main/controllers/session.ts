@@ -1,9 +1,9 @@
 /**
- * SesionHandler — Verificación de sesión, inactividad y cierre (RF55, CU56 e4).
+ * SesionHandler — Verificación de sesión, inactividad y cierre (RF56, CU56 e4).
  *
  * Es la única fuente de verdad sobre el estado de la sesión en la base de datos:
  *  - Canal auth:verificar-sesion: latido (heartbeat) del renderer. SÓLO consulta
- *    el estado de la sesión: si lleva más de 30 minutos sin actividad real la
+ *    el estado de la sesión: si alcanza 30 minutos sin actividad real la
  *    cierra (motivo_cierre = 'inactividad'); en caso contrario responde
  *    active=true SIN refrescar el último acceso. El latido es de SÓLO LECTURA,
  *    por lo que NO reinicia el contador de inactividad mientras la app está
@@ -118,7 +118,7 @@ export async function verifySessionWithExecutor(
   const now = deps.now();
   const idleMs = now.getTime() - Date.parse(sesion.ultimoAcceso);
 
-  if (idleMs > INACTIVITY_MS) {
+  if (!Number.isFinite(idleMs) || idleMs >= INACTIVITY_MS) {
     await database
       .update(schema.sesionUsuario)
       .set({
@@ -140,14 +140,38 @@ export async function verifySessionWithExecutor(
   return controllerSuccess<VerifySessionData>({ active: true });
 }
 
+/** C05: comprobar y renovar bajo la misma transacción, antes de negocio. */
+export async function validateAndRefreshActiveSession(
+  database: Pick<typeof db, 'transaction'>,
+  schema: SchemaLike,
+  sesionId: string,
+  usuarioId: string,
+  refresh: boolean,
+  deps: SessionDeps = defaultDeps,
+): Promise<VerifySessionData> {
+  return database.transaction(async (tx) => {
+    const [owner] = await tx.select({ usuarioId: schema.sesionUsuario.usuarioId })
+      .from(schema.sesionUsuario)
+      .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId)).limit(1);
+    if (!owner || owner.usuarioId !== usuarioId) {
+      return { active: false, reason: 'sesion-inexistente' };
+    }
+    const checked = await verifySessionWithExecutor(tx, schema, sesionId, deps);
+    if (!checked.ok) throw new Error('No fue posible verificar la sesión');
+    if (!checked.data.active || !refresh) return checked.data;
+    await refreshSessionActivity(tx, schema, sesionId, deps);
+    return checked.data;
+  });
+}
+
 /**
  * Refresca sesion_fecha_hora_ultimo_acceso = ahora para la sesión indicada,
  * marcando actividad real del usuario. Lo invoca el dispatcher (index.ts) tras
  * un guard exitoso en cualquier IPC autenticado que NO sea el latido ni el
  * logout. Sólo afecta a sesiones aún abiertas (cierre IS NULL): una sesión ya
  * cerrada por inactividad o logout no se "revive" con un UPDATE de actividad.
- * Es un único UPDATE; cualquier fallo de BD se ignora para no bloquear la
- * acción del usuario (la actividad es un efecto secundario, no el objetivo).
+ * C05 invoca esta actualización después de validar en la misma transacción.
+ * Un error de persistencia se propaga e impide despachar la operación.
  */
 export async function refreshSessionActivity(
   database: SessionExecutor,

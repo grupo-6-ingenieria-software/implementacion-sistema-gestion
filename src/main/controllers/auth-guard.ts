@@ -21,6 +21,8 @@ import type { ControllerContext } from './base';
 import { verifySessionToken, type SessionTokenClaims } from './auth-jwt';
 import { registerAuditLog } from './auth-context';
 import { db, schema as appSchema } from '../../db/client';
+import { NON_ACTIVITY_CHANNELS, validateAndRefreshActiveSession, type VerifySessionData } from './session';
+import { SESSION_EXPIRED_MESSAGE } from '../../shared/auth';
 
 /** Único canal público: sin él no se podría iniciar sesión. */
 export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(['auth:login']);
@@ -125,6 +127,44 @@ const defaultDeps: GuardDeps = {
 export type GuardResult =
   | { ok: true; context: ControllerContext; payload: unknown }
   | { ok: false; response: ReturnType<typeof controllerError> };
+
+export type RequestAuthorizationDeps = {
+  identity: typeof guardChannel;
+  session: (claims: SessionTokenClaims, refresh: boolean) => Promise<VerifySessionData>;
+};
+
+/** C03 → JWT → C05. Nunca ejecutar negocio antes de validar la fila de sesión. */
+export async function authorizeRequest(
+  channel: string,
+  payload: unknown,
+  onExpired: () => void = () => undefined,
+  deps: RequestAuthorizationDeps = {
+    identity: guardChannel,
+    session: (claims, refresh) => validateAndRefreshActiveSession(
+      db, appSchema, claims.sesionId, claims.usuarioId, refresh,
+    ),
+  },
+): Promise<GuardResult> {
+  try {
+    const result = await deps.identity(channel, payload);
+    if (!result.ok || !result.context.claims) return result;
+    const session = await deps.session(result.context.claims, !NON_ACTIVITY_CHANNELS.has(channel));
+    if (!session.active) {
+      if (session.reason === 'inactividad') {
+        onExpired();
+        // CU56-E4 confirma la persistencia del cierre sin renovar actividad.
+        const closed = await deps.session(result.context.claims, false);
+        if (closed.active) throw new Error('No se confirmó el cierre por inactividad');
+      }
+      return { ok: false, response: controllerError('FORBIDDEN',
+        session.reason === 'inactividad' ? SESSION_EXPIRED_MESSAGE : 'No hay una sesión válida para realizar esta acción.') };
+    }
+    return result;
+  } catch (error) {
+    console.error('Error al validar la sesión', error);
+    return { ok: false, response: controllerError('TECHNICAL_ERROR', 'No fue posible verificar la sesión. Intente nuevamente.') };
+  }
+}
 
 /**
  * Verifica el token del payload según la política del canal. En caso de éxito
