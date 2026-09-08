@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
+import { eq } from "drizzle-orm";
+import { controllers } from "../../shared/controllers";
 import {
   hasLotFieldErrors,
   normalizeLotRegisterPayload,
@@ -8,14 +8,15 @@ import {
   type LotProviderOption,
   type LotRegisterPayload,
   type LotRegisterResponse,
-} from '../../shared/lots';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/lots";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
-import { notifyDashboardUpdated } from './dashboard-events';
+} from "./auth-context";
+import { notifyDashboardUpdated } from "./dashboard-events";
+import { queryActiveProductByEan13 } from "./product-query";
 
 type LotDependencies = {
   register: (payload: LotRegisterPayload) => Promise<LotRegisterResponse>;
@@ -31,7 +32,7 @@ export function createLotController(
     payload,
     context,
   ) => {
-    if (context.channel === 'lote:proveedores') {
+    if (context.channel === "lote:proveedores") {
       try {
         return {
           ok: true,
@@ -42,8 +43,8 @@ export function createLotController(
           return {
             ok: false,
             error: {
-              code: 'FORBIDDEN',
-              controllerId: 'lot',
+              code: "FORBIDDEN",
+              controllerId: "lot",
               message: error.message,
             },
           };
@@ -52,20 +53,20 @@ export function createLotController(
         return {
           ok: false,
           error: {
-            code: 'DATABASE_ERROR',
-            controllerId: 'lot',
-            message: 'No fue posible cargar los proveedores.',
+            code: "DATABASE_ERROR",
+            controllerId: "lot",
+            message: "No fue posible cargar los proveedores.",
           },
         };
       }
     }
 
-    if (context.channel !== 'lote:registrar') {
+    if (context.channel !== "lote:registrar") {
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
-          controllerId: 'lot',
+          code: "INVALID_CHANNEL",
+          controllerId: "lot",
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
@@ -93,9 +94,9 @@ export function createLotController(
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
-          controllerId: 'lot',
-          message: 'No fue posible registrar el lote. Intente nuevamente.',
+          code: "DATABASE_ERROR",
+          controllerId: "lot",
+          message: "No fue posible registrar el lote. Intente nuevamente.",
         },
       };
     }
@@ -115,8 +116,8 @@ const lotDependencies: LotDependencies = {
 async function registerLot(
   payload: LotRegisterPayload,
 ): Promise<LotRegisterResponse> {
-  const { db, schema } = await import('../../db/client');
-  let createdLotId = '';
+  const { db, schema } = await import("../../db/client");
+  let createdLotId = "";
 
   await db.transaction(async (tx) => {
     const result = await registerLotWithExecutor(tx, schema, payload);
@@ -132,10 +133,10 @@ async function registerLot(
 }
 
 async function listProviders(payload: unknown): Promise<LotProviderOption[]> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
   const usuarioId = normalizeUsuarioIdPayload(payload);
 
-  await authorizeUser(db, schema, usuarioId, ['dueno']);
+  await authorizeUser(db, schema, usuarioId, ["dueno"]);
 
   return db
     .select({
@@ -151,12 +152,18 @@ export async function registerLotWithExecutor(
   schema: SchemaLike,
   payload: LotRegisterPayload,
 ): Promise<LotRegisterResponse> {
-  const user = await authorizeUser(executor, schema, payload.usuarioId, ['dueno']);
-  const product = await findActiveProductByEan13(executor, schema, payload.ean13);
+  const user = await authorizeUser(executor, schema, payload.usuarioId, [
+    "dueno",
+  ]);
+  const product = await queryActiveProductByEan13(
+    executor,
+    schema,
+    payload.ean13,
+  );
 
   if (!product) {
-    throw new LotError('product-not-found', {
-      ean13: 'El producto no existe o se encuentra inactivo.',
+    throw new LotError("product-not-found", {
+      ean13: "El producto no existe o se encuentra inactivo.",
     });
   }
 
@@ -165,14 +172,18 @@ export async function registerLotWithExecutor(
   });
 
   if (hasLotFieldErrors(fieldErrors)) {
-    throw new LotError('validation', fieldErrors);
+    throw new LotError("validation", fieldErrors);
   }
 
-  const provider = await findProviderById(executor, schema, payload.proveedorId);
+  const provider = await findProviderById(
+    executor,
+    schema,
+    payload.proveedorId,
+  );
 
   if (!provider) {
-    throw new LotError('provider-not-found', {
-      proveedorId: 'Seleccione un proveedor existente.',
+    throw new LotError("provider-not-found", {
+      proveedorId: "Seleccione un proveedor existente.",
     });
   }
 
@@ -205,8 +216,8 @@ export async function registerLotWithExecutor(
   });
 
   await registerAuditLog(executor, schema, {
-    tipoAccion: 'registro',
-    modulo: 'inventario',
+    tipoAccion: "registro",
+    modulo: "inventario",
     descripcion: `Lote registrado para producto ${payload.ean13}`,
     usuarioId: user.usuarioId,
   });
@@ -215,37 +226,6 @@ export async function registerLotWithExecutor(
     loteId: createdLot.loteId,
     ean13: payload.ean13,
   };
-}
-
-async function findActiveProductByEan13(
-  executor: QueryExecutor,
-  schema: SchemaLike,
-  ean13: string,
-): Promise<{ productoId: number; exigeVencimiento: boolean } | null> {
-  const [product] = await executor
-    .select({
-      productoId: schema.producto.productoId,
-      exigeVencimiento: schema.categoria.categoriaExigeVencimiento,
-    })
-    .from(schema.producto)
-    .innerJoin(
-      schema.categoria,
-      eq(schema.categoria.categoriaId, schema.producto.categoriaId),
-    )
-    .where(
-      and(
-        eq(schema.producto.productoEstado, 'activo'),
-        eq(schema.producto.productoEan13, ean13),
-      ),
-    )
-    .limit(1);
-
-  return product
-    ? {
-        productoId: Number(product.productoId),
-        exigeVencimiento: Boolean(product.exigeVencimiento),
-      }
-    : null;
 }
 
 async function findProviderById(
@@ -267,8 +247,8 @@ function normalizeLotError(error: unknown) {
     return {
       ok: false as const,
       error: {
-        code: 'FORBIDDEN' as const,
-        controllerId: 'lot' as const,
+        code: "FORBIDDEN" as const,
+        controllerId: "lot" as const,
         message: error.message,
       },
     };
@@ -278,26 +258,26 @@ function normalizeLotError(error: unknown) {
     return null;
   }
 
-  if (error.reason === 'product-not-found') {
+  if (error.reason === "product-not-found") {
     return {
       ok: false as const,
       error: {
-        code: 'BUSINESS_RULE' as const,
-        controllerId: 'lot' as const,
+        code: "BUSINESS_RULE" as const,
+        controllerId: "lot" as const,
         fieldErrors: error.fieldErrors,
-        message: 'El producto no existe o se encuentra inactivo.',
+        message: "El producto no existe o se encuentra inactivo.",
       },
     };
   }
 
-  if (error.reason === 'provider-not-found') {
+  if (error.reason === "provider-not-found") {
     return {
       ok: false as const,
       error: {
-        code: 'VALIDATION_ERROR' as const,
-        controllerId: 'lot' as const,
+        code: "VALIDATION_ERROR" as const,
+        controllerId: "lot" as const,
         fieldErrors: error.fieldErrors,
-        message: 'Revise los campos marcados antes de continuar.',
+        message: "Revise los campos marcados antes de continuar.",
       },
     };
   }
@@ -307,10 +287,10 @@ function normalizeLotError(error: unknown) {
 
 function normalizeUsuarioIdPayload(payload: unknown): string | undefined {
   if (
-    typeof payload === 'object' &&
+    typeof payload === "object" &&
     payload !== null &&
-    'usuarioId' in payload &&
-    typeof payload.usuarioId === 'string'
+    "usuarioId" in payload &&
+    typeof payload.usuarioId === "string"
   ) {
     return payload.usuarioId.trim();
   }
@@ -322,27 +302,27 @@ function validationResponse(fieldErrors: LotFieldErrors) {
   return {
     ok: false as const,
     error: {
-      code: 'VALIDATION_ERROR' as const,
-      controllerId: 'lot' as const,
+      code: "VALIDATION_ERROR" as const,
+      controllerId: "lot" as const,
       fieldErrors,
-      message: 'Revise los campos marcados antes de continuar.',
+      message: "Revise los campos marcados antes de continuar.",
     },
   };
 }
 
 export class LotError extends Error {
   constructor(
-    readonly reason: 'product-not-found' | 'provider-not-found' | 'validation',
+    readonly reason: "product-not-found" | "provider-not-found" | "validation",
     readonly fieldErrors: LotFieldErrors,
   ) {
-    super('No fue posible registrar el lote.');
+    super("No fue posible registrar el lote.");
   }
 }
 
-type SchemaLike = typeof import('../../db/schema');
+type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = {
-  select: typeof import('../../db/client').db.select;
-  insert: typeof import('../../db/client').db.insert;
+  select: typeof import("../../db/client").db.select;
+  insert: typeof import("../../db/client").db.insert;
 };
 type MutationExecutor = QueryExecutor;
 

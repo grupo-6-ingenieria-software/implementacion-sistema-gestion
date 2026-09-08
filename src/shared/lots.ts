@@ -1,13 +1,13 @@
-import { isValidEan13 } from './ean13';
+import { isValidEan13 } from "./ean13";
 
 export type LotFieldErrors = Partial<
   Record<
-    | 'ean13'
-    | 'cantidad'
-    | 'precioCosto'
-    | 'fechaVencimiento'
-    | 'proveedorId'
-    | 'usuarioId',
+    | "ean13"
+    | "cantidad"
+    | "precioCosto"
+    | "fechaVencimiento"
+    | "proveedorId"
+    | "usuarioId",
     string
   >
 >;
@@ -32,7 +32,7 @@ export type LotProviderOption = {
 };
 
 export const invalidLotEanMessage =
-  'Seleccione un producto activo para registrar el lote.';
+  "Seleccione un producto activo para registrar el lote.";
 
 export function normalizeLotRegisterPayload(
   payload: unknown,
@@ -40,16 +40,18 @@ export function normalizeLotRegisterPayload(
   const record = isRecord(payload) ? payload : {};
 
   return {
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     cantidad: normalizeInteger(record.cantidad),
     precioCosto: normalizeInteger(record.precioCosto),
     fechaVencimiento:
-      typeof record.fechaVencimiento === 'string'
+      typeof record.fechaVencimiento === "string"
         ? record.fechaVencimiento.trim()
         : undefined,
     proveedorId: normalizeInteger(record.proveedorId),
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
   };
 }
 
@@ -64,15 +66,16 @@ export function validateLotRegisterPayload(
   }
 
   if (!Number.isInteger(values.cantidad) || values.cantidad <= 0) {
-    fieldErrors.cantidad = 'La cantidad debe ser un entero mayor que 0.';
+    fieldErrors.cantidad = "La cantidad debe ser un entero mayor que 0.";
   }
 
   if (!Number.isInteger(values.precioCosto) || values.precioCosto <= 0) {
-    fieldErrors.precioCosto = 'El costo del lote debe ser un entero mayor que 0.';
+    fieldErrors.precioCosto =
+      "El costo del lote debe ser un entero mayor que 0.";
   }
 
   if (!Number.isInteger(values.proveedorId) || values.proveedorId <= 0) {
-    fieldErrors.proveedorId = 'Seleccione un proveedor existente.';
+    fieldErrors.proveedorId = "Seleccione un proveedor existente.";
   }
 
   if (options.productRequiresExpiration) {
@@ -80,12 +83,12 @@ export function validateLotRegisterPayload(
 
     if (!values.fechaVencimiento) {
       fieldErrors.fechaVencimiento =
-        'La fecha de vencimiento es obligatoria para esta categoria.';
+        "La fecha de vencimiento es obligatoria para esta categoria.";
     } else if (!isIsoDate(values.fechaVencimiento)) {
-      fieldErrors.fechaVencimiento = 'Ingrese una fecha de vencimiento valida.';
+      fieldErrors.fechaVencimiento = "Ingrese una fecha de vencimiento valida.";
     } else if (values.fechaVencimiento <= today) {
       fieldErrors.fechaVencimiento =
-        'La fecha de vencimiento debe ser posterior a hoy.';
+        "La fecha de vencimiento debe ser posterior a hoy.";
     }
   }
 
@@ -105,18 +108,18 @@ function isIsoDate(value: string): boolean {
 }
 
 function normalizeInteger(value: unknown): number {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? Math.trunc(value) : Number.NaN;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
-  if (typeof value === 'string' && value.trim() !== '') {
+  if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? Math.trunc(parsed) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
   }
 
   return Number.NaN;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }
