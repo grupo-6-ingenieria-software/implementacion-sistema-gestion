@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
   invalidEan13Message,
   isValidEan13,
-  validateProductFormValues,
   type ProductCategoryOption,
   type ProductDetailResponse,
   type ProductFieldErrors,
@@ -19,7 +18,7 @@ type ProductFormViewProps = {
   onNavigate: (path: string) => void;
 };
 
-type FormState = {
+export type ProductFormState = {
   ean13: string;
   nombre: string;
   categoriaId: string;
@@ -28,7 +27,7 @@ type FormState = {
   stockMinimo: string;
 };
 
-const emptyForm: FormState = {
+const emptyForm: ProductFormState = {
   ean13: '',
   nombre: '',
   categoriaId: '',
@@ -43,7 +42,7 @@ export function ProductFormView({
   usuarioId,
   onNavigate,
 }: ProductFormViewProps): ReactElement {
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [form, setForm] = useState<ProductFormState>(emptyForm);
   const [categories, setCategories] = useState<ProductCategoryOption[]>([]);
   const [fieldErrors, setFieldErrors] = useState<ProductFieldErrors>({});
   const [loading, setLoading] = useState(true);
@@ -117,14 +116,7 @@ export function ProductFormView({
   }, [ean13, mode, usuarioId]);
 
   const parsedValues = useMemo<ProductFormValues>(
-    () => ({
-      ean13: form.ean13,
-      nombre: form.nombre.trim(),
-      categoriaId: Number(form.categoriaId),
-      precioCosto: Number(form.precioCosto),
-      precioVenta: Number(form.precioVenta),
-      stockMinimo: Number(form.stockMinimo),
-    }),
+    () => buildProductFormValues(form),
     [form],
   );
 
@@ -134,13 +126,8 @@ export function ProductFormView({
       : undefined;
 
   async function handleSubmit(): Promise<void> {
-    const nextFieldErrors = validateProductFormValues(parsedValues);
-    setFieldErrors(nextFieldErrors);
+    setFieldErrors({});
     setMessage(null);
-
-    if (Object.keys(nextFieldErrors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
@@ -203,6 +190,7 @@ export function ProductFormView({
 
         {!loading && !loadError ? (
           <form
+            noValidate
             className="grid gap-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -309,6 +297,21 @@ export function ProductFormView({
       </section>
     </section>
   );
+}
+
+export function buildProductFormValues(form: ProductFormState): ProductFormValues {
+  return {
+    ean13: form.ean13,
+    nombre: form.nombre.trim(),
+    categoriaId: parseNumericInput(form.categoriaId),
+    precioCosto: parseNumericInput(form.precioCosto),
+    precioVenta: parseNumericInput(form.precioVenta),
+    stockMinimo: parseNumericInput(form.stockMinimo),
+  };
+}
+
+function parseNumericInput(value: string): number {
+  return value.trim() === '' ? Number.NaN : Number(value);
 }
 
 function Field({

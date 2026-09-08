@@ -28,7 +28,26 @@ afterEach(async () => {
 });
 
 describe("product write persistence", () => {
+  it.each([
+    ["CU1 E2 nombre obligatorio", { nombre: "" }, "nombre"],
+    ["CU1 E3 margen de precio", { precioCosto: 1000, precioVenta: 1000 }, "precioVenta"],
+    ["CU1 E4 valor decimal", { precioCosto: 700.5 }, "precioCosto"],
+  ] as const)("rejects %s in parameterized SQL without writes", async (_scenario, override, field) => {
+    testDb!.queries.length = 0;
+    await expect(testDb!.db.transaction((tx) =>
+      createProductWithExecutor(tx, schema, {
+        usuarioId: "12345678-9", ean13: "7802920000046", nombre: "Producto",
+        categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
+        ...override,
+      }),
+    )).rejects.toMatchObject({ reason: "validation", fieldErrors: { [field]: expect.any(String) } });
+    expect(relevantStatements(testDb!.queries).slice(-1)).toEqual(["select:validation"]);
+    const rows = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM producto`);
+    expect(Number(rows[0]?.total)).toBe(0);
+  });
+
   it("checks EAN and category before field validation without partial writes", async () => {
+    testDb!.queries.length = 0;
     const invalid = {
       usuarioId: "12345678-9",
       ean13: "123",
@@ -46,7 +65,14 @@ describe("product write persistence", () => {
     ).rejects.toMatchObject({
       reason: "category-not-found",
     } satisfies Partial<ProductWriteError>);
+    expect(relevantStatements(testDb!.queries)).toEqual([
+      "select:usuario",
+      "select:trabajador",
+      "select:producto",
+      "select:categoria",
+    ]);
 
+    testDb!.queries.length = 0;
     await expect(
       testDb!.db.transaction((tx) =>
         createProductWithExecutor(tx, schema, { ...invalid, categoriaId: 1 }),
@@ -54,6 +80,13 @@ describe("product write persistence", () => {
     ).rejects.toMatchObject({
       reason: "validation",
     } satisfies Partial<ProductWriteError>);
+    expect(relevantStatements(testDb!.queries)).toEqual([
+      "select:usuario",
+      "select:trabajador",
+      "select:producto",
+      "select:categoria",
+      "select:validation",
+    ]);
 
     const rows = await testDb!.db.all<{ products: number; prices: number }>(sql`
       SELECT
@@ -64,6 +97,7 @@ describe("product write persistence", () => {
   });
 
   it("creates product, current price, user version and audit atomically", async () => {
+    testDb!.queries.length = 0;
     await testDb!.db.transaction((tx) =>
       createProductWithExecutor(tx, schema, {
         usuarioId: "12345678-9",
@@ -89,6 +123,20 @@ describe("product write persistence", () => {
         (SELECT COUNT(*) FROM log_auditoria) AS audits
     `);
     expect(rows[0]).toEqual({ products: 1, prices: 1, versions: 1, audits: 1 });
+    expect(relevantStatements(testDb!.queries).slice(0, 12)).toEqual([
+      "select:usuario",
+      "select:trabajador",
+      "select:producto",
+      "select:categoria",
+      "select:validation",
+      "insert:producto",
+      "insert:historial_precio_producto",
+      "select:usuario_version",
+      "select:usuario",
+      "select:trabajador",
+      "insert:usuario_version",
+      "insert:log_auditoria",
+    ]);
   });
 
   it("checks product, category and current price before editing the normalized history", async () => {
@@ -201,6 +249,8 @@ describe("product write persistence", () => {
     expect(partialEan).toEqual([]);
     expect(exactEan.map((product) => product.ean13)).toEqual(["7802920000015"]);
   });
+
+
 });
 
 async function createTestDatabase() {
@@ -208,7 +258,11 @@ async function createTestDatabase() {
   const client = createClient({
     url: `file:${join(dir, "test.db").replace(/\\/g, "/")}`,
   });
-  const db = drizzle(client, { schema });
+  const queries: string[] = [];
+  const db = drizzle(client, {
+    schema,
+    logger: { logQuery(query) { queries.push(query); } },
+  });
   await client.execute("PRAGMA foreign_keys = ON");
   const migrationsDir = join(process.cwd(), "drizzle/migrations");
   for (const file of (await readdir(migrationsDir))
@@ -219,7 +273,22 @@ async function createTestDatabase() {
       if (statement.trim()) await client.execute(statement.trim());
     }
   }
-  return { client, db, dir };
+  return { client, db, dir, queries };
+}
+
+function relevantStatements(queries: string[]): string[] {
+  return queries.flatMap((query) => {
+    const normalized = query.toLowerCase();
+    const verb = normalized.trimStart().split(/\s+/, 1)[0];
+    const tables = [
+      "historial_precio_producto", "usuario_version", "log_auditoria",
+      "trabajador", "categoria", "lote", "producto", "usuario",
+    ];
+    const table = tables.find((candidate) =>
+      normalized.includes(`\"${candidate}\"`) || normalized.includes(` ${candidate}`));
+    if (verb === "select" && !table) return ["select:validation"];
+    return table ? [`${verb}:${table}`] : [];
+  });
 }
 
 async function seedFixture(db: TestDatabase["db"]): Promise<void> {

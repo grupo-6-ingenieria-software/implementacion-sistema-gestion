@@ -18,6 +18,8 @@ import {
   authorizeUser,
   registerAuditLog,
 } from "./auth-context";
+import { validateProductInSql } from "./product-sql-validation";
+import { numericSqlValue } from "./sql-validation-primitives";
 
 type ProductWriteDependencies<TPayload> = {
   save: (payload: TPayload) => Promise<ProductMutationResponse>;
@@ -140,10 +142,10 @@ export async function createProductWithExecutor(
   payload: ProductCreatePayload,
 ): Promise<void> {
   const user = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
-  const priceHistoryId = randomUUID();
   await ensureProductDoesNotExist(tx, schema, payload.ean13);
   await ensureCategoryExists(tx, schema, payload.categoriaId);
-  assertValidProductPayload(validateCreatePayload(payload));
+  assertValidProductPayload(await validateProductInSql(tx, payload));
+  const priceHistoryId = randomUUID();
 
   const [createdProduct] = await tx
     .insert(schema.producto)
@@ -256,7 +258,7 @@ async function ensureCategoryExists(
   const [category] = await tx
     .select({ id: schema.categoria.categoriaId })
     .from(schema.categoria)
-    .where(eq(schema.categoria.categoriaId, categoriaId))
+    .where(sql`${schema.categoria.categoriaId} = ${numericSqlValue(categoriaId)}`)
     .limit(1);
 
   if (!category) {
@@ -423,6 +425,7 @@ function assertValidProductPayload(fieldErrors: ProductFieldErrors): void {
 
 type SchemaLike = typeof import("../../db/schema");
 type TransactionLike = {
+  all: typeof import("../../db/client").db.all;
   select: typeof import("../../db/client").db.select;
   insert: typeof import("../../db/client").db.insert;
   update: typeof import("../../db/client").db.update;
