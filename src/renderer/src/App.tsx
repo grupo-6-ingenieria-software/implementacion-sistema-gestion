@@ -142,8 +142,8 @@ export function App(): ReactElement {
   // contador de inactividad. El último acceso lo refresca el dispatcher en cada
   // IPC de acción real del usuario (todo canal autenticado salvo el propio latido
   // y el logout). Así, si la app queda abierta sin que el usuario haga nada,
-  // session.ts cierra la fila sesion_usuario tras 30 min de inactividad y responde
-  // active=false; entonces este latido detecta el cierre y dispara la expiración.
+  // el guard persistente cierra y confirma sesion_usuario tras 30 min, emite el
+  // evento y devuelve el rechazo; cualquiera de esas señales expira la vista.
   useEffect(() => {
     if (!session.isAuthenticated) {
       return;

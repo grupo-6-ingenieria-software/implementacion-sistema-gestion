@@ -44,12 +44,65 @@ describe('C03 → C05 before dispatch', () => {
     expect(row.sesionFechaHoraUltimoAcceso).toBe('2026-09-08T11:59:00.000Z');
   });
   it('expires exactly at 30 minutes and sends the event', async () => {
-    await seedSession(30); const expired = vi.fn();
+    await seedSession(30);
+    let persistedAtEvent: Promise<Array<{ motivo: string | null }>> | undefined;
+    const expired = vi.fn(() => {
+      persistedAtEvent = fixture.db.all<{ motivo: string | null }>(sql`
+        SELECT sesion_motivo_cierre AS motivo
+        FROM sesion_usuario
+        WHERE sesion_usuario_id = ${SESSION}
+      `);
+    });
     expect((await request('producto:listar', expired)).ok).toBe(false);
     expect(expired).toHaveBeenCalledOnce();
+    expect(await persistedAtEvent).toEqual([{ motivo: 'inactividad' }]);
     const [row] = await fixture.db.select().from(schema.sesionUsuario);
     expect(row.sesionMotivoCierre).toBe('inactividad');
     expect(row.sesionFechaHoraUltimoAcceso).toBe('2026-09-08T11:30:00.000Z');
+  });
+  it('preserves millisecond precision at the inactivity boundary and renews the valid action', async () => {
+    await fixture.db.insert(schema.sesionUsuario).values({
+      sesionUsuarioId: SESSION,
+      usuarioId: USER,
+      sesionFechaHoraInicio: new Date(NOW.getTime() - 60 * 60000).toISOString(),
+      sesionFechaHoraUltimoAcceso: new Date(NOW.getTime() - 30 * 60000 + 1).toISOString(),
+    });
+
+    expect((await request()).ok).toBe(true);
+    let [row] = await fixture.db.select().from(schema.sesionUsuario);
+    expect(row.sesionFechaHoraUltimoAcceso).toBe(NOW.toISOString());
+    expect(row.sesionFechaHoraCierre).toBeNull();
+
+    await fixture.db.delete(schema.sesionUsuario);
+    await seedSession(30);
+    const expired = vi.fn();
+    expect((await request('producto:listar', expired)).ok).toBe(false);
+    [row] = await fixture.db.select().from(schema.sesionUsuario);
+    expect(row.sesionMotivoCierre).toBe('inactividad');
+    expect(expired).toHaveBeenCalledOnce();
+  });
+  it('fails closed without reporting inactivity when ultimo acceso is malformed', async () => {
+    await seedSession(1);
+    await fixture.db.update(schema.sesionUsuario).set({
+      sesionFechaHoraUltimoAcceso: 'fecha-invalida',
+    });
+
+    const expired = vi.fn();
+    expect((await request('producto:listar', expired)).ok).toBe(false);
+    const [row] = await fixture.db.select().from(schema.sesionUsuario);
+    expect(row.sesionMotivoCierre).toBeNull();
+    expect(expired).not.toHaveBeenCalled();
+  });
+  it('accepts and renews a valid SQLite default timestamp without milliseconds', async () => {
+    await seedSession(1);
+    await fixture.db.update(schema.sesionUsuario).set({
+      sesionFechaHoraUltimoAcceso: '2026-09-08 11:59:00',
+    });
+
+    expect((await request()).ok).toBe(true);
+    const [row] = await fixture.db.select().from(schema.sesionUsuario);
+    expect(row.sesionFechaHoraUltimoAcceso).toBe(NOW.toISOString());
+    expect(row.sesionFechaHoraCierre).toBeNull();
   });
   it('checks without renewing a heartbeat, then renews real activity', async () => {
     await seedSession(29);
@@ -63,9 +116,11 @@ describe('C03 → C05 before dispatch', () => {
   it('fails closed when session persistence fails', async () => {
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await fixture.db.run(sql`DROP TABLE sesion_usuario`);
-    const result = await request();
+    const expired = vi.fn();
+    const result = await request('producto:listar', expired);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.response).toMatchObject({ error: { code: 'TECHNICAL_ERROR' } });
+    expect(expired).not.toHaveBeenCalled();
     errorLog.mockRestore();
   });
 });

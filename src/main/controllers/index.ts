@@ -78,7 +78,7 @@ export function registerControllers(ipcMain: IpcMain): void {
         }
 
         // Guard de identidad/rol en el borde IPC: verifica el JWT de sesión
-        // (RF56/CU57) antes de despachar, salvo en canales públicos. En éxito,
+        // (RF56/CU56) antes de despachar, salvo en canales públicos. En éxito,
         // sobrescribe usuarioId con la identidad de confianza y adjunta claims.
         const guard = await authorizeRequest(channel, payload, () => {
           if (!_event.sender.isDestroyed()) _event.sender.send(SESSION_EXPIRED_EVENT);

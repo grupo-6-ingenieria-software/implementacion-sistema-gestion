@@ -151,10 +151,9 @@ export async function authorizeRequest(
     const session = await deps.session(result.context.claims, !NON_ACTIVITY_CHANNELS.has(channel));
     if (!session.active) {
       if (session.reason === 'inactividad') {
+        // La capa de sesión ya cerró y confirmó la persistencia antes de
+        // devolver este motivo; recién entonces se notifica al renderer.
         onExpired();
-        // CU56-E4 confirma la persistencia del cierre sin renovar actividad.
-        const closed = await deps.session(result.context.claims, false);
-        if (closed.active) throw new Error('No se confirmó el cierre por inactividad');
       }
       return { ok: false, response: controllerError('FORBIDDEN',
         session.reason === 'inactividad' ? SESSION_EXPIRED_MESSAGE : 'No hay una sesión válida para realizar esta acción.') };
