@@ -29,6 +29,7 @@ type DailySaleHeaderRow = {
   estado: 'completada' | 'anulada';
   discountType: 'ninguno' | 'porcentaje' | 'monto';
   discountValue: number | null;
+  usuarioId: string;
 };
 
 export async function loadDailySalesHistory(
@@ -36,8 +37,8 @@ export async function loadDailySalesHistory(
   now = new Date(),
 ): Promise<DailySalesHistory> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  // C18 respeta el orden de modelos del diseño: Venta -> Detalle -> Usuario
-  // -> Trabajador -> AnulacionVenta. Las consultas separadas hacen visible el
+  // C18 respeta el orden de modelos del diseño: Venta -> Detalle -> HistorialPrecio
+  // -> Usuario -> Trabajador -> AnulacionVenta. Las consultas separadas hacen visible el
   // contrato y evitan inferir una anulación sólo desde venta_estado.
   const saleRows = await database.all<DailySaleHeaderRow>(sql`
     SELECT
@@ -47,6 +48,7 @@ export async function loadDailySalesHistory(
       v.venta_estado AS estado,
       v.venta_descuento_tipo AS discountType,
       v.venta_descuento_valor AS discountValue
+      , v.usuario_cajero_id AS usuarioId
     FROM venta v
     WHERE
       datetime(v.venta_fecha_hora) >= datetime(${startUtc})
@@ -54,59 +56,66 @@ export async function loadDailySalesHistory(
     ORDER BY datetime(v.venta_fecha_hora) DESC, v.venta_id DESC
   `);
 
+  if (saleRows.length === 0) {
+    return { ventas: [], resumen: summarizeDailySalesHistory([]) };
+  }
+
+  const saleIds = sql.join(saleRows.map((row) => sql`${row.ventaId}`), sql`, `);
   const detailRows = await database.all<{
     ventaId: string;
-    cantidadProductos: number;
-    subtotal: number;
+    cantidad: number;
+    historialPrecioProductoId: string;
   }>(sql`
-    SELECT
-      v.venta_id AS ventaId,
-      COALESCE(SUM(dv.detalle_venta_cantidad), 0) AS cantidadProductos,
-      COALESCE(SUM(dv.detalle_venta_cantidad * hp.historial_precio_venta), 0) AS subtotal
-    FROM venta v
-    LEFT JOIN detalle_venta dv ON dv.venta_id = v.venta_id
-    LEFT JOIN historial_precio_producto hp
-      ON hp.historial_precio_producto_id = dv.historial_precio_producto_id
-    WHERE datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-      AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
-    GROUP BY v.venta_id
+    SELECT venta_id AS ventaId,
+      detalle_venta_cantidad AS cantidad,
+      historial_precio_producto_id AS historialPrecioProductoId
+    FROM detalle_venta
+    WHERE venta_id IN (${saleIds})
   `);
-
-  const userRows = await database.all<{ ventaId: string; trabajadorId: number }>(sql`
-    SELECT v.venta_id AS ventaId, u.trabajador_id AS trabajadorId
-    FROM venta v
-    INNER JOIN usuario u ON u.usuario_id = v.usuario_cajero_id
-    WHERE datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-      AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
+  const priceIds = [...new Set(detailRows.map((row) => row.historialPrecioProductoId))];
+  const priceRows = priceIds.length === 0 ? [] : await database.all<{
+    historialPrecioProductoId: string;
+    precio: number;
+  }>(sql`
+    SELECT historial_precio_producto_id AS historialPrecioProductoId,
+      historial_precio_venta AS precio
+    FROM historial_precio_producto
+    WHERE historial_precio_producto_id IN (${sql.join(priceIds.map((id) => sql`${id}`), sql`, `)})
   `);
-
-  const workerRows = await database.all<{ trabajadorId: number; nombre: string }>(sql`
-    SELECT DISTINCT
-      t.trabajador_id AS trabajadorId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombre
-    FROM trabajador t
-    INNER JOIN usuario u ON u.trabajador_id = t.trabajador_id
-    INNER JOIN venta v ON v.usuario_cajero_id = u.usuario_id
-    WHERE datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-      AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
+  const userIds = [...new Set(saleRows.map((row) => row.usuarioId))];
+  const userRows = await database.all<{ usuarioId: string; trabajadorId: number }>(sql`
+    SELECT usuario_id AS usuarioId, trabajador_id AS trabajadorId
+    FROM usuario
+    WHERE usuario_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})
+  `);
+  const workerIds = [...new Set(userRows.map((row) => row.trabajadorId))];
+  const workerRows = workerIds.length === 0 ? [] : await database.all<{ trabajadorId: number; nombre: string }>(sql`
+    SELECT trabajador_id AS trabajadorId,
+      trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
+    FROM trabajador
+    WHERE trabajador_id IN (${sql.join(workerIds.map((id) => sql`${id}`), sql`, `)})
   `);
 
   const annulmentRows = await database.all<{ ventaId: string }>(sql`
-    SELECT av.venta_id AS ventaId
-    FROM anulacion_venta av
-    INNER JOIN venta v ON v.venta_id = av.venta_id
-    WHERE datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-      AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
+    SELECT venta_id AS ventaId
+    FROM anulacion_venta
+    WHERE venta_id IN (${saleIds})
   `);
-
-  const details = new Map(detailRows.map((row) => [row.ventaId, row]));
-  const users = new Map(userRows.map((row) => [row.ventaId, row.trabajadorId]));
+  const prices = new Map(priceRows.map((row) => [row.historialPrecioProductoId, Number(row.precio)]));
+  const details = new Map<string, { cantidadProductos: number; subtotal: number }>();
+  for (const detail of detailRows) {
+    const current = details.get(detail.ventaId) ?? { cantidadProductos: 0, subtotal: 0 };
+    current.cantidadProductos += Number(detail.cantidad);
+    current.subtotal += Number(detail.cantidad) * (prices.get(detail.historialPrecioProductoId) ?? 0);
+    details.set(detail.ventaId, current);
+  }
+  const users = new Map(userRows.map((row) => [row.usuarioId, row.trabajadorId]));
   const workers = new Map(workerRows.map((row) => [row.trabajadorId, row.nombre]));
   const annulled = new Set(annulmentRows.map((row) => row.ventaId));
 
   const ventas = saleRows.map<DailySale>((row) => {
     const detail = details.get(row.ventaId);
-    const workerId = users.get(row.ventaId);
+    const workerId = users.get(row.usuarioId);
     return {
       ventaId: row.ventaId,
       fechaHora: row.fechaHora,
