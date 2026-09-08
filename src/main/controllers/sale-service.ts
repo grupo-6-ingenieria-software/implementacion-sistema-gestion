@@ -7,6 +7,11 @@ import {
 } from '../../shared/sales';
 import { getAuditTimestamp } from '../../shared/audit';
 import { ensureDailyCashRegisterForSale } from './cash-check';
+import {
+  applyStockDiscount,
+  planStockDiscount,
+  StockDiscountBusinessError,
+} from './stock-discount';
 
 export type SaleRegisterItemInput = {
   productoId: number;
@@ -81,6 +86,15 @@ export type DbExecutor = {
 export class SaleValidationError extends Error {}
 export class SaleBusinessError extends Error {}
 
+/** Compatibilidad interna: resuelve sólo una caja abierta del día vigente. */
+export async function getOpenCashRegister(
+  database: DbExecutor,
+  now = new Date(),
+): Promise<{ cierreCajaId: string } | null> {
+  const state = await ensureDailyCashRegisterForSale(database, now);
+  return state.status === 'abierta' ? { cierreCajaId: state.cierreCajaId } : null;
+}
+
 export async function registerSale(
   database: DbExecutor,
   payload: SaleRegisterPayload,
@@ -89,14 +103,6 @@ export async function registerSale(
   const normalized = normalizeSalePayload(payload);
 
   return database.transaction(async (tx) => {
-    const openCash = await getOpenCashRegister(tx, now);
-
-    if (!openCash) {
-      throw new SaleBusinessError(
-        'La caja se encuentra cerrada. Abra una caja antes de registrar ventas.',
-      );
-    }
-
     const responsable = await getResponsibleUser(tx, normalized.usuarioId);
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
@@ -111,12 +117,6 @@ export async function registerSale(
       if (item.ean13 && item.ean13 !== product.ean13) {
         throw new SaleValidationError(
           `El producto ${product.nombre} no coincide con el EAN-13 ingresado.`,
-        );
-      }
-
-      if (product.stockDisponible < item.cantidad) {
-        throw new SaleBusinessError(
-          `Stock insuficiente para ${product.nombre}. Disponible: ${product.stockDisponible}.`,
         );
       }
 
@@ -153,6 +153,33 @@ export async function registerSale(
       );
     }
 
+    const cashState = await ensureDailyCashRegisterForSale(tx, now);
+    if (cashState.status === 'cerrada') {
+      throw new SaleBusinessError(
+        'La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.',
+      );
+    }
+    if (cashState.status !== 'abierta') {
+      throw new SaleBusinessError('No fue posible habilitar la caja del día.');
+    }
+
+    let stockPlan;
+    try {
+      stockPlan = await planStockDiscount(
+        tx,
+        receiptLines.map((line) => ({
+          productoId: line.productoId,
+          cantidad: line.cantidad,
+          exigeVencimiento: line.exigeVencimiento,
+        })),
+      );
+    } catch (error) {
+      if (error instanceof StockDiscountBusinessError) {
+        throw new SaleBusinessError(error.message);
+      }
+      throw error;
+    }
+
     const ventaId = randomUUID();
     const fechaHora = now.toISOString();
     const descuentoTipo = totals.descuento > 0 ? 'monto' : 'ninguno';
@@ -186,7 +213,7 @@ export async function registerSale(
         ${esEfectivo ? 1 : 0},
         ${esEfectivo ? 0 : 1},
         ${normalized.usuarioId},
-        ${openCash.cierreCajaId}
+        ${cashState.cierreCajaId}
       )
     `);
 
@@ -218,13 +245,18 @@ export async function registerSale(
         )
       `);
 
-      line.lotesConsumidos = await consumeStockForSale(
-        tx,
-        ventaId,
-        line.productoId,
-        line.cantidad,
-        line.exigeVencimiento,
-      );
+      line.lotesConsumidos = stockPlan
+        .filter((lot) => lot.productoId === line.productoId)
+        .map(({ loteId, cantidad }) => ({ loteId, cantidad }));
+    }
+
+    try {
+      await applyStockDiscount(tx, ventaId, stockPlan);
+    } catch (error) {
+      if (error instanceof StockDiscountBusinessError) {
+        throw new SaleBusinessError(error.message);
+      }
+      throw error;
     }
 
     await registerAuditLog(tx, {
@@ -253,101 +285,6 @@ export async function registerSale(
       detalle: receiptLines,
     };
   });
-}
-
-export async function consumeStockForSale(
-  tx: DbExecutor,
-  ventaId: string,
-  productoId: number,
-  cantidadSolicitada: number,
-  exigeVencimiento: boolean,
-): Promise<ConsumedLot[]> {
-  const lots = await tx.all<{
-    loteId: string;
-    cantidadActual: number;
-    fechaIngreso: string;
-    fechaVencimiento: string | null;
-  }>(sql`
-    SELECT
-      l.lote_id AS loteId,
-      l.lote_cantidad_actual AS cantidadActual,
-      l.lote_fecha_hora_ingreso AS fechaIngreso,
-      lp.lote_perecible_fecha_vencimiento AS fechaVencimiento
-    FROM lote l
-    LEFT JOIN lote_perecible lp ON lp.lote_id = l.lote_id
-    WHERE l.producto_id = ${productoId}
-      AND l.lote_cantidad_actual > 0
-  `);
-
-  const orderedLots = [...lots].sort((left, right) => {
-    if (exigeVencimiento) {
-      const leftDate = left.fechaVencimiento ?? '9999-12-31';
-      const rightDate = right.fechaVencimiento ?? '9999-12-31';
-
-      if (leftDate !== rightDate) {
-        return leftDate.localeCompare(rightDate);
-      }
-    }
-
-    return left.fechaIngreso.localeCompare(right.fechaIngreso);
-  });
-
-  const consumed: ConsumedLot[] = [];
-  let remaining = cantidadSolicitada;
-
-  for (const lot of orderedLots) {
-    if (remaining === 0) {
-      break;
-    }
-
-    const amount = Math.min(remaining, Number(lot.cantidadActual));
-
-    if (amount <= 0) {
-      continue;
-    }
-
-    await tx.run(sql`
-      INSERT INTO venta_lote (
-        venta_lote_id,
-        venta_id,
-        lote_id,
-        venta_lote_cantidad_consumida
-      )
-      VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${amount})
-    `);
-
-    const result = await tx.run(sql`
-      UPDATE lote
-      SET lote_cantidad_actual = lote_cantidad_actual - ${amount}
-      WHERE lote_id = ${lot.loteId}
-        AND lote_cantidad_actual >= ${amount}
-    `);
-
-    if (result.rowsAffected === 0) {
-      throw new SaleBusinessError(
-        'El stock cambió durante la operación. Revise el carrito e intente nuevamente.',
-      );
-    }
-
-    consumed.push({ loteId: lot.loteId, cantidad: amount });
-    remaining -= amount;
-  }
-
-  if (remaining > 0) {
-    throw new SaleBusinessError(
-      'Stock insuficiente para confirmar la venta.',
-    );
-  }
-
-  return consumed;
-}
-
-export async function getOpenCashRegister(
-  database: DbExecutor,
-  now = new Date(),
-): Promise<{ cierreCajaId: string } | null> {
-  const state = await ensureDailyCashRegisterForSale(database, now);
-  return state.status === 'abierta' ? { cierreCajaId: state.cierreCajaId } : null;
 }
 
 export async function registerAuditLog(

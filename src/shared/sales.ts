@@ -1,6 +1,7 @@
 export type PaymentMethod = 'efectivo' | 'debito' | 'credito' | 'transferencia';
 
-export type SaleState = 'completada' | 'anulada';
+/** Estado contractual expuesto por C18; la BD conserva `completada`. */
+export type SaleState = 'confirmada' | 'anulada';
 
 export type SaleLineForTotals = {
   cantidad: number;

@@ -99,7 +99,7 @@ export function SaleRegisterView({
   }, [session.usuarioId]);
 
   async function checkCash(): Promise<void> {
-    const response = await window.appApi.invoke('caja:verificar-disponible', {
+    const response = await window.appApi.invoke('venta:verificar-caja', {
       usuarioId: session.usuarioId,
     });
 
@@ -111,7 +111,7 @@ export function SaleRegisterView({
 
   async function loadProducts(search?: string): Promise<void> {
     const response = await window.appApi.invoke<ActiveProduct[]>(
-      'producto:buscar-activo',
+      'venta:producto',
       { query: search, limit: 20, usuarioId: session.usuarioId },
     );
 
@@ -133,7 +133,7 @@ export function SaleRegisterView({
     }
 
     const response = await window.appApi.invoke<ActiveProduct[]>(
-      'producto:buscar-activo',
+      'venta:producto',
       { ean13: code, limit: 1, usuarioId: session.usuarioId },
     );
 
