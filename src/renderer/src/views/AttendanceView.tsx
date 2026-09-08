@@ -170,7 +170,7 @@ export function AttendanceView({
     const response = await window.appApi.invoke<AttendanceExitResult>(
       'asistencia:salida',
       {
-        fase: 'confirmar',
+        fase: 'prevalidar',
         usuarioId,
         trabajadorRut,
       },

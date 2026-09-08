@@ -299,9 +299,32 @@ describe('attendance service', () => {
   it('registers an exit and calculates worked hours', async () => {
     const asistenciaId = await seedAttendance(testDb!.db as unknown as DbExecutor, 2);
 
-    const result = await registerAttendanceExit(
+    const preview = await registerAttendanceExit(
       testDb!.db as unknown as DbExecutor,
       { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+      new Date('2026-06-12T20:00:00.000Z'),
+    );
+
+    expect(preview.status).toBe('ready_for_confirmation');
+    const afterPreview = await testDb!.db.all<{
+      salidaAt: string | null;
+      auditCount: number;
+    }>(sql`
+      SELECT
+        a.asistencia_fecha_hora_salida AS salidaAt,
+        (SELECT COUNT(*) FROM log_auditoria WHERE log_tipo_accion = 'registrar_salida_asistencia') AS auditCount
+      FROM asistencia a
+      WHERE a.asistencia_id = ${asistenciaId}
+    `);
+    expect(afterPreview[0]).toEqual({ salidaAt: null, auditCount: 0 });
+
+    const result = await registerAttendanceExit(
+      testDb!.db as unknown as DbExecutor,
+      {
+        fase: 'confirmar',
+        usuarioId: '12345678-9',
+        trabajadorRut: '23456789-0',
+      },
       new Date('2026-06-12T20:00:00.000Z'),
     );
 
@@ -336,6 +359,18 @@ describe('attendance service', () => {
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
+  });
+
+  it('blocks a worker from registering another worker exit', async () => {
+    await seedAttendance(testDb!.db as unknown as DbExecutor, 4);
+
+    await expect(
+      registerAttendanceExit(
+        testDb!.db as unknown as DbExecutor,
+        { usuarioId: '23456789-0', trabajadorRut: '45678901-2' },
+        now,
+      ),
+    ).rejects.toBeInstanceOf(AttendanceAccessError);
   });
 });
 

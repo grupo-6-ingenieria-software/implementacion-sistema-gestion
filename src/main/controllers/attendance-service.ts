@@ -110,18 +110,37 @@ export async function registerAttendanceExit(
     assertWorkerCanBeUsed(worker);
     assertCanOperateWorker(user, worker, 'salida');
 
-    const attendance = await findTodayAttendance(tx, worker.trabajadorId, now);
+    const attendance = await findOpenTodayAttendance(
+      tx,
+      worker.trabajadorId,
+      now,
+    );
 
     if (!attendance) {
+      const closedAttendance = await findTodayAttendance(
+        tx,
+        worker.trabajadorId,
+        now,
+      );
+
+      if (closedAttendance?.salidaAt) {
+        throw new AttendanceBusinessError(
+          'Ya existe una salida registrada hoy para este trabajador',
+        );
+      }
+
       throw new AttendanceBusinessError(
         'No existe una entrada registrada hoy para este trabajador',
       );
     }
 
-    if (attendance.salidaAt) {
-      throw new AttendanceBusinessError(
-        'Ya existe una salida registrada hoy para este trabajador',
-      );
+    if (normalized.fase === 'prevalidar') {
+      return {
+        status: 'ready_for_confirmation',
+        asistenciaId: attendance.asistenciaId,
+        entradaAt: attendance.entradaAt,
+        trabajador: summarizeWorker(worker),
+      };
     }
 
     const salidaAt = now.toISOString();
