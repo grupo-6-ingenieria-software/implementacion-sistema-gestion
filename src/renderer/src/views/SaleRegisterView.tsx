@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactElement,
@@ -9,7 +10,9 @@ import { CampoEAN13Input, SeccionesPagoVenta } from '../components';
 import { isValidEan13 } from '../../../shared/ean13';
 import {
   calculateSaleTotals,
+  type DailyCashState,
   type PaymentMethod,
+  type SaleCartValidationResult,
 } from '../../../shared/sales';
 
 type SessionForSale = {
@@ -78,8 +81,15 @@ export function SaleRegisterView({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [cashAvailable, setCashAvailable] = useState(true);
+  const [cashAvailable, setCashAvailable] = useState(false);
+  const [isCartValid, setIsCartValid] = useState(false);
+  const [isValidatingCart, setIsValidatingCart] = useState(false);
+  const [cartRevision, setCartRevision] = useState(0);
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const cartRef = useRef<CartItem[]>([]);
+  const pendingCartRef = useRef<CartItem[] | null>(null);
+  const productRequestRef = useRef(0);
+  const cartValidationRequestRef = useRef(0);
 
   const totals = useMemo(
     () =>
@@ -99,22 +109,28 @@ export function SaleRegisterView({
   }, [session.usuarioId]);
 
   async function checkCash(): Promise<void> {
-    const response = await window.appApi.invoke('venta:verificar-caja', {
+    const response = await window.appApi.invoke<DailyCashState>('venta:verificar-caja', {
       usuarioId: session.usuarioId,
     });
 
     if (!response.ok) {
       setCashAvailable(false);
       setError(response.error.message);
+      return;
     }
+    const available = response.data.status !== 'cerrada';
+    setCashAvailable(available);
+    if (!available) setError('La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.');
   }
 
   async function loadProducts(search?: string): Promise<void> {
+    const requestId = ++productRequestRef.current;
     const response = await window.appApi.invoke<ActiveProduct[]>(
       'venta:producto',
       { query: search, limit: 20, usuarioId: session.usuarioId },
     );
 
+    if (!isLatestSaleRequest(requestId, productRequestRef.current)) return;
     if (response.ok) {
       setProducts(response.data);
     } else {
@@ -132,11 +148,13 @@ export function SaleRegisterView({
       return;
     }
 
+    const requestId = ++productRequestRef.current;
     const response = await window.appApi.invoke<ActiveProduct[]>(
       'venta:producto',
       { ean13: code, limit: 1, usuarioId: session.usuarioId },
     );
 
+    if (!isLatestSaleRequest(requestId, productRequestRef.current)) return;
     if (!response.ok) {
       setError(response.error.message);
       return;
@@ -148,33 +166,29 @@ export function SaleRegisterView({
 
   function addToCart(product: ActiveProduct): void {
     setReceipt(null);
-    setCart((current) => {
-      const existing = current.find(
+    const current = pendingCartRef.current ?? cartRef.current;
+    const existing = current.find(
         (item) => item.productoId === product.productoId,
       );
-
-      if (!existing) {
-        return [...current, { ...product, cantidad: 1 }];
-      }
-
-      return current.map((item) =>
+    commitCart(!existing
+      ? [...current, { ...product, cantidad: 1 }]
+      : current.map((item) =>
         item.productoId === product.productoId
           ? {
               ...item,
-              cantidad: Math.min(item.stockDisponible, item.cantidad + 1),
+              cantidad: item.cantidad + 1,
             }
           : item,
-      );
-    });
+      ));
   }
 
   function updateQuantity(productoId: number, quantity: number): void {
-    setCart((current) =>
-      current.map((item) =>
+    commitCart(
+      (pendingCartRef.current ?? cartRef.current).map((item) =>
         item.productoId === productoId
           ? {
               ...item,
-              cantidad: Math.min(quantity, item.stockDisponible),
+              cantidad: quantity,
             }
           : item,
       ),
@@ -182,9 +196,57 @@ export function SaleRegisterView({
   }
 
   function removeFromCart(productoId: number): void {
-    setCart((current) =>
-      current.filter((item) => item.productoId !== productoId),
+    commitCart(
+      (pendingCartRef.current ?? cartRef.current).filter(
+        (item) => item.productoId !== productoId,
+      ),
     );
+  }
+
+  function commitCart(next: CartItem[]): void {
+    pendingCartRef.current = next;
+    void validateCart(next);
+  }
+
+  async function validateCart(next: CartItem[]): Promise<void> {
+    const requestId = ++cartValidationRequestRef.current;
+    if (next.length === 0) {
+      pendingCartRef.current = null;
+      cartRef.current = [];
+      setCart([]);
+      setCartRevision((revision) => revision + 1);
+      setIsCartValid(false);
+      setIsValidatingCart(false);
+      return;
+    }
+    setIsCartValid(false);
+    setIsValidatingCart(true);
+    const response = await window.appApi.invoke<SaleCartValidationResult>(
+      'venta:validar-carrito',
+      { items: next.map(({ productoId, ean13, cantidad }) => ({ productoId, ean13, cantidad })) },
+    );
+    if (!isLatestSaleRequest(requestId, cartValidationRequestRef.current)) return;
+    setIsValidatingCart(false);
+    if (!response.ok) {
+      setError(response.error.message);
+      pendingCartRef.current = null;
+      setIsCartValid(cartRef.current.length > 0);
+      setCartRevision((revision) => revision + 1);
+      return;
+    }
+    const byId = new Map(response.data.lines.map((line) => [line.productoId, line]));
+    const refreshed = next.map((item) => {
+      const line = byId.get(item.productoId);
+      return line
+        ? { ...item, precioVenta: line.precioUnitario, stockDisponible: line.stockDisponible }
+        : item;
+    });
+    pendingCartRef.current = null;
+    cartRef.current = refreshed;
+    setCart(refreshed);
+    setCartRevision((revision) => revision + 1);
+    setError(null);
+    setIsCartValid(true);
   }
 
   async function confirmSale(): Promise<void> {
@@ -206,16 +268,6 @@ export function SaleRegisterView({
       return;
     }
 
-    if (Number(descuentoMonto || 0) > 0 && !descuentoRazon.trim()) {
-      setError('Ingrese la razón del descuento antes de confirmar.');
-      return;
-    }
-
-    if (metodoPago === 'efectivo' && Number(montoRecibido || 0) < totals.total) {
-      setError('El monto recibido es insuficiente para confirmar la venta.');
-      return;
-    }
-
     setIsSaving(true);
 
     const response = await window.appApi.invoke<SaleReceipt>('venta:registrar', {
@@ -227,9 +279,11 @@ export function SaleRegisterView({
       })),
       metodoPago,
       montoRecibido:
-        metodoPago === 'efectivo' ? Number(montoRecibido || 0) : undefined,
+        metodoPago === 'efectivo'
+          ? (montoRecibido === '' ? null as never : Number(montoRecibido))
+          : undefined,
       descuento:
-        Number(descuentoMonto || 0) > 0
+        descuentoMonto !== ''
           ? {
               monto: Number(descuentoMonto),
               razon: descuentoRazon,
@@ -246,7 +300,10 @@ export function SaleRegisterView({
 
     setReceipt(response.data);
     setMessage(`Venta registrada por ${formatCurrency(response.data.total)}.`);
+    pendingCartRef.current = null;
+    cartRef.current = [];
     setCart([]);
+    setIsCartValid(false);
     setMontoRecibido('');
     setDescuentoMonto('');
     setDescuentoRazon('');
@@ -357,8 +414,8 @@ export function SaleRegisterView({
                     </p>
                   </div>
                   <CartQuantityInput
+                    key={`${item.productoId}:${cartRevision}`}
                     value={item.cantidad}
-                    max={item.stockDisponible}
                     onCommit={(quantity) =>
                       updateQuantity(item.productoId, quantity)
                     }
@@ -395,9 +452,7 @@ export function SaleRegisterView({
                     className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
                     inputMode="numeric"
                     value={descuentoMonto}
-                    onChange={(event) =>
-                      setDescuentoMonto(event.target.value.replace(/\D/g, ''))
-                    }
+                    onChange={(event) => setDescuentoMonto(event.target.value)}
                   />
                 </label>
                 {Number(descuentoMonto || 0) > 0 ? (
@@ -439,7 +494,7 @@ export function SaleRegisterView({
 
               <button
                 className="rounded-md bg-[#2d6a4f] px-4 py-3 font-semibold text-white transition hover:bg-[#255a43] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSaving || cart.length === 0 || !cashAvailable}
+                disabled={isSaving || isValidatingCart || !isCartValid || !cashAvailable}
                 type="button"
                 onClick={() => void confirmSale()}
               >
@@ -457,11 +512,9 @@ export function SaleRegisterView({
 
 function CartQuantityInput({
   value,
-  max,
   onCommit,
 }: {
   value: number;
-  max: number;
   onCommit: (quantity: number) => void;
 }): ReactElement {
   const [draft, setDraft] = useState(String(value));
@@ -472,44 +525,26 @@ function CartQuantityInput({
 
   function handleChange(event: ChangeEvent<HTMLInputElement>): void {
     const next = event.target.value;
-
-    // Allow empty (mid-edit) and digits only; reject other input.
-    if (next !== '' && !/^\d+$/.test(next)) {
-      return;
-    }
-
     setDraft(next);
-
-    const quantity = Number(next);
-    if (next !== '' && Number.isInteger(quantity) && quantity > 0) {
-      onCommit(Math.min(quantity, max));
-    }
   }
 
   function handleBlur(): void {
-    const quantity = Number(draft);
-
-    // Empty or 0/invalid is not a valid quantity: revert to last committed.
-    if (draft === '' || !Number.isInteger(quantity) || quantity <= 0) {
-      setDraft(String(value));
-      return;
-    }
-
-    const clamped = Math.min(quantity, max);
-    setDraft(String(clamped));
-    onCommit(clamped);
+    onCommit(draft === '' ? Number.NaN : Number(draft));
   }
 
   return (
     <input
       className="rounded-md border border-[#9ba9b5] px-3 py-2"
       inputMode="numeric"
-      min={1}
       value={draft}
       onChange={handleChange}
       onBlur={handleBlur}
     />
   );
+}
+
+export function isLatestSaleRequest(requestId: number, latestRequestId: number): boolean {
+  return requestId === latestRequestId;
 }
 
 function SummaryLine({

@@ -12,6 +12,31 @@ export type DailyCashState =
       closedByName?: string;
     };
 
+export type SaleCartItemInput = {
+  productoId: number;
+  ean13?: string;
+  cantidad: number;
+};
+
+export type SaleCartValidationRequest = {
+  items: SaleCartItemInput[];
+};
+
+export type SaleCartValidationLine = {
+  productoId: number;
+  ean13: string;
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  stockDisponible: number;
+  subtotal: number;
+};
+
+export type SaleCartValidationResult = {
+  lines: SaleCartValidationLine[];
+  subtotal: number;
+};
+
 /** Estado contractual expuesto por C18; la BD conserva `completada`. */
 export type SaleState = 'confirmada' | 'anulada';
 

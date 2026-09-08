@@ -139,7 +139,12 @@ export const controllers = [
     id: 'sale',
     name: 'VentaHandler',
     module: 'ventas',
-    channels: ['venta:registrar', 'venta:producto', 'venta:verificar-caja'],
+    channels: [
+      'venta:registrar',
+      'venta:producto',
+      'venta:verificar-caja',
+      'venta:validar-carrito',
+    ],
   },
   {
     id: 'stock-discount',

@@ -5,12 +5,13 @@ import { join } from 'node:path';
 import { createClient } from '@libsql/client';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../../src/db/schema';
 import {
   registerSale,
   SaleBusinessError,
   SaleValidationError,
+  validateSaleCart,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -34,6 +35,56 @@ afterEach(async () => {
 });
 
 describe('registerSale', () => {
+  it('validates the cart with SQL reads and performs no writes', async () => {
+    const result = await validateSaleCart(testDb!.db as unknown as DbExecutor, {
+      items: [{ productoId: 1, ean13: '7802920000015', cantidad: 2 }],
+    });
+    expect(result).toMatchObject({ subtotal: 2000, lines: [{ cantidad: 2, stockDisponible: 6 }] });
+    const counts = await testDb!.db.all<{ ventas: number; cajas: number }>(sql`
+      SELECT (SELECT COUNT(*) FROM venta) AS ventas,
+        (SELECT COUNT(*) FROM cierre_caja) AS cajas
+    `);
+    expect(counts[0]).toEqual({ ventas: 0, cajas: 1 });
+  });
+
+  it('returns available stock from read-only cart validation', async () => {
+    await expect(validateSaleCart(testDb!.db as unknown as DbExecutor, {
+      items: [{ productoId: 1, cantidad: 7 }],
+    })).rejects.toThrow('Disponible: 6');
+    const rows = await testDb!.db.all<{ ventas: number }>(sql`
+      SELECT COUNT(*) AS ventas FROM venta
+    `);
+    expect(Number(rows[0].ventas)).toBe(0);
+  });
+
+  it.each([1234567890123, { valor: '7802920000015' }])(
+    'rechaza EAN-13 malformado como validación contractual: %j',
+    async (ean13) => {
+      await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1, ean13: ean13 as never }],
+      })).rejects.toThrow('EAN-13');
+    },
+  );
+
+  it('rechecks a closed cash register at transaction start before malformed payload rules', async () => {
+    const outerAll = vi.fn().mockResolvedValueOnce([]);
+    const transactionAll = vi.fn().mockResolvedValueOnce([{
+      cierreCajaId: 'caja-1', status: 'cerrado', openedAt: '2026-06-12T08:00:00.000Z',
+      closedAt: '2026-06-12T20:00:00.000Z', closedByUserId: null, closedByName: null,
+    }]);
+    const tx = { all: transactionAll, run: vi.fn(), transaction: vi.fn() } as unknown as DbExecutor;
+    const database = {
+      all: outerAll,
+      run: vi.fn(),
+      transaction: <T>(callback: (executor: DbExecutor) => Promise<T>) => callback(tx),
+    } as DbExecutor;
+    await expect(registerSale(database, null as never)).rejects.toBeInstanceOf(SaleBusinessError);
+    expect(transactionAll).toHaveBeenCalledOnce();
+    expect(tx.run).not.toHaveBeenCalled();
+  });
+
   it('registers a cash sale, creates details and consumes FEFO lots', async () => {
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
@@ -120,6 +171,28 @@ describe('registerSale', () => {
   });
 
   it.each([
+    [{ monto: 1.5, razon: 'fracción' }, 'monto entero'],
+    ['malformado', 'monto entero'],
+    [{ monto: 100, razon: { texto: 'objeto' } }, 'razón del descuento'],
+  ] as const)('rechaza descuento malformado mediante reglas SQL: %j', async (descuento, message) => {
+    await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+      usuarioId: '12345678-9',
+      metodoPago: 'debito',
+      items: [{ productoId: 1, cantidad: 1 }],
+      descuento: descuento as never,
+    })).rejects.toThrow(message);
+  });
+
+  it.each([1.5, undefined])('rechaza monto recibido no entero o ausente: %j', async (montoRecibido) => {
+    await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+      usuarioId: '12345678-9',
+      metodoPago: 'efectivo',
+      montoRecibido,
+      items: [{ productoId: 1, cantidad: 1 }],
+    })).rejects.toThrow('monto recibido válido');
+  });
+
+  it.each([
     ['inexistente', 999, false],
     ['inactivo', 1, true],
   ])('rechaza un producto %s sin persistir la venta', async (_case, productoId, inactive) => {
@@ -167,15 +240,18 @@ describe('registerSale', () => {
     expect(Number(rows[0].stock)).toBe(6);
   });
 
-  it('rechaza un método de pago electrónico inválido', async () => {
+  it.each(['cheque', {}, undefined])(
+    'rechaza un método de pago inválido sin delegar el valor al driver: %j',
+    async (metodoPago) => {
     await expect(
       registerSale(testDb!.db as unknown as DbExecutor, {
         usuarioId: '12345678-9',
-        metodoPago: 'cheque' as never,
+        metodoPago: metodoPago as never,
         items: [{ productoId: 1, cantidad: 1 }],
       }),
     ).rejects.toBeInstanceOf(SaleValidationError);
-  });
+    },
+  );
 
   it('ignora una caja cerrada anterior y abre la caja del nuevo día', async () => {
     await testDb!.db.run(sql`UPDATE cierre_caja SET cierre_estado = 'cerrado',
