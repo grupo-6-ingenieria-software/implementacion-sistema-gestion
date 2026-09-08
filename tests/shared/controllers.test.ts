@@ -58,10 +58,10 @@ describe('controller registry', () => {
     ]);
   });
 
-  it('keeps the waste controller scoped to the documented registration channel', () => {
+  it('registers waste registration and availability channels', () => {
     expect(
       controllers.find((controller) => controller.id === 'waste')?.channels,
-    ).toEqual(['merma:registrar']);
+    ).toEqual(['merma:registrar', 'merma:disponibilidad']);
   });
 
   it('keeps product deletion scoped to its documented channel', () => {

@@ -1,17 +1,21 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
-import { AccessDeniedError } from '../../../src/main/controllers/auth-context';
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
+import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
 import {
   createWasteController,
   registerWasteWithExecutor,
   type WasteError,
-} from '../../../src/main/controllers/waste';
+} from "../../../src/main/controllers/waste";
+import {
+  normalizeWasteRegisterPayload,
+  validateWasteRegisterPayload,
+} from "../../../src/shared/waste";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -32,8 +36,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('waste controller', () => {
-  it('maps authorization failures to forbidden responses', async () => {
+describe("waste controller", () => {
+  it("maps authorization failures to forbidden responses", async () => {
     const controller = createWasteController({
       register: async () => {
         throw new AccessDeniedError();
@@ -42,62 +46,151 @@ describe('waste controller', () => {
 
     const response = await controller.handle(
       {
-        ean13: '7802920000015',
+        ean13: "7802920000015",
         cantidad: 2,
-        motivo: 'dano',
-        usuarioId: 'trabajador',
+        motivo: "dano",
+        usuarioId: "trabajador",
       },
-      { channel: 'merma:registrar' },
+      { channel: "merma:registrar" },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden waste response');
+      throw new Error("Expected forbidden waste response");
     }
 
-    expect(response.error.code).toBe('FORBIDDEN');
+    expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it('rejects channels not declared for the waste controller', async () => {
+  it("rejects channels not declared for the waste controller", async () => {
     const controller = createWasteController({
       register: async () => ({
-        mermaId: '00000000-0000-4000-8000-000000000001',
-        ean13: '7802920000015',
+        mermaId: "00000000-0000-4000-8000-000000000001",
+        ean13: "7802920000015",
         cantidad: 1,
         lotesDescontados: [],
       }),
     });
 
-    const response = await controller.handle({}, { channel: 'merma:preparar' });
+    const response = await controller.handle({}, { channel: "merma:preparar" });
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected invalid channel');
+      throw new Error("Expected invalid channel");
     }
 
-    expect(response.error.code).toBe('INVALID_CHANNEL');
+    expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it('registers waste and discounts perishable lots using FEFO', async () => {
+  it("loads stock availability through the dedicated C15 operation", async () => {
+    const controller = createWasteController({
+      availability: async (payload) => ({
+        ean13: payload.ean13,
+        stockDisponible: 12,
+        criterioSalida: "fefo",
+      }),
+      register: async () => {
+        throw new Error("not used");
+      },
+    });
+
+    await expect(
+      controller.handle(
+        { ean13: "7802920000015", usuarioId: "trabajador" },
+        { channel: "merma:disponibilidad" },
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      data: {
+        ean13: "7802920000015",
+        stockDisponible: 12,
+        criterioSalida: "fefo",
+      },
+    });
+  });
+
+  it("rejects waste observations longer than 200 characters", () => {
+    const errors = validateWasteRegisterPayload(
+      normalizeWasteRegisterPayload({
+        ean13: "7802920000015",
+        cantidad: 1,
+        motivo: "dano",
+        observacion: "x".repeat(201),
+        usuarioId: "trabajador",
+      }),
+      { requireUser: true, stockDisponible: 5 },
+    );
+
+    expect(errors.observacion).toBe(
+      "La observacion no puede superar 200 caracteres.",
+    );
+  });
+
+  it("accepts 200 observation characters and rejects 201 in the backend", async () => {
+    await expect(
+      testDb!.db.transaction((tx) =>
+        registerWasteWithExecutor(tx, schema, {
+          ean13: "7802920000022",
+          cantidad: 1,
+          motivo: "dano",
+          observacion: "x".repeat(200),
+          usuarioId: "12345678-9",
+        }),
+      ),
+    ).resolves.toMatchObject({ cantidad: 1 });
+
+    await expect(
+      testDb!.db.transaction((tx) =>
+        registerWasteWithExecutor(tx, schema, {
+          ean13: "7802920000022",
+          cantidad: 1,
+          motivo: "dano",
+          observacion: "x".repeat(201),
+          usuarioId: "12345678-9",
+        }),
+      ),
+    ).rejects.toMatchObject({
+      reason: "validation",
+    } satisfies Partial<WasteError>);
+  });
+
+  it("rejects zero, negative and decimal waste quantities in the backend", async () => {
+    for (const cantidad of [0, -1, 1.5]) {
+      await expect(
+        testDb!.db.transaction((tx) =>
+          registerWasteWithExecutor(tx, schema, {
+            ean13: "7802920000022",
+            cantidad,
+            motivo: "dano",
+            usuarioId: "12345678-9",
+          }),
+        ),
+      ).rejects.toMatchObject({
+        reason: "validation",
+      } satisfies Partial<WasteError>);
+    }
+  });
+
+  it("registers waste and discounts perishable lots using FEFO", async () => {
     const result = await testDb!.db.transaction((tx) =>
       registerWasteWithExecutor(tx, schema, {
-        ean13: '7802920000015',
+        ean13: "7802920000015",
         cantidad: 7,
-        motivo: 'vencimiento',
-        observacion: 'Fecha cercana',
-        usuarioId: '12345678-9',
+        motivo: "vencimiento",
+        observacion: "Fecha cercana",
+        usuarioId: "12345678-9",
       }),
     );
 
-    expect(result.ean13).toBe('7802920000015');
+    expect(result.ean13).toBe("7802920000015");
     expect(result.cantidad).toBe(7);
     expect(result.lotesDescontados).toEqual([
       {
-        loteId: '00000000-0000-4000-8000-000000000102',
+        loteId: "00000000-0000-4000-8000-000000000102",
         cantidad: 5,
       },
       {
-        loteId: '00000000-0000-4000-8000-000000000101',
+        loteId: "00000000-0000-4000-8000-000000000101",
         cantidad: 2,
       },
     ]);
@@ -126,53 +219,53 @@ describe('waste controller', () => {
     });
   });
 
-  it('discounts non-perishable lots by entry date', async () => {
+  it("discounts non-perishable lots by entry date", async () => {
     const result = await testDb!.db.transaction((tx) =>
       registerWasteWithExecutor(tx, schema, {
-        ean13: '7802920000022',
+        ean13: "7802920000022",
         cantidad: 8,
-        motivo: 'error_registro',
-        usuarioId: '12345678-9',
+        motivo: "error_registro",
+        usuarioId: "12345678-9",
       }),
     );
 
     expect(result.lotesDescontados).toEqual([
       {
-        loteId: '00000000-0000-4000-8000-000000000201',
+        loteId: "00000000-0000-4000-8000-000000000201",
         cantidad: 3,
       },
       {
-        loteId: '00000000-0000-4000-8000-000000000202',
+        loteId: "00000000-0000-4000-8000-000000000202",
         cantidad: 5,
       },
     ]);
   });
 
-  it('rejects inactive products and insufficient stock without partial writes', async () => {
+  it("rejects inactive products and insufficient stock without partial writes", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerWasteWithExecutor(tx, schema, {
-          ean13: '7802920000039',
+          ean13: "7802920000039",
           cantidad: 1,
-          motivo: 'dano',
-          usuarioId: '12345678-9',
+          motivo: "dano",
+          usuarioId: "12345678-9",
         }),
       ),
     ).rejects.toMatchObject({
-      reason: 'product-not-found',
+      reason: "product-not-found",
     } satisfies Partial<WasteError>);
 
     await expect(
       testDb!.db.transaction((tx) =>
         registerWasteWithExecutor(tx, schema, {
-          ean13: '7802920000022',
+          ean13: "7802920000022",
           cantidad: 99,
-          motivo: 'error_registro',
-          usuarioId: '12345678-9',
+          motivo: "error_registro",
+          usuarioId: "12345678-9",
         }),
       ),
     ).rejects.toMatchObject({
-      reason: 'stock-insufficient',
+      reason: "stock-insufficient",
     } satisfies Partial<WasteError>);
 
     const rows = await testDb!.db.all<{
@@ -192,24 +285,71 @@ describe('waste controller', () => {
       movimientos: 0,
     });
   });
+
+  it("rolls back lot updates when a later merma_lote insert fails", async () => {
+    await testDb!.client.execute(`
+      CREATE TRIGGER fail_merma_lote_insert
+      BEFORE INSERT ON merma_lote
+      BEGIN
+        SELECT RAISE(ABORT, 'forced merma_lote failure');
+      END
+    `);
+
+    await expect(
+      testDb!.db.transaction((tx) =>
+        registerWasteWithExecutor(tx, schema, {
+          ean13: "7802920000015",
+          cantidad: 7,
+          motivo: "vencimiento",
+          usuarioId: "12345678-9",
+        }),
+      ),
+    ).rejects.toThrow(/insert into "merma_lote"/);
+
+    const rows = await testDb!.db.all<{
+      loteA: number;
+      loteB: number;
+      mermas: number;
+      distribuciones: number;
+      movimientos: number;
+      auditorias: number;
+    }>(sql`
+      SELECT
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = '00000000-0000-4000-8000-000000000101') AS loteA,
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = '00000000-0000-4000-8000-000000000102') AS loteB,
+        (SELECT COUNT(*) FROM merma) AS mermas,
+        (SELECT COUNT(*) FROM merma_lote) AS distribuciones,
+        (SELECT COUNT(*) FROM ajuste_inventario WHERE ajuste_cantidad < 0) AS movimientos,
+        (SELECT COUNT(*) FROM log_auditoria) AS auditorias
+    `);
+
+    expect(rows[0]).toEqual({
+      loteA: 5,
+      loteB: 5,
+      mermas: 0,
+      distribuciones: 0,
+      movimientos: 0,
+      auditorias: 0,
+    });
+  });
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-waste-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-waste-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
-  const migrationsDir = join(process.cwd(), 'drizzle/migrations');
+  await client.execute("PRAGMA foreign_keys = ON");
+  const migrationsDir = join(process.cwd(), "drizzle/migrations");
   const migrationFiles = (await readdir(migrationsDir))
-    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of migrationFiles) {
-    const migration = await readFile(join(migrationsDir, file), 'utf8');
+    const migration = await readFile(join(migrationsDir, file), "utf8");
 
-    for (const statement of migration.split('--> statement-breakpoint')) {
+    for (const statement of migration.split("--> statement-breakpoint")) {
       const sqlStatement = statement.trim();
 
       if (sqlStatement.length > 0) {
@@ -221,7 +361,7 @@ async function createTestDatabase() {
   return { client, db, dir };
 }
 
-async function seedWasteFixture(db: TestDatabase['db']): Promise<void> {
+async function seedWasteFixture(db: TestDatabase["db"]): Promise<void> {
   await db.run(sql`
     INSERT INTO trabajador (
       trabajador_id,

@@ -1,25 +1,22 @@
-import { isValidEan13 } from './ean13';
+import { isValidEan13 } from "./ean13";
 
 export const wasteReasons = [
-  'vencimiento',
-  'dano',
-  'robo',
-  'error_registro',
+  "vencimiento",
+  "dano",
+  "robo",
+  "error_registro",
 ] as const;
 
 export type WasteReason = (typeof wasteReasons)[number];
 
 export type WasteFieldErrors = Partial<
-  Record<
-    'ean13' | 'cantidad' | 'motivo' | 'observacion' | 'usuarioId',
-    string
-  >
+  Record<"ean13" | "cantidad" | "motivo" | "observacion" | "usuarioId", string>
 >;
 
 export type WasteRegisterPayload = {
   ean13: string;
   cantidad: number;
-  motivo: WasteReason | '';
+  motivo: WasteReason | "";
   observacion?: string;
   usuarioId?: string;
 };
@@ -36,24 +33,32 @@ export type WasteRegisterResponse = {
   lotesDescontados: WasteDiscountedLot[];
 };
 
+export type WasteAvailabilityResponse = {
+  ean13: string;
+  stockDisponible: number;
+  criterioSalida: "fefo" | "fecha_ingreso";
+};
+
 export const invalidWasteEanMessage =
-  'Seleccione un producto activo para registrar la merma.';
+  "Seleccione un producto activo para registrar la merma.";
 
 export function normalizeWasteRegisterPayload(
   payload: unknown,
 ): WasteRegisterPayload {
   const record = isRecord(payload) ? payload : {};
-  const motivo = typeof record.motivo === 'string' ? record.motivo.trim() : '';
+  const motivo = typeof record.motivo === "string" ? record.motivo.trim() : "";
   const observacion =
-    typeof record.observacion === 'string' ? record.observacion.trim() : '';
+    typeof record.observacion === "string" ? record.observacion.trim() : "";
 
   return {
-    ean13: typeof record.ean13 === 'string' ? record.ean13.trim() : '',
+    ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     cantidad: normalizeInteger(record.cantidad),
-    motivo: isWasteReason(motivo) ? motivo : '',
+    motivo: isWasteReason(motivo) ? motivo : "",
     observacion: observacion.length > 0 ? observacion : undefined,
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
   };
 }
 
@@ -68,7 +73,7 @@ export function validateWasteRegisterPayload(
   }
 
   if (!Number.isInteger(values.cantidad) || values.cantidad <= 0) {
-    fieldErrors.cantidad = 'La cantidad debe ser un entero mayor que 0.';
+    fieldErrors.cantidad = "La cantidad debe ser un entero mayor que 0.";
   } else if (
     options.stockDisponible !== undefined &&
     values.cantidad > options.stockDisponible
@@ -77,11 +82,16 @@ export function validateWasteRegisterPayload(
   }
 
   if (!isWasteReason(values.motivo)) {
-    fieldErrors.motivo = 'Seleccione un motivo de merma valido.';
+    fieldErrors.motivo = "Seleccione un motivo de merma valido.";
+  }
+
+  if ((values.observacion?.length ?? 0) > 200) {
+    fieldErrors.observacion = "La observacion no puede superar 200 caracteres.";
   }
 
   if (options.requireUser && !values.usuarioId) {
-    fieldErrors.usuarioId = 'No hay un usuario responsable para registrar la merma.';
+    fieldErrors.usuarioId =
+      "No hay un usuario responsable para registrar la merma.";
   }
 
   return fieldErrors;
@@ -96,18 +106,18 @@ export function isWasteReason(value: string): value is WasteReason {
 }
 
 function normalizeInteger(value: unknown): number {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? Math.trunc(value) : Number.NaN;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
-  if (typeof value === 'string' && value.trim() !== '') {
+  if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? Math.trunc(parsed) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
   }
 
   return Number.NaN;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }

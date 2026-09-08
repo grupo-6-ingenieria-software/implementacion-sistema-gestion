@@ -133,7 +133,7 @@ export const controllers = [
     id: 'waste',
     name: 'MermaHandler',
     module: 'inventario',
-    channels: ['merma:registrar'],
+    channels: ['merma:registrar', 'merma:disponibilidad'],
   },
   {
     id: 'sale',

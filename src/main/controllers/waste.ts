@@ -1,5 +1,6 @@
-import { and, eq, sql } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
+import { and, eq, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { controllers } from "../../shared/controllers";
 import {
   hasWasteFieldErrors,
   isWasteReason,
@@ -7,19 +8,24 @@ import {
   validateWasteRegisterPayload,
   type WasteDiscountedLot,
   type WasteFieldErrors,
+  type WasteAvailabilityResponse,
   type WasteRegisterPayload,
   type WasteRegisterResponse,
-} from '../../shared/waste';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/waste";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
-import { notifyDashboardUpdated } from './dashboard-events';
+} from "./auth-context";
+import { notifyDashboardUpdated } from "./dashboard-events";
+import { queryActiveProductByEan13 } from "./product-query";
 
 type WasteDependencies = {
   register: (payload: WasteRegisterPayload) => Promise<WasteRegisterResponse>;
+  availability?: (
+    payload: WasteRegisterPayload,
+  ) => Promise<WasteAvailabilityResponse>;
 };
 
 type ProductForWaste = {
@@ -38,31 +44,42 @@ type AvailableLot = {
 export function createWasteController(
   dependencies: WasteDependencies = wasteDependencies,
 ): RegisteredController {
-  const handle: ControllerHandler<unknown, WasteRegisterResponse> = async (
-    payload,
-    context,
-  ) => {
-    if (context.channel !== 'merma:registrar') {
+  const handle: ControllerHandler<
+    unknown,
+    WasteRegisterResponse | WasteAvailabilityResponse
+  > = async (payload, context) => {
+    if (
+      context.channel !== "merma:registrar" &&
+      context.channel !== "merma:disponibilidad"
+    ) {
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
-          controllerId: 'waste',
+          code: "INVALID_CHANNEL",
+          controllerId: "waste",
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
     }
 
     const input = normalizeWasteRegisterPayload(payload);
-    const fieldErrors = validateWasteRegisterPayload(input, {
-      requireUser: true,
-    });
-
-    if (hasWasteFieldErrors(fieldErrors)) {
-      return validationResponse(fieldErrors);
-    }
 
     try {
+      if (context.channel === "merma:disponibilidad") {
+        if (!input.ean13 || !input.usuarioId) {
+          return validationResponse({
+            ean13: "Seleccione un producto activo para consultar su stock.",
+          });
+        }
+
+        return {
+          ok: true,
+          data: await (dependencies.availability ?? getWasteAvailability)(
+            input,
+          ),
+        };
+      }
+
       return {
         ok: true,
         data: await dependencies.register(input),
@@ -77,9 +94,9 @@ export function createWasteController(
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
-          controllerId: 'waste',
-          message: 'No fue posible registrar la merma. Intente nuevamente.',
+          code: "DATABASE_ERROR",
+          controllerId: "waste",
+          message: "No fue posible registrar la merma. Intente nuevamente.",
         },
       };
     }
@@ -92,13 +109,41 @@ export function createWasteController(
 }
 
 const wasteDependencies: WasteDependencies = {
+  availability: getWasteAvailability,
   register: registerWaste,
 };
+
+async function getWasteAvailability(
+  payload: WasteRegisterPayload,
+): Promise<WasteAvailabilityResponse> {
+  const { db, schema } = await import("../../db/client");
+  const user = await authorizeUser(db, schema, payload.usuarioId, [
+    "dueno",
+    "trabajador",
+  ]);
+  void user;
+  const product = await queryActiveProductByEan13(db, schema, payload.ean13);
+  if (!product) {
+    throw new WasteError("product-not-found", {
+      ean13: "El producto no existe o se encuentra inactivo.",
+    });
+  }
+  const lots = await findAvailableLotsForProduct(
+    db,
+    schema,
+    product.productoId,
+  );
+  return {
+    ean13: payload.ean13,
+    stockDisponible: lots.reduce((total, lot) => total + lot.cantidadActual, 0),
+    criterioSalida: product.exigeVencimiento ? "fefo" : "fecha_ingreso",
+  };
+}
 
 async function registerWaste(
   payload: WasteRegisterPayload,
 ): Promise<WasteRegisterResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
   let result: WasteRegisterResponse | undefined;
 
   await db.transaction(async (tx) => {
@@ -106,7 +151,7 @@ async function registerWaste(
   });
 
   if (!result) {
-    throw new Error('Waste registration did not return a result.');
+    throw new Error("Waste registration did not return a result.");
   }
 
   notifyDashboardUpdated();
@@ -120,20 +165,22 @@ export async function registerWasteWithExecutor(
   payload: WasteRegisterPayload,
 ): Promise<WasteRegisterResponse> {
   const user = await authorizeUser(executor, schema, payload.usuarioId, [
-    'dueno',
-    'trabajador',
+    "dueno",
+    "trabajador",
   ]);
-  const product = await findActiveProductByEan13(
+  const product = await queryActiveProductByEan13(
     executor,
     schema,
     payload.ean13,
   );
 
   if (!product) {
-    throw new WasteError('product-not-found', {
-      ean13: 'El producto no existe o se encuentra inactivo.',
+    throw new WasteError("product-not-found", {
+      ean13: "El producto no existe o se encuentra inactivo.",
     });
   }
+
+  const mermaId = randomUUID();
 
   const lots = await findAvailableLotsForProduct(
     executor,
@@ -151,73 +198,69 @@ export async function registerWasteWithExecutor(
 
   if (hasWasteFieldErrors(fieldErrors)) {
     throw new WasteError(
-      stockDisponible < payload.cantidad ? 'stock-insufficient' : 'validation',
+      stockDisponible < payload.cantidad ? "stock-insufficient" : "validation",
       fieldErrors,
     );
   }
 
   if (!isWasteReason(payload.motivo)) {
-    throw new WasteError('validation', {
-      motivo: 'Seleccione un motivo de merma valido.',
+    throw new WasteError("validation", {
+      motivo: "Seleccione un motivo de merma valido.",
     });
   }
 
-  const [createdMerma] = await executor
-    .insert(schema.merma)
-    .values({
-      mermaMotivo: payload.motivo,
-      mermaObservacion: payload.observacion ?? null,
-      productoId: product.productoId,
-      usuarioId: user.usuarioId,
-    })
-    .returning({ mermaId: schema.merma.mermaId });
+  const lotesDescontados = planWasteDiscounts(product, lots, payload.cantidad);
 
-  const lotesDescontados = await discountWasteLots(
-    executor,
-    schema,
-    {
-      mermaId: createdMerma.mermaId,
-      product,
+  await updateWasteLots(executor, schema, lotesDescontados);
+
+  await executor.insert(schema.merma).values({
+    mermaId,
+    mermaMotivo: payload.motivo,
+    mermaObservacion: payload.observacion ?? null,
+    productoId: product.productoId,
+    usuarioId: user.usuarioId,
+  });
+
+  for (const lot of lotesDescontados) {
+    await executor.insert(schema.mermaLote).values({
+      mermaId,
+      loteId: lot.loteId,
+      mermaLoteCantidadDescontada: lot.cantidad,
+    });
+
+    await executor.insert(schema.ajusteInventario).values({
+      ajusteCantidad: -lot.cantidad,
+      ajusteJustificacion: `Merma por ${payload.motivo} para ${payload.ean13}`,
+      productoId: product.productoId,
+      loteId: lot.loteId,
       usuarioId: user.usuarioId,
-      ean13: payload.ean13,
-      motivo: payload.motivo,
-    },
-    lots,
-    payload.cantidad,
-  );
+    });
+  }
 
   await registerAuditLog(executor, schema, {
-    tipoAccion: 'registro',
-    modulo: 'inventario',
+    tipoAccion: "registro",
+    modulo: "inventario",
     descripcion: `Merma registrada para producto ${payload.ean13} (${payload.cantidad} unidades).`,
     usuarioId: user.usuarioId,
   });
 
   return {
-    mermaId: createdMerma.mermaId,
+    mermaId,
     ean13: payload.ean13,
     cantidad: payload.cantidad,
     lotesDescontados,
   };
 }
 
-async function discountWasteLots(
-  executor: MutationExecutor,
-  schema: SchemaLike,
-  context: {
-    ean13: string;
-    mermaId: string;
-    motivo: string;
-    product: ProductForWaste;
-    usuarioId: string;
-  },
+function planWasteDiscounts(
+  product: ProductForWaste,
   lots: AvailableLot[],
   cantidad: number,
-): Promise<WasteDiscountedLot[]> {
+): WasteDiscountedLot[] {
   const orderedLots = [...lots].sort((left, right) => {
-    if (context.product.exigeVencimiento) {
-      const leftDate = left.fechaVencimiento ?? '9999-12-31';
-      const rightDate = right.fechaVencimiento ?? '9999-12-31';
+    if (product.exigeVencimiento) {
+      const leftDate = left.fechaVencimiento ?? "9999-12-31";
+      const rightDate = right.fechaVencimiento ?? "9999-12-31";
 
       if (leftDate !== rightDate) {
         return leftDate.localeCompare(rightDate);
@@ -241,84 +284,45 @@ async function discountWasteLots(
       continue;
     }
 
-    await executor.insert(schema.mermaLote).values({
-      mermaId: context.mermaId,
-      loteId: lot.loteId,
-      mermaLoteCantidadDescontada: amount,
-    });
-
-    const updatedLots = await executor
-      .update(schema.lote)
-      .set({
-        loteCantidadActual: sql`${schema.lote.loteCantidadActual} - ${amount}`,
-      })
-      .where(
-        and(
-          eq(schema.lote.loteId, lot.loteId),
-          sql`${schema.lote.loteCantidadActual} >= ${amount}`,
-        ),
-      )
-      .returning({ loteId: schema.lote.loteId });
-
-    if (updatedLots.length === 0) {
-      throw new WasteError('stock-changed', {
-        cantidad:
-          'El stock cambio durante la operacion. Revise el producto e intente nuevamente.',
-      });
-    }
-
-    await executor.insert(schema.ajusteInventario).values({
-      ajusteCantidad: -amount,
-      ajusteJustificacion: `Merma por ${context.motivo} para ${context.ean13}`,
-      productoId: context.product.productoId,
-      loteId: lot.loteId,
-      usuarioId: context.usuarioId,
-    });
-
     discountedLots.push({ loteId: lot.loteId, cantidad: amount });
     remaining -= amount;
   }
 
   if (remaining > 0) {
-    throw new WasteError('stock-insufficient', {
-      cantidad: 'El stock disponible no alcanza para registrar la merma.',
+    throw new WasteError("stock-insufficient", {
+      cantidad: "El stock disponible no alcanza para registrar la merma.",
     });
   }
 
   return discountedLots;
 }
 
-async function findActiveProductByEan13(
-  executor: QueryExecutor,
+async function updateWasteLots(
+  executor: MutationExecutor,
   schema: SchemaLike,
-  ean13: string,
-): Promise<ProductForWaste | null> {
-  const [product] = await executor
-    .select({
-      productoId: schema.producto.productoId,
-      nombre: schema.producto.productoNombre,
-      exigeVencimiento: schema.categoria.categoriaExigeVencimiento,
-    })
-    .from(schema.producto)
-    .innerJoin(
-      schema.categoria,
-      eq(schema.categoria.categoriaId, schema.producto.categoriaId),
-    )
-    .where(
-      and(
-        eq(schema.producto.productoEstado, 'activo'),
-        eq(schema.producto.productoEan13, ean13),
-      ),
-    )
-    .limit(1);
+  discountedLots: WasteDiscountedLot[],
+): Promise<void> {
+  for (const lot of discountedLots) {
+    const updatedLots = await executor
+      .update(schema.lote)
+      .set({
+        loteCantidadActual: sql`${schema.lote.loteCantidadActual} - ${lot.cantidad}`,
+      })
+      .where(
+        and(
+          eq(schema.lote.loteId, lot.loteId),
+          sql`${schema.lote.loteCantidadActual} >= ${lot.cantidad}`,
+        ),
+      )
+      .returning({ loteId: schema.lote.loteId });
 
-  return product
-    ? {
-        productoId: Number(product.productoId),
-        nombre: product.nombre,
-        exigeVencimiento: Boolean(product.exigeVencimiento),
-      }
-    : null;
+    if (updatedLots.length === 0) {
+      throw new WasteError("stock-changed", {
+        cantidad:
+          "El stock cambio durante la operacion. Revise el producto e intente nuevamente.",
+      });
+    }
+  }
 }
 
 async function findAvailableLotsForProduct(
@@ -358,8 +362,8 @@ function normalizeWasteError(error: unknown) {
     return {
       ok: false as const,
       error: {
-        code: 'FORBIDDEN' as const,
-        controllerId: 'waste' as const,
+        code: "FORBIDDEN" as const,
+        controllerId: "waste" as const,
         message: error.message,
       },
     };
@@ -369,31 +373,31 @@ function normalizeWasteError(error: unknown) {
     return null;
   }
 
-  if (error.reason === 'product-not-found') {
+  if (error.reason === "product-not-found") {
     return {
       ok: false as const,
       error: {
-        code: 'BUSINESS_RULE' as const,
-        controllerId: 'waste' as const,
+        code: "BUSINESS_RULE" as const,
+        controllerId: "waste" as const,
         fieldErrors: error.fieldErrors,
-        message: 'El producto no existe o se encuentra inactivo.',
+        message: "El producto no existe o se encuentra inactivo.",
       },
     };
   }
 
   if (
-    error.reason === 'stock-insufficient' ||
-    error.reason === 'stock-changed'
+    error.reason === "stock-insufficient" ||
+    error.reason === "stock-changed"
   ) {
     return {
       ok: false as const,
       error: {
-        code: 'BUSINESS_RULE' as const,
-        controllerId: 'waste' as const,
+        code: "BUSINESS_RULE" as const,
+        controllerId: "waste" as const,
         fieldErrors: error.fieldErrors,
         message:
           error.fieldErrors.cantidad ??
-          'El stock disponible no alcanza para registrar la merma.',
+          "El stock disponible no alcanza para registrar la merma.",
       },
     };
   }
@@ -405,10 +409,10 @@ function validationResponse(fieldErrors: WasteFieldErrors) {
   return {
     ok: false as const,
     error: {
-      code: 'VALIDATION_ERROR' as const,
-      controllerId: 'waste' as const,
+      code: "VALIDATION_ERROR" as const,
+      controllerId: "waste" as const,
       fieldErrors,
-      message: 'Revise los campos marcados antes de continuar.',
+      message: "Revise los campos marcados antes de continuar.",
     },
   };
 }
@@ -416,23 +420,23 @@ function validationResponse(fieldErrors: WasteFieldErrors) {
 export class WasteError extends Error {
   constructor(
     readonly reason:
-      | 'product-not-found'
-      | 'stock-insufficient'
-      | 'stock-changed'
-      | 'validation',
+      | "product-not-found"
+      | "stock-insufficient"
+      | "stock-changed"
+      | "validation",
     readonly fieldErrors: WasteFieldErrors,
   ) {
-    super('No fue posible registrar la merma.');
+    super("No fue posible registrar la merma.");
   }
 }
 
-type SchemaLike = typeof import('../../db/schema');
+type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = {
-  select: typeof import('../../db/client').db.select;
+  select: typeof import("../../db/client").db.select;
 };
 type MutationExecutor = QueryExecutor & {
-  insert: typeof import('../../db/client').db.insert;
-  update: typeof import('../../db/client').db.update;
+  insert: typeof import("../../db/client").db.insert;
+  update: typeof import("../../db/client").db.update;
 };
 
 export const wasteController = createWasteController();
