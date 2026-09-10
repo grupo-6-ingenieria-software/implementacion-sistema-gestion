@@ -25,27 +25,35 @@ export async function authorizeUser(
     throw new AccessDeniedError('No hay un usuario autenticado para esta accion.');
   }
 
-  const [user] = await executor
+  const [account] = await executor
     .select({
       usuarioId: schema.usuario.usuarioId,
       usuarioRol: schema.usuario.usuarioRol,
+      trabajadorId: schema.usuario.trabajadorId,
+    })
+    .from(schema.usuario)
+    .where(eq(schema.usuario.usuarioId, usuarioId.trim()))
+    .limit(1);
+
+  if (!account) {
+    throw new AccessDeniedError('El usuario autenticado no esta activo o no existe.');
+  }
+
+  const [worker] = await executor
+    .select({
       trabajadorNombre: schema.trabajador.trabajadorNombre,
       trabajadorApellido: schema.trabajador.trabajadorApellido,
       trabajadorEstado: schema.trabajador.trabajadorEstado,
     })
-    .from(schema.usuario)
-    .innerJoin(
-      schema.trabajador,
-      eq(schema.trabajador.trabajadorId, schema.usuario.trabajadorId),
-    )
-    .where(eq(schema.usuario.usuarioId, usuarioId.trim()))
+    .from(schema.trabajador)
+    .where(eq(schema.trabajador.trabajadorId, account.trabajadorId))
     .limit(1);
 
-  if (!user || user.trabajadorEstado !== 'activo') {
+  if (!worker || worker.trabajadorEstado !== 'activo') {
     throw new AccessDeniedError('El usuario autenticado no esta activo o no existe.');
   }
 
-  const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
+  const role = mapDatabaseRoleToTechnicalRole(account.usuarioRol);
 
   if (!role || !allowedRoles.includes(role)) {
     throw new AccessDeniedError('No tiene permiso para realizar esta accion.');
@@ -53,10 +61,10 @@ export async function authorizeUser(
 
   return {
     role,
-    usuarioId: user.usuarioId,
-    usuarioRol: user.usuarioRol,
+    usuarioId: account.usuarioId,
+    usuarioRol: account.usuarioRol,
     trabajadorNombre:
-      `${user.trabajadorNombre} ${user.trabajadorApellido}`.trim(),
+      `${worker.trabajadorNombre} ${worker.trabajadorApellido}`.trim(),
   };
 }
 

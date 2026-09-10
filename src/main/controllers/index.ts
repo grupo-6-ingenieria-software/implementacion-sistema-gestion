@@ -1,6 +1,7 @@
 import type { IpcMain } from 'electron';
 import { findControllerByChannel } from '../../shared/controllers';
-import { guardChannel } from './auth-guard';
+import { authorizeRequest } from './auth-guard';
+import { SESSION_EXPIRED_EVENT } from '../../shared/auth';
 import { accessControlController } from './access-control';
 import { attendanceController } from './attendance';
 import { auditController } from './audit';
@@ -22,10 +23,7 @@ import { saleController } from './sale';
 import { salesHistoryController } from './sales-history';
 import {
   sessionController,
-  refreshSessionActivity,
-  NON_ACTIVITY_CHANNELS,
 } from './session';
-import { db, schema as appSchema } from '../../db/client';
 import { shiftController } from './shift';
 import { stockAlertController } from './stock-alert';
 import { stockDiscountController } from './stock-discount';
@@ -80,26 +78,14 @@ export function registerControllers(ipcMain: IpcMain): void {
         }
 
         // Guard de identidad/rol en el borde IPC: verifica el JWT de sesión
-        // (RF56/CU57) antes de despachar, salvo en canales públicos. En éxito,
+        // (RF56/CU56) antes de despachar, salvo en canales públicos. En éxito,
         // sobrescribe usuarioId con la identidad de confianza y adjunta claims.
-        const guard = await guardChannel(channel, payload);
+        const guard = await authorizeRequest(channel, payload, () => {
+          if (!_event.sender.isDestroyed()) _event.sender.send(SESSION_EXPIRED_EVENT);
+        });
 
         if (!guard.ok) {
           return guard.response;
-        }
-
-        // Actividad real del usuario (RF55): cada IPC autenticado de ACCIÓN
-        // refresca sesion_fecha_hora_ultimo_acceso, de modo que la inactividad
-        // sólo se acumula cuando el usuario no hace nada. Se excluyen el latido
-        // (auth:verificar-sesion, de sólo lectura) y el logout (auth:logout):
-        // ninguno representa actividad. session.ts es la única fuente de verdad
-        // del cierre por inactividad; el latido sólo CONSULTA ese estado.
-        const sesionId = guard.context.claims?.sesionId;
-        if (sesionId && !NON_ACTIVITY_CHANNELS.has(channel)) {
-          // Efecto secundario: un fallo de BD no debe bloquear la acción.
-          await refreshSessionActivity(db, appSchema, sesionId).catch(
-            () => undefined,
-          );
         }
 
         return controller.handle(guard.payload, guard.context);

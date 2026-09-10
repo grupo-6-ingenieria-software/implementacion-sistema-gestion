@@ -3,7 +3,6 @@ import type { AttendanceWorkerOption } from '../../../shared/attendance';
 import {
   displayDateToIso,
   normalizeShiftCreatePayload,
-  validateShiftCreatePayload,
   type ShiftFieldErrors,
   type ShiftMutationResponse,
 } from '../../../shared/shifts';
@@ -134,13 +133,8 @@ export function ShiftCreateView({
   );
 
   async function submit(): Promise<void> {
-    const errors = validateShiftCreatePayload(payload);
-    setFieldErrors(errors);
+    setFieldErrors({});
     setMessage(null);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
@@ -209,6 +203,7 @@ export function ShiftCreateView({
         {!loading && !loadError ? (
           <form
             className="grid max-w-3xl gap-5"
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
               void submit();

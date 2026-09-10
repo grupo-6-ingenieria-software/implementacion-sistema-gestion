@@ -11,6 +11,7 @@ import { closeCashRegister } from '../../../src/main/controllers/cash-closing-se
 import {
   getOpenCashRegister,
   registerSale,
+  SaleBusinessError,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -67,7 +68,57 @@ describe('caja autoabrir (#29)', () => {
     await expectOpenCashRegisters(1);
   });
 
-  it('tras cerrar caja, la siguiente venta auto-abre una caja NUEVA', async () => {
+  it('planifica stock antes de abrir caja y conserva el orden normalizado de consumo', async () => {
+    const trace: string[] = [];
+    const traced = traceDatabase(testDb!.db as unknown as DbExecutor, trace);
+
+    await registerSale(traced, {
+      usuarioId: '12345678-9',
+      metodoPago: 'debito',
+      items: [{ productoId: 1, cantidad: 1 }],
+    });
+
+    const stockPlan = trace.findIndex((entry) =>
+      entry.includes('SUM(lote_cantidad_actual)') && entry.includes('sufficient'),
+    );
+    const user = trace.findIndex((entry) => entry.includes('FROM usuario'));
+    const worker = trace.findIndex((entry) => entry.includes('FROM trabajador'));
+    const product = trace.findIndex((entry) => entry.includes('FROM producto'));
+    const category = trace.findIndex((entry) => entry.includes('FROM categoria'));
+    const price = trace.findIndex((entry) => entry.includes('FROM historial_precio_producto'));
+    const stockSnapshot = trace.findIndex((entry) =>
+      entry.includes('FROM lote') && entry.includes('stockDisponible'),
+    );
+    const openCash = trace.findIndex((entry) => entry.includes('INSERT INTO cierre_caja'));
+    const insertSale = trace.findIndex((entry) => entry.includes('INSERT INTO venta ('));
+    const updateLot = trace.findIndex((entry) => entry.includes('UPDATE lote'));
+    const insertSaleLot = trace.findIndex((entry) => entry.includes('INSERT INTO venta_lote'));
+
+    expect(stockPlan).toBeGreaterThanOrEqual(0);
+    expect(worker).toBeGreaterThan(user);
+    expect(category).toBeGreaterThan(product);
+    expect(price).toBeGreaterThan(category);
+    expect(stockSnapshot).toBeGreaterThan(price);
+    expect(stockPlan).toBeGreaterThan(stockSnapshot);
+    expect(openCash).toBeGreaterThan(stockPlan);
+    expect(insertSale).toBeGreaterThan(openCash);
+    expect(updateLot).toBeGreaterThan(insertSale);
+    expect(insertSaleLot).toBeGreaterThan(updateLot);
+  });
+
+  it('no abre caja cuando la planificación SQL detecta stock insuficiente', async () => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 99 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
+
+    await expectOpenCashRegisters(0);
+  });
+
+  it('tras cerrar caja, bloquea nuevas ventas durante el mismo día', async () => {
     // 1. Primera venta abre la caja inicial.
     await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
@@ -87,24 +138,25 @@ describe('caja autoabrir (#29)', () => {
     );
     await expectOpenCashRegisters(0);
 
-    // 3. La siguiente venta debe abrir una caja nueva y distinta.
-    await registerSale(testDb!.db as unknown as DbExecutor, {
-      usuarioId: '12345678-9',
-      metodoPago: 'debito',
-      items: [{ productoId: 1, cantidad: 1 }],
-    });
+    // 3. La siguiente venta del mismo día debe ser rechazada.
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
 
     const secondOpen = await getOpenCashRegister(
       testDb!.db as unknown as DbExecutor,
     );
-    expect(secondOpen).not.toBeNull();
-    expect(secondOpen?.cierreCajaId).not.toBe(firstOpen?.cierreCajaId);
-    await expectOpenCashRegisters(1);
+    expect(secondOpen).toBeNull();
+    await expectOpenCashRegisters(0);
 
     const totalCajas = await testDb!.db.all<{ count: number }>(
       sql`SELECT COUNT(*) AS count FROM cierre_caja`,
     );
-    expect(Number(totalCajas[0].count)).toBe(2);
+    expect(Number(totalCajas[0].count)).toBe(1);
   });
 
   it('no crea cajas duplicadas al invocar getOpenCashRegister repetidamente', async () => {
@@ -128,6 +180,44 @@ describe('caja autoabrir (#29)', () => {
     );
     expect(Number(totalCajas[0].count)).toBe(1);
   });
+
+  it('prioriza una caja cerrada ante una apertura heredada posterior del mismo día', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000).toISOString();
+    const later = now.toISOString();
+
+    await testDb!.db.run(sql`
+      INSERT INTO cierre_caja (
+        cierre_caja_id,
+        cierre_fecha_hora_inicio,
+        cierre_fecha_hora_fin,
+        cierre_estado,
+        usuario_cierre_id
+      ) VALUES (
+        ${randomUUID()}, ${earlier}, ${later}, 'cerrado', '12345678-9'
+      )
+    `);
+    await testDb!.db.run(sql`
+      INSERT INTO cierre_caja (
+        cierre_caja_id,
+        cierre_fecha_hora_inicio,
+        cierre_estado
+      ) VALUES (${randomUUID()}, ${later}, 'abierto')
+    `);
+
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      }, now),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
+
+    const ventaRows = await testDb!.db.all<{ count: number }>(
+      sql`SELECT COUNT(*) AS count FROM venta`,
+    );
+    expect(Number(ventaRows[0].count)).toBe(0);
+  });
 });
 
 async function expectOpenCashRegisters(expected: number): Promise<void> {
@@ -135,6 +225,29 @@ async function expectOpenCashRegisters(expected: number): Promise<void> {
     sql`SELECT COUNT(*) AS count FROM cierre_caja WHERE cierre_estado = 'abierto'`,
   );
   expect(Number(rows[0].count)).toBe(expected);
+}
+
+function traceDatabase(database: DbExecutor, trace: string[]): DbExecutor {
+  return {
+    all: (query) => {
+      trace.push(extractSqlText(query));
+      return database.all(query);
+    },
+    run: (query) => {
+      trace.push(extractSqlText(query));
+      return database.run(query);
+    },
+    transaction: (callback) =>
+      database.transaction((tx) => callback(traceDatabase(tx, trace))),
+  };
+}
+
+function extractSqlText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(extractSqlText).join(' ');
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  return [record.value, record.queryChunks].map(extractSqlText).join(' ');
 }
 
 async function createTestDatabase() {

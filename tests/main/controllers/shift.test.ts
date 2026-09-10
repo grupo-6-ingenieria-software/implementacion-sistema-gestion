@@ -123,6 +123,34 @@ describe('shift service', () => {
     ).resolves.toHaveProperty('turnoId');
   });
 
+  it('validates date, time and ordering through the SQL-backed create flow', async () => {
+    await expect(createShift(testDb!.db as unknown as DbExecutor, {
+      trabajadorId: 2,
+      fecha: '31/02/2026',
+      horaInicio: '25:00',
+      horaTermino: '07:00',
+    }, ownerActor)).rejects.toMatchObject({
+      fieldErrors: {
+        fecha: 'Ingrese la fecha en formato DD/MM/AAAA.',
+        horaInicio: 'Ingrese la hora de inicio en formato HH:MM.',
+      },
+    });
+
+    await expect(createShift(testDb!.db as unknown as DbExecutor, {
+      trabajadorId: 2,
+      fecha: '15/06/2026',
+      horaInicio: '16:00',
+      horaTermino: '08:00',
+    }, ownerActor)).rejects.toMatchObject({
+      fieldErrors: {
+        horaTermino: 'La hora de termino debe ser posterior a la hora de inicio.',
+      },
+    });
+
+    const [{ total }] = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM turno`);
+    expect(Number(total)).toBe(0);
+  });
+
   it('lists only the selected week and worker', async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: '00000000-0000-4000-8000-000000000101',
@@ -359,6 +387,7 @@ describe('shift service', () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       {
+        fase: 'confirmar',
         usuarioId: '12345678-9',
         trabajadorRut: '23456789-0',
       },

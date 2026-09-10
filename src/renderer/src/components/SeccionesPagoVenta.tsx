@@ -48,9 +48,7 @@ export function SeccionesPagoVenta({
               inputMode="numeric"
               min={0}
               value={montoRecibido}
-              onChange={(event) =>
-                onMontoRecibidoChange(event.target.value.replace(/\D/g, ''))
-              }
+              onChange={(event) => onMontoRecibidoChange(event.target.value)}
             />
           </label>
           <div className="rounded-md border border-[#d7dee6] bg-[#f8fafb] px-3 py-2">

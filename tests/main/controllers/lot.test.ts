@@ -146,6 +146,7 @@ describe('lot controller', () => {
   });
 
   it('registers a perishable lot with expiration subtype', async () => {
+    testDb!.queries.length = 0;
     const result = await testDb!.db.transaction((tx) =>
       registerLotWithExecutor(tx, schema, {
         ean13: '7802920000015',
@@ -166,6 +167,12 @@ describe('lot controller', () => {
     `);
 
     expect(rows).toEqual([{ fechaVencimiento: '2027-01-01' }]);
+    expect(firstBusinessOperations(testDb!.queries).slice(0, 9)).toEqual([
+      'select:producto', 'select:categoria', 'select:validation',
+      'select:validation', 'select:proveedor', 'insert:lote',
+      'insert:lote_perecible', 'insert:ajuste_inventario',
+      'select:usuario_version',
+    ]);
   });
 
   it('rejects inactive products and missing providers', async () => {
@@ -197,13 +204,37 @@ describe('lot controller', () => {
       reason: 'provider-not-found',
     } satisfies Partial<LotError>);
   });
+
+  it('rejects missing, malformed, impossible and non-future expiration dates with contractual messages', async () => {
+    const expirationCases = [
+      [undefined, 'La fecha de vencimiento es obligatoria para esta categoria.'],
+      ['not-a-date', 'Ingrese una fecha de vencimiento valida.'],
+      ['2027-02-30', 'Ingrese una fecha de vencimiento valida.'],
+      ['2020-01-01', 'La fecha de vencimiento debe ser posterior a hoy.'],
+    ] as const;
+
+    for (const [fechaVencimiento, message] of expirationCases) {
+      await expect(testDb!.db.transaction((tx) =>
+        registerLotWithExecutor(tx, schema, {
+          ean13: '7802920000015', cantidad: 10, precioCosto: 700,
+          fechaVencimiento, proveedorId: 1, usuarioId: '12345678-9',
+        }),
+      )).rejects.toMatchObject({
+        reason: 'validation', fieldErrors: { fechaVencimiento: message },
+      } satisfies Partial<LotError>);
+    }
+
+    const rows = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM lote`);
+    expect(Number(rows[0]?.total)).toBe(0);
+  });
 });
 
 async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), 'huascar-lot-'));
   const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
   const client = createClient({ url: `file:${dbPath}` });
-  const db = drizzle(client, { schema });
+  const queries: string[] = [];
+  const db = drizzle(client, { schema, logger: { logQuery(query) { queries.push(query); } } });
 
   await client.execute('PRAGMA foreign_keys = ON');
   const migrationsDir = join(process.cwd(), 'drizzle/migrations');
@@ -223,7 +254,18 @@ async function createTestDatabase() {
     }
   }
 
-  return { client, db, dir };
+  return { client, db, dir, queries };
+}
+
+function firstBusinessOperations(queries: string[]): string[] {
+  const tables = ['lote_perecible', 'ajuste_inventario', 'usuario_version', 'categoria', 'proveedor', 'producto', 'lote'];
+  return queries.flatMap((query) => {
+    const normalized = query.toLowerCase();
+    const verb = normalized.trimStart().split(/\s+/, 1)[0];
+    const table = tables.find((name) => normalized.includes(`\"${name}\"`));
+    if (verb === 'select' && !normalized.includes(' from ')) return ['select:validation'];
+    return table ? [`${verb}:${table}`] : [];
+  });
 }
 
 async function seedLotFixture(db: TestDatabase['db']): Promise<void> {

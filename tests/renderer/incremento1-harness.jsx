@@ -1,0 +1,10 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { CashClosingView } from '../../src/renderer/src/views/CashClosingView';
+import { AttendanceView } from '../../src/renderer/src/views/AttendanceView';
+import { ProductDeleteView } from '../../src/renderer/src/views/ProductDeleteView';
+import { ProductStatusView } from '../../src/renderer/src/views/ProductStatusView';
+import { WorkerListView } from '../../src/renderer/src/views/WorkerListView';
+const views = { CashClosingView, AttendanceView, ProductDeleteView, ProductStatusView, WorkerListView };
+const View = views[new URL(location.href).searchParams.get('view')];
+createRoot(document.getElementById('root')).render(<View role="trabajador" usuarioId="12345678-9" ean13="7802920000015" initialEan13="7802920000015" onNavigate={path => { window.lastNavigation = path; }} />);

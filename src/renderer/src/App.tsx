@@ -43,7 +43,6 @@ import { SaleRegisterView } from './views/SaleRegisterView';
 import { ShiftCalendarView } from './views/ShiftCalendarView';
 import { ShiftCreateView } from './views/ShiftCreateView';
 import { UserManagementView } from './views/UserManagementView';
-import { WorkerManagementView } from './views/WorkerManagementView';
 import { WasteCreateView } from './views/WasteCreateView';
 import { WorkerFormView } from './views/WorkerFormView';
 import { WorkerListView } from './views/WorkerListView';
@@ -89,6 +88,10 @@ export function App(): ReactElement {
     setNotice(SESSION_EXPIRED_MESSAGE);
     navigate(PUBLIC_LOGIN_PATH);
   }).current;
+
+  useEffect(() => window.appApi.onSessionExpired(() => {
+    if (isAuthenticatedRef.current) expireSession();
+  }), [expireSession]);
 
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
@@ -139,8 +142,8 @@ export function App(): ReactElement {
   // contador de inactividad. El último acceso lo refresca el dispatcher en cada
   // IPC de acción real del usuario (todo canal autenticado salvo el propio latido
   // y el logout). Así, si la app queda abierta sin que el usuario haga nada,
-  // session.ts cierra la fila sesion_usuario tras 30 min de inactividad y responde
-  // active=false; entonces este latido detecta el cierre y dispara la expiración.
+  // el guard persistente cierra y confirma sesion_usuario tras 30 min, emite el
+  // evento y devuelve el rechazo; cualquiera de esas señales expira la vista.
   useEffect(() => {
     if (!session.isAuthenticated) {
       return;
@@ -779,15 +782,6 @@ function ViewRenderer({
         mode={node.id === 'product-create' ? 'create' : 'edit'}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
-      />
-    );
-  }
-
-  if ((node.id === 'worker-list' || node.id === 'worker-create') && session.usuarioId) {
-    return (
-      <WorkerManagementView
-        initialCreate={node.id === 'worker-create'}
-        usuarioId={session.usuarioId}
       />
     );
   }

@@ -121,7 +121,7 @@ export const controllers = [
     id: 'product-query',
     name: 'ConsultaProductoHandler',
     module: 'inventario',
-    channels: ['producto:listar', 'producto:buscar-activo', 'producto:estado'],
+    channels: ['producto:listar', 'producto:buscar-activo', 'producto:estado', 'producto:buscar'],
   },
   {
     id: 'lot',
@@ -133,13 +133,18 @@ export const controllers = [
     id: 'waste',
     name: 'MermaHandler',
     module: 'inventario',
-    channels: ['merma:registrar'],
+    channels: ['merma:registrar', 'merma:disponibilidad'],
   },
   {
     id: 'sale',
     name: 'VentaHandler',
     module: 'ventas',
-    channels: ['venta:registrar'],
+    channels: [
+      'venta:registrar',
+      'venta:producto',
+      'venta:verificar-caja',
+      'venta:validar-carrito',
+    ],
   },
   {
     id: 'stock-discount',

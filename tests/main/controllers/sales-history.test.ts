@@ -14,7 +14,7 @@ const database: SalesHistoryDb = {
 const dialect = new SQLiteSyncDialect();
 
 beforeEach(() => {
-  allMock.mockReset();
+  allMock.mockReset().mockResolvedValue([]);
 });
 
 describe('daily sales history query', () => {
@@ -52,41 +52,57 @@ describe('daily sales history query', () => {
   });
 
   it('maps sales and excludes voided sales from current totals', async () => {
-    allMock.mockResolvedValueOnce([
+    allMock
+      .mockResolvedValueOnce([
       {
         ventaId: 'venta-3',
         fechaHora: '2026-06-11T18:30:00.000Z',
-        trabajadorResponsable: 'Maria Huascar',
-        cantidadProductos: '3',
-        subtotal: '5000',
         metodoPago: 'debito',
         estado: 'completada',
         discountType: 'monto',
         discountValue: '500',
+        usuarioId: 'u-1',
       },
       {
         ventaId: 'venta-2',
         fechaHora: '2026-06-11T17:00:00.000Z',
-        trabajadorResponsable: 'Luis Soto',
-        cantidadProductos: '2',
-        subtotal: '10000',
         metodoPago: 'efectivo',
         estado: 'anulada',
         discountType: 'porcentaje',
         discountValue: '10',
+        usuarioId: 'u-2',
       },
       {
         ventaId: 'venta-1',
         fechaHora: '2026-06-11T15:00:00.000Z',
-        trabajadorResponsable: 'Maria Huascar',
-        cantidadProductos: '1',
-        subtotal: '2000',
         metodoPago: 'efectivo',
         estado: 'completada',
         discountType: 'ninguno',
         discountValue: null,
+        usuarioId: 'u-1',
       },
-    ]);
+      ])
+      .mockResolvedValueOnce([
+        { ventaId: 'venta-3', cantidad: '2', historialPrecioProductoId: 'p-3a' },
+        { ventaId: 'venta-3', cantidad: '1', historialPrecioProductoId: 'p-3b' },
+        { ventaId: 'venta-2', cantidad: '2', historialPrecioProductoId: 'p-2' },
+        { ventaId: 'venta-1', cantidad: '1', historialPrecioProductoId: 'p-1' },
+      ])
+      .mockResolvedValueOnce([
+        { historialPrecioProductoId: 'p-3a', precio: '1500' },
+        { historialPrecioProductoId: 'p-3b', precio: '2000' },
+        { historialPrecioProductoId: 'p-2', precio: '5000' },
+        { historialPrecioProductoId: 'p-1', precio: '2000' },
+      ])
+      .mockResolvedValueOnce([
+        { usuarioId: 'u-1', trabajadorId: 1 },
+        { usuarioId: 'u-2', trabajadorId: 2 },
+      ])
+      .mockResolvedValueOnce([
+        { trabajadorId: 1, nombre: 'Maria Huascar' },
+        { trabajadorId: 2, nombre: 'Luis Soto' },
+      ])
+      .mockResolvedValueOnce([{ ventaId: 'venta-2' }]);
 
     await expect(
       loadDailySalesHistory(
@@ -102,7 +118,7 @@ describe('daily sales history query', () => {
           cantidadProductos: 3,
           total: 4500,
           metodoPago: 'debito',
-          estado: 'completada',
+          estado: 'confirmada',
         },
         {
           ventaId: 'venta-2',
@@ -120,7 +136,7 @@ describe('daily sales history query', () => {
           cantidadProductos: 1,
           total: 2000,
           metodoPago: 'efectivo',
-          estado: 'completada',
+          estado: 'confirmada',
         },
       ],
       resumen: {
@@ -156,6 +172,7 @@ describe('daily sales history query', () => {
         montoAnulado: 0,
       },
     });
+    expect(allMock).toHaveBeenCalledOnce();
   });
 });
 

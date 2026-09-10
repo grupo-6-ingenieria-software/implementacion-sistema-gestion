@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { ActiveProductSearchItem } from '../../../shared/products';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import type { ActiveProductSearchItem } from "../../../shared/products";
 import {
   normalizeWasteRegisterPayload,
-  validateWasteRegisterPayload,
   wasteReasons,
   type WasteFieldErrors,
+  type WasteAvailabilityResponse,
   type WasteReason,
   type WasteRegisterPayload,
   type WasteRegisterResponse,
-} from '../../../shared/waste';
-import { CampoEAN13Input } from '../components';
+} from "../../../shared/waste";
+import { CampoEAN13Input } from "../components";
 
 type WasteCreateViewProps = {
   initialEan13?: string;
@@ -17,25 +17,25 @@ type WasteCreateViewProps = {
   onNavigate: (path: string) => void;
 };
 
-type FormState = {
+export type WasteFormState = {
   ean13: string;
   cantidad: string;
-  motivo: WasteReason | '';
+  motivo: WasteReason | "";
   observacion: string;
 };
 
-const emptyForm: FormState = {
-  ean13: '',
-  cantidad: '',
-  motivo: '',
-  observacion: '',
+const emptyForm: WasteFormState = {
+  ean13: "",
+  cantidad: "",
+  motivo: "",
+  observacion: "",
 };
 
 const reasonLabels: Record<WasteReason, string> = {
-  vencimiento: 'Vencimiento',
-  dano: 'Daño',
-  robo: 'Robo',
-  error_registro: 'Error de registro',
+  vencimiento: "Vencimiento",
+  dano: "Daño",
+  robo: "Robo",
+  error_registro: "Error de registro",
 };
 
 export function WasteCreateView({
@@ -43,13 +43,13 @@ export function WasteCreateView({
   onNavigate,
   usuarioId,
 }: WasteCreateViewProps): ReactElement {
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<WasteFormState>({
     ...emptyForm,
-    ean13: initialEan13 ?? '',
+    ean13: initialEan13 ?? "",
   });
   const [selectedProduct, setSelectedProduct] =
     useState<ActiveProductSearchItem | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<ActiveProductSearchItem[]>(
     [],
   );
@@ -75,7 +75,7 @@ export function WasteCreateView({
       setFieldErrors({});
 
       const response = await window.appApi.invoke<ActiveProductSearchItem[]>(
-        'producto:buscar-activo',
+        "producto:buscar-activo",
         {
           ean13: initialEan13,
           limit: 1,
@@ -93,7 +93,7 @@ export function WasteCreateView({
         return;
       }
 
-      selectProduct(response.data[0]);
+      await selectProduct(response.data[0]);
       setLoading(false);
     }
 
@@ -102,7 +102,7 @@ export function WasteCreateView({
         return;
       }
 
-      setLoadError('No fue posible cargar el producto inicial.');
+      setLoadError("No fue posible cargar el producto inicial.");
       setLoading(false);
     });
 
@@ -112,23 +112,38 @@ export function WasteCreateView({
   }, [initialEan13, usuarioId]);
 
   const payload = useMemo<WasteRegisterPayload>(
-    () =>
-      normalizeWasteRegisterPayload({
-        ...form,
-        usuarioId,
-      }),
+    () => buildWasteRegisterPayload(form, usuarioId),
     [form, usuarioId],
   );
 
-  function selectProduct(product: ActiveProductSearchItem): void {
+  async function selectProduct(
+    product: ActiveProductSearchItem,
+  ): Promise<void> {
     setSelectedProduct(product);
     setSearchResults([]);
-    setSearch('');
+    setSearch("");
     setForm((current) => ({
       ...current,
       ean13: product.ean13,
     }));
     setFieldErrors((current) => ({ ...current, ean13: undefined }));
+
+    const availability = await window.appApi.invoke<WasteAvailabilityResponse>(
+      "merma:disponibilidad",
+      { ean13: product.ean13, usuarioId },
+    );
+
+    if (!availability.ok) {
+      setSelectedProduct(null);
+      setMessage(availability.error.message);
+      return;
+    }
+
+    setSelectedProduct((current) =>
+      current
+        ? { ...current, stockDisponible: availability.data.stockDisponible }
+        : current,
+    );
   }
 
   async function searchProducts(): Promise<void> {
@@ -137,14 +152,14 @@ export function WasteCreateView({
     setMessage(null);
 
     if (!query) {
-      setMessage('Ingrese un EAN-13 o nombre de producto para buscar.');
+      setMessage("Ingrese un EAN-13 o nombre de producto para buscar.");
       return;
     }
 
     setSearching(true);
 
     const response = await window.appApi.invoke<ActiveProductSearchItem[]>(
-      'producto:buscar-activo',
+      "producto:buscar-activo",
       {
         query,
         limit: 10,
@@ -163,31 +178,18 @@ export function WasteCreateView({
     setSearchResults(response.data);
 
     if (response.data.length === 0) {
-      setMessage('No se encontraron productos activos para la busqueda.');
+      setMessage("No se encontraron productos activos para la busqueda.");
     }
   }
 
   async function submitForm(): Promise<void> {
-    const nextErrors = validateWasteRegisterPayload(payload, {
-      requireUser: true,
-      stockDisponible: selectedProduct?.stockDisponible,
-    });
-
-    if (!selectedProduct) {
-      nextErrors.ean13 = 'Seleccione un producto activo para registrar la merma.';
-    }
-
-    setFieldErrors(nextErrors);
+    setFieldErrors({});
     setMessage(null);
-
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
 
     setSaving(true);
 
     const response = await window.appApi.invoke<WasteRegisterResponse>(
-      'merma:registrar',
+      "merma:registrar",
       payload,
     );
 
@@ -199,8 +201,8 @@ export function WasteCreateView({
       return;
     }
 
-    setMessage('Merma registrada correctamente.');
-    window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
+    setMessage("Merma registrada correctamente.");
+    window.setTimeout(() => onNavigate("/app/inventario/productos"), 700);
   }
 
   return (
@@ -209,7 +211,7 @@ export function WasteCreateView({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/inventario/productos')}
+          onClick={() => onNavigate("/app/inventario/productos")}
         >
           Volver a productos
         </button>
@@ -228,7 +230,7 @@ export function WasteCreateView({
             <button
               className="w-fit rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate('/app/inventario/productos')}
+              onClick={() => onNavigate("/app/inventario/productos")}
             >
               Volver
             </button>
@@ -237,6 +239,7 @@ export function WasteCreateView({
 
         {!loading && !loadError ? (
           <form
+            noValidate
             className="grid gap-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -267,7 +270,7 @@ export function WasteCreateView({
                       type="button"
                       onClick={() => void searchProducts()}
                     >
-                      {searching ? 'Buscando...' : 'Buscar producto'}
+                      {searching ? "Buscando..." : "Buscar producto"}
                     </button>
                   </div>
                 </Field>
@@ -279,13 +282,13 @@ export function WasteCreateView({
                         className="grid w-full gap-1 border-t border-[#edf1f5] px-4 py-3 text-left first:border-t-0 transition hover:bg-[#f6f7f9]"
                         key={product.ean13}
                         type="button"
-                        onClick={() => selectProduct(product)}
+                        onClick={() => void selectProduct(product)}
                       >
                         <span className="text-sm font-semibold text-[#17202a]">
                           {product.nombre}
                         </span>
                         <span className="text-xs text-[#61717f]">
-                          {product.ean13} - {product.categoria} - Stock{' '}
+                          {product.ean13} - {product.categoria} - Stock{" "}
                           {product.stockDisponible}
                         </span>
                       </button>
@@ -320,7 +323,7 @@ export function WasteCreateView({
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        motivo: event.target.value as WasteReason | '',
+                        motivo: event.target.value as WasteReason | "",
                       }))
                     }
                   >
@@ -336,6 +339,7 @@ export function WasteCreateView({
                 <Field label="Observacion" error={fieldErrors.observacion}>
                   <textarea
                     className="min-h-28 w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+                    maxLength={200}
                     value={form.observacion}
                     onChange={(event) =>
                       setForm((current) => ({
@@ -360,12 +364,12 @@ export function WasteCreateView({
                 disabled={saving}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Registrar merma'}
+                {saving ? "Guardando..." : "Registrar merma"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 type="button"
-                onClick={() => onNavigate('/app/inventario/productos')}
+                onClick={() => onNavigate("/app/inventario/productos")}
               >
                 Cancelar
               </button>
@@ -375,6 +379,13 @@ export function WasteCreateView({
       </section>
     </section>
   );
+}
+
+export function buildWasteRegisterPayload(
+  form: WasteFormState,
+  usuarioId: string,
+): WasteRegisterPayload {
+  return normalizeWasteRegisterPayload({ ...form, usuarioId });
 }
 
 function ProductSummary({
@@ -388,13 +399,16 @@ function ProductSummary({
       <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
         <Info label="EAN-13" value={product.ean13} />
         <Info label="Categoria" value={product.categoria} />
-        <Info label="Stock disponible" value={String(product.stockDisponible)} />
+        <Info
+          label="Stock disponible"
+          value={String(product.stockDisponible)}
+        />
         <Info
           label="Descuento"
           value={
             product.exigeVencimiento
-              ? 'FEFO por vencimiento'
-              : 'Fecha de ingreso'
+              ? "FEFO por vencimiento"
+              : "Fecha de ingreso"
           }
         />
       </dl>
@@ -422,7 +436,13 @@ function Field({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-[#61717f]">

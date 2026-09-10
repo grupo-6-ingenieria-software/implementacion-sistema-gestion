@@ -1,26 +1,22 @@
 /**
- * SesionHandler — Verificación de sesión, inactividad y cierre (RF55, CU56 e4).
+ * SesionHandler — Verificación de sesión, inactividad y cierre (RF56, CU56 e4).
  *
  * Es la única fuente de verdad sobre el estado de la sesión en la base de datos:
- *  - Canal auth:verificar-sesion: latido (heartbeat) del renderer. SÓLO consulta
- *    el estado de la sesión: si lleva más de 30 minutos sin actividad real la
- *    cierra (motivo_cierre = 'inactividad'); en caso contrario responde
- *    active=true SIN refrescar el último acceso. El latido es de SÓLO LECTURA,
- *    por lo que NO reinicia el contador de inactividad mientras la app está
- *    abierta sin que el usuario haga nada.
+ *  - Canal auth:verificar-sesion: el guard persistente consulta propietario,
+ *    estado y último acceso en una sola lectura. Si alcanza 30 minutos cierra y
+ *    confirma la fila; si sigue activa, el controlador reutiliza ese resultado
+ *    sin una segunda consulta y sin renovar el último acceso.
  *  - Canal auth:logout: cierre manual de la sesión activa (motivo_cierre =
  *    'manual'), invocado por el renderer al cerrar sesión.
  *
- * El último acceso (sesion_fecha_hora_ultimo_acceso) lo refresca el dispatcher
- * (ver index.ts) en cada IPC autenticado que represente una ACCIÓN real del
- * usuario, EXCEPTO el propio latido (auth:verificar-sesion) y el logout
- * (auth:logout). Así la inactividad sólo se acumula cuando no hay acciones.
+ * El último acceso se renueva dentro de validateAndRefreshActiveSession con un
+ * UPDATE RETURNING condicional y atómico antes de despachar cada acción real.
  *
  * La identidad se deriva del JWT verificado por el guard del dispatcher; el
  * sesionId proviene de los claims firmados (ver auth-guard.ts / auth-jwt.ts).
  */
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { controllers, type ControllerResponse } from '../../shared/controllers';
 import { INACTIVITY_MS } from '../../shared/auth';
 import { db, schema as appSchema } from '../../db/client';
@@ -118,7 +114,7 @@ export async function verifySessionWithExecutor(
   const now = deps.now();
   const idleMs = now.getTime() - Date.parse(sesion.ultimoAcceso);
 
-  if (idleMs > INACTIVITY_MS) {
+  if (!Number.isFinite(idleMs) || idleMs >= INACTIVITY_MS) {
     await database
       .update(schema.sesionUsuario)
       .set({
@@ -140,14 +136,134 @@ export async function verifySessionWithExecutor(
   return controllerSuccess<VerifySessionData>({ active: true });
 }
 
+/** C05: comprobar propietario/estado/ventana y renovar atómicamente antes de negocio. */
+export async function validateAndRefreshActiveSession(
+  database: Pick<typeof db, 'transaction'>,
+  schema: SchemaLike,
+  sesionId: string,
+  usuarioId: string,
+  refresh: boolean,
+  deps: SessionDeps = defaultDeps,
+): Promise<VerifySessionData> {
+  return database.transaction(async (tx) => {
+    const now = deps.now();
+
+    if (!refresh) {
+      return inspectSessionState(tx, schema, sesionId, usuarioId, now, false);
+    }
+
+    const inactivityBoundary = new Date(now.getTime() - INACTIVITY_MS).toISOString();
+    const renewed = await tx
+      .update(schema.sesionUsuario)
+      .set({ sesionFechaHoraUltimoAcceso: now.toISOString() })
+      .where(
+        and(
+          eq(schema.sesionUsuario.sesionUsuarioId, sesionId),
+          eq(schema.sesionUsuario.usuarioId, usuarioId),
+          isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+          sql`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) IS NOT NULL`,
+          sql`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) > julianday(${inactivityBoundary})`,
+        ),
+      )
+      .returning({ id: schema.sesionUsuario.sesionUsuarioId });
+
+    if (renewed.length > 0) {
+      return { active: true };
+    }
+
+    // Cero filas puede significar propietario distinto, sesión cerrada,
+    // timestamp inválido o inactividad. Una única lectura diagnóstica decide el
+    // motivo sin separar propietario y estado en consultas distintas.
+    return inspectSessionState(tx, schema, sesionId, usuarioId, now, true);
+  });
+}
+
+async function inspectSessionState(
+  database: SessionExecutor,
+  schema: SchemaLike,
+  sesionId: string,
+  usuarioId: string,
+  now: Date,
+  renewalAttempted: boolean,
+): Promise<VerifySessionData> {
+  const inactivityBoundary = new Date(now.getTime() - INACTIVITY_MS).toISOString();
+  const [session] = await database
+    .select({
+      usuarioId: schema.sesionUsuario.usuarioId,
+      cierre: schema.sesionUsuario.sesionFechaHoraCierre,
+      motivoCierre: schema.sesionUsuario.sesionMotivoCierre,
+      ultimoAcceso: schema.sesionUsuario.sesionFechaHoraUltimoAcceso,
+      timestampValido: sql<number>`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) IS NOT NULL`,
+      dentroVentana: sql<number>`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) > julianday(${inactivityBoundary})`,
+    })
+    .from(schema.sesionUsuario)
+    .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId))
+    .limit(1);
+
+  if (!session || session.usuarioId !== usuarioId) {
+    return { active: false, reason: 'sesion-inexistente' };
+  }
+
+  if (session.cierre) {
+    return { active: false, reason: normalizeReason(session.motivoCierre) };
+  }
+
+  if (!session.timestampValido) {
+    return { active: false, reason: 'sistema' };
+  }
+
+  if (session.dentroVentana && renewalAttempted) {
+    throw new Error('No fue posible renovar una sesión activa');
+  }
+
+  if (session.dentroVentana) {
+    return { active: true };
+  }
+
+  const closed = await database
+    .update(schema.sesionUsuario)
+    .set({
+      sesionFechaHoraCierre: now.toISOString(),
+      sesionMotivoCierre: 'inactividad',
+    })
+    .where(
+      and(
+        eq(schema.sesionUsuario.sesionUsuarioId, sesionId),
+        eq(schema.sesionUsuario.usuarioId, usuarioId),
+        isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+      ),
+    )
+    .returning({ id: schema.sesionUsuario.sesionUsuarioId });
+
+  if (closed.length === 0) {
+    throw new Error('No fue posible cerrar la sesión expirada');
+  }
+
+  const [confirmation] = await database
+    .select({
+      cierre: schema.sesionUsuario.sesionFechaHoraCierre,
+      motivoCierre: schema.sesionUsuario.sesionMotivoCierre,
+    })
+    .from(schema.sesionUsuario)
+    .where(
+      and(
+        eq(schema.sesionUsuario.sesionUsuarioId, sesionId),
+        eq(schema.sesionUsuario.usuarioId, usuarioId),
+      ),
+    )
+    .limit(1);
+
+  if (!confirmation?.cierre || confirmation.motivoCierre !== 'inactividad') {
+    throw new Error('No se confirmó el cierre por inactividad');
+  }
+
+  return { active: false, reason: 'inactividad' };
+}
+
 /**
- * Refresca sesion_fecha_hora_ultimo_acceso = ahora para la sesión indicada,
- * marcando actividad real del usuario. Lo invoca el dispatcher (index.ts) tras
- * un guard exitoso en cualquier IPC autenticado que NO sea el latido ni el
- * logout. Sólo afecta a sesiones aún abiertas (cierre IS NULL): una sesión ya
- * cerrada por inactividad o logout no se "revive" con un UPDATE de actividad.
- * Es un único UPDATE; cualquier fallo de BD se ignora para no bloquear la
- * acción del usuario (la actividad es un efecto secundario, no el objetivo).
+ * Helper público de compatibilidad para renovar una sesión abierta. El camino
+ * del dispatcher usa validateAndRefreshActiveSession, cuya condición agrega
+ * propietario y ventana de inactividad en el mismo UPDATE RETURNING.
  */
 export async function refreshSessionActivity(
   database: SessionExecutor,
@@ -224,7 +340,7 @@ export function createSessionController(
 
   return {
     metadata: controllers[4],
-    handle: (_payload, context: ControllerContext) => {
+    handle: async (_payload, context: ControllerContext) => {
       if (context.channel === LOGOUT_CHANNEL) {
         // El sesionId proviene del claim firmado adjuntado por el guard, no del
         // renderer; así no se puede cerrar la sesión de otro usuario.
@@ -236,15 +352,9 @@ export function createSessionController(
         );
       }
 
-      // Igual que el logout: el sesionId de confianza viene del guard. Antes se
-      // re-leía payload.token (inexistente: el preload envía __authToken), por lo
-      // que el latido siempre respondía inactivo y cerraba la sesión.
-      return verifySessionWithExecutor(
-        db,
-        appSchema,
-        context.claims?.sesionId,
-        resolved,
-      );
+      // El guard persistente ya verificó propietario, cierre e inactividad con
+      // una sola lectura para el heartbeat. Reconsultar aquí duplicaría T01.
+      return controllerSuccess<VerifySessionData>({ active: true });
     },
   };
 }

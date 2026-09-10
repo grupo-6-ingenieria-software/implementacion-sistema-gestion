@@ -25,6 +25,15 @@ type PendingNoShift = {
   trabajadorNombre: string;
 };
 
+type PendingConfirmation = {
+  kind: Mode;
+  trabajadorRut: string;
+  trabajadorNombre: string;
+  entradaAt?: string;
+  turnoInicio?: string;
+  turnoFin?: string;
+};
+
 export function AttendanceView({
   role,
   usuarioId,
@@ -41,6 +50,8 @@ export function AttendanceView({
   const [pendingNoShift, setPendingNoShift] = useState<PendingNoShift | null>(
     null,
   );
+  const [pendingConfirmation, setPendingConfirmation] =
+    useState<PendingConfirmation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadWorkers = useCallback(async (): Promise<void> => {
@@ -136,12 +147,13 @@ export function AttendanceView({
 
     setIsSubmitting(true);
     setPendingNoShift(null);
+    setPendingConfirmation(null);
     setMessage(null);
 
     if (mode === 'entrada') {
       const response = await window.appApi.invoke<AttendanceEntryResult>(
         'asistencia:entrada',
-        { usuarioId, trabajadorRut },
+        { fase: 'prevalidar', usuarioId, trabajadorRut },
       );
 
       setIsSubmitting(false);
@@ -158,6 +170,7 @@ export function AttendanceView({
     const response = await window.appApi.invoke<AttendanceExitResult>(
       'asistencia:salida',
       {
+        fase: 'prevalidar',
         usuarioId,
         trabajadorRut,
       },
@@ -170,10 +183,68 @@ export function AttendanceView({
       return;
     }
 
-    showMessage(
-      'success',
-      `Salida registrada a las ${formatTime(response.data.salidaAt)}. Horas trabajadas: ${response.data.horasTrabajadas}.`,
-    );
+    if (response.data.status === 'ready_for_confirmation') {
+      setPendingConfirmation({
+        kind: 'salida',
+        trabajadorRut: response.data.trabajador.rut,
+        trabajadorNombre: response.data.trabajador.nombreCompleto,
+        entradaAt: response.data.entradaAt,
+      });
+      return;
+    }
+
+    showExitSuccess(response.data);
+  }
+
+  async function confirmAttendance(): Promise<void> {
+    if (!pendingConfirmation || !usuarioId?.trim()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const channel =
+      pendingConfirmation.kind === 'entrada'
+        ? 'asistencia:entrada'
+        : 'asistencia:salida';
+    const response = await window.appApi.invoke<
+      AttendanceEntryResult | AttendanceExitResult
+    >(channel, {
+      fase: 'confirmar',
+      usuarioId,
+      trabajadorRut: pendingConfirmation.trabajadorRut,
+    });
+
+    setIsSubmitting(false);
+    setPendingConfirmation(null);
+
+    if (!response.ok) {
+      showMessage('error', response.error.message);
+      return;
+    }
+
+    if (response.data.status !== 'registered') {
+      showMessage(
+        'warning',
+        'message' in response.data
+          ? response.data.message
+          : 'Vuelva a confirmar la operacion.',
+      );
+      return;
+    }
+
+    if (pendingConfirmation.kind === 'entrada') {
+      showMessage(
+        'success',
+        `Entrada registrada a las ${formatTime(response.data.entradaAt)}.`,
+      );
+      return;
+    }
+
+    if ('salidaAt' in response.data) {
+      showExitSuccess(response.data);
+    }
   }
 
   async function confirmWithoutShift(): Promise<void> {
@@ -188,6 +259,7 @@ export function AttendanceView({
       'asistencia:entrada-sin-turno',
       {
         usuarioId,
+        fase: 'confirmar',
         trabajadorRut: pendingNoShift.trabajadorRut,
       },
     );
@@ -224,9 +296,29 @@ export function AttendanceView({
       return;
     }
 
+    if (result.status === 'ready_for_confirmation') {
+      setPendingConfirmation({
+        kind: 'entrada',
+        trabajadorRut: result.trabajador.rut,
+        trabajadorNombre: result.trabajador.nombreCompleto,
+        turnoInicio: result.trabajador.turnoInicio,
+        turnoFin: result.trabajador.turnoFin,
+      });
+      return;
+    }
+
     showMessage(
       'success',
       `Entrada registrada a las ${formatTime(result.entradaAt)}.`,
+    );
+  }
+
+  function showExitSuccess(
+    result: Extract<AttendanceExitResult, { status: 'registered' }>,
+  ): void {
+    showMessage(
+      'success',
+      `Salida registrada a las ${formatTime(result.salidaAt)}. Horas trabajadas: ${result.horasTrabajadas}.`,
     );
   }
 
@@ -235,6 +327,7 @@ export function AttendanceView({
     setSearch('');
     setMessage(null);
     setPendingNoShift(null);
+    setPendingConfirmation(null);
   }
 
   function showMessage(
@@ -298,6 +391,7 @@ export function AttendanceView({
                     onClick={() => {
                       setMode('entrada');
                       setPendingNoShift(null);
+                      setPendingConfirmation(null);
                       setMessage(null);
                     }}
                   />
@@ -308,6 +402,7 @@ export function AttendanceView({
                     onClick={() => {
                       setMode('salida');
                       setPendingNoShift(null);
+                      setPendingConfirmation(null);
                       setMessage(null);
                     }}
                   />
@@ -342,7 +437,9 @@ export function AttendanceView({
               <div className="flex flex-wrap justify-end gap-3 border-t border-[#e3e8ee] pt-6">
                 <button
                   className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                  disabled={!canSubmit || Boolean(pendingNoShift)}
+                  disabled={
+                    !canSubmit || Boolean(pendingNoShift || pendingConfirmation)
+                  }
                   type="button"
                   onClick={() => void submit()}
                 >
@@ -359,6 +456,7 @@ export function AttendanceView({
                   onClick={() => {
                     setMessage(null);
                     setPendingNoShift(null);
+                    setPendingConfirmation(null);
                     if (role === 'dueno') {
                       setRut('');
                     }
@@ -376,6 +474,18 @@ export function AttendanceView({
               pendingNoShift={pendingNoShift}
               onCancel={cancelWithoutShift}
               onConfirm={() => void confirmWithoutShift()}
+            />
+          ) : null}
+
+          {pendingConfirmation ? (
+            <AttendanceConfirmation
+              isSubmitting={isSubmitting}
+              pending={pendingConfirmation}
+              onCancel={() => {
+                setPendingConfirmation(null);
+                showMessage('warning', 'Registro cancelado. No se realizaron cambios.');
+              }}
+              onConfirm={() => void confirmAttendance()}
             />
           ) : null}
 
@@ -589,6 +699,59 @@ function NoShiftConfirmation({
   );
 }
 
+function AttendanceConfirmation({
+  isSubmitting,
+  onCancel,
+  onConfirm,
+  pending,
+}: {
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: PendingConfirmation;
+}): ReactElement {
+  return (
+    <section className="rounded-md border border-[#9bb5c4] bg-[#f3f8fb] p-5 shadow-sm">
+      <p className="text-sm font-semibold uppercase text-[#244d61]">
+        Confirmacion requerida
+      </p>
+      <h4 className="mt-1 text-lg font-semibold text-[#17202a]">
+        Confirmar {pending.kind === 'entrada' ? 'entrada' : 'salida'}
+      </h4>
+      <p className="mt-2 text-sm text-[#435563]">
+        {pending.trabajadorNombre}
+        {pending.entradaAt
+          ? ` tiene una entrada abierta desde las ${formatTime(pending.entradaAt)}.`
+          : ' tiene sus datos y turno validados.'}
+      </p>
+      {pending.kind === 'entrada' && pending.turnoInicio && pending.turnoFin ? (
+        <dl className="mt-4 grid gap-3 rounded-md border border-[#cbd5df] bg-white p-4 sm:grid-cols-2">
+          <Info label="Inicio del turno" value={formatDateTime(pending.turnoInicio)} />
+          <Info label="Fin del turno" value={formatDateTime(pending.turnoFin)} />
+        </dl>
+      ) : null}
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          className="rounded-md border border-[#9ba9b5] bg-white px-4 py-2 text-sm font-semibold text-[#24313d]"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onCancel}
+        >
+          Cancelar
+        </button>
+        <button
+          className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white disabled:bg-[#9ba9b5]"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onConfirm}
+        >
+          Confirmar {pending.kind}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function StatusMessage({
   message,
   title,
@@ -640,5 +803,13 @@ function formatTime(value: string): string {
     timeZone: 'America/Santiago',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'America/Santiago',
+    dateStyle: 'medium',
+    timeStyle: 'short',
   }).format(new Date(value));
 }

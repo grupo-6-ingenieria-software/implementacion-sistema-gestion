@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   normalizeProductDeletePayload,
   validateProductDeletePayload,
@@ -6,9 +6,9 @@ import {
   type ProductDeletePayload,
   type ProductDeleteResponse,
   type ProductDetailResponse,
-} from '../../../shared/products';
-import { isValidEan13 } from '../../../shared/ean13';
-import { CampoEAN13Input } from '../components';
+} from "../../../shared/products";
+import { isValidEan13 } from "../../../shared/ean13";
+import { CampoEAN13Input } from "../components";
 
 type ProductDeleteViewProps = {
   initialEan13?: string;
@@ -21,14 +21,14 @@ export function ProductDeleteView({
   onNavigate,
   usuarioId,
 }: ProductDeleteViewProps): ReactElement {
-  const [ean13, setEan13] = useState(initialEan13 ?? '');
-  const [loadedEan13, setLoadedEan13] = useState(initialEan13 ?? '');
-  const [product, setProduct] = useState<ProductDetailResponse['product'] | null>(
-    null,
-  );
-  const [categories, setCategories] = useState<ProductDetailResponse['categories']>(
-    [],
-  );
+  const [ean13, setEan13] = useState(initialEan13 ?? "");
+  const [loadedEan13, setLoadedEan13] = useState(initialEan13 ?? "");
+  const [product, setProduct] = useState<
+    ProductDetailResponse["product"] | null
+  >(null);
+  const [categories, setCategories] = useState<
+    ProductDetailResponse["categories"]
+  >([]);
   const [confirmacion, setConfirmacion] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ProductDeleteFieldErrors>({});
   const [loading, setLoading] = useState(Boolean(initialEan13));
@@ -63,7 +63,7 @@ export function ProductDeleteView({
       setConfirmacion(false);
 
       const response = await window.appApi.invoke<ProductDetailResponse>(
-        'producto:estado',
+        "producto:buscar",
         {
           ean13: loadedEan13,
           usuarioId,
@@ -94,7 +94,7 @@ export function ProductDeleteView({
 
       setProduct(null);
       setCategories([]);
-      setLoadError('No fue posible cargar el producto. Intente nuevamente.');
+      setLoadError("No fue posible cargar el producto. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -115,12 +115,12 @@ export function ProductDeleteView({
 
   const categoryName = useMemo(() => {
     if (!product) {
-      return '';
+      return "";
     }
 
     return (
       categories.find((category) => category.id === product.categoriaId)
-        ?.nombre ?? 'No disponible'
+        ?.nombre ?? "No disponible"
     );
   }, [categories, product]);
 
@@ -133,7 +133,7 @@ export function ProductDeleteView({
       setProduct(null);
       setLoadError(null);
       setFieldErrors({
-        ean13: 'El codigo EAN-13 debe tener exactamente 13 digitos numericos.',
+        ean13: "El codigo EAN-13 debe tener exactamente 13 digitos numericos.",
       });
       return;
     }
@@ -154,7 +154,7 @@ export function ProductDeleteView({
     setSaving(true);
 
     const response = await window.appApi.invoke<ProductDeleteResponse>(
-      'producto:eliminar',
+      "producto:eliminar",
       payload,
     );
 
@@ -163,12 +163,12 @@ export function ProductDeleteView({
     if (!response.ok) {
       setFieldErrors(response.error.fieldErrors ?? {});
       setMessage(response.error.message);
-      setBlocked(response.error.code === 'BUSINESS_RULE');
+      setBlocked(response.error.code === "BUSINESS_RULE");
       return;
     }
 
     setMessage(`Producto ${response.data.ean13} eliminado correctamente.`);
-    window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
+    window.setTimeout(() => onNavigate("/app/inventario/productos"), 700);
   }
 
   return (
@@ -177,7 +177,7 @@ export function ProductDeleteView({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/inventario/productos')}
+          onClick={() => onNavigate("/app/inventario/productos")}
         >
           Volver a productos
         </button>
@@ -298,12 +298,12 @@ export function ProductDeleteView({
                 disabled={saving}
                 type="submit"
               >
-                {saving ? 'Eliminando...' : 'Eliminar producto'}
+                {saving ? "Eliminando..." : "Eliminar producto"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 type="button"
-                onClick={() => onNavigate('/app/inventario/productos')}
+                onClick={() => onNavigate("/app/inventario/productos")}
               >
                 Cancelar
               </button>
@@ -315,7 +315,13 @@ export function ProductDeleteView({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-[#61717f]">
@@ -326,6 +332,6 @@ function Info({ label, value }: { label: string; value: string }): ReactElement 
   );
 }
 
-function formatStatus(status: 'activo' | 'inactivo'): string {
-  return status === 'activo' ? 'Activo' : 'Inactivo';
+function formatStatus(status: "activo" | "inactivo"): string {
+  return status === "activo" ? "Activo" : "Inactivo";
 }

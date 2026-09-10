@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DASHBOARD_UPDATED_EVENT } from '../../../src/shared/dashboard';
 
-const { closeCashRegister, send, getAllWindows, logError, registerSale } = vi.hoisted(() => {
+const { closeCashRegister, inspectDailyCashRegister, send, getAllWindows, logError, registerSale } = vi.hoisted(() => {
   const sendMock = vi.fn();
 
   return {
@@ -10,6 +10,7 @@ const { closeCashRegister, send, getAllWindows, logError, registerSale } = vi.ho
     getAllWindows: vi.fn(),
     logError: vi.fn(),
     registerSale: vi.fn(),
+    inspectDailyCashRegister: vi.fn(),
   };
 });
 
@@ -18,6 +19,13 @@ vi.mock('electron', () => ({
     getAllWindows,
   },
 }));
+
+vi.mock('../../../src/main/controllers/cash-check', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/main/controllers/cash-check')>(
+    '../../../src/main/controllers/cash-check',
+  );
+  return { ...actual, inspectDailyCashRegister };
+});
 
 vi.mock('electron-log/main', () => ({
   default: {
@@ -66,6 +74,12 @@ beforeEach(() => {
   getAllWindows.mockReturnValue([{ webContents: { send } }]);
   logError.mockReset();
   registerSale.mockReset();
+  inspectDailyCashRegister.mockReset();
+  inspectDailyCashRegister.mockResolvedValue({
+    status: 'abierta',
+    cierreCajaId: 'caja-1',
+    openedAt: '2026-06-12T08:00:00.000Z',
+  });
   closeCashRegister.mockReset();
 });
 
@@ -170,7 +184,8 @@ describe('dashboard update events', () => {
     );
 
     expect(response.ok).toBe(true);
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(1, 'caja:actualizada');
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 });

@@ -89,11 +89,15 @@ export type AttendanceSummary = {
   pendingWorkers: AttendancePendingWorker[];
 };
 
+export type DashboardAttendance =
+  | ({ scope: 'global' } & AttendanceSummary)
+  | { scope: 'own'; workerId: number; fullName: string; enteredAt: string | null; exitedAt: string | null };
+
 export type DashboardData = {
   generatedAt: string;
   sales: DailySalesSummary;
   cashSummary: CashSummary;
   stockAlerts: StockAlert[];
   expirationAlerts: ExpirationAlerts;
-  attendance: AttendanceSummary;
+  attendance: DashboardAttendance;
 };

@@ -5,11 +5,13 @@ import { join } from 'node:path';
 import { createClient } from '@libsql/client';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../../src/db/schema';
 import {
   registerSale,
   SaleBusinessError,
+  SaleValidationError,
+  validateSaleCart,
   type DbExecutor,
 } from '../../../src/main/controllers/sale-service';
 
@@ -33,6 +35,56 @@ afterEach(async () => {
 });
 
 describe('registerSale', () => {
+  it('validates the cart with SQL reads and performs no writes', async () => {
+    const result = await validateSaleCart(testDb!.db as unknown as DbExecutor, {
+      items: [{ productoId: 1, ean13: '7802920000015', cantidad: 2 }],
+    });
+    expect(result).toMatchObject({ subtotal: 2000, lines: [{ cantidad: 2, stockDisponible: 6 }] });
+    const counts = await testDb!.db.all<{ ventas: number; cajas: number }>(sql`
+      SELECT (SELECT COUNT(*) FROM venta) AS ventas,
+        (SELECT COUNT(*) FROM cierre_caja) AS cajas
+    `);
+    expect(counts[0]).toEqual({ ventas: 0, cajas: 1 });
+  });
+
+  it('returns available stock from read-only cart validation', async () => {
+    await expect(validateSaleCart(testDb!.db as unknown as DbExecutor, {
+      items: [{ productoId: 1, cantidad: 7 }],
+    })).rejects.toThrow('Disponible: 6');
+    const rows = await testDb!.db.all<{ ventas: number }>(sql`
+      SELECT COUNT(*) AS ventas FROM venta
+    `);
+    expect(Number(rows[0].ventas)).toBe(0);
+  });
+
+  it.each([1234567890123, { valor: '7802920000015' }])(
+    'rechaza EAN-13 malformado como validación contractual: %j',
+    async (ean13) => {
+      await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1, ean13: ean13 as never }],
+      })).rejects.toThrow('EAN-13');
+    },
+  );
+
+  it('rechecks a closed cash register at transaction start before malformed payload rules', async () => {
+    const outerAll = vi.fn().mockResolvedValueOnce([]);
+    const transactionAll = vi.fn().mockResolvedValueOnce([{
+      cierreCajaId: 'caja-1', status: 'cerrado', openedAt: '2026-06-12T08:00:00.000Z',
+      closedAt: '2026-06-12T20:00:00.000Z', closedByUserId: null, closedByName: null,
+    }]);
+    const tx = { all: transactionAll, run: vi.fn(), transaction: vi.fn() } as unknown as DbExecutor;
+    const database = {
+      all: outerAll,
+      run: vi.fn(),
+      transaction: <T>(callback: (executor: DbExecutor) => Promise<T>) => callback(tx),
+    } as DbExecutor;
+    await expect(registerSale(database, null as never)).rejects.toBeInstanceOf(SaleBusinessError);
+    expect(transactionAll).toHaveBeenCalledOnce();
+    expect(tx.run).not.toHaveBeenCalled();
+  });
+
   it('registers a cash sale, creates details and consumes FEFO lots', async () => {
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: '12345678-9',
@@ -118,16 +170,103 @@ describe('registerSale', () => {
     expect(Number(stockRows[0].stock)).toBe(6);
   });
 
-  it('auto-abre una caja nueva cuando la del dia esta cerrada (#29)', async () => {
+  it.each([
+    [{ monto: 1.5, razon: 'fracción' }, 'monto entero'],
+    ['malformado', 'monto entero'],
+    [{ monto: 100, razon: { texto: 'objeto' } }, 'razón del descuento'],
+  ] as const)('rechaza descuento malformado mediante reglas SQL: %j', async (descuento, message) => {
+    await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+      usuarioId: '12345678-9',
+      metodoPago: 'debito',
+      items: [{ productoId: 1, cantidad: 1 }],
+      descuento: descuento as never,
+    })).rejects.toThrow(message);
+  });
+
+  it.each([1.5, undefined])('rechaza monto recibido no entero o ausente: %j', async (montoRecibido) => {
+    await expect(registerSale(testDb!.db as unknown as DbExecutor, {
+      usuarioId: '12345678-9',
+      metodoPago: 'efectivo',
+      montoRecibido,
+      items: [{ productoId: 1, cantidad: 1 }],
+    })).rejects.toThrow('monto recibido válido');
+  });
+
+  it.each([
+    ['inexistente', 999, false],
+    ['inactivo', 1, true],
+  ])('rechaza un producto %s sin persistir la venta', async (_case, productoId, inactive) => {
+    if (inactive) {
+      await testDb!.db.run(
+        sql`UPDATE producto SET producto_estado = 'inactivo' WHERE producto_id = 1`,
+      );
+    }
+
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId, cantidad: 1 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleValidationError);
+
+    const rows = await testDb!.db.all<{ count: number }>(
+      sql`SELECT COUNT(*) AS count FROM venta`,
+    );
+    expect(Number(rows[0].count)).toBe(0);
+  });
+
+  it.each([
+    ['efectivo', 10_000],
+    ['debito', undefined],
+  ] as const)('rechaza stock insuficiente con pago %s sin escrituras parciales', async (metodoPago, montoRecibido) => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago,
+        montoRecibido,
+        items: [{ productoId: 1, cantidad: 7 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleBusinessError);
+
+    const rows = await testDb!.db.all<{ ventas: number; detalles: number; stock: number }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM venta) AS ventas,
+        (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+        (SELECT SUM(lote_cantidad_actual) FROM lote WHERE producto_id = 1) AS stock
+    `);
+    expect(Number(rows[0].ventas)).toBe(0);
+    expect(Number(rows[0].detalles)).toBe(0);
+    expect(Number(rows[0].stock)).toBe(6);
+  });
+
+  it.each(['cheque', {}, undefined])(
+    'rechaza un método de pago inválido sin delegar el valor al driver: %j',
+    async (metodoPago) => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: '12345678-9',
+        metodoPago: metodoPago as never,
+        items: [{ productoId: 1, cantidad: 1 }],
+      }),
+    ).rejects.toBeInstanceOf(SaleValidationError);
+    },
+  );
+
+  it('ignora una caja cerrada anterior y abre la caja del nuevo día', async () => {
     await testDb!.db.run(sql`UPDATE cierre_caja SET cierre_estado = 'cerrado',
       cierre_fecha_hora_fin = '2026-06-12T20:00:00.000Z',
       usuario_cierre_id = '12345678-9'`);
 
-    const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
-      usuarioId: '12345678-9',
-      metodoPago: 'credito',
-      items: [{ productoId: 1, cantidad: 1 }],
-    });
+    const receipt = await registerSale(
+      testDb!.db as unknown as DbExecutor,
+      {
+        usuarioId: '12345678-9',
+        metodoPago: 'credito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      },
+      new Date('2026-06-13T12:00:00.000Z'),
+    );
 
     expect(receipt.total).toBe(1000);
 
@@ -136,7 +275,118 @@ describe('registerSale', () => {
     );
     expect(Number(openRows[0].count)).toBe(1);
   });
+
+  it('serializa ventas concurrentes sin stock negativo ni registros parciales', async () => {
+    const secondClient = createClient({ url: `file:${testDb!.dbPath}` });
+    await secondClient.execute('PRAGMA foreign_keys = ON');
+    const secondDb = drizzle(secondClient, { schema });
+
+    try {
+      const payload = {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito' as const,
+        items: [{ productoId: 1, cantidad: 4 }],
+      };
+      const results = await Promise.allSettled([
+        registerSale(testDb!.db as unknown as DbExecutor, payload),
+        registerSale(secondDb as unknown as DbExecutor, payload),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+      const rejected = results.find((result) => result.status === 'rejected');
+      if (rejected?.status === 'rejected') {
+        expect(
+          rejected.reason instanceof SaleBusinessError ||
+            /busy|locked/i.test(String(rejected.reason)),
+        ).toBe(true);
+      }
+
+      const stockRows = await testDb!.db.all<{ stock: number; minimum: number }>(sql`
+        SELECT SUM(lote_cantidad_actual) AS stock,
+          MIN(lote_cantidad_actual) AS minimum
+        FROM lote WHERE producto_id = 1
+      `);
+      const ventaRows = await testDb!.db.all<{ count: number }>(
+        sql`SELECT COUNT(*) AS count FROM venta`,
+      );
+      const detalleRows = await testDb!.db.all<{ count: number }>(
+        sql`SELECT COUNT(*) AS count FROM detalle_venta`,
+      );
+
+      expect(Number(stockRows[0].stock)).toBe(2);
+      expect(Number(stockRows[0].minimum)).toBeGreaterThanOrEqual(0);
+      expect(Number(ventaRows[0].count)).toBe(1);
+      expect(Number(detalleRows[0].count)).toBe(1);
+    } finally {
+      secondClient.close();
+    }
+  });
+
+  it('revierte venta, detalle y stock si falla venta_lote después del descuento', async () => {
+    const faultyDb = failWhenWritingVentaLote(
+      testDb!.db as unknown as DbExecutor,
+    );
+
+    await expect(
+      registerSale(faultyDb, {
+        usuarioId: '12345678-9',
+        metodoPago: 'debito',
+        items: [{ productoId: 1, cantidad: 1 }],
+      }),
+    ).rejects.toThrow('fallo inyectado en venta_lote');
+
+    const counts = await testDb!.db.all<{
+      ventas: number;
+      detalles: number;
+      movimientos: number;
+      auditorias: number;
+      stock: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM venta) AS ventas,
+        (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+        (SELECT COUNT(*) FROM venta_lote) AS movimientos,
+        (SELECT COUNT(*) FROM log_auditoria) AS auditorias,
+        (SELECT SUM(lote_cantidad_actual) FROM lote WHERE producto_id = 1) AS stock
+    `);
+
+    expect(Number(counts[0].ventas)).toBe(0);
+    expect(Number(counts[0].detalles)).toBe(0);
+    expect(Number(counts[0].movimientos)).toBe(0);
+    expect(Number(counts[0].auditorias)).toBe(0);
+    expect(Number(counts[0].stock)).toBe(6);
+  });
 });
+
+function failWhenWritingVentaLote(database: DbExecutor): DbExecutor {
+  return {
+    all: (query) => database.all(query),
+    run: (query) => database.run(query),
+    transaction: (callback) =>
+      database.transaction((tx) =>
+        callback({
+          all: (query) => tx.all(query),
+          transaction: (nested) => tx.transaction(nested),
+          run: (query) => {
+            if (extractSqlText(query).includes('venta_lote')) {
+              throw new Error('fallo inyectado en venta_lote');
+            }
+            return tx.run(query);
+          },
+        }),
+      ),
+  };
+}
+
+function extractSqlText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(extractSqlText).join(' ');
+  if (!value || typeof value !== 'object') return '';
+
+  const record = value as Record<string, unknown>;
+  return [record.value, record.queryChunks].map(extractSqlText).join(' ');
+}
 
 async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), 'huascar-sale-'));
@@ -147,7 +397,7 @@ async function createTestDatabase() {
   await client.execute('PRAGMA foreign_keys = ON');
   await applyMigrations(client);
 
-  return { client, db, dir };
+  return { client, db, dbPath, dir };
 }
 
 async function seedSaleFixture(db: DbExecutor): Promise<void> {

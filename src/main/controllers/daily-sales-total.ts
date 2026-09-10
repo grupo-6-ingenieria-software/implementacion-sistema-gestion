@@ -1,7 +1,7 @@
 import { controllers } from '../../shared/controllers';
 import { db } from '../../db/client';
 import { controllerError, controllerSuccess, type RegisteredController } from './base';
-import { loadDailySalesSummary, type DashboardDb } from './dashboard-service';
+import { loadDailySalesSummary, loadDailySaleRows, loadDailyCashRegister, summarizeDailySales, buildCashSummary, type DashboardDb } from './dashboard-queries';
 
 const metadata = controllers[8];
 
@@ -22,3 +22,11 @@ export const dailySalesTotalController: RegisteredController = {
     }
   },
 };
+
+/** C09: ventas y caja a partir de las mismas líneas históricas. */
+export async function loadSalesIndicator(database: DashboardDb, now = new Date()) {
+  const rows = await loadDailySaleRows(database, now);
+  const sales = summarizeDailySales(rows);
+  const cash = await loadDailyCashRegister(database, now);
+  return { sales, cashSummary: buildCashSummary(cash, rows, sales) };
+}

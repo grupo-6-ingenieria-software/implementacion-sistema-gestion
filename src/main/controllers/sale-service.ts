@@ -4,14 +4,22 @@ import {
   calculateCashChange,
   calculateSaleTotals,
   type PaymentMethod,
+  type SaleCartItemInput,
+  type SaleCartValidationRequest,
+  type SaleCartValidationResult,
 } from '../../shared/sales';
 import { getAuditTimestamp } from '../../shared/audit';
+import {
+  ensureDailyCashRegisterForSale,
+  inspectDailyCashRegister,
+} from './cash-check';
+import {
+  applyStockDiscount,
+  planStockDiscount,
+  StockDiscountBusinessError,
+} from './stock-discount';
 
-export type SaleRegisterItemInput = {
-  productoId: number;
-  ean13?: string;
-  cantidad: number;
-};
+export type SaleRegisterItemInput = SaleCartItemInput;
 
 export type SaleRegisterPayload = {
   usuarioId: string;
@@ -80,21 +88,29 @@ export type DbExecutor = {
 export class SaleValidationError extends Error {}
 export class SaleBusinessError extends Error {}
 
+/** Compatibilidad interna: resuelve sólo una caja abierta del día vigente. */
+export async function getOpenCashRegister(
+  database: DbExecutor,
+  now = new Date(),
+): Promise<{ cierreCajaId: string } | null> {
+  const state = await ensureDailyCashRegisterForSale(database, now);
+  return state.status === 'abierta' ? { cierreCajaId: state.cierreCajaId } : null;
+}
+
 export async function registerSale(
   database: DbExecutor,
   payload: SaleRegisterPayload,
+  now = new Date(),
 ): Promise<SaleReceipt> {
-  const normalized = normalizeSalePayload(payload);
-
   return database.transaction(async (tx) => {
-    const openCash = await getOpenCashRegister(tx);
-
-    if (!openCash) {
+    const transactionCashState = await inspectDailyCashRegister(tx, now);
+    if (transactionCashState.status === 'cerrada') {
       throw new SaleBusinessError(
-        'La caja se encuentra cerrada. Abra una caja antes de registrar ventas.',
+        'La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.',
       );
     }
-
+    await validateSalePayloadRules(tx, payload);
+    const normalized = normalizeSalePayload(payload);
     const responsable = await getResponsibleUser(tx, normalized.usuarioId);
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
@@ -112,12 +128,6 @@ export async function registerSale(
         );
       }
 
-      if (product.stockDisponible < item.cantidad) {
-        throw new SaleBusinessError(
-          `Stock insuficiente para ${product.nombre}. Disponible: ${product.stockDisponible}.`,
-        );
-      }
-
       return {
         ...product,
         cantidad: item.cantidad,
@@ -129,30 +139,39 @@ export async function registerSale(
     const requestedDiscount = normalized.descuento?.monto ?? 0;
     const totals = calculateSaleTotals(receiptLines, requestedDiscount);
 
-    if (requestedDiscount > totals.subtotal) {
-      throw new SaleValidationError(
-        'El descuento no puede ser mayor al subtotal de la venta.',
+    await validateCalculatedSaleRules(tx, normalized, totals.subtotal, totals.total);
+
+    let stockPlan;
+    try {
+      stockPlan = await planStockDiscount(
+        tx,
+        receiptLines.map((line) => ({
+          productoId: line.productoId,
+          cantidad: line.cantidad,
+          exigeVencimiento: line.exigeVencimiento,
+        })),
       );
+    } catch (error) {
+      if (error instanceof StockDiscountBusinessError) {
+        throw new SaleBusinessError(error.message);
+      }
+      throw error;
     }
 
-    if (requestedDiscount > 0 && !normalized.descuento?.razon.trim()) {
-      throw new SaleValidationError(
-        'La razón del descuento es obligatoria cuando se aplica un descuento.',
-      );
-    }
-
-    if (
-      normalized.metodoPago === 'efectivo' &&
-      (normalized.montoRecibido === undefined ||
-        normalized.montoRecibido < totals.total)
-    ) {
+    // Revalidación transaccional: el plan de stock se completa antes de abrir la
+    // primera caja del día, por lo que un carrito inválido no genera escrituras.
+    const cashState = await ensureDailyCashRegisterForSale(tx, now);
+    if (cashState.status === 'cerrada') {
       throw new SaleBusinessError(
-        'El monto recibido es insuficiente para confirmar la venta.',
+        'La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.',
       );
+    }
+    if (cashState.status !== 'abierta') {
+      throw new SaleBusinessError('No fue posible habilitar la caja del día.');
     }
 
     const ventaId = randomUUID();
-    const fechaHora = new Date().toISOString();
+    const fechaHora = now.toISOString();
     const descuentoTipo = totals.descuento > 0 ? 'monto' : 'ninguno';
     const descuentoValor = totals.descuento > 0 ? totals.descuento : null;
     const descuentoRazon =
@@ -184,7 +203,7 @@ export async function registerSale(
         ${esEfectivo ? 1 : 0},
         ${esEfectivo ? 0 : 1},
         ${normalized.usuarioId},
-        ${openCash.cierreCajaId}
+        ${cashState.cierreCajaId}
       )
     `);
 
@@ -216,13 +235,18 @@ export async function registerSale(
         )
       `);
 
-      line.lotesConsumidos = await consumeStockForSale(
-        tx,
-        ventaId,
-        line.productoId,
-        line.cantidad,
-        line.exigeVencimiento,
-      );
+      line.lotesConsumidos = stockPlan
+        .filter((lot) => lot.productoId === line.productoId)
+        .map(({ loteId, cantidad }) => ({ loteId, cantidad }));
+    }
+
+    try {
+      await applyStockDiscount(tx, ventaId, stockPlan);
+    } catch (error) {
+      if (error instanceof StockDiscountBusinessError) {
+        throw new SaleBusinessError(error.message);
+      }
+      throw error;
     }
 
     await registerAuditLog(tx, {
@@ -253,142 +277,184 @@ export async function registerSale(
   });
 }
 
-export async function consumeStockForSale(
-  tx: DbExecutor,
-  ventaId: string,
-  productoId: number,
-  cantidadSolicitada: number,
-  exigeVencimiento: boolean,
-): Promise<ConsumedLot[]> {
-  const lots = await tx.all<{
-    loteId: string;
-    cantidadActual: number;
-    fechaIngreso: string;
-    fechaVencimiento: string | null;
-  }>(sql`
-    SELECT
-      l.lote_id AS loteId,
-      l.lote_cantidad_actual AS cantidadActual,
-      l.lote_fecha_hora_ingreso AS fechaIngreso,
-      lp.lote_perecible_fecha_vencimiento AS fechaVencimiento
-    FROM lote l
-    LEFT JOIN lote_perecible lp ON lp.lote_id = l.lote_id
-    WHERE l.producto_id = ${productoId}
-      AND l.lote_cantidad_actual > 0
-  `);
-
-  const orderedLots = [...lots].sort((left, right) => {
-    if (exigeVencimiento) {
-      const leftDate = left.fechaVencimiento ?? '9999-12-31';
-      const rightDate = right.fechaVencimiento ?? '9999-12-31';
-
-      if (leftDate !== rightDate) {
-        return leftDate.localeCompare(rightDate);
-      }
-    }
-
-    return left.fechaIngreso.localeCompare(right.fechaIngreso);
-  });
-
-  const consumed: ConsumedLot[] = [];
-  let remaining = cantidadSolicitada;
-
-  for (const lot of orderedLots) {
-    if (remaining === 0) {
-      break;
-    }
-
-    const amount = Math.min(remaining, Number(lot.cantidadActual));
-
-    if (amount <= 0) {
-      continue;
-    }
-
-    await tx.run(sql`
-      INSERT INTO venta_lote (
-        venta_lote_id,
-        venta_id,
-        lote_id,
-        venta_lote_cantidad_consumida
-      )
-      VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${amount})
+/** Validación remota y de solo lectura usada mientras se edita el carrito. */
+export async function validateSaleCart(
+  database: Pick<DbExecutor, 'all'>,
+  payload: SaleCartValidationRequest,
+): Promise<SaleCartValidationResult> {
+  await validateCartItemRules(database, payload?.items);
+  const items = normalizeCartItems(payload?.items);
+  const products = await loadProductSnapshots(database, items);
+  const lines: SaleCartValidationResult['lines'] = [];
+  for (const product of products) {
+    const item = items.find((candidate) => candidate.productoId === product.productoId);
+    if (!item) throw new SaleValidationError('No fue posible validar el carrito.');
+    const matches = await database.all<{ accepted: number }>(sql`
+      SELECT 1 AS accepted
+      FROM producto
+      WHERE producto_id = ${item.productoId}
+        AND producto_estado = 'activo'
+        AND (${item.ean13 ?? null} IS NULL OR producto_ean_13 = ${item.ean13 ?? null})
+        AND (
+          SELECT COALESCE(SUM(lote_cantidad_actual), 0)
+          FROM lote
+          WHERE producto_id = ${item.productoId}
+        ) >= ${item.cantidad}
     `);
-
-    const result = await tx.run(sql`
-      UPDATE lote
-      SET lote_cantidad_actual = lote_cantidad_actual - ${amount}
-      WHERE lote_id = ${lot.loteId}
-        AND lote_cantidad_actual >= ${amount}
-    `);
-
-    if (result.rowsAffected === 0) {
+    if (!matches[0] && item.ean13 && item.ean13 !== product.ean13) {
+      throw new SaleValidationError(`El producto ${product.nombre} no coincide con el EAN-13 ingresado.`);
+    }
+    if (!matches[0]) {
       throw new SaleBusinessError(
-        'El stock cambió durante la operación. Revise el carrito e intente nuevamente.',
+        `Stock insuficiente para ${product.nombre}. Disponible: ${product.stockDisponible}.`,
       );
     }
-
-    consumed.push({ loteId: lot.loteId, cantidad: amount });
-    remaining -= amount;
+    lines.push({
+      productoId: product.productoId,
+      ean13: product.ean13,
+      nombre: product.nombre,
+      cantidad: item.cantidad,
+      precioUnitario: product.precioUnitario,
+      stockDisponible: product.stockDisponible,
+      subtotal: item.cantidad * product.precioUnitario,
+    });
   }
+  return {
+    lines,
+    subtotal: lines.reduce((total, line) => total + line.subtotal, 0),
+  };
+}
 
-  if (remaining > 0) {
-    throw new SaleBusinessError(
-      'Stock insuficiente para confirmar la venta.',
+async function validateSalePayloadRules(
+  database: Pick<DbExecutor, 'all'>,
+  payload: SaleRegisterPayload,
+): Promise<void> {
+  const record = payload && typeof payload === 'object'
+    ? payload as unknown as Record<string, unknown>
+    : {};
+  const usuarioId = typeof record.usuarioId === 'string' ? record.usuarioId : null;
+  const method = typeof record.metodoPago === 'string' ? record.metodoPago : null;
+  const itemsJson = safeJson(record.items);
+  const rows = await database.all<{ accepted: number }>(sql`
+    SELECT 1 AS accepted
+    WHERE length(trim(${usuarioId})) > 0
+      AND ${method} IN ('efectivo', 'debito', 'credito', 'transferencia')
+      AND json_valid(${itemsJson})
+      AND json_type(${itemsJson}) = 'array'
+      AND json_array_length(${itemsJson}) > 0
+  `);
+  if (!rows[0]) {
+    if (!usuarioId) throw new SaleValidationError('No hay un usuario responsable para la venta.');
+    if (!method || !['efectivo', 'debito', 'credito', 'transferencia'].includes(method)) {
+      throw new SaleValidationError('Seleccione un método de pago válido.');
+    }
+    throw new SaleValidationError('Agregue al menos un producto al carrito.');
+  }
+  await validateCartItemRules(database, Array.isArray(record.items) ? record.items as SaleCartItemInput[] : undefined);
+
+  const hasDiscount = record.descuento !== undefined && record.descuento !== null;
+  const discountShapeValid = !hasDiscount || (
+    typeof record.descuento === 'object' && !Array.isArray(record.descuento)
+  );
+  const discount = discountShapeValid && hasDiscount
+    ? record.descuento as Record<string, unknown>
+    : undefined;
+  const discountAmount = bindableNumber(hasDiscount ? discount?.monto : 0);
+  const discountReason = typeof discount?.razon === 'string' ? discount.razon : null;
+  const received = bindableNumber(record.montoRecibido);
+  const numeric = await database.all<{ discountValid: number; receivedValid: number }>(sql`
+    SELECT
+      CASE WHEN ${discountShapeValid ? 1 : 0} = 1
+        AND typeof(${discountAmount}) IN ('integer', 'real')
+        AND CAST(${discountAmount} AS INTEGER) = ${discountAmount}
+        AND ${discountAmount} >= 0
+        AND (${discountAmount} = 0 OR length(trim(${discountReason})) > 0)
+        THEN 1 ELSE 0 END AS discountValid,
+      CASE WHEN ${method} <> 'efectivo' OR (
+        typeof(${received}) IN ('integer', 'real')
+        AND CAST(${received} AS INTEGER) = ${received}
+        AND ${received} >= 0
+      ) THEN 1 ELSE 0 END AS receivedValid
+  `);
+  if (!numeric[0]?.discountValid) {
+    throw new SaleValidationError(
+      discountAmount !== null && discountAmount > 0 && !discountReason?.trim()
+        ? 'La razón del descuento es obligatoria cuando se aplica un descuento.'
+        : 'El descuento debe ser un monto entero mayor o igual a cero.',
     );
   }
-
-  return consumed;
-}
-
-export async function getOpenCashRegister(
-  database: DbExecutor,
-): Promise<{ cierreCajaId: string } | null> {
-  const existing = await selectOpenCashRegister(database);
-
-  if (existing) {
-    return existing;
+  if (!numeric[0]?.receivedValid) {
+    throw new SaleValidationError(
+      'Ingrese un monto recibido válido para el pago en efectivo.',
+    );
   }
-
-  // No hay caja abierta: la primera venta/login del dia la abre de forma
-  // transparente. El seed solo crea una caja abierta, asi que en una BD limpia
-  // o tras un cierre no existiria ninguna y las ventas quedarian bloqueadas.
-  await openCashRegister(database);
-
-  // Re-consultamos: si otra operacion concurrente abrio la caja primero, el
-  // INSERT con guarda NOT EXISTS no agrega un duplicado y aqui recuperamos la
-  // caja abierta que efectivamente quedo vigente.
-  return selectOpenCashRegister(database);
 }
 
-async function selectOpenCashRegister(
+async function validateCartItemRules(
   database: Pick<DbExecutor, 'all'>,
-): Promise<{ cierreCajaId: string } | null> {
-  const rows = await database.all<{ cierreCajaId: string }>(sql`
-    SELECT cierre_caja_id AS cierreCajaId
-    FROM cierre_caja
-    WHERE cierre_estado = 'abierto'
-    ORDER BY cierre_fecha_hora_inicio DESC
-    LIMIT 1
+  items: readonly SaleCartItemInput[] | undefined,
+): Promise<void> {
+  const list = Array.isArray(items) ? items : [];
+  const shape = await database.all<{ accepted: number }>(sql`
+    SELECT 1 AS accepted WHERE ${list.length} > 0
   `);
-
-  return rows[0] ?? null;
+  if (!shape[0]) throw new SaleValidationError('Agregue al menos un producto al carrito.');
+  for (const item of list) {
+    const productId = bindableNumber((item as SaleCartItemInput | undefined)?.productoId);
+    const quantity = bindableNumber((item as SaleCartItemInput | undefined)?.cantidad);
+    const rawEan13 = (item as SaleCartItemInput | undefined)?.ean13;
+    const ean13ShapeValid = rawEan13 === undefined || rawEan13 === null || typeof rawEan13 === 'string';
+    const ean13 = typeof rawEan13 === 'string' ? rawEan13 : null;
+    const valid = await database.all<{ accepted: number }>(sql`
+      SELECT 1 AS accepted
+      WHERE typeof(${productId}) IN ('integer', 'real')
+        AND CAST(${productId} AS INTEGER) = ${productId}
+        AND ${productId} > 0
+        AND typeof(${quantity}) IN ('integer', 'real')
+        AND CAST(${quantity} AS INTEGER) = ${quantity}
+        AND ${quantity} > 0
+        AND ${ean13ShapeValid ? 1 : 0} = 1
+        AND (${ean13} IS NULL OR length(trim(${ean13})) > 0)
+    `);
+    if (!valid[0]) {
+      if (!ean13ShapeValid || (ean13 !== null && !ean13.trim())) {
+        throw new SaleValidationError('El EAN-13 del carrito debe ser un texto válido.');
+      }
+      if (!Number.isInteger(productId) || Number(productId) <= 0) {
+        throw new SaleValidationError('El carrito contiene un producto inválido.');
+      }
+      throw new SaleValidationError('La cantidad de cada producto debe ser un número entero mayor a cero.');
+    }
+  }
 }
 
-async function openCashRegister(database: Pick<DbExecutor, 'run'>): Promise<void> {
-  // Mismo "shape" de columnas que el seed (cierre_estado='abierto', fin/usuario
-  // nulos para cumplir el check cierre_fin_coherente). La guarda NOT EXISTS hace
-  // que el INSERT sea atomico: solo puede existir una caja abierta a la vez.
-  await database.run(sql`
-    INSERT INTO cierre_caja (
-      cierre_caja_id,
-      cierre_fecha_hora_inicio,
-      cierre_estado
-    )
-    SELECT ${randomUUID()}, ${new Date().toISOString()}, 'abierto'
-    WHERE NOT EXISTS (
-      SELECT 1 FROM cierre_caja WHERE cierre_estado = 'abierto'
-    )
+async function validateCalculatedSaleRules(
+  database: Pick<DbExecutor, 'all'>,
+  payload: SaleRegisterPayload,
+  subtotal: number,
+  total: number,
+): Promise<void> {
+  const discount = payload.descuento?.monto ?? 0;
+  const reason = payload.descuento?.razon ?? '';
+  const received = payload.montoRecibido ?? null;
+  const rows = await database.all<{ accepted: number }>(sql`
+    SELECT 1 AS accepted
+    WHERE ${discount} <= ${subtotal}
+      AND (${discount} = 0 OR length(trim(${reason})) > 0)
+      AND (${payload.metodoPago} <> 'efectivo' OR ${received} >= ${total})
   `);
+  if (rows[0]) return;
+  if (discount > subtotal) throw new SaleValidationError('El descuento no puede ser mayor al subtotal de la venta.');
+  if (discount > 0 && !reason.trim()) throw new SaleValidationError('La razón del descuento es obligatoria cuando se aplica un descuento.');
+  throw new SaleBusinessError('El monto recibido es insuficiente para confirmar la venta.');
+}
+
+function bindableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function safeJson(value: unknown): string {
+  try { return JSON.stringify(value) ?? 'null'; } catch { return 'null'; }
 }
 
 export async function registerAuditLog(
@@ -429,31 +495,39 @@ async function getResponsibleUser(
   database: DbExecutor,
   usuarioId: string,
 ): Promise<SaleReceipt['responsable']> {
-  const rows = await database.all<{
+  const users = await database.all<{
     usuarioId: string;
     rol: string;
-    nombre: string;
+    trabajadorId: number;
   }>(sql`
     SELECT
-      u.usuario_id AS usuarioId,
-      u.usuario_rol AS rol,
-      t.trabajador_nombre || ' ' || t.trabajador_apellido AS nombre
-    FROM usuario u
-    INNER JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-    WHERE u.usuario_id = ${usuarioId}
-      AND t.trabajador_estado = 'activo'
+      usuario_id AS usuarioId,
+      usuario_rol AS rol,
+      trabajador_id AS trabajadorId
+    FROM usuario
+    WHERE usuario_id = ${usuarioId}
     LIMIT 1
   `);
-
-  const user = rows[0];
+  const user = users[0];
 
   if (!user) {
     throw new SaleValidationError(
       'No fue posible identificar al trabajador responsable de la venta.',
     );
   }
-
-  return user;
+  const workers = await database.all<{ nombre: string }>(sql`
+    SELECT trabajador_nombre || ' ' || trabajador_apellido AS nombre
+    FROM trabajador
+    WHERE trabajador_id = ${user.trabajadorId}
+      AND trabajador_estado = 'activo'
+    LIMIT 1
+  `);
+  if (!workers[0]) {
+    throw new SaleValidationError(
+      'No fue posible identificar al trabajador responsable de la venta.',
+    );
+  }
+  return { usuarioId: user.usuarioId, rol: user.rol, nombre: workers[0].nombre };
 }
 
 async function getOrCreateCurrentUserVersion(
@@ -499,67 +573,14 @@ async function getOrCreateCurrentUserVersion(
 }
 
 function normalizeSalePayload(payload: SaleRegisterPayload): SaleRegisterPayload {
-  if (!payload || typeof payload !== 'object') {
-    throw new SaleValidationError('La venta no contiene datos válidos.');
-  }
-
-  if (!payload.usuarioId?.trim()) {
-    throw new SaleValidationError('No hay un usuario responsable para la venta.');
-  }
-
-  if (!Array.isArray(payload.items) || payload.items.length === 0) {
-    throw new SaleValidationError('Agregue al menos un producto al carrito.');
-  }
-
-  if (!['efectivo', 'debito', 'credito', 'transferencia'].includes(payload.metodoPago)) {
-    throw new SaleValidationError('Seleccione un método de pago válido.');
-  }
-
-  const itemsByProduct = new Map<number, SaleRegisterItemInput>();
-
-  for (const item of payload.items) {
-    const productoId = Number(item.productoId);
-    const cantidad = Number(item.cantidad);
-
-    if (!Number.isInteger(productoId) || productoId <= 0) {
-      throw new SaleValidationError('El carrito contiene un producto inválido.');
-    }
-
-    if (!Number.isInteger(cantidad) || cantidad <= 0) {
-      throw new SaleValidationError(
-        'La cantidad de cada producto debe ser un número entero mayor a cero.',
-      );
-    }
-
-    const existing = itemsByProduct.get(productoId);
-    itemsByProduct.set(productoId, {
-      productoId,
-      ean13: item.ean13,
-      cantidad: (existing?.cantidad ?? 0) + cantidad,
-    });
-  }
+  const items = normalizeCartItems(payload.items);
 
   const descuentoMonto = payload.descuento?.monto ?? 0;
-
-  if (!Number.isInteger(descuentoMonto) || descuentoMonto < 0) {
-    throw new SaleValidationError('El descuento debe ser un monto entero mayor o igual a cero.');
-  }
-
-  if (
-    payload.metodoPago === 'efectivo' &&
-    (payload.montoRecibido === undefined ||
-      !Number.isInteger(payload.montoRecibido) ||
-      payload.montoRecibido < 0)
-  ) {
-    throw new SaleValidationError(
-      'Ingrese un monto recibido válido para el pago en efectivo.',
-    );
-  }
 
   return {
     ...payload,
     usuarioId: payload.usuarioId.trim(),
-    items: [...itemsByProduct.values()],
+    items,
     descuento:
       descuentoMonto > 0
         ? {
@@ -570,75 +591,100 @@ function normalizeSalePayload(payload: SaleRegisterPayload): SaleRegisterPayload
   };
 }
 
+function normalizeCartItems(items: readonly SaleCartItemInput[] | undefined): SaleRegisterItemInput[] {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new SaleValidationError('Agregue al menos un producto al carrito.');
+  }
+  const itemsByProduct = new Map<number, SaleRegisterItemInput>();
+  for (const item of items) {
+    const productoId = Number(item.productoId);
+    const cantidad = Number(item.cantidad);
+
+    const existing = itemsByProduct.get(productoId);
+    itemsByProduct.set(productoId, {
+      productoId,
+      ean13: item.ean13,
+      cantidad: (existing?.cantidad ?? 0) + cantidad,
+    });
+  }
+  return [...itemsByProduct.values()];
+}
+
 async function loadProductSnapshots(
-  database: DbExecutor,
+  database: Pick<DbExecutor, 'all'>,
   items: readonly SaleRegisterItemInput[],
 ): Promise<SaleProductSnapshot[]> {
   const products: SaleProductSnapshot[] = [];
 
   for (const item of items) {
-    const rows = await database.all<{
+    const productRows = await database.all<{
       productoId: number;
       ean13: string;
       nombre: string;
-      categoria: string;
-      precioUnitario: number | null;
+      categoriaId: number;
       productoPrecioVenta: number;
-      historialPrecioProductoId: string | null;
-      stockDisponible: number;
-      exigeVencimiento: number;
     }>(sql`
       SELECT
-        p.producto_id AS productoId,
-        p.producto_ean_13 AS ean13,
-        p.producto_nombre AS nombre,
-        c.categoria_nombre AS categoria,
-        hp.historial_precio_venta AS precioUnitario,
-        p.producto_precio_venta AS productoPrecioVenta,
-        hp.historial_precio_producto_id AS historialPrecioProductoId,
-        (
-          SELECT COALESCE(SUM(l.lote_cantidad_actual), 0)
-          FROM lote l
-          WHERE l.producto_id = p.producto_id
-        ) AS stockDisponible,
-        c.categoria_exige_vencimiento AS exigeVencimiento
-      FROM producto p
-      INNER JOIN categoria c ON c.categoria_id = p.categoria_id
-      LEFT JOIN historial_precio_producto hp
-        ON hp.historial_precio_producto_id = (
-          SELECT h.historial_precio_producto_id
-          FROM historial_precio_producto h
-          WHERE h.producto_id = p.producto_id
-            AND h.historial_fecha_hora_vigencia_hasta IS NULL
-          ORDER BY h.historial_fecha_hora_vigencia_desde DESC
-          LIMIT 1
-        )
-      WHERE p.producto_id = ${item.productoId}
-        AND p.producto_estado = 'activo'
+        producto_id AS productoId,
+        producto_ean_13 AS ean13,
+        producto_nombre AS nombre,
+        categoria_id AS categoriaId,
+        producto_precio_venta AS productoPrecioVenta
+      FROM producto
+      WHERE producto_id = ${item.productoId}
+        AND producto_estado = 'activo'
       LIMIT 1
     `);
-
-    const product = rows[0];
+    const product = productRows[0];
 
     if (!product) {
       throw new SaleValidationError('El producto no existe o se encuentra inactivo.');
     }
 
-    if (!product.historialPrecioProductoId) {
+    const categories = await database.all<{ categoria: string; exigeVencimiento: number }>(sql`
+      SELECT categoria_nombre AS categoria,
+        categoria_exige_vencimiento AS exigeVencimiento
+      FROM categoria
+      WHERE categoria_id = ${product.categoriaId}
+      LIMIT 1
+    `);
+    const category = categories[0];
+    if (!category) {
+      throw new SaleValidationError('La categoría del producto no existe.');
+    }
+    const prices = await database.all<{
+      historialPrecioProductoId: string;
+      precioUnitario: number;
+    }>(sql`
+      SELECT historial_precio_producto_id AS historialPrecioProductoId,
+        historial_precio_venta AS precioUnitario
+      FROM historial_precio_producto
+      WHERE producto_id = ${product.productoId}
+        AND historial_fecha_hora_vigencia_hasta IS NULL
+      ORDER BY historial_fecha_hora_vigencia_desde DESC
+      LIMIT 1
+    `);
+    const price = prices[0];
+    if (!price) {
       throw new SaleBusinessError(
         `El producto ${product.nombre} no tiene un precio vigente registrado.`,
       );
     }
+    const stocks = await database.all<{ stockDisponible: number }>(sql`
+      SELECT COALESCE(SUM(lote_cantidad_actual), 0) AS stockDisponible
+      FROM lote
+      WHERE producto_id = ${product.productoId}
+    `);
 
     products.push({
       productoId: Number(product.productoId),
       ean13: product.ean13,
       nombre: product.nombre,
-      categoria: product.categoria,
-      precioUnitario: Number(product.precioUnitario ?? product.productoPrecioVenta),
-      historialPrecioProductoId: product.historialPrecioProductoId,
-      stockDisponible: Number(product.stockDisponible),
-      exigeVencimiento: Boolean(product.exigeVencimiento),
+      categoria: category.categoria,
+      precioUnitario: Number(price.precioUnitario ?? product.productoPrecioVenta),
+      historialPrecioProductoId: price.historialPrecioProductoId,
+      stockDisponible: Number(stocks[0]?.stockDisponible ?? 0),
+      exigeVencimiento: Boolean(category.exigeVencimiento),
     });
   }
 

@@ -1,16 +1,9 @@
-/**
- * AuthHandler — Inicio de sesión (RF55, CU56).
- *
- * Flujo (diagrama cu56-autenticar-usuario-secuencia):
- *   SELECT usuario -> SELECT trabajador activo -> verificar bloqueo (intento_login)
- *   -> SELECT contrasena vigente -> bcrypt.compare -> INSERT intento_login
- *   -> INSERT sesion_usuario -> UPDATE usuario.ultimo_login
- *   -> jwt.sign({usuarioId, rol, passwordTemporal}) -> INSERT log_auditoria(LOGIN_EXITOSO).
- *
- * Variantes de error: e1 credenciales incorrectas, e1b bloqueo por 5 intentos,
- * e2 cuenta bloqueada, e3 usuario inactivo.
+/** C01 AuthHandler — RF56/CU56.
+ * Usuario → bloqueo → trabajador → contraseña → bcrypt → intento → JWT → sesión.
+ * La operación de producción completa dentro de una transacción; conserva auditoría.
  */
 
+import { randomUUID } from 'node:crypto';
 import { desc, eq, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { controllers, type ControllerResponse } from '../../shared/controllers';
@@ -82,35 +75,33 @@ export async function authenticateWithExecutor(
 
   // El guion del RUT es solo visual: el cotejo del usuario ignora guion y
   // puntos, de modo que da igual cómo esté almacenado el usuario_id.
-  const usuarioDigitos = input.usuario.replace(/[.-]/g, '');
+  const usuarioDigitos = input.usuario.replace(/[.-]/g, '').toUpperCase();
 
-  // 1. Buscar usuario + estado del trabajador asociado.
+  // 1. Resolver la identidad de la cuenta.
   const [user] = await database
     .select({
       usuarioId: schema.usuario.usuarioId,
       usuarioRol: schema.usuario.usuarioRol,
-      trabajadorEstado: schema.trabajador.trabajadorEstado,
-      trabajadorNombre: schema.trabajador.trabajadorNombre,
-      trabajadorApellido: schema.trabajador.trabajadorApellido,
+      trabajadorId: schema.usuario.trabajadorId,
     })
     .from(schema.usuario)
-    .innerJoin(
-      schema.trabajador,
-      eq(schema.trabajador.trabajadorId, schema.usuario.trabajadorId),
-    )
     .where(
-      sql`replace(replace(${schema.usuario.usuarioId}, '-', ''), '.', '') = ${usuarioDigitos}`,
+      sql`upper(replace(replace(${schema.usuario.usuarioId}, '-', ''), '.', '')) = ${usuarioDigitos}`,
     )
     .limit(1);
 
   // 2. Verificar bloqueo por intentos fallidos previos (e2).
-  const previousAttempts = await loadAttempts(database, schema, input.usuario);
+  const previousAttempts = await loadAttempts(database, schema, input.usuario, user?.usuarioId);
   const lockout = evaluateLockout(previousAttempts, nowMs);
 
   if (lockout.locked) {
+    // CU56-E2 confirma el bloqueo desde persistencia antes de responder.
+    const confirmed = evaluateLockout(
+      await loadAttempts(database, schema, input.usuario, user?.usuarioId), nowMs,
+    );
     return controllerError(
       'FORBIDDEN',
-      `Cuenta bloqueada por intentos fallidos. Intente nuevamente en ${formatRemainingLockout(lockout.remainingMs)}.`,
+      `Cuenta bloqueada por intentos fallidos. Intente nuevamente en ${formatRemainingLockout(confirmed.remainingMs)}.`,
       'auth-login',
     );
   }
@@ -128,11 +119,13 @@ export async function authenticateWithExecutor(
     );
   }
 
-  // 4. Trabajador inactivo (e3).
-  if (user.trabajadorEstado !== 'activo') {
+  // 4. Consultar trabajador únicamente después de evaluar el bloqueo.
+  const [worker] = await database.select().from(schema.trabajador)
+    .where(eq(schema.trabajador.trabajadorId, user.trabajadorId)).limit(1);
+  if (!worker || worker.trabajadorEstado !== 'activo') {
     return controllerError(
       'FORBIDDEN',
-      'La cuenta del trabajador está inactiva. Contacte al administrador.',
+      GENERIC_LOGIN_ERROR,
       'auth-login',
     );
   }
@@ -215,10 +208,21 @@ export async function authenticateWithExecutor(
     usuarioId: user.usuarioId,
   });
 
+  const sesionId = randomUUID();
+  // 10. Firmar el JWT con la identidad y el rol.
+  const token = deps.signToken({
+    usuarioId: user.usuarioId,
+    rol: role,
+    usuarioRol: user.usuarioRol,
+    passwordTemporal: vigente.esContrasenaTemporal,
+    sesionId,
+  });
+
   // 8. Crear la sesión.
-  const [sesion] = await database
+  await database
     .insert(schema.sesionUsuario)
     .values({
+      sesionUsuarioId: sesionId,
       sesionFechaHoraInicio: nowIso,
       sesionFechaHoraUltimoAcceso: nowIso,
       usuarioId: user.usuarioId,
@@ -232,16 +236,7 @@ export async function authenticateWithExecutor(
     .where(eq(schema.usuario.usuarioId, user.usuarioId));
 
   const trabajadorNombre =
-    `${user.trabajadorNombre} ${user.trabajadorApellido}`.trim();
-
-  // 10. Firmar el JWT con la identidad y el rol.
-  const token = deps.signToken({
-    usuarioId: user.usuarioId,
-    rol: role,
-    usuarioRol: user.usuarioRol,
-    passwordTemporal: vigente.esContrasenaTemporal,
-    sesionId: sesion.sesionId,
-  });
+    `${worker.trabajadorNombre} ${worker.trabajadorApellido}`.trim();
 
   // 11. Auditar el inicio de sesión exitoso (RF57).
   await registerAuditLog(database, schema, {
@@ -265,6 +260,7 @@ async function loadAttempts(
   database: LoginExecutor,
   schema: SchemaLike,
   usuario: string,
+  usuarioId?: string,
 ): Promise<LoginAttempt[]> {
   const rows = await database
     .select({
@@ -272,7 +268,9 @@ async function loadAttempts(
       fechaHora: schema.intentoLogin.intentoFechaHora,
     })
     .from(schema.intentoLogin)
-    .where(eq(schema.intentoLogin.intentoNombreUsuarioIngresado, usuario));
+    .where(usuarioId
+      ? eq(schema.intentoLogin.usuarioId, usuarioId)
+      : sql`upper(replace(replace(${schema.intentoLogin.intentoNombreUsuarioIngresado}, '-', ''), '.', '')) = ${usuario.replace(/[.-]/g, '').toUpperCase()}`);
 
   return rows.map((row) => ({
     exitoso: Boolean(row.exitoso),
@@ -305,7 +303,7 @@ async function recordFailureAndRespond(
   if (lockout.locked) {
     return controllerError(
       'FORBIDDEN',
-      `Cuenta bloqueada tras ${MAX_LOGIN_ATTEMPTS} intentos fallidos. Intente nuevamente en ${formatRemainingLockout(lockout.remainingMs)}.`,
+      `${GENERIC_LOGIN_ERROR}. Cuenta bloqueada tras ${MAX_LOGIN_ATTEMPTS} intentos fallidos. Intente nuevamente en ${formatRemainingLockout(lockout.remainingMs)}.`,
       'auth-login',
     );
   }
@@ -341,7 +339,7 @@ export function createAuthLoginController(
   return {
     metadata: controllers[0],
     handle: (payload) =>
-      authenticateWithExecutor(db, appSchema, payload, resolved),
+      db.transaction((tx) => authenticateWithExecutor(tx, appSchema, payload, resolved)),
   };
 }
 

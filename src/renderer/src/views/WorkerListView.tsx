@@ -1,40 +1,43 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
-  normalizeWorkerFormValues,
-  roleLabel,
-  validateWorkerFormValues,
-  type WorkerFieldErrors,
-  type WorkerFormValues,
-  type WorkerListItem,
-  type WorkerListResponse,
-  type WorkerMutationResponse,
-  type WorkerRole,
-  type WorkerStatus,
-} from '../../../shared/workers';
+  normalizeUserFormPayload,
+  validateUserFormValues,
+  type UserFieldErrors,
+  type UserFormValues,
+  type UserListItem,
+  type UserListResponse,
+  type UserMutationResponse,
+  type UserRole,
+  type UserStatus,
+} from '../../../shared/users';
 
 type WorkerListViewProps = {
   usuarioId: string;
   onNavigate: (path: string) => void;
 };
 
-type EditState = WorkerFormValues & {
+type EditState = UserFormValues & {
   originalRut: string;
 };
+
+function roleLabel(role: UserRole): string {
+  return role === 'dueno' ? 'Dueño' : 'Trabajador';
+}
 
 export function WorkerListView({
   onNavigate,
   usuarioId,
 }: WorkerListViewProps): ReactElement {
-  const [workers, setWorkers] = useState<WorkerListItem[]>([]);
+  const [workers, setWorkers] = useState<UserListItem[]>([]);
   const [search, setSearch] = useState('');
-  const [rol, setRol] = useState<WorkerRole | 'todos'>('todos');
-  const [estado, setEstado] = useState<WorkerStatus | 'todos'>('todos');
+  const [rol, setRol] = useState<UserRole | 'todos'>('todos');
+  const [estado, setEstado] = useState<UserStatus | 'todos'>('todos');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<WorkerFieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<UserFieldErrors>({});
   const [reloadKey, setReloadKey] = useState(0);
 
   const payload = useMemo(
@@ -54,7 +57,7 @@ export function WorkerListView({
       setLoading(true);
       setError(null);
 
-      const response = await window.appApi.invoke<WorkerListResponse>(
+      const response = await window.appApi.invoke<UserListResponse>(
         'trabajador:listar',
         payload,
       );
@@ -64,7 +67,7 @@ export function WorkerListView({
       }
 
       if (response.ok) {
-        setWorkers(response.data.workers);
+        setWorkers(response.data.users);
       } else {
         setWorkers([]);
         setError(response.error.message);
@@ -88,7 +91,7 @@ export function WorkerListView({
     };
   }, [payload]);
 
-  function startEdit(worker: WorkerListItem): void {
+  function startEdit(worker: UserListItem): void {
     setMessage(null);
     setFieldErrors({});
     setEditing({
@@ -97,7 +100,7 @@ export function WorkerListView({
       nombreCompleto: worker.nombreCompleto,
       rol: worker.rol,
       telefono: worker.telefono,
-      correo: worker.correo ?? '',
+      correoElectronico: worker.correoElectronico ?? '',
     });
   }
 
@@ -106,8 +109,8 @@ export function WorkerListView({
       return;
     }
 
-    const parsed = normalizeWorkerFormValues(editing);
-    const errors = validateWorkerFormValues(parsed);
+    const parsed = normalizeUserFormPayload(editing);
+    const errors = validateUserFormValues(parsed, { validateRutFormat: false });
     setFieldErrors(errors);
     setMessage(null);
 
@@ -117,8 +120,8 @@ export function WorkerListView({
 
     setSaving(true);
 
-    const response = await window.appApi.invoke<WorkerMutationResponse>(
-      'trabajador:editar',
+    const response = await window.appApi.invoke<UserMutationResponse>(
+      'trabajador:actualizar',
       {
         ...parsed,
         rut: editing.originalRut,
@@ -139,7 +142,7 @@ export function WorkerListView({
     setReloadKey((current) => current + 1);
   }
 
-  async function changeStatus(worker: WorkerListItem): Promise<void> {
+  async function changeStatus(worker: UserListItem): Promise<void> {
     const nextStatus = worker.estado === 'activo' ? 'inactivo' : 'activo';
     const confirmed = window.confirm(
       `Confirmar cambio de estado de ${worker.nombreCompleto} a ${nextStatus}.`,
@@ -152,12 +155,12 @@ export function WorkerListView({
     setSaving(true);
     setMessage(null);
 
-    const response = await window.appApi.invoke<WorkerMutationResponse>(
+    const response = await window.appApi.invoke<UserMutationResponse>(
       'trabajador:cambiar-estado',
       {
-        rut: worker.rut,
         estado: nextStatus,
         usuarioId,
+        usuarioObjetivoId: worker.usuarioId,
       },
     );
 
@@ -185,13 +188,22 @@ export function WorkerListView({
             sistema o estado.
           </p>
         </div>
-        <button
-          className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
-          type="button"
-          onClick={() => onNavigate('/app/personal/trabajadores/nuevo')}
-        >
-          Registrar trabajador
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+            type="button"
+            onClick={() => onNavigate('/app/personal/turnos')}
+          >
+            Turnos
+          </button>
+          <button
+            className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
+            type="button"
+            onClick={() => onNavigate('/app/personal/trabajadores/nuevo')}
+          >
+            Registrar trabajador
+          </button>
+        </div>
       </div>
 
       <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
@@ -211,7 +223,7 @@ export function WorkerListView({
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={rol}
               onChange={(event) =>
-                setRol(event.target.value as WorkerRole | 'todos')
+                setRol(event.target.value as UserRole | 'todos')
               }
             >
               <option value="todos">Todos</option>
@@ -225,7 +237,7 @@ export function WorkerListView({
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={estado}
               onChange={(event) =>
-                setEstado(event.target.value as WorkerStatus | 'todos')
+                setEstado(event.target.value as UserStatus | 'todos')
               }
             >
               <option value="todos">Todos</option>
@@ -365,7 +377,7 @@ function EditPanel({
   saving,
 }: {
   editing: EditState;
-  errors: WorkerFieldErrors;
+  errors: UserFieldErrors;
   onCancel: () => void;
   onChange: (state: EditState) => void;
   onSave: () => void;
@@ -437,14 +449,14 @@ function EditPanel({
             }
           />
         </Field>
-        <Field label="Correo opcional" error={errors.correo}>
+        <Field label="Correo opcional" error={errors.correoElectronico}>
           <input
             className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
             maxLength={50}
             type="email"
-            value={editing.correo ?? ''}
+            value={editing.correoElectronico ?? ''}
             onChange={(event) =>
-              onChange({ ...editing, correo: event.target.value })
+              onChange({ ...editing, correoElectronico: event.target.value })
             }
           />
         </Field>
@@ -489,7 +501,7 @@ function Field({
   );
 }
 
-function StatusBadge({ status }: { status: WorkerStatus }): ReactElement {
+function StatusBadge({ status }: { status: UserStatus }): ReactElement {
   const active = status === 'activo';
 
   return (

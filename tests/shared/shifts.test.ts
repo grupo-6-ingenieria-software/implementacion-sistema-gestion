@@ -4,6 +4,7 @@ import {
   displayDateToIso,
   getWeekStartForDateKey,
   parseShiftRange,
+  shiftStateLabel,
   validateShiftCreatePayload,
   validateShiftDeletePayload,
   validateShiftEditPayload,
@@ -136,5 +137,9 @@ describe('shift contracts', () => {
     expect(getWeekStartForDateKey('2026-06-13')).toBe('2026-06-08');
     expect(getWeekStartForDateKey('2026-06-14')).toBe('2026-06-08');
     expect(addDaysToDateKey('2026-06-08', 6)).toBe('2026-06-14');
+  });
+
+  it('maps the persisted initial state to the documented Pendiente label', () => {
+    expect(shiftStateLabel('planificado')).toBe('Pendiente');
   });
 });

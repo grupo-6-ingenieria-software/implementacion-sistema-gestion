@@ -5,7 +5,7 @@ import {
   controllerSuccess,
   type RegisteredController,
 } from './base';
-import { notifyDashboardUpdated } from './dashboard-events';
+import { notifyCashUpdated } from './cash-events';
 import {
   CashClosingAccessError,
   CashClosingBusinessError,
@@ -30,7 +30,7 @@ export const cashClosingController: RegisteredController = {
           db as unknown as DbExecutor,
           payload ?? {},
         );
-        notifyDashboardUpdated();
+        notifyCashUpdated();
         return controllerSuccess(result);
       }
 

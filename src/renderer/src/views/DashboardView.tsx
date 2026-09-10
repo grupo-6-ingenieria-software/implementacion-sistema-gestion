@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import type {
   AttendanceSummary,
+  DashboardAttendance,
   CashSummary,
   DashboardData,
   DashboardRequest,
@@ -543,8 +544,20 @@ export function createDashboardRequest(
 }
 
 export function getAttendanceDisplay(
-  attendance: AttendanceSummary,
+  attendance: AttendanceSummary | DashboardAttendance,
 ): AttendanceDisplay {
+  if ('scope' in attendance && attendance.scope === 'own') {
+    const time = (value: string) => new Intl.DateTimeFormat('es-CL', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'America/Santiago',
+    }).format(new Date(value));
+    return {
+      title: 'Mi asistencia de hoy',
+      alert: !attendance.enteredAt,
+      primary: attendance.enteredAt ? `Entrada ${time(attendance.enteredAt)}` : 'Sin entrada registrada',
+      description: attendance.fullName,
+      secondary: attendance.exitedAt ? `Salida ${time(attendance.exitedAt)}` : attendance.enteredAt ? 'Jornada en curso' : 'Registre su asistencia',
+    };
+  }
   const alert = attendance.workersWithoutAttendance > 0;
 
   return {

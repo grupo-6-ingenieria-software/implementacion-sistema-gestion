@@ -18,6 +18,7 @@ import {
   registerAuditLog,
   type DbExecutor,
 } from './sale-service';
+import { inspectDailyCashRegister } from './cash-check';
 
 type CashUser = {
   role: Role;
@@ -45,7 +46,20 @@ export async function getCashClosingSummary(
   now = new Date(),
 ): Promise<CashClosingSummary> {
   await authorizeCashClosingUser(database, payload.usuarioId);
-  const cashRegister = await findDailyCashRegister(database, now);
+  const cashState = await inspectDailyCashRegister(database, now);
+  if (cashState.status === 'cerrada') {
+    throw new CashClosingBusinessError('La caja de este día ya fue cerrada.');
+  }
+  const cashRegister = cashState.status === 'abierta'
+    ? {
+        cierreCajaId: cashState.cierreCajaId,
+        closedAt: null,
+        closedByName: null,
+        closedByUserId: null,
+        openedAt: cashState.openedAt,
+        status: 'abierto' as const,
+      }
+    : undefined;
 
   return buildSummary(database, cashRegister, now);
 }
@@ -61,19 +75,28 @@ export async function closeCashRegister(
 
   return database.transaction(async (tx) => {
     const user = await authorizeCashClosingUser(tx, payload.usuarioId);
-    const cashRegister = await findDailyCashRegister(tx, now);
+    const cashState = await inspectDailyCashRegister(tx, now);
 
-    if (!cashRegister) {
+    if (cashState.status === 'sin_registro') {
       throw new CashClosingBusinessError(
         'No hay una caja abierta para cerrar.',
       );
     }
 
-    if (cashRegister.status === 'cerrado') {
+    if (cashState.status === 'cerrada') {
       throw new CashClosingBusinessError(
         'La caja de este dia ya fue cerrada.',
       );
     }
+
+    const cashRegister: CashRegisterRow = {
+      cierreCajaId: cashState.cierreCajaId,
+      closedAt: null,
+      closedByName: null,
+      closedByUserId: null,
+      openedAt: cashState.openedAt,
+      status: 'abierto',
+    };
 
     const summary = await buildSummary(tx, cashRegister, now);
     const closedAt = now.toISOString();
@@ -124,28 +147,43 @@ async function authorizeCashClosingUser(
     );
   }
 
-  const rows = await database.all<{
-    trabajadorApellido: string;
-    trabajadorEstado: string;
-    trabajadorNombre: string;
+  const users = await database.all<{
+    trabajadorId: number;
     usuarioId: string;
     usuarioRol: string;
   }>(sql`
     SELECT
-      u.usuario_id AS usuarioId,
-      u.usuario_rol AS usuarioRol,
-      t.trabajador_nombre AS trabajadorNombre,
-      t.trabajador_apellido AS trabajadorApellido,
-      t.trabajador_estado AS trabajadorEstado
-    FROM usuario u
-    INNER JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-    WHERE u.usuario_id = ${normalizedUsuarioId}
+      usuario_id AS usuarioId,
+      usuario_rol AS usuarioRol,
+      trabajador_id AS trabajadorId
+    FROM usuario
+    WHERE usuario_id = ${normalizedUsuarioId}
+      AND usuario_rol IN ('dueño', 'dueno', 'trabajador')
     LIMIT 1
   `);
 
-  const user = rows[0];
+  const user = users[0];
 
-  if (!user || user.trabajadorEstado !== 'activo') {
+  if (!user) {
+    throw new CashClosingAccessError(
+      'El usuario autenticado no esta activo o no existe.',
+    );
+  }
+
+  const workers = await database.all<{
+    trabajadorApellido: string;
+    trabajadorNombre: string;
+  }>(sql`
+    SELECT
+      trabajador_nombre AS trabajadorNombre,
+      trabajador_apellido AS trabajadorApellido
+    FROM trabajador
+    WHERE trabajador_id = ${user.trabajadorId}
+      AND trabajador_estado = 'activo'
+    LIMIT 1
+  `);
+  const worker = workers[0];
+  if (!worker) {
     throw new CashClosingAccessError(
       'El usuario autenticado no esta activo o no existe.',
     );
@@ -164,51 +202,8 @@ async function authorizeCashClosingUser(
     usuarioId: user.usuarioId,
     usuarioRol: user.usuarioRol,
     trabajadorNombre:
-      `${user.trabajadorNombre} ${user.trabajadorApellido}`.trim(),
+      `${worker.trabajadorNombre} ${worker.trabajadorApellido}`.trim(),
   };
-}
-
-async function findDailyCashRegister(
-  database: Pick<DbExecutor, 'all'>,
-  now: Date,
-): Promise<CashRegisterRow | undefined> {
-  const { startUtc, endUtc } = getDashboardDay(now);
-  const rows = await database.all<CashRegisterRow>(sql`
-    SELECT
-      c.cierre_caja_id AS cierreCajaId,
-      c.cierre_estado AS status,
-      c.cierre_fecha_hora_inicio AS openedAt,
-      c.cierre_fecha_hora_fin AS closedAt,
-      c.usuario_cierre_id AS closedByUserId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS closedByName
-    FROM cierre_caja c
-    LEFT JOIN usuario u ON u.usuario_id = c.usuario_cierre_id
-    LEFT JOIN trabajador t ON t.trabajador_id = u.trabajador_id
-    WHERE
-      (
-        datetime(c.cierre_fecha_hora_inicio) >= datetime(${startUtc})
-        AND datetime(c.cierre_fecha_hora_inicio) < datetime(${endUtc})
-      )
-      OR (
-        c.cierre_fecha_hora_fin IS NOT NULL
-        AND datetime(c.cierre_fecha_hora_fin) >= datetime(${startUtc})
-        AND datetime(c.cierre_fecha_hora_fin) < datetime(${endUtc})
-      )
-      OR EXISTS (
-        SELECT 1
-        FROM venta v
-        WHERE
-          v.cierre_caja_id = c.cierre_caja_id
-          AND datetime(v.venta_fecha_hora) >= datetime(${startUtc})
-          AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
-      )
-    ORDER BY
-      CASE WHEN c.cierre_estado = 'abierto' THEN 0 ELSE 1 END,
-      datetime(COALESCE(c.cierre_fecha_hora_fin, c.cierre_fecha_hora_inicio)) DESC
-    LIMIT 1
-  `);
-
-  return rows[0];
 }
 
 async function buildSummary(
@@ -219,6 +214,9 @@ async function buildSummary(
   const saleRows = cashRegister
     ? await loadCashRegisterSaleRows(database, cashRegister.cierreCajaId, now)
     : [];
+  const annulledSaleIds = saleRows.length > 0
+    ? await loadCashRegisterAnnulledSaleIds(database, saleRows.map((row) => row.ventaId))
+    : new Set<string>();
   const payments = createEmptyCashPaymentBreakdown();
   let currentAmount = 0;
   let currentTransactions = 0;
@@ -229,7 +227,7 @@ async function buildSummary(
     const amount = calculateSaleAmount(row);
     const paymentMethod = row.paymentMethod;
 
-    if (row.state === 'anulada') {
+    if (annulledSaleIds.has(row.ventaId)) {
       voidedAmount += amount;
       voidedTransactions += 1;
       payments[paymentMethod].voidedAmount += amount;
@@ -272,31 +270,56 @@ async function loadCashRegisterSaleRows(
   database: Pick<DbExecutor, 'all'>,
   cierreCajaId: string,
   now: Date,
-): Promise<Array<SaleRow & { paymentMethod: PaymentMethod }>> {
+): Promise<Array<SaleRow & { paymentMethod: PaymentMethod; ventaId: string }>> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  return database.all<Array<SaleRow & { paymentMethod: PaymentMethod }>[number]>(sql`
+  const sales = await database.all<Omit<SaleRow, 'subtotal'> & { paymentMethod: PaymentMethod; ventaId: string }>(sql`
     SELECT
+      v.venta_id AS ventaId,
       v.venta_estado AS state,
       v.venta_metodo_pago AS paymentMethod,
       v.venta_descuento_tipo AS discountType,
-      v.venta_descuento_valor AS discountValue,
-      COALESCE(
-        SUM(dv.detalle_venta_cantidad * hp.historial_precio_venta),
-        0
-      ) AS subtotal
+      v.venta_descuento_valor AS discountValue
     FROM venta v
-    LEFT JOIN detalle_venta dv ON dv.venta_id = v.venta_id
-    LEFT JOIN historial_precio_producto hp
-      ON hp.historial_precio_producto_id = dv.historial_precio_producto_id
     WHERE
       v.cierre_caja_id = ${cierreCajaId}
       AND datetime(v.venta_fecha_hora) >= datetime(${startUtc})
       AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
-    GROUP BY
-      v.venta_id,
-      v.venta_estado,
-      v.venta_metodo_pago,
-      v.venta_descuento_tipo,
-      v.venta_descuento_valor
   `);
+  if (sales.length === 0) return [];
+  const saleIds = sql.join(sales.map((row) => sql`${row.ventaId}`), sql`, `);
+  const details = await database.all<{ ventaId: string; cantidad: number; precioId: string }>(sql`
+    SELECT venta_id AS ventaId, detalle_venta_cantidad AS cantidad,
+      historial_precio_producto_id AS precioId
+    FROM detalle_venta
+    WHERE venta_id IN (${saleIds})
+  `);
+  const priceIds = [...new Set(details.map((row) => row.precioId))];
+  const prices = priceIds.length === 0 ? [] : await database.all<{ precioId: string; precio: number }>(sql`
+    SELECT historial_precio_producto_id AS precioId,
+      historial_precio_venta AS precio
+    FROM historial_precio_producto
+    WHERE historial_precio_producto_id IN (${sql.join(priceIds.map((id) => sql`${id}`), sql`, `)})
+  `);
+  const priceById = new Map(prices.map((row) => [row.precioId, Number(row.precio)]));
+  const subtotalBySale = new Map<string, number>();
+  for (const detail of details) {
+    subtotalBySale.set(
+      detail.ventaId,
+      (subtotalBySale.get(detail.ventaId) ?? 0)
+        + Number(detail.cantidad) * (priceById.get(detail.precioId) ?? 0),
+    );
+  }
+  return sales.map((row) => ({ ...row, subtotal: subtotalBySale.get(row.ventaId) ?? 0 }));
+}
+
+async function loadCashRegisterAnnulledSaleIds(
+  database: Pick<DbExecutor, 'all'>,
+  saleIds: string[],
+): Promise<Set<string>> {
+  const rows = await database.all<{ ventaId: string }>(sql`
+    SELECT venta_id AS ventaId
+    FROM anulacion_venta
+    WHERE venta_id IN (${sql.join(saleIds.map((id) => sql`${id}`), sql`, `)})
+  `);
+  return new Set(rows.map((row) => row.ventaId));
 }
