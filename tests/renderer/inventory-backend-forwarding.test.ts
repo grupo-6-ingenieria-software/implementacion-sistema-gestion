@@ -6,13 +6,19 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../src/db/schema";
-import { createLotController, registerLotWithExecutor } from "../../src/main/controllers/lot";
+import {
+  createLotController,
+  registerLotWithExecutor,
+} from "../../src/main/controllers/lot";
 import {
   createProductWithExecutor,
   createProductWriteController,
   normalizeCreatePayload,
 } from "../../src/main/controllers/product-write";
-import { createWasteController, registerWasteWithExecutor } from "../../src/main/controllers/waste";
+import {
+  createWasteController,
+  registerWasteWithExecutor,
+} from "../../src/main/controllers/waste";
 import { buildLotRegisterPayload } from "../../src/renderer/src/views/LotCreateView";
 import { buildProductFormValues } from "../../src/renderer/src/views/ProductFormView";
 import { buildWasteRegisterPayload } from "../../src/renderer/src/views/WasteCreateView";
@@ -53,10 +59,11 @@ describe("inventory view payloads reach SQL validation", () => {
       metadata: controllers[9],
       normalize: normalizeCreatePayload,
       dependencies: {
-        save: (payload) => testDb!.db.transaction(async (tx) => {
-          await createProductWithExecutor(tx, schema, payload);
-          return { ean13: payload.ean13 };
-        }),
+        save: (payload) =>
+          testDb!.db.transaction(async (tx) => {
+            await createProductWithExecutor(tx, schema, payload);
+            return { ean13: payload.ean13 };
+          }),
       },
     });
     const response = await controller.handle(
@@ -66,84 +73,125 @@ describe("inventory view payloads reach SQL validation", () => {
 
     expect(response).toMatchObject({
       ok: false,
-      error: { code: "VALIDATION_ERROR", fieldErrors: {
-        precioCosto: expect.any(String), stockMinimo: expect.any(String),
-      } },
+      error: {
+        code: "VALIDATION_ERROR",
+        fieldErrors: {
+          precioCosto: expect.any(String),
+          stockMinimo: expect.any(String),
+        },
+      },
     });
     expect(testDb!.queries.some(isScalarValidation)).toBe(true);
   });
 
   it("forwards blank lot quantity and cost to the lot SQL validator", async () => {
-    const payload = buildLotRegisterPayload({
-      ean13: "7802920000015",
-      cantidad: "",
-      precioCosto: "",
-      fechaVencimiento: "2027-01-01",
-      proveedorId: "1",
-    }, "12345678-9");
+    const payload = buildLotRegisterPayload(
+      {
+        ean13: "7802920000015",
+        cantidad: "",
+        precioCosto: "",
+        fechaVencimiento: "2027-01-01",
+        proveedorId: "1",
+      },
+      "12345678-9",
+    );
     const controller = createLotController({
       listProviders: async () => [],
-      register: (input) => testDb!.db.transaction((tx) =>
-        registerLotWithExecutor(tx, schema, input)),
+      register: (input) =>
+        testDb!.db.transaction((tx) =>
+          registerLotWithExecutor(tx, schema, input),
+        ),
     });
-    const response = await controller.handle(payload, { channel: "lote:registrar" });
+    const response = await controller.handle(payload, {
+      channel: "lote:registrar",
+    });
 
     expect(response).toMatchObject({
       ok: false,
-      error: { code: "VALIDATION_ERROR", fieldErrors: {
-        cantidad: expect.any(String), precioCosto: expect.any(String),
-      } },
+      error: {
+        code: "VALIDATION_ERROR",
+        fieldErrors: {
+          cantidad: expect.any(String),
+          precioCosto: expect.any(String),
+        },
+      },
     });
     expect(testDb!.queries.some(isScalarValidation)).toBe(true);
   });
 
   it("forwards blank waste quantity after product and lot lookups", async () => {
-    const payload = buildWasteRegisterPayload({
-      ean13: "7802920000015",
-      cantidad: "",
-      motivo: "dano",
-      observacion: "envase roto",
-    }, "12345678-9");
+    const payload = buildWasteRegisterPayload(
+      {
+        ean13: "7802920000015",
+        cantidad: "",
+        motivo: "dano",
+        observacion: "envase roto",
+      },
+      "12345678-9",
+    );
     const controller = createWasteController({
       availability: async () => ({
-        ean13: payload.ean13, stockDisponible: 5, criterioSalida: "fefo",
+        ean13: payload.ean13,
+        stockDisponible: 5,
+        criterioSalida: "fefo",
       }),
-      register: (input) => testDb!.db.transaction((tx) =>
-        registerWasteWithExecutor(tx, schema, input)),
+      register: (input) =>
+        testDb!.db.transaction((tx) =>
+          registerWasteWithExecutor(tx, schema, input),
+        ),
     });
-    const response = await controller.handle(payload, { channel: "merma:registrar" });
+    const response = await controller.handle(payload, {
+      channel: "merma:registrar",
+    });
 
     expect(response).toMatchObject({
       ok: false,
-      error: { code: "VALIDATION_ERROR", fieldErrors: { cantidad: expect.any(String) } },
+      error: {
+        code: "VALIDATION_ERROR",
+        fieldErrors: { cantidad: expect.any(String) },
+      },
     });
     const statements = testDb!.queries.map((query) => query.toLowerCase());
-    expect(statements.findIndex((query) => query.includes('from "producto"'))).toBeLessThan(
-      statements.findIndex(isScalarValidation),
-    );
-    expect(statements.findIndex((query) => query.includes('from "lote"'))).toBeLessThan(
-      statements.findIndex(isScalarValidation),
-    );
+    expect(
+      statements.findIndex((query) => query.includes('from "producto"')),
+    ).toBeLessThan(statements.findIndex(isScalarValidation));
+    expect(
+      statements.findIndex((query) => query.includes('from "lote"')),
+    ).toBeLessThan(statements.findIndex(isScalarValidation));
   });
 });
 
 function isScalarValidation(query: string): boolean {
   const normalized = query.toLowerCase();
-  return normalized.trimStart().startsWith("select") && !normalized.includes(" from ");
+  return (
+    normalized.trimStart().startsWith("select") &&
+    !normalized.includes(" from ")
+  );
 }
 
 async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), "huascar-inventory-view-"));
-  const client = createClient({ url: `file:${join(dir, "test.db").replace(/\\/g, "/")}` });
+  const client = createClient({
+    url: `file:${join(dir, "test.db").replace(/\\/g, "/")}`,
+  });
   const queries: string[] = [];
-  const db = drizzle(client, { schema, logger: { logQuery(query) { queries.push(query); } } });
+  const db = drizzle(client, {
+    schema,
+    logger: {
+      logQuery(query) {
+        queries.push(query);
+      },
+    },
+  });
   await client.execute("PRAGMA foreign_keys = ON");
   for (const file of (await readdir(join(process.cwd(), "drizzle/migrations")))
-    .filter((name) => name.endsWith(".sql")).sort()) {
-    const migration = await readFile(join(process.cwd(), "drizzle/migrations", file), "utf8");
-    for (const statement of migration.split("--> statement-breakpoint")) {
-      if (statement.trim()) await client.execute(statement.trim());
-    }
+    .filter((name) => name.endsWith(".sql"))
+    .sort()) {
+    const migration = await readFile(
+      join(process.cwd(), "drizzle/migrations", file),
+      "utf8",
+    );
+    await client.executeMultiple(migration);
   }
   return { client, db, dir, queries };
 }

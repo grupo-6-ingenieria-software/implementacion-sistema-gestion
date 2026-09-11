@@ -1,12 +1,3 @@
-/**
- * Reglas compartidas de autenticación (RF55, RF56, RF58).
- *
- * Este módulo es seguro para el renderer: no importa APIs de Node. Contiene
- * constantes, validadores puros y el cálculo de bloqueo por intentos fallidos
- * que también usa el proceso main. La generación de contraseñas temporales y la
- * firma de JWT viven en el proceso main (requieren node:crypto / jsonwebtoken).
- */
-
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 export const INACTIVITY_MINUTES = 30;
@@ -17,36 +8,26 @@ export const LOCKOUT_MS = LOCKOUT_MINUTES * 60 * 1000;
 export const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 export const TEMP_PASSWORD_MS = TEMP_PASSWORD_HOURS * 60 * 60 * 1000;
 
-/**
- * Periodo del latido (heartbeat) del renderer hacia auth:verificar-sesion. Cada
- * 60 s el renderer consulta la sesión; el proceso principal (session.ts) cierra
- * la fila sesion_usuario tras 30 min de inactividad y responde active=false.
- */
 export const SESSION_HEARTBEAT_MS = 60 * 1000;
 
 export const USERNAME_MAX_LENGTH = 50;
 export const PASSWORD_MIN_LENGTH = 8;
 
-/** Mensaje genérico exigido por RF55: no revela cuál campo es el incorrecto. */
-export const GENERIC_LOGIN_ERROR = 'Usuario o contraseña incorrectos';
-/** Mensaje exigido por RF55 al expirar la sesión por inactividad. */
-export const SESSION_EXPIRED_MESSAGE = 'Su sesión ha expirado por inactividad';
-/** Canal IPC push (webContents.send) para avisar expiración de sesión. */
-export const SESSION_EXPIRED_EVENT = 'session:expirada';
+export const GENERIC_LOGIN_ERROR = "Usuario o contraseña incorrectos";
+
+export const SESSION_EXPIRED_MESSAGE = "Su sesión ha expirado por inactividad";
+
+export const SESSION_EXPIRED_EVENT = "session:expirada";
 
 export type PasswordComplexityResult = {
   valid: boolean;
   message?: string;
 };
 
-/**
- * Valida la complejidad de contraseña exigida por RF55: mínimo 8 caracteres,
- * al menos una mayúscula, una minúscula y un número.
- */
 export function validatePasswordComplexity(
   password: unknown,
 ): PasswordComplexityResult {
-  if (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH) {
+  if (typeof password !== "string" || password.length < PASSWORD_MIN_LENGTH) {
     return {
       valid: false,
       message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`,
@@ -56,21 +37,21 @@ export function validatePasswordComplexity(
   if (!/[A-Z]/.test(password)) {
     return {
       valid: false,
-      message: 'La contraseña debe incluir al menos una letra mayúscula.',
+      message: "La contraseña debe incluir al menos una letra mayúscula.",
     };
   }
 
   if (!/[a-z]/.test(password)) {
     return {
       valid: false,
-      message: 'La contraseña debe incluir al menos una letra minúscula.',
+      message: "La contraseña debe incluir al menos una letra minúscula.",
     };
   }
 
   if (!/[0-9]/.test(password)) {
     return {
       valid: false,
-      message: 'La contraseña debe incluir al menos un número.',
+      message: "La contraseña debe incluir al menos un número.",
     };
   }
 
@@ -83,7 +64,7 @@ export function validatePasswordComplexity(
  */
 export function isValidUsernameFormat(usuario: unknown): usuario is string {
   return (
-    typeof usuario === 'string' &&
+    typeof usuario === "string" &&
     usuario.length > 0 &&
     usuario.length <= USERNAME_MAX_LENGTH &&
     !/\s/.test(usuario)
@@ -128,7 +109,9 @@ export function evaluateLockout(
 
   // Solo cuentan los fallos posteriores al último login exitoso.
   let failures = sorted
-    .filter((attempt) => !attempt.exitoso && toMs(attempt.fechaHora) > lastSuccessMs)
+    .filter(
+      (attempt) => !attempt.exitoso && toMs(attempt.fechaHora) > lastSuccessMs,
+    )
     .map((attempt) => toMs(attempt.fechaHora));
 
   // Descartar bloqueos ya vencidos: cada vez que se acumulan 5 fallos y el
@@ -156,7 +139,7 @@ export function formatRemainingLockout(remainingMs: number): string {
   const totalMinutes = Math.ceil(remainingMs / 60000);
 
   if (totalMinutes <= 1) {
-    return '1 minuto';
+    return "1 minuto";
   }
 
   return `${totalMinutes} minutos`;

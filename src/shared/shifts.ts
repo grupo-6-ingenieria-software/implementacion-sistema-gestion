@@ -1,20 +1,19 @@
 export type ShiftFieldErrors = Partial<
   Record<
-    | 'trabajadorId'
-    | 'fecha'
-    | 'horaInicio'
-    | 'horaTermino'
-    | 'turnoId'
-    | 'confirmacion',
+    | "trabajadorId"
+    | "fecha"
+    | "horaInicio"
+    | "horaTermino"
+    | "turnoId"
+    | "confirmacion",
     string
   >
 >;
 
-/** Persistencia legacy: el estado funcional "Pendiente" se guarda como planificado. */
-export const PENDING_SHIFT_DB_STATE = 'planificado' as const;
+export const PENDING_SHIFT_DB_STATE = "planificado" as const;
 
 export function shiftStateLabel(value: string): string {
-  return value === PENDING_SHIFT_DB_STATE ? 'Pendiente' : value;
+  return value === PENDING_SHIFT_DB_STATE ? "Pendiente" : value;
 }
 
 export type ShiftFormValues = {
@@ -27,7 +26,7 @@ export type ShiftFormValues = {
 
 export type ShiftCreatePayload = ShiftFormValues;
 
-export type ShiftEditPayload = Omit<ShiftFormValues, 'trabajadorId'> & {
+export type ShiftEditPayload = Omit<ShiftFormValues, "trabajadorId"> & {
   turnoId: string;
 };
 
@@ -66,7 +65,9 @@ export type ShiftMutationResponse = {
   turnoId: string;
 };
 
-export function normalizeShiftCreatePayload(payload: unknown): ShiftCreatePayload {
+export function normalizeShiftCreatePayload(
+  payload: unknown,
+): ShiftCreatePayload {
   const record = isRecord(payload) ? payload : {};
 
   return {
@@ -90,7 +91,9 @@ export function normalizeShiftEditPayload(payload: unknown): ShiftEditPayload {
   };
 }
 
-export function normalizeShiftDeletePayload(payload: unknown): ShiftDeletePayload {
+export function normalizeShiftDeletePayload(
+  payload: unknown,
+): ShiftDeletePayload {
   const record = isRecord(payload) ? payload : {};
 
   return {
@@ -120,7 +123,7 @@ export function validateShiftCreatePayload(
   const errors = validateShiftForm(values);
 
   if (!Number.isInteger(values.trabajadorId) || values.trabajadorId <= 0) {
-    errors.trabajadorId = 'Seleccione un trabajador activo.';
+    errors.trabajadorId = "Seleccione un trabajador activo.";
   }
 
   return errors;
@@ -132,7 +135,7 @@ export function validateShiftEditPayload(
   const errors = validateShiftForm(values);
 
   if (!values.turnoId) {
-    errors.turnoId = 'No se pudo identificar el turno.';
+    errors.turnoId = "No se pudo identificar el turno.";
   }
 
   return errors;
@@ -144,11 +147,11 @@ export function validateShiftDeletePayload(
   const errors: ShiftFieldErrors = {};
 
   if (!values.turnoId) {
-    errors.turnoId = 'No se pudo identificar el turno.';
+    errors.turnoId = "No se pudo identificar el turno.";
   }
 
   if (!values.confirmacion) {
-    errors.confirmacion = 'Debe confirmar la eliminacion del turno.';
+    errors.confirmacion = "Debe confirmar la eliminacion del turno.";
   }
 
   return errors;
@@ -160,7 +163,7 @@ export function validateShiftListPayload(
   const errors: ShiftFieldErrors = {};
 
   if (!isIsoDate(values.inicioSemana)) {
-    errors.fecha = 'Ingrese un inicio de semana valido.';
+    errors.fecha = "Ingrese un inicio de semana valido.";
   }
 
   return errors;
@@ -201,13 +204,11 @@ export function displayDateToIso(value: string): string | null {
   }
 
   const [, day, month, year] = match;
-  return isValidDateParts(year, month, day)
-    ? `${year}-${month}-${day}`
-    : null;
+  return isValidDateParts(year, month, day) ? `${year}-${month}-${day}` : null;
 }
 
 export function isoDateToDisplay(value: string): string {
-  const [year, month, day] = value.split('-');
+  const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
 }
 
@@ -254,26 +255,29 @@ function validateShiftForm(values: {
   const errors: ShiftFieldErrors = {};
 
   if (!displayDateToIso(values.fecha)) {
-    errors.fecha = 'Ingrese la fecha en formato DD/MM/AAAA.';
+    errors.fecha = "Ingrese la fecha en formato DD/MM/AAAA.";
   }
 
   if (!isTime(values.horaInicio)) {
-    errors.horaInicio = 'Ingrese la hora de inicio en formato HH:MM.';
+    errors.horaInicio = "Ingrese la hora de inicio en formato HH:MM.";
   }
 
   if (!isTime(values.horaTermino)) {
-    errors.horaTermino = 'Ingrese la hora de termino en formato HH:MM.';
-  } else if (isTime(values.horaInicio) && values.horaTermino <= values.horaInicio) {
+    errors.horaTermino = "Ingrese la hora de termino en formato HH:MM.";
+  } else if (
+    isTime(values.horaInicio) &&
+    values.horaTermino <= values.horaInicio
+  ) {
     errors.horaTermino =
-      'La hora de termino debe ser posterior a la hora de inicio.';
+      "La hora de termino debe ser posterior a la hora de inicio.";
   }
 
   return errors;
 }
 
 function chileLocalDateTimeToIso(dateKey: string, time: string): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
   const desiredAsUtc = Date.UTC(year, month - 1, day, hour, minute);
   let candidate = desiredAsUtc;
 
@@ -299,18 +303,18 @@ function chileLocalDateTimeToIso(dateKey: string, time: string): string {
 }
 
 function formatChileParts(date: Date): { dateKey: string; time: string } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Santiago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
   }).formatToParts(date);
   const values = Object.fromEntries(
     parts
-      .filter((part) => part.type !== 'literal')
+      .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
   );
 
@@ -367,15 +371,15 @@ function isValidDateParts(
 }
 
 function normalizeText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeInteger(value: unknown): number {
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return Number.isFinite(value) ? Math.trunc(value) : Number.NaN;
   }
 
-  if (typeof value === 'string' && value.trim()) {
+  if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.trunc(parsed) : Number.NaN;
   }
@@ -384,5 +388,5 @@ function normalizeInteger(value: unknown): number {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }

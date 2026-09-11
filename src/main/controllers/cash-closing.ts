@@ -1,31 +1,34 @@
-import { controllers } from '../../shared/controllers';
-import { db } from '../../db/client';
+import { controllers } from "../../shared/controllers";
+import { db } from "../../db/client";
 import {
   controllerError,
   controllerSuccess,
   type RegisteredController,
-} from './base';
-import { notifyCashUpdated } from './cash-events';
+} from "./base";
+import { notifyCashUpdated } from "./cash-events";
 import {
   CashClosingAccessError,
   CashClosingBusinessError,
   CashClosingValidationError,
   closeCashRegister,
   getCashClosingSummary,
-} from './cash-closing-service';
-import type { DbExecutor } from './sale-service';
+} from "./cash-closing-service";
+import type { DbExecutor } from "./sale-service";
 
 export const cashClosingController: RegisteredController = {
   metadata: controllers[18],
   handle: async (payload, context) => {
     try {
-      if (context.channel === 'caja:resumen-cierre') {
+      if (context.channel === "caja:resumen-cierre") {
         return controllerSuccess(
-          await getCashClosingSummary(db as unknown as DbExecutor, payload ?? {}),
+          await getCashClosingSummary(
+            db as unknown as DbExecutor,
+            payload ?? {},
+          ),
         );
       }
 
-      if (context.channel === 'caja:cerrar') {
+      if (context.channel === "caja:cerrar") {
         const result = await closeCashRegister(
           db as unknown as DbExecutor,
           payload ?? {},
@@ -35,28 +38,32 @@ export const cashClosingController: RegisteredController = {
       }
 
       return controllerError(
-        'INVALID_CHANNEL',
+        "INVALID_CHANNEL",
         `Canal IPC no registrado: ${context.channel}`,
-        'cash-closing',
+        "cash-closing",
       );
     } catch (error) {
       if (error instanceof CashClosingValidationError) {
-        return controllerError('VALIDATION_ERROR', error.message, 'cash-closing');
+        return controllerError(
+          "VALIDATION_ERROR",
+          error.message,
+          "cash-closing",
+        );
       }
 
       if (error instanceof CashClosingAccessError) {
-        return controllerError('FORBIDDEN', error.message, 'cash-closing');
+        return controllerError("FORBIDDEN", error.message, "cash-closing");
       }
 
       if (error instanceof CashClosingBusinessError) {
-        return controllerError('BUSINESS_RULE', error.message, 'cash-closing');
+        return controllerError("BUSINESS_RULE", error.message, "cash-closing");
       }
 
       console.error(error);
       return controllerError(
-        'TECHNICAL_ERROR',
-        'No fue posible procesar el cierre de caja. Intente nuevamente.',
-        'cash-closing',
+        "TECHNICAL_ERROR",
+        "No fue posible procesar el cierre de caja. Intente nuevamente.",
+        "cash-closing",
       );
     }
   },

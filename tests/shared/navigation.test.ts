@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
   APP_HOME_PATH,
   PASSWORD_CHANGE_PATH,
@@ -9,41 +9,43 @@ import {
   internalComponents,
   navigationTree,
   validateNavigationTree,
-} from '../../src/shared/navigation';
+} from "../../src/shared/navigation";
 
-describe('navigation tree', () => {
-  it('declares every route without structural errors', () => {
+describe("navigation tree", () => {
+  it("declares every route without structural errors", () => {
     expect(validateNavigationTree()).toEqual([]);
     expect(new Set(navigationTree.map((node) => node.id))).toEqual(
       new Set([
-        'login',
-        'password-change',
-        'dashboard',
-        'product-list',
-        'product-create',
-        'product-edit',
-        'product-status',
-        'product-delete',
-        'lot-create',
-        'waste-create',
-        'sale-register',
-        'daily-sales',
-        'cash-closing',
-        'worker-list',
-        'worker-create',
-        'shift-calendar',
-        'shift-create',
-        'attendance',
-        'user-management',
-        'audit-log',
+        "login",
+        "password-change",
+        "dashboard",
+        "product-list",
+        "product-create",
+        "product-edit",
+        "product-status",
+        "product-delete",
+        "lot-create",
+        "waste-create",
+        "sale-register",
+        "daily-sales",
+        "cash-closing",
+        "worker-list",
+        "worker-create",
+        "shift-calendar",
+        "shift-create",
+        "attendance",
+        "user-management",
+        "audit-log",
       ]),
     );
   });
 
-  it('keeps internal UI components outside routes and menus', () => {
+  it("keeps internal UI components outside routes and menus", () => {
     const routeIds = new Set<string>(navigationTree.map((node) => node.id));
     const menuLabels = new Set<string>(
-      navigationTree.filter((node) => node.showInMenu).map((node) => node.label),
+      navigationTree
+        .filter((node) => node.showInMenu)
+        .map((node) => node.label),
     );
 
     for (const component of internalComponents) {
@@ -52,129 +54,126 @@ describe('navigation tree', () => {
     }
   });
 
-  it('filters menu groups by role', () => {
-    expect(getVisibleGroups('dueno')).toEqual([
-      'inicio',
-      'inventario',
-      'ventas',
-      'caja',
-      'personal',
-      'administracion',
+  it("filters menu groups by role", () => {
+    expect(getVisibleGroups("dueno")).toEqual([
+      "inicio",
+      "inventario",
+      "ventas",
+      "caja",
+      "personal",
+      "administracion",
     ]);
 
-    expect(getVisibleGroups('trabajador')).toEqual([
-      'inicio',
-      'inventario',
-      'ventas',
-      'caja',
-      'personal',
+    expect(getVisibleGroups("trabajador")).toEqual([
+      "inicio",
+      "inventario",
+      "ventas",
+      "caja",
+      "personal",
     ]);
 
-    expect(getVisibleMenu('trabajador').map((node) => node.path)).not.toContain(
-      '/app/admin/usuarios',
+    expect(getVisibleMenu("trabajador").map((node) => node.path)).not.toContain(
+      "/app/admin/usuarios",
     );
   });
 
-  it('guards session, password change and role access', () => {
+  it("guards session, password change and role access", () => {
     expect(
-      evaluateRouteAccess('/app/inicio', { isAuthenticated: false }),
+      evaluateRouteAccess("/app/inicio", { isAuthenticated: false }),
     ).toEqual({
-      status: 'redirect',
+      status: "redirect",
       to: PUBLIC_LOGIN_PATH,
-      reason: 'missing-session',
+      reason: "missing-session",
     });
 
     expect(
-      evaluateRouteAccess('/app/inicio', {
+      evaluateRouteAccess("/app/inicio", {
         isAuthenticated: true,
-        role: 'trabajador',
+        role: "trabajador",
         passwordChangeRequired: true,
       }),
     ).toEqual({
-      status: 'redirect',
+      status: "redirect",
       to: PASSWORD_CHANGE_PATH,
-      reason: 'password-change-required',
+      reason: "password-change-required",
     });
 
     expect(
-      evaluateRouteAccess('/app/admin/usuarios', {
+      evaluateRouteAccess("/app/admin/usuarios", {
         isAuthenticated: true,
-        role: 'trabajador',
+        role: "trabajador",
       }),
     ).toEqual({
-      status: 'deny',
+      status: "deny",
       to: APP_HOME_PATH,
-      reason: 'role-denied',
-      auditControllerId: 'audit',
+      reason: "role-denied",
+      auditControllerId: "audit",
     });
 
     expect(
-      evaluateRouteAccess('/app/admin/usuarios', {
+      evaluateRouteAccess("/app/admin/usuarios", {
         isAuthenticated: true,
-        role: 'dueno',
+        role: "dueno",
       }),
-    ).toEqual({ status: 'allow' });
+    ).toEqual({ status: "allow" });
   });
 
-  it('allows both supported roles to access daily sales', () => {
+  it("allows both supported roles to access daily sales", () => {
     expect(
-      evaluateRouteAccess('/app/ventas/dia', {
+      evaluateRouteAccess("/app/ventas/dia", {
         isAuthenticated: true,
-        role: 'dueno',
+        role: "dueno",
       }),
-    ).toEqual({ status: 'allow' });
+    ).toEqual({ status: "allow" });
     expect(
-      evaluateRouteAccess('/app/ventas/dia', {
+      evaluateRouteAccess("/app/ventas/dia", {
         isAuthenticated: true,
-        role: 'trabajador',
+        role: "trabajador",
       }),
-    ).toEqual({ status: 'allow' });
+    ).toEqual({ status: "allow" });
   });
 
-  it('allows both roles to access product deletion outside the menu', () => {
+  it("allows both roles to access product deletion outside the menu", () => {
     const productDeleteNode = navigationTree.find(
-      (node) => node.id === 'product-delete',
+      (node) => node.id === "product-delete",
     );
 
     expect(productDeleteNode?.showInMenu).toBe(false);
-    expect(getVisibleMenu('dueno').map((node) => node.id)).not.toContain(
-      'product-delete',
+    expect(getVisibleMenu("dueno").map((node) => node.id)).not.toContain(
+      "product-delete",
     );
-    expect(getVisibleMenu('trabajador').map((node) => node.id)).not.toContain(
-      'product-delete',
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "product-delete",
     );
 
-    for (const role of ['dueno', 'trabajador'] as const) {
+    for (const role of ["dueno", "trabajador"] as const) {
       expect(
         evaluateRouteAccess(
-          '/app/inventario/productos/eliminar?ean13=7802920000015',
+          "/app/inventario/productos/eliminar?ean13=7802920000015",
           {
             isAuthenticated: true,
             role,
           },
         ),
-      ).toEqual({ status: 'allow' });
+      ).toEqual({ status: "allow" });
     }
   });
 
-  it('allows only the owner to access V16 and V17', () => {
-    for (const path of [
-      '/app/personal/turnos',
-      '/app/personal/turnos/nuevo',
-    ]) {
+  it("allows only the owner to access V16 and V17", () => {
+    for (const path of ["/app/personal/turnos", "/app/personal/turnos/nuevo"]) {
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,
-          role: 'dueno',
+          role: "dueno",
         }),
-      ).toEqual({ status: 'allow' });
+      ).toEqual({ status: "allow" });
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,
-          role: 'trabajador',
+          role: "trabajador",
         }),
       ).toMatchObject({
-        status: 'deny',
+        status: "deny",
         to: APP_HOME_PATH,
       });
     }

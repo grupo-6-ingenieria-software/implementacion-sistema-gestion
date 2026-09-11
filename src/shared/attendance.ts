@@ -5,7 +5,7 @@ export type AttendanceWorkerOption = {
 };
 
 export type AttendanceRequest = {
-  fase?: 'prevalidar' | 'confirmar';
+  fase?: "prevalidar" | "confirmar";
   usuarioId?: string;
   trabajadorRut?: string;
 };
@@ -18,17 +18,17 @@ export type AttendanceWorkerSummary = AttendanceWorkerOption & {
 
 export type AttendanceEntryResult =
   | {
-      status: 'ready_for_confirmation';
+      status: "ready_for_confirmation";
       message: string;
       trabajador: AttendanceWorkerSummary;
     }
   | {
-      status: 'requires_no_shift_confirmation';
+      status: "requires_no_shift_confirmation";
       message: string;
       trabajador: AttendanceWorkerSummary;
     }
   | {
-      status: 'registered';
+      status: "registered";
       asistenciaId: string;
       entradaAt: string;
       trabajador: AttendanceWorkerSummary;
@@ -36,13 +36,13 @@ export type AttendanceEntryResult =
 
 export type AttendanceExitResult =
   | {
-      status: 'ready_for_confirmation';
+      status: "ready_for_confirmation";
       asistenciaId: string;
       entradaAt: string;
       trabajador: AttendanceWorkerSummary;
     }
   | {
-      status: 'registered';
+      status: "registered";
       asistenciaId: string;
       entradaAt: string;
       salidaAt: string;
@@ -53,9 +53,9 @@ export type AttendanceExitResult =
 export function normalizeRut(value: string): string {
   const cleaned = value
     .trim()
-    .replace(/\./g, '')
-    .replace(/-/g, '')
-    .replace(/\s/g, '')
+    .replace(/\./g, "")
+    .replace(/-/g, "")
+    .replace(/\s/g, "")
     .toUpperCase();
   const body = cleaned.slice(0, -1);
   const verifier = cleaned.slice(-1);

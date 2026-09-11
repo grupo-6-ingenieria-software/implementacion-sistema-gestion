@@ -1,47 +1,30 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import type { ControllerResponse } from '../shared/controllers';
-import { DASHBOARD_UPDATED_EVENT } from '../shared/dashboard';
-import { SESSION_EXPIRED_EVENT } from '../shared/auth';
+import { contextBridge, ipcRenderer } from "electron";
+import type { ControllerResponse } from "../shared/controllers";
+import { DASHBOARD_UPDATED_EVENT } from "../shared/dashboard";
+import { SESSION_EXPIRED_EVENT } from "../shared/auth";
 
 export type AppApi = {
-  /**
-   * True sólo cuando la app se levantó con `npm run dev:debug`
-   * (HUASCAR_DEBUG_LOGIN=1). El renderer lo usa para mostrar la lista de
-   * usuarios e iniciar sesión como cualquiera de ellos en el login.
-   */
   debugMode: boolean;
   invoke: <TData = unknown>(
     channel: string,
     payload?: unknown,
   ) => Promise<ControllerResponse<TData>>;
-  /**
-   * Guarda (o limpia con null) el JWT de sesión emitido en el login. El token
-   * se adjunta automáticamente a cada invoke como `__authToken`, de modo que el
-   * dispatcher del proceso principal pueda verificar identidad y rol sin que el
-   * renderer pueda falsificar el usuarioId. Ver controllers/index.ts.
-   */
+
   setSessionToken: (token: string | null) => void;
   onDashboardUpdated: (listener: () => void) => () => void;
   onSessionExpired: (listener: () => void) => () => void;
 };
 
-// Token de sesión vigente. Vive sólo en el contexto del preload (aislado del
-// renderer), por lo que no es accesible ni manipulable desde la página web.
 let sessionToken: string | null = null;
 
 const api: AppApi = {
-  // Se lee en tiempo de ejecución del entorno del proceso (heredado del main).
-  debugMode: process.env.HUASCAR_DEBUG_LOGIN === '1',
+  debugMode: process.env.HUASCAR_DEBUG_LOGIN === "1",
   invoke: (channel, payload) => {
-    // Fusiona el token en el payload sin alterar su forma existente. Los
-    // payloads son objetos (o ausentes) en todos los call sites del renderer;
-    // un eventual primitivo/array se reenvía tal cual (sólo aplica a canales
-    // públicos que no requieren token).
     if (payload === undefined || payload === null) {
       return ipcRenderer.invoke(channel, { __authToken: sessionToken });
     }
 
-    if (typeof payload === 'object' && !Array.isArray(payload)) {
+    if (typeof payload === "object" && !Array.isArray(payload)) {
       return ipcRenderer.invoke(channel, {
         ...(payload as Record<string, unknown>),
         __authToken: sessionToken,
@@ -71,4 +54,4 @@ const api: AppApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('appApi', api);
+contextBridge.exposeInMainWorld("appApi", api);

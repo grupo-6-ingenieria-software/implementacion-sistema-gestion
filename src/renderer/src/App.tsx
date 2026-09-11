@@ -6,7 +6,7 @@ import {
   type FormEvent,
   type ReactElement,
   type UIEventHandler,
-} from 'react';
+} from "react";
 import {
   APP_HOME_PATH,
   PASSWORD_CHANGE_PATH,
@@ -22,30 +22,30 @@ import {
   type Role,
   type RouteGuardDecision,
   type SessionState,
-} from '../../shared/navigation';
+} from "../../shared/navigation";
 import {
   SESSION_EXPIRED_MESSAGE,
   SESSION_HEARTBEAT_MS,
   validatePasswordComplexity,
-} from '../../shared/auth';
-import { formatRutInput, rutToBackend } from '../../shared/users';
-import { AuditLogView } from './views/AuditLogView';
-import { DailySalesView } from './views/DailySalesView';
-import { DashboardView } from './views/DashboardView';
-import { AttendanceView } from './views/AttendanceView';
-import { CashClosingView } from './views/CashClosingView';
-import { LotCreateView } from './views/LotCreateView';
-import { ProductFormView } from './views/ProductFormView';
-import { ProductDeleteView } from './views/ProductDeleteView';
-import { ProductListView } from './views/ProductListView';
-import { ProductStatusView } from './views/ProductStatusView';
-import { SaleRegisterView } from './views/SaleRegisterView';
-import { ShiftCalendarView } from './views/ShiftCalendarView';
-import { ShiftCreateView } from './views/ShiftCreateView';
-import { UserManagementView } from './views/UserManagementView';
-import { WasteCreateView } from './views/WasteCreateView';
-import { WorkerFormView } from './views/WorkerFormView';
-import { WorkerListView } from './views/WorkerListView';
+} from "../../shared/auth";
+import { formatRutInput, rutToBackend } from "../../shared/users";
+import { AuditLogView } from "./views/AuditLogView";
+import { DailySalesView } from "./views/DailySalesView";
+import { DashboardView } from "./views/DashboardView";
+import { AttendanceView } from "./views/AttendanceView";
+import { CashClosingView } from "./views/CashClosingView";
+import { LotCreateView } from "./views/LotCreateView";
+import { ProductFormView } from "./views/ProductFormView";
+import { ProductDeleteView } from "./views/ProductDeleteView";
+import { ProductListView } from "./views/ProductListView";
+import { ProductStatusView } from "./views/ProductStatusView";
+import { SaleRegisterView } from "./views/SaleRegisterView";
+import { ShiftCalendarView } from "./views/ShiftCalendarView";
+import { ShiftCreateView } from "./views/ShiftCreateView";
+import { UserManagementView } from "./views/UserManagementView";
+import { WasteCreateView } from "./views/WasteCreateView";
+import { WorkerFormView } from "./views/WorkerFormView";
+import { WorkerListView } from "./views/WorkerListView";
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -75,13 +75,8 @@ export function App(): ReactElement {
   const lastRouteAuditKey = useRef<string | null>(null);
   const isAuthenticatedRef = useRef(session.isAuthenticated);
 
-  // Refleja en un ref la autenticación vigente para que el latido pueda
-  // detenerse sin recrear el intervalo en cada render.
   isAuthenticatedRef.current = session.isAuthenticated;
 
-  // Restablece la sesión por expiración/inactividad (RF55, CU56 e4): limpia el
-  // token del preload, vuelve al login y muestra el mensaje exigido. Se usa
-  // tanto desde el latido como desde cualquier push de expiración.
   const expireSession = useRef((): void => {
     window.appApi.setSessionToken(null);
     setSession(defaultSession);
@@ -89,14 +84,18 @@ export function App(): ReactElement {
     navigate(PUBLIC_LOGIN_PATH);
   }).current;
 
-  useEffect(() => window.appApi.onSessionExpired(() => {
-    if (isAuthenticatedRef.current) expireSession();
-  }), [expireSession]);
+  useEffect(
+    () =>
+      window.appApi.onSessionExpired(() => {
+        if (isAuthenticatedRef.current) expireSession();
+      }),
+    [expireSession],
+  );
 
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   useEffect(() => {
@@ -104,24 +103,21 @@ export function App(): ReactElement {
 
     auditRouteAccess(path, session, decision, lastRouteAuditKey);
 
-    if (decision.status !== 'allow') {
+    if (decision.status !== "allow") {
       navigate(decision.to);
       return;
     }
 
-    // Validación de acceso en el proceso principal contra el JWT (RF56/CU57).
-    // El guard cliente (evaluateRouteAccess) da UX instantánea; ésta confirma
-    // con identidad de confianza y redirige al dashboard ante un FORBIDDEN.
-    if (path.startsWith('/app') && session.isAuthenticated) {
+    if (path.startsWith("/app") && session.isAuthenticated) {
       let cancelled = false;
 
       void window.appApi
-        .invoke('access:validate', { ruta: path })
+        .invoke("access:validate", { ruta: path })
         .then((response) => {
           if (
             !cancelled &&
             !response.ok &&
-            response.error.code === 'FORBIDDEN'
+            response.error.code === "FORBIDDEN"
           ) {
             navigate(APP_HOME_PATH);
           }
@@ -136,14 +132,6 @@ export function App(): ReactElement {
     return;
   }, [path, session]);
 
-  // Latido de sesión (RF55, CU56 e4): mientras haya sesión activa, consulta cada
-  // 60 s a auth:verificar-sesion (el preload adjunta el token). Este latido es de
-  // SÓLO LECTURA: sólo CONSULTA si la sesión sigue vigente y NO reinicia el
-  // contador de inactividad. El último acceso lo refresca el dispatcher en cada
-  // IPC de acción real del usuario (todo canal autenticado salvo el propio latido
-  // y el logout). Así, si la app queda abierta sin que el usuario haga nada,
-  // el guard persistente cierra y confirma sesion_usuario tras 30 min, emite el
-  // evento y devuelve el rechazo; cualquiera de esas señales expira la vista.
   useEffect(() => {
     if (!session.isAuthenticated) {
       return;
@@ -155,14 +143,12 @@ export function App(): ReactElement {
       }
 
       void window.appApi
-        .invoke<{ active: boolean }>('auth:verificar-sesion', {})
+        .invoke<{ active: boolean }>("auth:verificar-sesion", {})
         .then((response) => {
           if (!isAuthenticatedRef.current) {
             return;
           }
 
-          // Una respuesta válida con active=false (inactividad/cierre) o un
-          // fallo del canal autenticado significan que la sesión ya no es válida.
           if (!response.ok || !response.data.active) {
             expireSession();
           }
@@ -187,8 +173,6 @@ export function App(): ReactElement {
       token: data.token,
     };
 
-    // Registra el token de sesión en el preload para que se adjunte a cada
-    // invoke posterior y el dispatcher pueda verificar identidad y rol.
     window.appApi.setSessionToken(data.token);
     setNotice(null);
     setSession(nextSession);
@@ -196,11 +180,7 @@ export function App(): ReactElement {
   };
 
   const logout = (): void => {
-    // Cierre manual en la BD (CU56): session.ts marca motivo_cierre='manual' y
-    // fecha_hora_cierre sobre la sesión activa. El sesionId se toma del JWT en el
-    // dispatcher, no de un parámetro del renderer. Se invoca con el token aún
-    // vigente, antes de limpiarlo del preload.
-    void window.appApi.invoke('auth:logout', {}).catch(() => undefined);
+    void window.appApi.invoke("auth:logout", {}).catch(() => undefined);
     window.appApi.setSessionToken(null);
     setSession(defaultSession);
     navigate(PUBLIC_LOGIN_PATH);
@@ -252,8 +232,8 @@ function LoginView({
   notice: string | null;
   onLogin: (data: LoginData) => void;
 }): ReactElement {
-  const [usuario, setUsuario] = useState('');
-  const [contrasena, setContrasena] = useState('');
+  const [usuario, setUsuario] = useState("");
+  const [contrasena, setContrasena] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -264,13 +244,13 @@ function LoginView({
     setError(null);
 
     if (!usuario.trim() || !contrasena) {
-      setError('Ingrese usuario y contraseña.');
+      setError("Ingrese usuario y contraseña.");
       return;
     }
 
     setIsLoading(true);
 
-    const response = await window.appApi.invoke<LoginData>('auth:login', {
+    const response = await window.appApi.invoke<LoginData>("auth:login", {
       usuario: rutToBackend(usuario),
       contrasena,
     });
@@ -311,7 +291,9 @@ function LoginView({
               name="usuario"
               placeholder="RUT (sin puntos)"
               value={usuario}
-              onChange={(event) => setUsuario(formatRutInput(event.target.value))}
+              onChange={(event) =>
+                setUsuario(formatRutInput(event.target.value))
+              }
             />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
@@ -329,7 +311,7 @@ function LoginView({
             disabled={isLoading}
             type="submit"
           >
-            {isLoading ? 'Entrando...' : 'Iniciar sesión'}
+            {isLoading ? "Entrando..." : "Iniciar sesión"}
           </button>
           {error ? (
             <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
@@ -343,8 +325,6 @@ function LoginView({
   );
 }
 
-// Panel visible sólo en `npm run dev:debug` (window.appApi.debugMode): lista los
-// usuarios activos y permite iniciar sesión como cualquiera sin contraseña.
 function DebugLoginPanel({
   onLogin,
 }: {
@@ -358,7 +338,7 @@ function DebugLoginPanel({
     let cancelled = false;
 
     void window.appApi
-      .invoke<DebugUserItem[]>('debug:listar-usuarios', {})
+      .invoke<DebugUserItem[]>("debug:listar-usuarios", {})
       .then((response) => {
         if (cancelled) {
           return;
@@ -371,7 +351,7 @@ function DebugLoginPanel({
       })
       .catch(() => {
         if (!cancelled) {
-          setError('No se pudo cargar la lista de usuarios.');
+          setError("No se pudo cargar la lista de usuarios.");
         }
       });
 
@@ -384,7 +364,7 @@ function DebugLoginPanel({
     setError(null);
     setPendingId(usuarioId);
 
-    const response = await window.appApi.invoke<LoginData>('debug:login-como', {
+    const response = await window.appApi.invoke<LoginData>("debug:login-como", {
       usuarioId,
     });
 
@@ -421,13 +401,15 @@ function DebugLoginPanel({
             onClick={() => void loginAs(user.usuarioId)}
           >
             <span>
-              <span className="font-semibold text-[#24313d]">{user.nombre}</span>
+              <span className="font-semibold text-[#24313d]">
+                {user.nombre}
+              </span>
               <span className="ml-2 text-xs text-[#61717f]">
                 {user.usuarioId} · {user.rol}
               </span>
             </span>
             <span className="text-xs font-semibold text-[#8a5a12]">
-              {pendingId === user.usuarioId ? 'Entrando…' : 'Entrar'}
+              {pendingId === user.usuarioId ? "Entrando…" : "Entrar"}
             </span>
           </button>
         ))}
@@ -445,8 +427,8 @@ function PasswordChangeView({
   onComplete: () => void;
   onLogout: () => void;
 }): ReactElement {
-  const [nueva, setNueva] = useState('');
-  const [confirmacion, setConfirmacion] = useState('');
+  const [nueva, setNueva] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -457,12 +439,12 @@ function PasswordChangeView({
     setError(null);
 
     if (!usuarioId) {
-      setError('No hay una sesión válida para cambiar la contraseña.');
+      setError("No hay una sesión válida para cambiar la contraseña.");
       return;
     }
 
     if (nueva !== confirmacion) {
-      setError('La nueva contraseña y su confirmación no coinciden.');
+      setError("La nueva contraseña y su confirmación no coinciden.");
       return;
     }
 
@@ -470,14 +452,14 @@ function PasswordChangeView({
 
     if (!complejidad.valid) {
       setError(
-        complejidad.message ?? 'La nueva contraseña no cumple los requisitos.',
+        complejidad.message ?? "La nueva contraseña no cumple los requisitos.",
       );
       return;
     }
 
     setIsLoading(true);
 
-    const response = await window.appApi.invoke('auth:cambiar-password', {
+    const response = await window.appApi.invoke("auth:cambiar-password", {
       usuarioId,
       contrasenaNueva: nueva,
     });
@@ -532,7 +514,7 @@ function PasswordChangeView({
             disabled={isLoading}
             type="submit"
           >
-            {isLoading ? 'Guardando...' : 'Cambiar contraseña'}
+            {isLoading ? "Guardando..." : "Cambiar contraseña"}
           </button>
           {error ? (
             <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
@@ -601,8 +583,8 @@ function AppShell({
                     <button
                       className={`rounded-md px-3 py-2 text-left text-sm transition ${
                         currentNode.id === node.id
-                          ? 'bg-[#2d6a4f] text-white'
-                          : 'text-[#dbe3ea] hover:bg-white/10'
+                          ? "bg-[#2d6a4f] text-white"
+                          : "text-[#dbe3ea] hover:bg-white/10"
                       }`}
                       key={node.id}
                       type="button"
@@ -625,7 +607,7 @@ function AppShell({
           <h2 className="text-2xl font-semibold">{currentNode.label}</h2>
           <div className="flex items-center gap-3">
             <span className="rounded-md border border-[#cbd5df] bg-[#f6f7f9] px-3 py-2 text-sm font-semibold text-[#24313d]">
-              {session.displayName ?? 'Sesion'}
+              {session.displayName ?? "Sesion"}
             </span>
             <button
               className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -676,7 +658,7 @@ function useAutoHiddenScrollbar(): {
   };
 
   return {
-    className: isScrolling ? 'is-scrolling' : '',
+    className: isScrolling ? "is-scrolling" : "",
     onScroll,
   };
 }
@@ -692,7 +674,7 @@ function ViewRenderer({
   onNavigate: (path: string) => void;
   session: AppSession;
 }): ReactElement {
-  if (node.id === 'dashboard' && session.role) {
+  if (node.id === "dashboard" && session.role) {
     return (
       <DashboardView
         role={session.role}
@@ -702,7 +684,7 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'lot-create' && session.usuarioId) {
+  if (node.id === "lot-create" && session.usuarioId) {
     return (
       <LotCreateView
         initialEan13={getLotCreateEan13(currentPath)}
@@ -712,11 +694,11 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'sale-register') {
+  if (node.id === "sale-register") {
     return <SaleRegisterView session={session} />;
   }
 
-  if (node.id === 'waste-create' && session.usuarioId) {
+  if (node.id === "waste-create" && session.usuarioId) {
     return (
       <WasteCreateView
         initialEan13={getWasteCreateEan13(currentPath)}
@@ -726,7 +708,7 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'cash-closing') {
+  if (node.id === "cash-closing") {
     return (
       <CashClosingView
         displayName={session.displayName}
@@ -735,15 +717,15 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'attendance' && session.role) {
+  if (node.id === "attendance" && session.role) {
     return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === 'daily-sales' && session.usuarioId) {
+  if (node.id === "daily-sales" && session.usuarioId) {
     return <DailySalesView usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === 'shift-calendar' && session.usuarioId) {
+  if (node.id === "shift-calendar" && session.usuarioId) {
     return (
       <ShiftCalendarView
         onNavigate={onNavigate}
@@ -752,7 +734,7 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'shift-create' && session.usuarioId) {
+  if (node.id === "shift-create" && session.usuarioId) {
     return (
       <ShiftCreateView
         currentPath={currentPath}
@@ -762,7 +744,7 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'product-list' && session.role && session.usuarioId) {
+  if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
         role={session.role}
@@ -773,32 +755,28 @@ function ViewRenderer({
   }
 
   if (
-    (node.id === 'product-create' || node.id === 'product-edit') &&
+    (node.id === "product-create" || node.id === "product-edit") &&
     session.usuarioId
   ) {
     return (
       <ProductFormView
         ean13={getProductEditEan13(currentPath)}
-        mode={node.id === 'product-create' ? 'create' : 'edit'}
+        mode={node.id === "product-create" ? "create" : "edit"}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
       />
     );
   }
 
-  if (node.id === 'user-management' && session.usuarioId) {
-    return (
-      <UserManagementView
-        usuarioId={session.usuarioId}
-      />
-    );
+  if (node.id === "user-management" && session.usuarioId) {
+    return <UserManagementView usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === 'audit-log') {
+  if (node.id === "audit-log") {
     return <AuditLogView usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === 'product-status' && session.usuarioId) {
+  if (node.id === "product-status" && session.usuarioId) {
     return (
       <ProductStatusView
         ean13={getProductStatusEan13(currentPath)}
@@ -808,7 +786,7 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'product-delete' && session.usuarioId) {
+  if (node.id === "product-delete" && session.usuarioId) {
     return (
       <ProductDeleteView
         initialEan13={getProductDeleteEan13(currentPath)}
@@ -818,13 +796,13 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === 'worker-list' && session.usuarioId) {
+  if (node.id === "worker-list" && session.usuarioId) {
     return (
       <WorkerListView usuarioId={session.usuarioId} onNavigate={onNavigate} />
     );
   }
 
-  if (node.id === 'worker-create' && session.usuarioId) {
+  if (node.id === "worker-create" && session.usuarioId) {
     return (
       <WorkerFormView usuarioId={session.usuarioId} onNavigate={onNavigate} />
     );
@@ -833,9 +811,9 @@ function ViewRenderer({
   return <ViewUnavailable />;
 }
 
-export const VIEW_UNAVAILABLE_TITLE = 'Vista no disponible';
+export const VIEW_UNAVAILABLE_TITLE = "Vista no disponible";
 export const VIEW_UNAVAILABLE_MESSAGE =
-  'La vista solicitada no está disponible.';
+  "La vista solicitada no está disponible.";
 
 function ViewUnavailable(): ReactElement {
   return (
@@ -866,16 +844,16 @@ function auditRouteAccess(
   decision: RouteGuardDecision,
   lastRouteAuditKey: { current: string | null },
 ): void {
-  if (!pathname.startsWith('/app') || !session.usuarioId) {
+  if (!pathname.startsWith("/app") || !session.usuarioId) {
     return;
   }
 
-  if (decision.status === 'redirect') {
+  if (decision.status === "redirect") {
     return;
   }
 
   const node = findNavNodeByPath(pathname);
-  const result = decision.status === 'allow' ? 'concedido' : 'denegado';
+  const result = decision.status === "allow" ? "concedido" : "denegado";
   const key = `${session.usuarioId}:${pathname}:${result}`;
 
   if (lastRouteAuditKey.current === key) {
@@ -886,26 +864,26 @@ function auditRouteAccess(
 
   const label = node?.label ?? pathname;
   const moduleLabel = node
-    ? navGroupLabels[node.group].toLocaleLowerCase('es')
-    : 'acceso';
+    ? navGroupLabels[node.group].toLocaleLowerCase("es")
+    : "acceso";
 
   void window.appApi
-    .invoke('auditoria:registrar', {
+    .invoke("auditoria:registrar", {
       descripcion:
-        decision.status === 'allow'
+        decision.status === "allow"
           ? `Acceso concedido a ${label}.`
           : `Acceso denegado a ${label}.`,
       modulo: moduleLabel,
       tipoAccion:
-        decision.status === 'allow' ? 'acceso_concedido' : 'acceso_denegado',
+        decision.status === "allow" ? "acceso_concedido" : "acceso_denegado",
       usuarioId: session.usuarioId,
     })
     .catch(() => undefined);
 }
 
 function getHashPath(): string {
-  const rawPath = window.location.hash.replace(/^#/, '');
-  return rawPath.startsWith('/') ? rawPath : PUBLIC_LOGIN_PATH;
+  const rawPath = window.location.hash.replace(/^#/, "");
+  return rawPath.startsWith("/") ? rawPath : PUBLIC_LOGIN_PATH;
 }
 
 function getProductEditEan13(path: string): string | undefined {
@@ -915,23 +893,23 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
-    'dashboard',
-    'attendance',
-    'cash-closing',
-    'daily-sales',
-    'lot-create',
-    'product-create',
-    'product-edit',
-    'product-delete',
-    'product-list',
-    'product-status',
-    'sale-register',
-    'audit-log',
-    'shift-calendar',
-    'shift-create',
-    'waste-create',
-    'worker-create',
-    'worker-list',
+    "dashboard",
+    "attendance",
+    "cash-closing",
+    "daily-sales",
+    "lot-create",
+    "product-create",
+    "product-edit",
+    "product-delete",
+    "product-list",
+    "product-status",
+    "sale-register",
+    "audit-log",
+    "shift-calendar",
+    "shift-create",
+    "waste-create",
+    "worker-create",
+    "worker-list",
   ].includes(nodeId);
 }
 
@@ -941,22 +919,22 @@ export function getProductStatusEan13(path: string): string | undefined {
 }
 
 export function getLotCreateEan13(path: string): string | undefined {
-  const [, query = ''] = path.split('?');
-  const ean13 = new URLSearchParams(query).get('ean13');
+  const [, query = ""] = path.split("?");
+  const ean13 = new URLSearchParams(query).get("ean13");
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
 }
 
 export function getWasteCreateEan13(path: string): string | undefined {
-  const [, query = ''] = path.split('?');
-  const ean13 = new URLSearchParams(query).get('ean13');
+  const [, query = ""] = path.split("?");
+  const ean13 = new URLSearchParams(query).get("ean13");
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
 }
 
 export function getProductDeleteEan13(path: string): string | undefined {
-  const [, query = ''] = path.split('?');
-  const ean13 = new URLSearchParams(query).get('ean13');
+  const [, query = ""] = path.split("?");
+  const ean13 = new URLSearchParams(query).get("ean13");
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
 }

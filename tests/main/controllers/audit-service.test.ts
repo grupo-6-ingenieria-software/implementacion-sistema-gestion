@@ -1,13 +1,13 @@
-import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
-import { queryAuditLog } from '../../../src/main/controllers/audit-service';
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
+import { queryAuditLog } from "../../../src/main/controllers/audit-service";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -32,12 +32,12 @@ afterAll(async () => {
   testDb = undefined;
 });
 
-describe('queryAuditLog', () => {
-  it('returns recent audit entries in descending order and registers the query', async () => {
+describe("queryAuditLog", () => {
+  it("returns recent audit entries in descending order and registers the query", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
       page: 1,
       pageSize: 2,
-      usuarioId: '12345678-9',
+      usuarioId: "12345678-9",
     });
 
     expect(response.ok).toBe(true);
@@ -48,12 +48,12 @@ describe('queryAuditLog', () => {
 
     expect(response.data.total).toBe(3);
     expect(response.data.entries.map((entry) => entry.tipoAccion)).toEqual([
-      'cerrar_caja',
-      'edicion',
+      "cerrar_caja",
+      "edicion",
     ]);
     expect(response.data.entries.map((entry) => entry.usuarioNombre)).toEqual([
-      'Maria Huascar',
-      'Camila Rojas',
+      "Maria Huascar",
+      "Camila Rojas",
     ]);
 
     const queryRows = await testDb!.db.all<{ count: number }>(sql`
@@ -65,15 +65,15 @@ describe('queryAuditLog', () => {
     expect(Number(queryRows[0].count)).toBe(1);
   });
 
-  it('filters by user, action type and date range', async () => {
+  it("filters by user, action type and date range", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
-      fechaDesde: '2026-06-11',
-      fechaHasta: '2026-06-11',
+      fechaDesde: "2026-06-11",
+      fechaHasta: "2026-06-11",
       page: 1,
       pageSize: 25,
-      tipoAccion: 'edicion',
-      usuarioFiltroId: '23456789-0',
-      usuarioId: '12345678-9',
+      tipoAccion: "edicion",
+      usuarioFiltroId: "23456789-0",
+      usuarioId: "12345678-9",
     });
 
     expect(response.ok).toBe(true);
@@ -84,38 +84,38 @@ describe('queryAuditLog', () => {
 
     expect(response.data.total).toBe(1);
     expect(response.data.entries[0]).toMatchObject({
-      modulo: 'inventario',
-      tipoAccion: 'edicion',
-      usuarioId: '23456789-0',
+      modulo: "inventario",
+      tipoAccion: "edicion",
+      usuarioId: "23456789-0",
     });
   });
 
-  it('rejects invalid date filters', async () => {
+  it("rejects invalid date filters", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
-      fechaDesde: '2026-06-12',
-      fechaHasta: '2026-06-11',
-      usuarioId: '12345678-9',
+      fechaDesde: "2026-06-12",
+      fechaHasta: "2026-06-11",
+      usuarioId: "12345678-9",
     });
 
     expect(response).toMatchObject({
       ok: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        controllerId: 'audit',
+        code: "VALIDATION_ERROR",
+        controllerId: "audit",
       },
     });
   });
 
-  it('denies workers and registers the denied attempt', async () => {
+  it("denies workers and registers the denied attempt", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
-      usuarioId: '23456789-0',
+      usuarioId: "23456789-0",
     });
 
     expect(response).toMatchObject({
       ok: false,
       error: {
-        code: 'FORBIDDEN',
-        controllerId: 'audit',
+        code: "FORBIDDEN",
+        controllerId: "audit",
       },
     });
 
@@ -131,36 +131,30 @@ describe('queryAuditLog', () => {
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-audit-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-audit-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
   const migration = await readFile(
-    join(process.cwd(), 'drizzle/migrations/0000_brave_proteus.sql'),
-    'utf8',
+    join(process.cwd(), "drizzle/migrations/0000_brave_proteus.sql"),
+    "utf8",
   );
 
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    const sqlStatement = statement.trim();
-
-    if (sqlStatement.length > 0) {
-      await client.execute(sqlStatement);
-    }
-  }
+  await client.executeMultiple(migration);
 
   return { client, db, dir };
 }
 
-async function clearAuditFixture(db: TestDatabase['db']): Promise<void> {
+async function clearAuditFixture(db: TestDatabase["db"]): Promise<void> {
   await db.run(sql`DELETE FROM log_auditoria`);
   await db.run(sql`DELETE FROM usuario_version`);
   await db.run(sql`DELETE FROM usuario`);
   await db.run(sql`DELETE FROM trabajador`);
 }
 
-async function seedAuditFixture(db: TestDatabase['db']): Promise<void> {
+async function seedAuditFixture(db: TestDatabase["db"]): Promise<void> {
   await db.run(sql`
     INSERT INTO trabajador (
       trabajador_id,
@@ -214,30 +208,30 @@ async function seedAuditFixture(db: TestDatabase['db']): Promise<void> {
   `);
 
   await insertAuditRow(db, {
-    descripcion: 'Producto registrado',
-    fechaHora: '2026-06-10T09:00:00.000Z',
-    modulo: 'inventario',
-    tipoAccion: 'registro',
-    usuarioVersionId: '00000000-0000-4000-8000-000000000201',
+    descripcion: "Producto registrado",
+    fechaHora: "2026-06-10T09:00:00.000Z",
+    modulo: "inventario",
+    tipoAccion: "registro",
+    usuarioVersionId: "00000000-0000-4000-8000-000000000201",
   });
   await insertAuditRow(db, {
-    descripcion: 'Producto actualizado',
-    fechaHora: '2026-06-11T09:00:00.000Z',
-    modulo: 'inventario',
-    tipoAccion: 'edicion',
-    usuarioVersionId: '00000000-0000-4000-8000-000000000202',
+    descripcion: "Producto actualizado",
+    fechaHora: "2026-06-11T09:00:00.000Z",
+    modulo: "inventario",
+    tipoAccion: "edicion",
+    usuarioVersionId: "00000000-0000-4000-8000-000000000202",
   });
   await insertAuditRow(db, {
-    descripcion: 'Caja cerrada',
-    fechaHora: '2026-06-12T09:00:00.000Z',
-    modulo: 'caja',
-    tipoAccion: 'cerrar_caja',
-    usuarioVersionId: '00000000-0000-4000-8000-000000000201',
+    descripcion: "Caja cerrada",
+    fechaHora: "2026-06-12T09:00:00.000Z",
+    modulo: "caja",
+    tipoAccion: "cerrar_caja",
+    usuarioVersionId: "00000000-0000-4000-8000-000000000201",
   });
 }
 
 async function insertAuditRow(
-  db: TestDatabase['db'],
+  db: TestDatabase["db"],
   input: {
     descripcion: string;
     fechaHora: string;

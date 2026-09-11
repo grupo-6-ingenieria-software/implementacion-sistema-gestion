@@ -1,6 +1,6 @@
 export const defaultAuditLogPageSize = 25;
 export const maxAuditLogPageSize = 100;
-export const auditTimezone = 'America/Santiago';
+export const auditTimezone = "America/Santiago";
 
 export type AuditLogQueryPayload = {
   fechaDesde?: string;
@@ -53,7 +53,7 @@ export type NormalizedAuditLogQuery = {
 
 export type AuditLogFieldErrors = Partial<
   Record<
-    'fechaDesde' | 'fechaHasta' | 'page' | 'pageSize' | 'usuarioId',
+    "fechaDesde" | "fechaHasta" | "page" | "pageSize" | "usuarioId",
     string
   >
 >;
@@ -70,10 +70,10 @@ export class AuditLogValidationError extends Error {
 export function getAuditTimestamp(date = new Date()): string {
   const parts = getChileDateTimeParts(date);
   const offsetMinutes = getChileOffsetMinutes(date);
-  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const sign = offsetMinutes >= 0 ? "+" : "-";
   const absoluteOffset = Math.abs(offsetMinutes);
-  const offsetHours = String(Math.floor(absoluteOffset / 60)).padStart(2, '0');
-  const offsetRemainder = String(absoluteOffset % 60).padStart(2, '0');
+  const offsetHours = String(Math.floor(absoluteOffset / 60)).padStart(2, "0");
+  const offsetRemainder = String(absoluteOffset % 60).padStart(2, "0");
 
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.${parts.millisecond}${sign}${offsetHours}:${offsetRemainder}`;
 }
@@ -82,7 +82,7 @@ export function normalizeAuditLogQueryPayload(
   payload: unknown,
 ): NormalizedAuditLogQuery {
   const input =
-    payload && typeof payload === 'object'
+    payload && typeof payload === "object"
       ? (payload as AuditLogQueryPayload)
       : {};
   const usuarioId = normalizeOptionalText(input.usuarioId);
@@ -95,15 +95,15 @@ export function normalizeAuditLogQueryPayload(
   const fieldErrors: AuditLogFieldErrors = {};
 
   if (!usuarioId) {
-    fieldErrors.usuarioId = 'No hay un usuario autenticado para esta accion.';
+    fieldErrors.usuarioId = "No hay un usuario autenticado para esta accion.";
   }
 
   if (fechaDesde && !isValidDateInput(fechaDesde)) {
-    fieldErrors.fechaDesde = 'Ingrese una fecha desde valida.';
+    fieldErrors.fechaDesde = "Ingrese una fecha desde valida.";
   }
 
   if (fechaHasta && !isValidDateInput(fechaHasta)) {
-    fieldErrors.fechaHasta = 'Ingrese una fecha hasta valida.';
+    fieldErrors.fechaHasta = "Ingrese una fecha hasta valida.";
   }
 
   if (
@@ -114,11 +114,11 @@ export function normalizeAuditLogQueryPayload(
     fechaDesde > fechaHasta
   ) {
     fieldErrors.fechaHasta =
-      'La fecha hasta debe ser igual o posterior a la fecha desde.';
+      "La fecha hasta debe ser igual o posterior a la fecha desde.";
   }
 
   if (!Number.isInteger(page) || page < 1) {
-    fieldErrors.page = 'La pagina solicitada no es valida.';
+    fieldErrors.page = "La pagina solicitada no es valida.";
   }
 
   if (
@@ -131,7 +131,7 @@ export function normalizeAuditLogQueryPayload(
 
   if (Object.keys(fieldErrors).length > 0) {
     throw new AuditLogValidationError(
-      'Revise los filtros antes de consultar el log de auditoria.',
+      "Revise los filtros antes de consultar el log de auditoria.",
       fieldErrors,
     );
   }
@@ -148,11 +148,11 @@ export function normalizeAuditLogQueryPayload(
 }
 
 function normalizeOptionalText(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function normalizeInteger(value: unknown, fallback: number): number {
-  if (value === undefined || value === null || value === '') {
+  if (value === undefined || value === null || value === "") {
     return fallback;
   }
 
@@ -177,27 +177,27 @@ function getChileDateTimeParts(date: Date): {
   second: string;
   year: string;
 } {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    hour: '2-digit',
-    hourCycle: 'h23',
-    minute: '2-digit',
-    month: '2-digit',
-    second: '2-digit',
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
     timeZone: auditTimezone,
-    year: 'numeric',
+    year: "numeric",
   });
   const formatted = Object.fromEntries(
     formatter
       .formatToParts(date)
-      .filter((part) => part.type !== 'literal')
+      .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
   );
 
   return {
     day: formatted.day,
     hour: formatted.hour,
-    millisecond: String(date.getMilliseconds()).padStart(3, '0'),
+    millisecond: String(date.getMilliseconds()).padStart(3, "0"),
     minute: formatted.minute,
     month: formatted.month,
     second: formatted.second,

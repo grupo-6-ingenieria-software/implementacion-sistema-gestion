@@ -220,9 +220,15 @@ describe("waste controller", () => {
     });
     const statements = testDb!.queries.map((query) => query.toLowerCase());
     expect(firstBusinessOperations(statements).slice(0, 10)).toEqual([
-      "select:producto", "select:categoria", "select:lote",
-      "select:lote_perecible", "select:validation", "update:lote",
-      "update:lote", "insert:merma", "insert:merma_lote",
+      "select:producto",
+      "select:categoria",
+      "select:lote",
+      "select:lote_perecible",
+      "select:validation",
+      "update:lote",
+      "update:lote",
+      "insert:merma",
+      "insert:merma_lote",
       "insert:ajuste_inventario",
     ]);
   });
@@ -347,7 +353,14 @@ async function createTestDatabase() {
   const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const queries: string[] = [];
-  const db = drizzle(client, { schema, logger: { logQuery(query) { queries.push(query); } } });
+  const db = drizzle(client, {
+    schema,
+    logger: {
+      logQuery(query) {
+        queries.push(query);
+      },
+    },
+  });
 
   await client.execute("PRAGMA foreign_keys = ON");
   const migrationsDir = join(process.cwd(), "drizzle/migrations");
@@ -358,24 +371,27 @@ async function createTestDatabase() {
   for (const file of migrationFiles) {
     const migration = await readFile(join(migrationsDir, file), "utf8");
 
-    for (const statement of migration.split("--> statement-breakpoint")) {
-      const sqlStatement = statement.trim();
-
-      if (sqlStatement.length > 0) {
-        await client.execute(sqlStatement);
-      }
-    }
+    await client.executeMultiple(migration);
   }
 
   return { client, db, dir, queries };
 }
 
 function firstBusinessOperations(queries: string[]): string[] {
-  const tables = ["lote_perecible", "merma_lote", "ajuste_inventario", "categoria", "producto", "merma", "lote"];
+  const tables = [
+    "lote_perecible",
+    "merma_lote",
+    "ajuste_inventario",
+    "categoria",
+    "producto",
+    "merma",
+    "lote",
+  ];
   return queries.flatMap((query) => {
     const verb = query.trimStart().split(/\s+/, 1)[0];
     const table = tables.find((name) => query.includes(`\"${name}\"`));
-    if (verb === "select" && !query.includes(" from ")) return ["select:validation"];
+    if (verb === "select" && !query.includes(" from "))
+      return ["select:validation"];
     return table ? [`${verb}:${table}`] : [];
   });
 }

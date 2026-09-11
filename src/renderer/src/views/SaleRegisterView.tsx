@@ -5,15 +5,15 @@ import {
   useState,
   type ChangeEvent,
   type ReactElement,
-} from 'react';
-import { CampoEAN13Input, SeccionesPagoVenta } from '../components';
-import { isValidEan13 } from '../../../shared/ean13';
+} from "react";
+import { CampoEAN13Input, SeccionesPagoVenta } from "../components";
+import { isValidEan13 } from "../../../shared/ean13";
 import {
   calculateSaleTotals,
   type DailyCashState,
   type PaymentMethod,
   type SaleCartValidationResult,
-} from '../../../shared/sales';
+} from "../../../shared/sales";
 
 type SessionForSale = {
   usuarioId?: string;
@@ -45,7 +45,7 @@ type SaleReceipt = {
   metodoPago: PaymentMethod;
   subtotal: number;
   descuento: {
-    tipo: 'ninguno' | 'monto';
+    tipo: "ninguno" | "monto";
     valor: number;
     razon?: string;
   };
@@ -70,14 +70,14 @@ type SaleRegisterViewProps = {
 export function SaleRegisterView({
   session,
 }: SaleRegisterViewProps): ReactElement {
-  const [ean13, setEan13] = useState('');
-  const [query, setQuery] = useState('');
+  const [ean13, setEan13] = useState("");
+  const [query, setQuery] = useState("");
   const [products, setProducts] = useState<ActiveProduct[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [metodoPago, setMetodoPago] = useState<PaymentMethod>('efectivo');
-  const [montoRecibido, setMontoRecibido] = useState('');
-  const [descuentoMonto, setDescuentoMonto] = useState('');
-  const [descuentoRazon, setDescuentoRazon] = useState('');
+  const [metodoPago, setMetodoPago] = useState<PaymentMethod>("efectivo");
+  const [montoRecibido, setMontoRecibido] = useState("");
+  const [descuentoMonto, setDescuentoMonto] = useState("");
+  const [descuentoRazon, setDescuentoRazon] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -109,24 +109,30 @@ export function SaleRegisterView({
   }, [session.usuarioId]);
 
   async function checkCash(): Promise<void> {
-    const response = await window.appApi.invoke<DailyCashState>('venta:verificar-caja', {
-      usuarioId: session.usuarioId,
-    });
+    const response = await window.appApi.invoke<DailyCashState>(
+      "venta:verificar-caja",
+      {
+        usuarioId: session.usuarioId,
+      },
+    );
 
     if (!response.ok) {
       setCashAvailable(false);
       setError(response.error.message);
       return;
     }
-    const available = response.data.status !== 'cerrada';
+    const available = response.data.status !== "cerrada";
     setCashAvailable(available);
-    if (!available) setError('La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.');
+    if (!available)
+      setError(
+        "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
+      );
   }
 
   async function loadProducts(search?: string): Promise<void> {
     const requestId = ++productRequestRef.current;
     const response = await window.appApi.invoke<ActiveProduct[]>(
-      'venta:producto',
+      "venta:producto",
       { query: search, limit: 20, usuarioId: session.usuarioId },
     );
 
@@ -144,13 +150,13 @@ export function SaleRegisterView({
     setMessage(null);
 
     if (!isValidEan13(code)) {
-      setError('Ingrese un código EAN-13 válido.');
+      setError("Ingrese un código EAN-13 válido.");
       return;
     }
 
     const requestId = ++productRequestRef.current;
     const response = await window.appApi.invoke<ActiveProduct[]>(
-      'venta:producto',
+      "venta:producto",
       { ean13: code, limit: 1, usuarioId: session.usuarioId },
     );
 
@@ -161,25 +167,27 @@ export function SaleRegisterView({
     }
 
     addToCart(response.data[0]);
-    setEan13('');
+    setEan13("");
   }
 
   function addToCart(product: ActiveProduct): void {
     setReceipt(null);
     const current = pendingCartRef.current ?? cartRef.current;
     const existing = current.find(
-        (item) => item.productoId === product.productoId,
-      );
-    commitCart(!existing
-      ? [...current, { ...product, cantidad: 1 }]
-      : current.map((item) =>
-        item.productoId === product.productoId
-          ? {
-              ...item,
-              cantidad: item.cantidad + 1,
-            }
-          : item,
-      ));
+      (item) => item.productoId === product.productoId,
+    );
+    commitCart(
+      !existing
+        ? [...current, { ...product, cantidad: 1 }]
+        : current.map((item) =>
+            item.productoId === product.productoId
+              ? {
+                  ...item,
+                  cantidad: item.cantidad + 1,
+                }
+              : item,
+          ),
+    );
   }
 
   function updateQuantity(productoId: number, quantity: number): void {
@@ -222,10 +230,17 @@ export function SaleRegisterView({
     setIsCartValid(false);
     setIsValidatingCart(true);
     const response = await window.appApi.invoke<SaleCartValidationResult>(
-      'venta:validar-carrito',
-      { items: next.map(({ productoId, ean13, cantidad }) => ({ productoId, ean13, cantidad })) },
+      "venta:validar-carrito",
+      {
+        items: next.map(({ productoId, ean13, cantidad }) => ({
+          productoId,
+          ean13,
+          cantidad,
+        })),
+      },
     );
-    if (!isLatestSaleRequest(requestId, cartValidationRequestRef.current)) return;
+    if (!isLatestSaleRequest(requestId, cartValidationRequestRef.current))
+      return;
     setIsValidatingCart(false);
     if (!response.ok) {
       setError(response.error.message);
@@ -234,11 +249,17 @@ export function SaleRegisterView({
       setCartRevision((revision) => revision + 1);
       return;
     }
-    const byId = new Map(response.data.lines.map((line) => [line.productoId, line]));
+    const byId = new Map(
+      response.data.lines.map((line) => [line.productoId, line]),
+    );
     const refreshed = next.map((item) => {
       const line = byId.get(item.productoId);
       return line
-        ? { ...item, precioVenta: line.precioUnitario, stockDisponible: line.stockDisponible }
+        ? {
+            ...item,
+            precioVenta: line.precioUnitario,
+            stockDisponible: line.stockDisponible,
+          }
         : item;
     });
     pendingCartRef.current = null;
@@ -254,42 +275,47 @@ export function SaleRegisterView({
     setMessage(null);
 
     if (!session.usuarioId) {
-      setError('No hay un trabajador responsable para registrar la venta.');
+      setError("No hay un trabajador responsable para registrar la venta.");
       return;
     }
 
     if (!cashAvailable) {
-      setError('La caja se encuentra cerrada. No es posible registrar ventas.');
+      setError("La caja se encuentra cerrada. No es posible registrar ventas.");
       return;
     }
 
     if (cart.length === 0) {
-      setError('Agregue al menos un producto al carrito.');
+      setError("Agregue al menos un producto al carrito.");
       return;
     }
 
     setIsSaving(true);
 
-    const response = await window.appApi.invoke<SaleReceipt>('venta:registrar', {
-      usuarioId: session.usuarioId,
-      items: cart.map((item) => ({
-        productoId: item.productoId,
-        ean13: item.ean13,
-        cantidad: item.cantidad,
-      })),
-      metodoPago,
-      montoRecibido:
-        metodoPago === 'efectivo'
-          ? (montoRecibido === '' ? null as never : Number(montoRecibido))
-          : undefined,
-      descuento:
-        descuentoMonto !== ''
-          ? {
-              monto: Number(descuentoMonto),
-              razon: descuentoRazon,
-            }
-          : undefined,
-    });
+    const response = await window.appApi.invoke<SaleReceipt>(
+      "venta:registrar",
+      {
+        usuarioId: session.usuarioId,
+        items: cart.map((item) => ({
+          productoId: item.productoId,
+          ean13: item.ean13,
+          cantidad: item.cantidad,
+        })),
+        metodoPago,
+        montoRecibido:
+          metodoPago === "efectivo"
+            ? montoRecibido === ""
+              ? (null as never)
+              : Number(montoRecibido)
+            : undefined,
+        descuento:
+          descuentoMonto !== ""
+            ? {
+                monto: Number(descuentoMonto),
+                razon: descuentoRazon,
+              }
+            : undefined,
+      },
+    );
 
     setIsSaving(false);
 
@@ -304,9 +330,9 @@ export function SaleRegisterView({
     cartRef.current = [];
     setCart([]);
     setIsCartValid(false);
-    setMontoRecibido('');
-    setDescuentoMonto('');
-    setDescuentoRazon('');
+    setMontoRecibido("");
+    setDescuentoMonto("");
+    setDescuentoRazon("");
     await loadProducts(query);
   }
 
@@ -362,7 +388,10 @@ export function SaleRegisterView({
                 </thead>
                 <tbody>
                   {products.map((product) => (
-                    <tr className="border-t border-[#e1e7ee]" key={product.productoId}>
+                    <tr
+                      className="border-t border-[#e1e7ee]"
+                      key={product.productoId}
+                    >
                       <td className="px-3 py-3">
                         <p className="font-semibold text-[#17202a]">
                           {product.nombre}
@@ -389,7 +418,10 @@ export function SaleRegisterView({
                   ))}
                   {products.length === 0 ? (
                     <tr>
-                      <td className="px-3 py-6 text-center text-[#61717f]" colSpan={4}>
+                      <td
+                        className="px-3 py-6 text-center text-[#61717f]"
+                        colSpan={4}
+                      >
                         No hay productos activos para mostrar.
                       </td>
                     </tr>
@@ -408,9 +440,12 @@ export function SaleRegisterView({
                   key={item.productoId}
                 >
                   <div>
-                    <p className="font-semibold text-[#17202a]">{item.nombre}</p>
+                    <p className="font-semibold text-[#17202a]">
+                      {item.nombre}
+                    </p>
                     <p className="text-xs text-[#61717f]">
-                      {formatCurrency(item.precioVenta)} · Stock {item.stockDisponible}
+                      {formatCurrency(item.precioVenta)} · Stock{" "}
+                      {item.stockDisponible}
                     </p>
                   </div>
                   <CartQuantityInput
@@ -461,7 +496,9 @@ export function SaleRegisterView({
                     <input
                       className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
                       value={descuentoRazon}
-                      onChange={(event) => setDescuentoRazon(event.target.value)}
+                      onChange={(event) =>
+                        setDescuentoRazon(event.target.value)
+                      }
                     />
                   </label>
                 ) : null}
@@ -494,11 +531,13 @@ export function SaleRegisterView({
 
               <button
                 className="rounded-md bg-[#2d6a4f] px-4 py-3 font-semibold text-white transition hover:bg-[#255a43] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSaving || isValidatingCart || !isCartValid || !cashAvailable}
+                disabled={
+                  isSaving || isValidatingCart || !isCartValid || !cashAvailable
+                }
                 type="button"
                 onClick={() => void confirmSale()}
               >
-                {isSaving ? 'Registrando...' : 'Confirmar venta'}
+                {isSaving ? "Registrando..." : "Confirmar venta"}
               </button>
             </div>
           </section>
@@ -529,7 +568,7 @@ function CartQuantityInput({
   }
 
   function handleBlur(): void {
-    onCommit(draft === '' ? Number.NaN : Number(draft));
+    onCommit(draft === "" ? Number.NaN : Number(draft));
   }
 
   return (
@@ -543,7 +582,10 @@ function CartQuantityInput({
   );
 }
 
-export function isLatestSaleRequest(requestId: number, latestRequestId: number): boolean {
+export function isLatestSaleRequest(
+  requestId: number,
+  latestRequestId: number,
+): boolean {
   return requestId === latestRequestId;
 }
 
@@ -558,10 +600,16 @@ function SummaryLine({
 }): ReactElement {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className={strong ? 'font-semibold text-[#17202a]' : 'text-[#61717f]'}>
+      <dt
+        className={strong ? "font-semibold text-[#17202a]" : "text-[#61717f]"}
+      >
         {label}
       </dt>
-      <dd className={strong ? 'text-xl font-semibold text-[#17202a]' : 'font-semibold'}>
+      <dd
+        className={
+          strong ? "text-xl font-semibold text-[#17202a]" : "font-semibold"
+        }
+      >
         {formatCurrency(value)}
       </dd>
     </div>
@@ -574,7 +622,10 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
       <h3 className="text-lg font-semibold text-[#17202a]">Comprobante</h3>
       <dl className="mt-4 grid gap-2 text-sm">
         <Info label="Venta" value={receipt.ventaId} />
-        <Info label="Fecha" value={new Date(receipt.fechaHora).toLocaleString('es-CL')} />
+        <Info
+          label="Fecha"
+          value={new Date(receipt.fechaHora).toLocaleString("es-CL")}
+        />
         <Info label="Responsable" value={receipt.responsable.nombre} />
         <Info label="Método" value={receipt.metodoPago} />
       </dl>
@@ -586,7 +637,7 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
           >
             <p className="font-semibold text-[#17202a]">{line.nombre}</p>
             <p className="text-[#61717f]">
-              {line.cantidad} x {formatCurrency(line.precioUnitario)} ={' '}
+              {line.cantidad} x {formatCurrency(line.precioUnitario)} ={" "}
               {formatCurrency(line.subtotal)}
             </p>
           </div>
@@ -607,19 +658,27 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase text-[#61717f]">{label}</dt>
+      <dt className="text-xs font-semibold uppercase text-[#61717f]">
+        {label}
+      </dt>
       <dd className="mt-1 font-medium text-[#24313d]">{value}</dd>
     </div>
   );
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     maximumFractionDigits: 0,
   }).format(value);
 }

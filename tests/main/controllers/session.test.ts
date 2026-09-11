@@ -1,21 +1,21 @@
-import { sql } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   closeSessionWithExecutor,
   refreshSessionActivity,
   verifySessionWithExecutor,
   type SessionDeps,
-} from '../../../src/main/controllers/session';
+} from "../../../src/main/controllers/session";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from '../../../src/main/controllers/auth-fixtures';
+} from "../../../src/main/controllers/auth-fixtures";
 
-const NOW = new Date('2026-06-13T12:00:00.000Z');
-const SESSION_ID = '00000000-0000-4000-8000-000000000777';
+const NOW = new Date("2026-06-13T12:00:00.000Z");
+const SESSION_ID = "00000000-0000-4000-8000-000000000777";
 
 const deps: SessionDeps = { now: () => NOW };
 
@@ -24,10 +24,10 @@ let testDb: AuthTestDatabase | undefined;
 beforeEach(async () => {
   testDb = await createAuthTestDatabase();
   await seedUser(testDb.db, {
-    usuarioId: '12345678-9',
+    usuarioId: "12345678-9",
     trabajadorId: 1,
-    rut: '12345678-9',
-    rolBd: 'dueno',
+    rut: "12345678-9",
+    rolBd: "dueno",
   });
 });
 
@@ -50,12 +50,12 @@ async function seedSession(ultimoAccesoMinutesAgo: number): Promise<void> {
     sesionUsuarioId: SESSION_ID,
     sesionFechaHoraInicio: ultimoAcceso,
     sesionFechaHoraUltimoAcceso: ultimoAcceso,
-    usuarioId: '12345678-9',
+    usuarioId: "12345678-9",
   });
 }
 
-describe('verifySessionWithExecutor (RF55)', () => {
-  it('reports a missing sesionId (no trusted claims) as inactive', async () => {
+describe("verifySessionWithExecutor (RF55)", () => {
+  it("reports a missing sesionId (no trusted claims) as inactive", async () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
@@ -65,11 +65,14 @@ describe('verifySessionWithExecutor (RF55)', () => {
 
     expect(response.ok).toBe(true);
     if (response.ok) {
-      expect(response.data).toEqual({ active: false, reason: 'token-invalido' });
+      expect(response.data).toEqual({
+        active: false,
+        reason: "token-invalido",
+      });
     }
   });
 
-  it('reports a missing session as inactive', async () => {
+  it("reports a missing session as inactive", async () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
@@ -79,14 +82,11 @@ describe('verifySessionWithExecutor (RF55)', () => {
 
     expect(response.ok).toBe(true);
     if (response.ok) {
-      expect(response.data.reason).toBe('sesion-inexistente');
+      expect(response.data.reason).toBe("sesion-inexistente");
     }
   });
 
-  it('keeps an active session WITHOUT refreshing the last access time (read-only heartbeat)', async () => {
-    // El latido (auth:verificar-sesion) es de sólo lectura: confirma vigencia
-    // pero NO reinicia el contador de inactividad. Así la inactividad se acumula
-    // mientras el usuario no realice ninguna acción real.
+  it("keeps an active session WITHOUT refreshing the last access time (read-only heartbeat)", async () => {
     await seedSession(5);
     const ultimoAccesoOriginal = new Date(
       NOW.getTime() - 5 * 60_000,
@@ -112,7 +112,7 @@ describe('verifySessionWithExecutor (RF55)', () => {
     expect(rows[0]?.ultimo).not.toBe(NOW.toISOString());
   });
 
-  it('expires after 30 minutes even if heartbeats keep firing (heartbeat never resets inactivity)', async () => {
+  it("expires after 30 minutes even if heartbeats keep firing (heartbeat never resets inactivity)", async () => {
     // Sesión con 25 min de inactividad: varios latidos seguidos NO la mantienen
     // viva; al cruzar los 30 min se cierra por inactividad.
     await seedSession(25);
@@ -120,25 +120,35 @@ describe('verifySessionWithExecutor (RF55)', () => {
     // Latidos a 27 y 29 min: ninguno refresca el último acceso.
     for (const minutes of [27, 29]) {
       const at = new Date(NOW.getTime() + (minutes - 25) * 60_000);
-      const beat = await verifySessionWithExecutor(testDb!.db, schema, SESSION_ID, {
-        now: () => at,
-      });
+      const beat = await verifySessionWithExecutor(
+        testDb!.db,
+        schema,
+        SESSION_ID,
+        {
+          now: () => at,
+        },
+      );
       expect(beat.ok && beat.data.active).toBe(true);
     }
 
     // A los 31 min sin acciones reales, el latido detecta y cierra por inactividad.
     const at31 = new Date(NOW.getTime() + 6 * 60_000);
-    const expired = await verifySessionWithExecutor(testDb!.db, schema, SESSION_ID, {
-      now: () => at31,
-    });
+    const expired = await verifySessionWithExecutor(
+      testDb!.db,
+      schema,
+      SESSION_ID,
+      {
+        now: () => at31,
+      },
+    );
 
     expect(expired.ok).toBe(true);
     if (expired.ok) {
-      expect(expired.data).toEqual({ active: false, reason: 'inactividad' });
+      expect(expired.data).toEqual({ active: false, reason: "inactividad" });
     }
   });
 
-  it('closes a session after 30 minutes of inactivity', async () => {
+  it("closes a session after 30 minutes of inactivity", async () => {
     await seedSession(31);
 
     const response = await verifySessionWithExecutor(
@@ -150,18 +160,18 @@ describe('verifySessionWithExecutor (RF55)', () => {
 
     expect(response.ok).toBe(true);
     if (response.ok) {
-      expect(response.data).toEqual({ active: false, reason: 'inactividad' });
+      expect(response.data).toEqual({ active: false, reason: "inactividad" });
     }
 
     const rows = await testDb!.db.all<{ motivo: string | null }>(
       sql`SELECT sesion_motivo_cierre AS motivo FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
     );
-    expect(rows[0]?.motivo).toBe('inactividad');
+    expect(rows[0]?.motivo).toBe("inactividad");
   });
 });
 
-describe('closeSessionWithExecutor (CU56 logout)', () => {
-  it('closes the active session as manual using the sesionId from claims', async () => {
+describe("closeSessionWithExecutor (CU56 logout)", () => {
+  it("closes the active session as manual using the sesionId from claims", async () => {
     await seedSession(2);
 
     const response = await closeSessionWithExecutor(
@@ -182,11 +192,11 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
     }>(
       sql`SELECT sesion_motivo_cierre AS motivo, sesion_fecha_hora_cierre AS cierre FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
     );
-    expect(rows[0]?.motivo).toBe('manual');
+    expect(rows[0]?.motivo).toBe("manual");
     expect(rows[0]?.cierre).toBe(NOW.toISOString());
   });
 
-  it('reports no closure when there is no sesionId in the trusted claims', async () => {
+  it("reports no closure when there is no sesionId in the trusted claims", async () => {
     await seedSession(2);
 
     const response = await closeSessionWithExecutor(
@@ -207,15 +217,10 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
     expect(rows[0]?.cierre ?? null).toBeNull();
   });
 
-  it('is idempotent: a second logout does not alter the already closed row', async () => {
+  it("is idempotent: a second logout does not alter the already closed row", async () => {
     await seedSession(2);
 
-    await closeSessionWithExecutor(
-      testDb!.db,
-      schema,
-      SESSION_ID,
-      deps,
-    );
+    await closeSessionWithExecutor(testDb!.db, schema, SESSION_ID, deps);
 
     const second = await closeSessionWithExecutor(
       testDb!.db,
@@ -237,8 +242,8 @@ describe('closeSessionWithExecutor (CU56 logout)', () => {
   });
 });
 
-describe('refreshSessionActivity (actividad real del usuario, RF55)', () => {
-  it('refreshes the last access time for an open session', async () => {
+describe("refreshSessionActivity (actividad real del usuario, RF55)", () => {
+  it("refreshes the last access time for an open session", async () => {
     // 5 min de inactividad previa; una acción real la lleva a NOW.
     await seedSession(5);
 
@@ -250,7 +255,7 @@ describe('refreshSessionActivity (actividad real del usuario, RF55)', () => {
     expect(rows[0]?.ultimo).toBe(NOW.toISOString());
   });
 
-  it('does nothing when there is no sesionId', async () => {
+  it("does nothing when there is no sesionId", async () => {
     await seedSession(5);
     const ultimoAccesoOriginal = new Date(
       NOW.getTime() - 5 * 60_000,
@@ -264,7 +269,7 @@ describe('refreshSessionActivity (actividad real del usuario, RF55)', () => {
     expect(rows[0]?.ultimo).toBe(ultimoAccesoOriginal);
   });
 
-  it('does NOT revive a session already closed (cierre IS NOT NULL)', async () => {
+  it("does NOT revive a session already closed (cierre IS NOT NULL)", async () => {
     // Sesión cerrada por inactividad: una acción posterior no debe reabrirla ni
     // mover su último acceso.
     await seedSession(5);
@@ -278,7 +283,10 @@ describe('refreshSessionActivity (actividad real del usuario, RF55)', () => {
       now: () => new Date(NOW.getTime() + 60_000),
     });
 
-    const rows = await testDb!.db.all<{ ultimo: string; cierre: string | null }>(
+    const rows = await testDb!.db.all<{
+      ultimo: string;
+      cierre: string | null;
+    }>(
       sql`SELECT sesion_fecha_hora_ultimo_acceso AS ultimo, sesion_fecha_hora_cierre AS cierre FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
     );
     // La fila sigue cerrada y su último acceso no se movió.

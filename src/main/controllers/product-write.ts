@@ -260,7 +260,9 @@ async function ensureCategoryExists(
   const [category] = await tx
     .select({ id: schema.categoria.categoriaId })
     .from(schema.categoria)
-    .where(sql`${schema.categoria.categoriaId} = ${numericSqlValue(categoriaId)}`)
+    .where(
+      sql`${schema.categoria.categoriaId} = ${numericSqlValue(categoriaId)}`,
+    )
     .limit(1);
 
   if (!category) {

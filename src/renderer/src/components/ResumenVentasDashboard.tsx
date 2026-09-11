@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactElement } from "react";
 
 type ResumenVentasDashboardProps = {
   total: number;
@@ -54,9 +54,9 @@ export function ResumenVentasDashboard({
 }
 
 function formatClp(value: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     maximumFractionDigits: 0,
   }).format(value);
 }

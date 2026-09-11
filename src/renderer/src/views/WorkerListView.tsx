@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   normalizeUserFormPayload,
   validateUserFormValues,
@@ -9,7 +9,7 @@ import {
   type UserMutationResponse,
   type UserRole,
   type UserStatus,
-} from '../../../shared/users';
+} from "../../../shared/users";
 
 type WorkerListViewProps = {
   usuarioId: string;
@@ -21,7 +21,7 @@ type EditState = UserFormValues & {
 };
 
 function roleLabel(role: UserRole): string {
-  return role === 'dueno' ? 'Dueño' : 'Trabajador';
+  return role === "dueno" ? "Dueño" : "Trabajador";
 }
 
 export function WorkerListView({
@@ -29,9 +29,9 @@ export function WorkerListView({
   usuarioId,
 }: WorkerListViewProps): ReactElement {
   const [workers, setWorkers] = useState<UserListItem[]>([]);
-  const [search, setSearch] = useState('');
-  const [rol, setRol] = useState<UserRole | 'todos'>('todos');
-  const [estado, setEstado] = useState<UserStatus | 'todos'>('todos');
+  const [search, setSearch] = useState("");
+  const [rol, setRol] = useState<UserRole | "todos">("todos");
+  const [estado, setEstado] = useState<UserStatus | "todos">("todos");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function WorkerListView({
       setError(null);
 
       const response = await window.appApi.invoke<UserListResponse>(
-        'trabajador:listar',
+        "trabajador:listar",
         payload,
       );
 
@@ -82,7 +82,7 @@ export function WorkerListView({
       }
 
       setWorkers([]);
-      setError('No fue posible cargar los trabajadores. Intente nuevamente.');
+      setError("No fue posible cargar los trabajadores. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -100,7 +100,7 @@ export function WorkerListView({
       nombreCompleto: worker.nombreCompleto,
       rol: worker.rol,
       telefono: worker.telefono,
-      correoElectronico: worker.correoElectronico ?? '',
+      correoElectronico: worker.correoElectronico ?? "",
     });
   }
 
@@ -121,7 +121,7 @@ export function WorkerListView({
     setSaving(true);
 
     const response = await window.appApi.invoke<UserMutationResponse>(
-      'trabajador:actualizar',
+      "trabajador:actualizar",
       {
         ...parsed,
         rut: editing.originalRut,
@@ -138,12 +138,12 @@ export function WorkerListView({
     }
 
     setEditing(null);
-    setMessage('Trabajador actualizado correctamente.');
+    setMessage("Trabajador actualizado correctamente.");
     setReloadKey((current) => current + 1);
   }
 
   async function changeStatus(worker: UserListItem): Promise<void> {
-    const nextStatus = worker.estado === 'activo' ? 'inactivo' : 'activo';
+    const nextStatus = worker.estado === "activo" ? "inactivo" : "activo";
     const confirmed = window.confirm(
       `Confirmar cambio de estado de ${worker.nombreCompleto} a ${nextStatus}.`,
     );
@@ -156,7 +156,7 @@ export function WorkerListView({
     setMessage(null);
 
     const response = await window.appApi.invoke<UserMutationResponse>(
-      'trabajador:cambiar-estado',
+      "trabajador:cambiar-estado",
       {
         estado: nextStatus,
         usuarioId,
@@ -192,14 +192,14 @@ export function WorkerListView({
           <button
             className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
             type="button"
-            onClick={() => onNavigate('/app/personal/turnos')}
+            onClick={() => onNavigate("/app/personal/turnos")}
           >
             Turnos
           </button>
           <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
             type="button"
-            onClick={() => onNavigate('/app/personal/trabajadores/nuevo')}
+            onClick={() => onNavigate("/app/personal/trabajadores/nuevo")}
           >
             Registrar trabajador
           </button>
@@ -223,12 +223,12 @@ export function WorkerListView({
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={rol}
               onChange={(event) =>
-                setRol(event.target.value as UserRole | 'todos')
+                setRol(event.target.value as UserRole | "todos")
               }
             >
               <option value="todos">Todos</option>
-              <option value="dueno">{roleLabel('dueno')}</option>
-              <option value="trabajador">{roleLabel('trabajador')}</option>
+              <option value="dueno">{roleLabel("dueno")}</option>
+              <option value="trabajador">{roleLabel("trabajador")}</option>
             </select>
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
@@ -237,7 +237,7 @@ export function WorkerListView({
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={estado}
               onChange={(event) =>
-                setEstado(event.target.value as UserStatus | 'todos')
+                setEstado(event.target.value as UserStatus | "todos")
               }
             >
               <option value="todos">Todos</option>
@@ -281,7 +281,7 @@ export function WorkerListView({
         <div className="flex items-center justify-between border-b border-[#e3e8ee] px-5 py-4">
           <p className="text-sm font-semibold text-[#24313d]">
             {loading
-              ? 'Cargando trabajadores...'
+              ? "Cargando trabajadores..."
               : `${workers.length} trabajadores`}
           </p>
         </div>
@@ -353,7 +353,7 @@ export function WorkerListView({
                           type="button"
                           onClick={() => void changeStatus(worker)}
                         >
-                          {worker.estado === 'activo' ? 'Inactivar' : 'Activar'}
+                          {worker.estado === "activo" ? "Inactivar" : "Activar"}
                         </button>
                       </div>
                     </td>
@@ -427,12 +427,12 @@ function EditPanel({
             onChange={(event) =>
               onChange({
                 ...editing,
-                rol: event.target.value === 'dueno' ? 'dueno' : 'trabajador',
+                rol: event.target.value === "dueno" ? "dueno" : "trabajador",
               })
             }
           >
-            <option value="trabajador">{roleLabel('trabajador')}</option>
-            <option value="dueno">{roleLabel('dueno')}</option>
+            <option value="trabajador">{roleLabel("trabajador")}</option>
+            <option value="dueno">{roleLabel("dueno")}</option>
           </select>
         </Field>
         <Field label="Telefono" error={errors.telefono}>
@@ -444,7 +444,7 @@ function EditPanel({
             onChange={(event) =>
               onChange({
                 ...editing,
-                telefono: event.target.value.replace(/\D/g, ''),
+                telefono: event.target.value.replace(/\D/g, ""),
               })
             }
           />
@@ -454,7 +454,7 @@ function EditPanel({
             className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
             maxLength={50}
             type="email"
-            value={editing.correoElectronico ?? ''}
+            value={editing.correoElectronico ?? ""}
             onChange={(event) =>
               onChange({ ...editing, correoElectronico: event.target.value })
             }
@@ -469,7 +469,7 @@ function EditPanel({
           type="button"
           onClick={onSave}
         >
-          {saving ? 'Guardando...' : 'Guardar cambios'}
+          {saving ? "Guardando..." : "Guardar cambios"}
         </button>
         <button
           className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -502,15 +502,15 @@ function Field({
 }
 
 function StatusBadge({ status }: { status: UserStatus }): ReactElement {
-  const active = status === 'activo';
+  const active = status === "activo";
 
   return (
     <span
       className={`rounded-md px-2 py-1 text-xs font-semibold ${
-        active ? 'bg-[#e8f3ed] text-[#2d6a4f]' : 'bg-[#f0f3f6] text-[#61717f]'
+        active ? "bg-[#e8f3ed] text-[#2d6a4f]" : "bg-[#f0f3f6] text-[#61717f]"
       }`}
     >
-      {active ? 'Activo' : 'Inactivo'}
+      {active ? "Activo" : "Inactivo"}
     </span>
   );
 }
@@ -541,7 +541,7 @@ function ListMessage({
 }
 
 function formatDate(value: string): string {
-  const [year, month, day] = value.split('-');
+  const [year, month, day] = value.split("-");
 
   if (!year || !month || !day) {
     return value;

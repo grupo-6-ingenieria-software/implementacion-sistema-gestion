@@ -1,38 +1,30 @@
-/**
- * PasswordHandler — Cambio y restablecimiento de contraseña (RF55, RF58, CU56b).
- *
- * Canales:
- *  - auth:cambiar-password      Cambio obligatorio/voluntario por el propio usuario.
- *  - auth:restablecer-password  El dueño genera una temporal de 24h para otro usuario.
- */
-
-import { randomInt } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
-import { controllers, type ControllerResponse } from '../../shared/controllers';
+import { randomInt } from "node:crypto";
+import { desc, eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { controllers, type ControllerResponse } from "../../shared/controllers";
 import {
   TEMP_PASSWORD_LENGTH,
   TEMP_PASSWORD_MS,
   validatePasswordComplexity,
-} from '../../shared/auth';
-import { db, schema as appSchema } from '../../db/client';
+} from "../../shared/auth";
+import { db, schema as appSchema } from "../../db/client";
 import {
   controllerError,
   controllerSuccess,
   type RegisteredController,
-} from './base';
+} from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
+} from "./auth-context";
 
-type SchemaLike = typeof import('../../db/schema');
-type PasswordExecutor = Pick<typeof db, 'select' | 'insert'>;
-type TempPasswordExecutor = Pick<typeof db, 'insert'>;
+type SchemaLike = typeof import("../../db/schema");
+type PasswordExecutor = Pick<typeof db, "select" | "insert">;
+type TempPasswordExecutor = Pick<typeof db, "insert">;
 
 const TEMP_PASSWORD_ALPHABET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 export type PasswordDeps = {
   hashPassword: (plain: string) => Promise<string>;
@@ -48,12 +40,6 @@ export const defaultDeps: PasswordDeps = {
   now: () => new Date(),
 };
 
-/**
- * Genera y persiste una contraseña temporal de 24h (contrasena + contrasena_temporal)
- * para `usuarioId`, dejando registro de quién la generó. Devuelve la contraseña en
- * texto plano para mostrarla una sola vez. Reutilizable dentro de una transacción
- * (alta de trabajador) o con la conexión directa (restablecimiento por el dueño).
- */
 export async function createTemporaryPasswordRecord(
   executor: TempPasswordExecutor,
   schema: SchemaLike,
@@ -105,22 +91,22 @@ export async function changePasswordWithExecutor(
   const input = payload as ChangePasswordPayload | null;
   const usuarioId = normalizeText(input?.usuarioId);
   const actual =
-    typeof input?.contrasenaActual === 'string' ? input.contrasenaActual : '';
+    typeof input?.contrasenaActual === "string" ? input.contrasenaActual : "";
   const nueva =
-    typeof input?.contrasenaNueva === 'string' ? input.contrasenaNueva : '';
+    typeof input?.contrasenaNueva === "string" ? input.contrasenaNueva : "";
 
   if (!usuarioId || !nueva) {
     return controllerError(
-      'VALIDATION_ERROR',
-      'Ingrese la nueva contraseña.',
-      'password',
+      "VALIDATION_ERROR",
+      "Ingrese la nueva contraseña.",
+      "password",
     );
   }
 
   try {
     const user = await authorizeUser(database, schema, usuarioId, [
-      'dueno',
-      'trabajador',
+      "dueno",
+      "trabajador",
     ]);
 
     const [vigente] = await database
@@ -135,31 +121,31 @@ export async function changePasswordWithExecutor(
 
     if (!vigente) {
       return controllerError(
-        'NOT_FOUND',
-        'El usuario no tiene una contraseña registrada.',
-        'password',
+        "NOT_FOUND",
+        "El usuario no tiene una contraseña registrada.",
+        "password",
       );
     }
 
-    // En el cambio obligatorio tras login con contraseña temporal el usuario ya
-    // demostró conocerla al autenticarse, así que no se vuelve a pedir la actual.
-    // Solo el cambio voluntario (contraseña definitiva vigente) la exige.
     if (!vigente.esContrasenaTemporal) {
       if (!actual) {
         return controllerError(
-          'VALIDATION_ERROR',
-          'Ingrese la contraseña actual y la nueva contraseña.',
-          'password',
+          "VALIDATION_ERROR",
+          "Ingrese la contraseña actual y la nueva contraseña.",
+          "password",
         );
       }
 
-      const actualOk = await deps.comparePassword(actual, vigente.contrasenaHash);
+      const actualOk = await deps.comparePassword(
+        actual,
+        vigente.contrasenaHash,
+      );
 
       if (!actualOk) {
         return controllerError(
-          'VALIDATION_ERROR',
-          'La contraseña actual es incorrecta.',
-          'password',
+          "VALIDATION_ERROR",
+          "La contraseña actual es incorrecta.",
+          "password",
         );
       }
     }
@@ -168,9 +154,9 @@ export async function changePasswordWithExecutor(
 
     if (!complexity.valid) {
       return controllerError(
-        'VALIDATION_ERROR',
-        complexity.message ?? 'La nueva contraseña no cumple los requisitos.',
-        'password',
+        "VALIDATION_ERROR",
+        complexity.message ?? "La nueva contraseña no cumple los requisitos.",
+        "password",
       );
     }
 
@@ -181,9 +167,9 @@ export async function changePasswordWithExecutor(
 
     if (sameAsCurrent) {
       return controllerError(
-        'BUSINESS_RULE',
-        'La nueva contraseña debe ser distinta de la actual.',
-        'password',
+        "BUSINESS_RULE",
+        "La nueva contraseña debe ser distinta de la actual.",
+        "password",
       );
     }
 
@@ -200,8 +186,8 @@ export async function changePasswordWithExecutor(
 
     await registerAuditLog(database, schema, {
       descripcion: `Cambio de contraseña de ${user.trabajadorNombre}.`,
-      modulo: 'autenticacion',
-      tipoAccion: 'cambio_password',
+      modulo: "autenticacion",
+      tipoAccion: "cambio_password",
       usuarioId: user.usuarioId,
     });
 
@@ -225,16 +211,16 @@ export async function resetPasswordWithExecutor(
 
   if (!solicitanteId || !objetivoId) {
     return controllerError(
-      'VALIDATION_ERROR',
-      'Seleccione el usuario al que desea restablecer la contraseña.',
-      'password',
+      "VALIDATION_ERROR",
+      "Seleccione el usuario al que desea restablecer la contraseña.",
+      "password",
     );
   }
 
   try {
     // Solo el dueño puede restablecer contraseñas de otros usuarios (RF58).
     const solicitante = await authorizeUser(database, schema, solicitanteId, [
-      'dueno',
+      "dueno",
     ]);
 
     const [objetivo] = await database
@@ -245,9 +231,9 @@ export async function resetPasswordWithExecutor(
 
     if (!objetivo) {
       return controllerError(
-        'NOT_FOUND',
-        'El usuario seleccionado no existe.',
-        'password',
+        "NOT_FOUND",
+        "El usuario seleccionado no existe.",
+        "password",
       );
     }
 
@@ -263,8 +249,8 @@ export async function resetPasswordWithExecutor(
 
     await registerAuditLog(database, schema, {
       descripcion: `Restablecimiento de contraseña para el usuario ${objetivo.usuarioId}.`,
-      modulo: 'administracion',
-      tipoAccion: 'restablecer_password',
+      modulo: "administracion",
+      tipoAccion: "restablecer_password",
       usuarioId: solicitante.usuarioId,
     });
 
@@ -278,7 +264,7 @@ export async function resetPasswordWithExecutor(
 }
 
 export function generateTemporaryPassword(): string {
-  let result = '';
+  let result = "";
 
   for (let index = 0; index < TEMP_PASSWORD_LENGTH; index += 1) {
     result += TEMP_PASSWORD_ALPHABET[randomInt(TEMP_PASSWORD_ALPHABET.length)];
@@ -289,18 +275,18 @@ export function generateTemporaryPassword(): string {
 
 function mapPasswordError(error: unknown): ControllerResponse<never> {
   if (error instanceof AccessDeniedError) {
-    return controllerError('FORBIDDEN', error.message, 'password');
+    return controllerError("FORBIDDEN", error.message, "password");
   }
 
   return controllerError(
-    'DATABASE_ERROR',
-    'No fue posible procesar la contraseña. Intente nuevamente.',
-    'password',
+    "DATABASE_ERROR",
+    "No fue posible procesar la contraseña. Intente nuevamente.",
+    "password",
   );
 }
 
 function normalizeText(value: unknown): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : '';
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
 export function createPasswordController(
@@ -311,18 +297,18 @@ export function createPasswordController(
   return {
     metadata: controllers[1],
     handle: async (payload, context) => {
-      if (context.channel === 'auth:cambiar-password') {
+      if (context.channel === "auth:cambiar-password") {
         return changePasswordWithExecutor(db, appSchema, payload, resolved);
       }
 
-      if (context.channel === 'auth:restablecer-password') {
+      if (context.channel === "auth:restablecer-password") {
         return resetPasswordWithExecutor(db, appSchema, payload, resolved);
       }
 
       return controllerError(
-        'INVALID_CHANNEL',
+        "INVALID_CHANNEL",
         `Canal IPC no registrado: ${context.channel}`,
-        'password',
+        "password",
       );
     },
   };

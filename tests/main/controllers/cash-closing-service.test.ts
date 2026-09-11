@@ -1,27 +1,27 @@
-import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   CashClosingBusinessError,
   CashClosingValidationError,
   closeCashRegister,
   getCashClosingSummary,
-} from '../../../src/main/controllers/cash-closing-service';
+} from "../../../src/main/controllers/cash-closing-service";
 import {
   registerSale,
   type DbExecutor,
-} from '../../../src/main/controllers/sale-service';
+} from "../../../src/main/controllers/sale-service";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
 let testDb: TestDatabase | undefined;
-const now = new Date('2026-06-12T20:30:00.000Z');
+const now = new Date("2026-06-12T20:30:00.000Z");
 
 beforeEach(async () => {
   testDb = await createTestDatabase();
@@ -38,17 +38,17 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('cash closing service', () => {
-  it('loads a daily summary for an open cash register', async () => {
+describe("cash closing service", () => {
+  it("loads a daily summary for an open cash register", async () => {
     await seedSales(testDb!.db as unknown as DbExecutor);
 
     const summary = await getCashClosingSummary(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9' },
+      { usuarioId: "12345678-9" },
       now,
     );
 
-    expect(summary.status).toBe('abierta');
+    expect(summary.status).toBe("abierta");
     expect(summary.currentAmount).toBe(5000);
     expect(summary.currentTransactions).toBe(2);
     expect(summary.voidedAmount).toBe(1000);
@@ -58,16 +58,19 @@ describe('cash closing service', () => {
     expect(summary.payments.credito.voidedAmount).toBe(1000);
   });
 
-  it('does not close when confirmation is cancelled', async () => {
+  it("does not close when confirmation is cancelled", async () => {
     await expect(
       closeCashRegister(
         testDb!.db as unknown as DbExecutor,
-        { confirmacion: false, usuarioId: '12345678-9' },
+        { confirmacion: false, usuarioId: "12345678-9" },
         now,
       ),
     ).rejects.toBeInstanceOf(CashClosingValidationError);
 
-    const rows = await testDb!.db.all<{ status: string; closedAt: string | null }>(
+    const rows = await testDb!.db.all<{
+      status: string;
+      closedAt: string | null;
+    }>(
       sql`
         SELECT cierre_estado AS status, cierre_fecha_hora_fin AS closedAt
         FROM cierre_caja
@@ -78,22 +81,22 @@ describe('cash closing service', () => {
       sql`SELECT COUNT(*) AS count FROM log_auditoria`,
     );
 
-    expect(rows[0]).toEqual({ status: 'abierto', closedAt: null });
+    expect(rows[0]).toEqual({ status: "abierto", closedAt: null });
     expect(Number(auditRows[0].count)).toBe(0);
   });
 
-  it('closes the open cash register and registers audit data', async () => {
+  it("closes the open cash register and registers audit data", async () => {
     await seedSales(testDb!.db as unknown as DbExecutor);
 
     const result = await closeCashRegister(
       testDb!.db as unknown as DbExecutor,
-      { confirmacion: true, usuarioId: '12345678-9' },
+      { confirmacion: true, usuarioId: "12345678-9" },
       now,
     );
 
-    expect(result.status).toBe('cerrada');
+    expect(result.status).toBe("cerrada");
     expect(result.closedAt).toBe(now.toISOString());
-    expect(result.closedBy.usuarioId).toBe('12345678-9');
+    expect(result.closedBy.usuarioId).toBe("12345678-9");
     expect(result.currentAmount).toBe(5000);
 
     const rows = await testDb!.db.all<{
@@ -116,23 +119,23 @@ describe('cash closing service', () => {
 
     expect(rows[0]).toEqual({
       closedAt: now.toISOString(),
-      closedBy: '12345678-9',
-      status: 'cerrado',
+      closedBy: "12345678-9",
+      status: "cerrado",
     });
     expect(Number(auditRows[0].count)).toBe(1);
   });
 
-  it('blocks a second close when the cash register is already closed', async () => {
+  it("blocks a second close when the cash register is already closed", async () => {
     await closeCashRegister(
       testDb!.db as unknown as DbExecutor,
-      { confirmacion: true, usuarioId: '12345678-9' },
+      { confirmacion: true, usuarioId: "12345678-9" },
       now,
     );
 
     await expect(
       closeCashRegister(
         testDb!.db as unknown as DbExecutor,
-        { confirmacion: true, usuarioId: '12345678-9' },
+        { confirmacion: true, usuarioId: "12345678-9" },
         now,
       ),
     ).rejects.toBeInstanceOf(CashClosingBusinessError);
@@ -146,13 +149,13 @@ describe('cash closing service', () => {
     await expect(
       getCashClosingSummary(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9' },
+        { usuarioId: "12345678-9" },
         now,
       ),
     ).rejects.toBeInstanceOf(CashClosingBusinessError);
   });
 
-  it('abre una caja nueva para ventas del día siguiente al cierre', async () => {
+  it("abre una caja nueva para ventas del día siguiente al cierre", async () => {
     const before = await testDb!.db.all<{ cierreCajaId: string }>(
       sql`SELECT cierre_caja_id AS cierreCajaId FROM cierre_caja WHERE cierre_estado = 'abierto'`,
     );
@@ -161,20 +164,19 @@ describe('cash closing service', () => {
 
     await closeCashRegister(
       testDb!.db as unknown as DbExecutor,
-      { confirmacion: true, usuarioId: '12345678-9' },
+      { confirmacion: true, usuarioId: "12345678-9" },
       now,
     );
 
-    // Tras el cierre la venta ya no queda bloqueada: se abre una caja nueva.
     const receipt = await registerSale(
       testDb!.db as unknown as DbExecutor,
       {
-        usuarioId: '12345678-9',
-        metodoPago: 'efectivo',
+        usuarioId: "12345678-9",
+        metodoPago: "efectivo",
         montoRecibido: 2000,
         items: [{ productoId: 1, cantidad: 1 }],
       },
-      new Date('2026-06-13T12:00:00.000Z'),
+      new Date("2026-06-13T12:00:00.000Z"),
     );
     expect(receipt.total).toBe(1000);
 
@@ -187,12 +189,12 @@ describe('cash closing service', () => {
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-cash-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-cash-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
   await applyMigrations(client);
 
   return { client, db, dir };
@@ -311,18 +313,18 @@ async function seedCashClosingFixture(db: DbExecutor): Promise<void> {
 async function seedSales(db: DbExecutor): Promise<void> {
   await insertSale(db, {
     cantidad: 2,
-    metodoPago: 'efectivo',
-    ventaId: '00000000-0000-4000-8000-000000000401',
+    metodoPago: "efectivo",
+    ventaId: "00000000-0000-4000-8000-000000000401",
   });
   await insertSale(db, {
     cantidad: 3,
-    metodoPago: 'debito',
-    ventaId: '00000000-0000-4000-8000-000000000402',
+    metodoPago: "debito",
+    ventaId: "00000000-0000-4000-8000-000000000402",
   });
   await insertSale(db, {
     cantidad: 1,
-    metodoPago: 'credito',
-    ventaId: '00000000-0000-4000-8000-000000000403',
+    metodoPago: "credito",
+    ventaId: "00000000-0000-4000-8000-000000000403",
   });
 
   await db.run(sql`
@@ -353,11 +355,11 @@ async function insertSale(
   db: DbExecutor,
   input: {
     cantidad: number;
-    metodoPago: 'efectivo' | 'debito' | 'credito' | 'transferencia';
+    metodoPago: "efectivo" | "debito" | "credito" | "transferencia";
     ventaId: string;
   },
 ): Promise<void> {
-  const esEfectivo = input.metodoPago === 'efectivo';
+  const esEfectivo = input.metodoPago === "efectivo";
 
   await db.run(sql`
     INSERT INTO venta (
@@ -405,21 +407,15 @@ async function insertSale(
 async function applyMigrations(
   client: ReturnType<typeof createClient>,
 ): Promise<void> {
-  const migrationsDir = join(process.cwd(), 'drizzle/migrations');
+  const migrationsDir = join(process.cwd(), "drizzle/migrations");
   const migrationFiles = (await readdir(migrationsDir))
-    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of migrationFiles) {
-    const migration = await readFile(join(migrationsDir, file), 'utf8');
+    const migration = await readFile(join(migrationsDir, file), "utf8");
 
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      const sqlStatement = statement.trim();
-
-      if (sqlStatement.length > 0) {
-        await client.execute(sqlStatement);
-      }
-    }
+    await client.executeMultiple(migration);
   }
 }
 

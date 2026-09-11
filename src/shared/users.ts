@@ -1,5 +1,5 @@
-export type UserRole = 'dueno' | 'trabajador';
-export type UserStatus = 'activo' | 'inactivo';
+export type UserRole = "dueno" | "trabajador";
+export type UserStatus = "activo" | "inactivo";
 
 export type UserListItem = {
   usuarioId: string;
@@ -23,15 +23,15 @@ export type UserFormValues = {
 };
 
 export type UserFieldErrors = Partial<
-  Record<'correoElectronico' | 'nombreCompleto' | 'rol' | 'rut' | 'telefono', string>
+  Record<
+    "correoElectronico" | "nombreCompleto" | "rol" | "rut" | "telefono",
+    string
+  >
 >;
 
 export type UserMutationResponse = {
   usuarioId: string;
-  /**
-   * Contraseña temporal de 24h generada al registrar un trabajador. Solo se
-   * envía en el alta y se muestra una única vez; ausente en actualizaciones.
-   */
+
   contrasenaTemporal?: string;
 };
 
@@ -47,15 +47,15 @@ export type UserPasswordResetRequestPayload = {
 };
 
 export type UserPasswordResetRequestResponse = {
-  estado: 'completado';
+  estado: "completado";
   contrasenaTemporal: string;
   usuarioObjetivoId: string;
 };
 
-export type UserRoleFilter = UserRole | 'todos';
-export type UserStatusFilter = UserStatus | 'todos';
-export type UserSortBy = 'nombreCompleto' | 'rol' | 'estado' | 'fechaIngreso';
-export type UserSortDirection = 'asc' | 'desc';
+export type UserRoleFilter = UserRole | "todos";
+export type UserStatusFilter = UserStatus | "todos";
+export type UserSortBy = "nombreCompleto" | "rol" | "estado" | "fechaIngreso";
+export type UserSortDirection = "asc" | "desc";
 
 export type UserListFilters = {
   search?: string;
@@ -70,36 +70,38 @@ export type UserListResponse = {
 };
 
 export const defaultUserListFilters: UserListFilters = {
-  rol: 'todos',
-  estado: 'todos',
-  sortBy: 'nombreCompleto',
-  sortDirection: 'asc',
+  rol: "todos",
+  estado: "todos",
+  sortBy: "nombreCompleto",
+  sortDirection: "asc",
 };
 
 export function normalizeUserFormPayload(payload: unknown): UserFormValues {
   const record =
-    typeof payload === 'object' && payload !== null
+    typeof payload === "object" && payload !== null
       ? (payload as Record<string, unknown>)
       : {};
-  const rol = normalizeUserRole(record.rol) ?? 'trabajador';
+  const rol = normalizeUserRole(record.rol) ?? "trabajador";
 
   return {
     correoElectronico:
-      typeof record.correoElectronico === 'string'
+      typeof record.correoElectronico === "string"
         ? record.correoElectronico.trim()
         : undefined,
     nombreCompleto:
-      typeof record.nombreCompleto === 'string'
+      typeof record.nombreCompleto === "string"
         ? normalizeWhitespace(record.nombreCompleto)
-        : '',
+        : "",
     rol,
-    rut: typeof record.rut === 'string' ? normalizeRut(record.rut) : '',
+    rut: typeof record.rut === "string" ? normalizeRut(record.rut) : "",
     telefono:
-      typeof record.telefono === 'string'
-        ? record.telefono.replace(/\D/g, '')
-        : '',
+      typeof record.telefono === "string"
+        ? record.telefono.replace(/\D/g, "")
+        : "",
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
   };
 }
 
@@ -107,18 +109,20 @@ export function normalizeUserStatusChangePayload(
   payload: unknown,
 ): UserStatusChangePayload {
   const record =
-    typeof payload === 'object' && payload !== null
+    typeof payload === "object" && payload !== null
       ? (payload as Record<string, unknown>)
       : {};
 
   return {
-    estado: record.estado === 'inactivo' ? 'inactivo' : 'activo',
+    estado: record.estado === "inactivo" ? "inactivo" : "activo",
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
     usuarioObjetivoId:
-      typeof record.usuarioObjetivoId === 'string'
+      typeof record.usuarioObjetivoId === "string"
         ? record.usuarioObjetivoId.trim()
-        : '',
+        : "",
   };
 }
 
@@ -126,17 +130,19 @@ export function normalizeUserPasswordResetPayload(
   payload: unknown,
 ): UserPasswordResetRequestPayload {
   const record =
-    typeof payload === 'object' && payload !== null
+    typeof payload === "object" && payload !== null
       ? (payload as Record<string, unknown>)
       : {};
 
   return {
     usuarioId:
-      typeof record.usuarioId === 'string' ? record.usuarioId.trim() : undefined,
+      typeof record.usuarioId === "string"
+        ? record.usuarioId.trim()
+        : undefined,
     usuarioObjetivoId:
-      typeof record.usuarioObjetivoId === 'string'
+      typeof record.usuarioObjetivoId === "string"
         ? record.usuarioObjetivoId.trim()
-        : '',
+        : "",
   };
 }
 
@@ -147,32 +153,33 @@ export function validateUserFormValues(
   const errors: UserFieldErrors = {};
 
   if (!values.rut) {
-    errors.rut = 'Ingrese el RUT del trabajador.';
+    errors.rut = "Ingrese el RUT del trabajador.";
   } else if (options.validateRutFormat !== false && !isValidRut(values.rut)) {
-    errors.rut = 'Ingrese un RUT valido.';
+    errors.rut = "Ingrese un RUT valido.";
   }
 
   if (!values.nombreCompleto) {
-    errors.nombreCompleto = 'Ingrese el nombre completo.';
+    errors.nombreCompleto = "Ingrese el nombre completo.";
   } else if (values.nombreCompleto.length > 100) {
-    errors.nombreCompleto = 'El nombre completo no puede superar 100 caracteres.';
+    errors.nombreCompleto =
+      "El nombre completo no puede superar 100 caracteres.";
   }
 
-  if (values.rol !== 'dueno' && values.rol !== 'trabajador') {
-    errors.rol = 'Seleccione un rol valido.';
+  if (values.rol !== "dueno" && values.rol !== "trabajador") {
+    errors.rol = "Seleccione un rol valido.";
   }
 
   if (!values.telefono) {
-    errors.telefono = 'Ingrese el telefono de contacto.';
+    errors.telefono = "Ingrese el telefono de contacto.";
   } else if (!/^\d{9}$/.test(values.telefono)) {
-    errors.telefono = 'El telefono debe tener 9 digitos numericos.';
+    errors.telefono = "El telefono debe tener 9 digitos numericos.";
   }
 
   if (
     values.correoElectronico &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(values.correoElectronico)
   ) {
-    errors.correoElectronico = 'Ingrese un correo electronico valido.';
+    errors.correoElectronico = "Ingrese un correo electronico valido.";
   }
 
   return errors;
@@ -183,7 +190,7 @@ export function hasUserFieldErrors(errors: UserFieldErrors): boolean {
 }
 
 export function normalizeUserListPayload(payload: unknown): UserListFilters {
-  if (typeof payload !== 'object' || payload === null) {
+  if (typeof payload !== "object" || payload === null) {
     return defaultUserListFilters;
   }
 
@@ -194,7 +201,8 @@ export function normalizeUserListPayload(payload: unknown): UserListFilters {
   const sortDirection = normalizeSortDirection(record.sortDirection);
 
   return {
-    search: typeof record.search === 'string' ? record.search.trim() : undefined,
+    search:
+      typeof record.search === "string" ? record.search.trim() : undefined,
     rol,
     estado,
     sortBy,
@@ -208,13 +216,13 @@ export function filterAndSortUserList(
 ): UserListItem[] {
   const search = normalizeSearch(filters.search);
   const filtered = users.filter((user) => {
-    if (filters.rol && filters.rol !== 'todos' && user.rol !== filters.rol) {
+    if (filters.rol && filters.rol !== "todos" && user.rol !== filters.rol) {
       return false;
     }
 
     if (
       filters.estado &&
-      filters.estado !== 'todos' &&
+      filters.estado !== "todos" &&
       user.estado !== filters.estado
     ) {
       return false;
@@ -229,51 +237,45 @@ export function filterAndSortUserList(
       user.rut,
       user.nombreCompleto,
       user.telefono,
-      user.correoElectronico ?? '',
+      user.correoElectronico ?? "",
     ].some((value) => normalizeSearch(value).includes(search));
   });
 
   return filtered.sort((left, right) => {
-    const direction = filters.sortDirection === 'desc' ? -1 : 1;
+    const direction = filters.sortDirection === "desc" ? -1 : 1;
     const leftValue = getSortValue(left, filters.sortBy);
     const rightValue = getSortValue(right, filters.sortBy);
 
-    return leftValue.localeCompare(rightValue, 'es') * direction;
+    return leftValue.localeCompare(rightValue, "es") * direction;
   });
 }
 
 export function normalizeUserRole(value: unknown): UserRole | null {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
 
   const normalized = normalizeSearch(value);
 
-  if (normalized.includes('duen')) {
-    return 'dueno';
+  if (normalized.includes("duen")) {
+    return "dueno";
   }
 
   if (
-    normalized === 'trabajador' ||
-    normalized === 'cajero' ||
-    normalized === 'reponedor'
+    normalized === "trabajador" ||
+    normalized === "cajero" ||
+    normalized === "reponedor"
   ) {
-    return 'trabajador';
+    return "trabajador";
   }
 
   return null;
 }
 
 export function normalizeRut(value: string): string {
-  return value.replace(/\./g, '').replace(/\s/g, '').toUpperCase();
+  return value.replace(/\./g, "").replace(/\s/g, "").toUpperCase();
 }
 
-/**
- * Formatea dinámicamente un RUT mientras se escribe: conserva solo los dígitos
- * y el dígito verificador (0-9 o K) e inserta el guion automáticamente antes
- * del último carácter. Cualquier guion que ingrese el usuario se ignora; el
- * guion se gestiona solo y se reubica a medida que se escribe.
- */
 export function formatRutInput(value: string): string {
   const clean = rutToBackend(value);
 
@@ -291,46 +293,46 @@ export function formatRutInput(value: string): string {
 export function rutToBackend(value: string): string {
   return value
     .toUpperCase()
-    .replace(/[^0-9K]/g, '')
+    .replace(/[^0-9K]/g, "")
     .slice(0, 9);
 }
 
 export function formatRoleLabel(role: UserRole): string {
-  return role === 'dueno' ? 'Dueño' : 'Trabajador';
+  return role === "dueno" ? "Dueño" : "Trabajador";
 }
 
 function normalizeRoleFilter(value: unknown): UserRoleFilter {
-  if (value === 'todos' || value === undefined) {
-    return 'todos';
+  if (value === "todos" || value === undefined) {
+    return "todos";
   }
 
-  return normalizeUserRole(value) ?? 'todos';
+  return normalizeUserRole(value) ?? "todos";
 }
 
 function normalizeStatusFilter(value: unknown): UserStatusFilter {
-  return value === 'activo' || value === 'inactivo' ? value : 'todos';
+  return value === "activo" || value === "inactivo" ? value : "todos";
 }
 
 function normalizeSortBy(value: unknown): UserSortBy {
-  return value === 'rol' || value === 'estado' || value === 'fechaIngreso'
+  return value === "rol" || value === "estado" || value === "fechaIngreso"
     ? value
-    : 'nombreCompleto';
+    : "nombreCompleto";
 }
 
 function normalizeSortDirection(value: unknown): UserSortDirection {
-  return value === 'desc' ? 'desc' : 'asc';
+  return value === "desc" ? "desc" : "asc";
 }
 
 function getSortValue(user: UserListItem, sortBy: UserSortBy): string {
-  if (sortBy === 'rol') {
+  if (sortBy === "rol") {
     return user.rol;
   }
 
-  if (sortBy === 'estado') {
+  if (sortBy === "estado") {
     return user.estado;
   }
 
-  if (sortBy === 'fechaIngreso') {
+  if (sortBy === "fechaIngreso") {
     return user.fechaIngreso;
   }
 
@@ -338,19 +340,19 @@ function getSortValue(user: UserListItem, sortBy: UserSortBy): string {
 }
 
 function normalizeSearch(value: string | undefined): string {
-  return (value ?? '')
-    .toLocaleLowerCase('es')
-    .replace(/\u00e3\u00b1/g, 'n')
-    .replace(/\u00e3\u0192\u00c2\u00b1/g, 'n')
-    .replace(/\u00c3\u00b1/g, 'n')
-    .replace(/\u00c3\u0192\u00c2\u00b1/g, 'n')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return (value ?? "")
+    .toLocaleLowerCase("es")
+    .replace(/\u00e3\u00b1/g, "n")
+    .replace(/\u00e3\u0192\u00c2\u00b1/g, "n")
+    .replace(/\u00c3\u00b1/g, "n")
+    .replace(/\u00c3\u0192\u00c2\u00b1/g, "n")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim();
 }
 
 function normalizeWhitespace(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function isValidRut(value: string): boolean {
@@ -372,7 +374,7 @@ function isValidRut(value: string): boolean {
 
   const remainder = 11 - (sum % 11);
   const expected =
-    remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
+    remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
 
   return expected === checkDigit;
 }

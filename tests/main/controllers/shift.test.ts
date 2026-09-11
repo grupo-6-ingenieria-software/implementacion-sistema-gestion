@@ -1,12 +1,12 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   ShiftAccessError,
   ShiftBusinessError,
@@ -14,16 +14,16 @@ import {
   deleteShift,
   editShift,
   listShifts,
-} from '../../../src/main/controllers/shift';
-import { registerAttendanceEntry } from '../../../src/main/controllers/attendance-service';
-import type { DbExecutor } from '../../../src/main/controllers/sale-service';
+} from "../../../src/main/controllers/shift";
+import { registerAttendanceEntry } from "../../../src/main/controllers/attendance-service";
+import type { DbExecutor } from "../../../src/main/controllers/sale-service";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
 let testDb: TestDatabase | undefined;
 const ownerActor = {
-  role: 'dueno' as const,
-  usuarioId: '12345678-9',
+  role: "dueno" as const,
+  usuarioId: "12345678-9",
 };
 
 beforeEach(async () => {
@@ -41,14 +41,18 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('shift service', () => {
-  it('creates a shift for an active worker and audits it', async () => {
-    const result = await createShift(testDb!.db as unknown as DbExecutor, {
-      trabajadorId: 2,
-      fecha: '15/06/2026',
-      horaInicio: '08:00',
-      horaTermino: '16:00',
-    }, ownerActor);
+describe("shift service", () => {
+  it("creates a shift for an active worker and audits it", async () => {
+    const result = await createShift(
+      testDb!.db as unknown as DbExecutor,
+      {
+        trabajadorId: 2,
+        fecha: "15/06/2026",
+        horaInicio: "08:00",
+        horaTermino: "16:00",
+      },
+      ownerActor,
+    );
     const rows = await testDb!.db.all<{
       count: number;
       estado: string;
@@ -64,154 +68,189 @@ describe('shift service', () => {
 
     expect(rows[0]).toMatchObject({
       count: 1,
-      estado: 'planificado',
-      inicioAt: '2026-06-15T12:00:00.000Z',
+      estado: "planificado",
+      inicioAt: "2026-06-15T12:00:00.000Z",
     });
   });
 
-  it('rejects non-owner actors and inactive workers', async () => {
+  it("rejects non-owner actors and inactive workers", async () => {
     await expect(
-      createShift(testDb!.db as unknown as DbExecutor, {
-        trabajadorId: 2,
-        fecha: '15/06/2026',
-        horaInicio: '08:00',
-        horaTermino: '16:00',
-      }, {
-        role: 'dueno',
-        usuarioId: '',
-      }),
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 2,
+          fecha: "15/06/2026",
+          horaInicio: "08:00",
+          horaTermino: "16:00",
+        },
+        {
+          role: "dueno",
+          usuarioId: "",
+        },
+      ),
     ).rejects.toBeInstanceOf(ShiftAccessError);
 
     await expect(
-      createShift(testDb!.db as unknown as DbExecutor, {
-        trabajadorId: 3,
-        fecha: '15/06/2026',
-        horaInicio: '08:00',
-        horaTermino: '16:00',
-      }, ownerActor),
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 3,
+          fecha: "15/06/2026",
+          horaInicio: "08:00",
+          horaTermino: "16:00",
+        },
+        ownerActor,
+      ),
     ).rejects.toMatchObject({
       fieldErrors: {
-        trabajadorId: 'Seleccione un trabajador activo.',
+        trabajadorId: "Seleccione un trabajador activo.",
       },
     });
   });
 
-  it('rejects overlaps and accepts contiguous shifts', async () => {
-    await createShift(testDb!.db as unknown as DbExecutor, {
-      trabajadorId: 2,
-      fecha: '15/06/2026',
-      horaInicio: '08:00',
-      horaTermino: '12:00',
-    }, ownerActor);
+  it("rejects overlaps and accepts contiguous shifts", async () => {
+    await createShift(
+      testDb!.db as unknown as DbExecutor,
+      {
+        trabajadorId: 2,
+        fecha: "15/06/2026",
+        horaInicio: "08:00",
+        horaTermino: "12:00",
+      },
+      ownerActor,
+    );
 
     await expect(
-      createShift(testDb!.db as unknown as DbExecutor, {
-        trabajadorId: 2,
-        fecha: '15/06/2026',
-        horaInicio: '11:00',
-        horaTermino: '13:00',
-      }, ownerActor),
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 2,
+          fecha: "15/06/2026",
+          horaInicio: "11:00",
+          horaTermino: "13:00",
+        },
+        ownerActor,
+      ),
     ).rejects.toBeInstanceOf(ShiftBusinessError);
 
     await expect(
-      createShift(testDb!.db as unknown as DbExecutor, {
-        trabajadorId: 2,
-        fecha: '15/06/2026',
-        horaInicio: '12:00',
-        horaTermino: '16:00',
-      }, ownerActor),
-    ).resolves.toHaveProperty('turnoId');
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 2,
+          fecha: "15/06/2026",
+          horaInicio: "12:00",
+          horaTermino: "16:00",
+        },
+        ownerActor,
+      ),
+    ).resolves.toHaveProperty("turnoId");
   });
 
-  it('validates date, time and ordering through the SQL-backed create flow', async () => {
-    await expect(createShift(testDb!.db as unknown as DbExecutor, {
-      trabajadorId: 2,
-      fecha: '31/02/2026',
-      horaInicio: '25:00',
-      horaTermino: '07:00',
-    }, ownerActor)).rejects.toMatchObject({
+  it("validates date, time and ordering through the SQL-backed create flow", async () => {
+    await expect(
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 2,
+          fecha: "31/02/2026",
+          horaInicio: "25:00",
+          horaTermino: "07:00",
+        },
+        ownerActor,
+      ),
+    ).rejects.toMatchObject({
       fieldErrors: {
-        fecha: 'Ingrese la fecha en formato DD/MM/AAAA.',
-        horaInicio: 'Ingrese la hora de inicio en formato HH:MM.',
+        fecha: "Ingrese la fecha en formato DD/MM/AAAA.",
+        horaInicio: "Ingrese la hora de inicio en formato HH:MM.",
       },
     });
 
-    await expect(createShift(testDb!.db as unknown as DbExecutor, {
-      trabajadorId: 2,
-      fecha: '15/06/2026',
-      horaInicio: '16:00',
-      horaTermino: '08:00',
-    }, ownerActor)).rejects.toMatchObject({
+    await expect(
+      createShift(
+        testDb!.db as unknown as DbExecutor,
+        {
+          trabajadorId: 2,
+          fecha: "15/06/2026",
+          horaInicio: "16:00",
+          horaTermino: "08:00",
+        },
+        ownerActor,
+      ),
+    ).rejects.toMatchObject({
       fieldErrors: {
-        horaTermino: 'La hora de termino debe ser posterior a la hora de inicio.',
+        horaTermino:
+          "La hora de termino debe ser posterior a la hora de inicio.",
       },
     });
 
-    const [{ total }] = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM turno`);
+    const [{ total }] = await testDb!.db.all<{ total: number }>(
+      sql`SELECT COUNT(*) AS total FROM turno`,
+    );
     expect(Number(total)).toBe(0);
   });
 
-  it('lists only the selected week and worker', async () => {
+  it("lists only the selected week and worker", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, {
-      turnoId: '00000000-0000-4000-8000-000000000101',
+      turnoId: "00000000-0000-4000-8000-000000000101",
       trabajadorId: 2,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T20:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T20:00:00.000Z",
     });
     await seedShift(testDb!.db as unknown as DbExecutor, {
-      turnoId: '00000000-0000-4000-8000-000000000102',
+      turnoId: "00000000-0000-4000-8000-000000000102",
       trabajadorId: 4,
-      inicioAt: '2026-06-16T12:00:00.000Z',
-      terminoAt: '2026-06-16T20:00:00.000Z',
+      inicioAt: "2026-06-16T12:00:00.000Z",
+      terminoAt: "2026-06-16T20:00:00.000Z",
     });
     await seedShift(testDb!.db as unknown as DbExecutor, {
-      turnoId: '00000000-0000-4000-8000-000000000103',
+      turnoId: "00000000-0000-4000-8000-000000000103",
       trabajadorId: 2,
-      inicioAt: '2026-06-22T12:00:00.000Z',
-      terminoAt: '2026-06-22T20:00:00.000Z',
+      inicioAt: "2026-06-22T12:00:00.000Z",
+      terminoAt: "2026-06-22T20:00:00.000Z",
     });
 
     const result = await listShifts(
       testDb!.db as unknown as DbExecutor,
       {
-        inicioSemana: '2026-06-15',
+        inicioSemana: "2026-06-15",
         trabajadorId: 2,
       },
       ownerActor,
-      new Date('2026-06-13T12:00:00.000Z'),
+      new Date("2026-06-13T12:00:00.000Z"),
     );
 
     expect(result.turnos.map((turno) => turno.turnoId)).toEqual([
-      '00000000-0000-4000-8000-000000000101',
+      "00000000-0000-4000-8000-000000000101",
     ]);
     expect(result.turnos[0]).toMatchObject({
-      fecha: '15/06/2026',
-      horaInicio: '08:00',
-      horaTermino: '16:00',
+      fecha: "15/06/2026",
+      horaInicio: "08:00",
+      horaTermino: "16:00",
       puedeModificar: true,
     });
-    expect(result.turnos[0]).not.toHaveProperty('trabajadorRut');
+    expect(result.turnos[0]).not.toHaveProperty("trabajadorRut");
   });
 
-  it('edits a future shift without conflicting with itself', async () => {
-    const turnoId = '00000000-0000-4000-8000-000000000104';
+  it("edits a future shift without conflicting with itself", async () => {
+    const turnoId = "00000000-0000-4000-8000-000000000104";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
       trabajadorId: 2,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T20:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T20:00:00.000Z",
     });
 
     await editShift(
       testDb!.db as unknown as DbExecutor,
       {
         turnoId,
-        fecha: '16/06/2026',
-        horaInicio: '09:00',
-        horaTermino: '17:00',
+        fecha: "16/06/2026",
+        horaInicio: "09:00",
+        horaTermino: "17:00",
       },
       ownerActor,
-      new Date('2026-06-13T12:00:00.000Z'),
+      new Date("2026-06-13T12:00:00.000Z"),
     );
     const rows = await testDb!.db.all<{ inicioAt: string; audits: number }>(sql`
       SELECT
@@ -222,24 +261,24 @@ describe('shift service', () => {
     `);
 
     expect(rows[0]).toEqual({
-      inicioAt: '2026-06-16T13:00:00.000Z',
+      inicioAt: "2026-06-16T13:00:00.000Z",
       audits: 1,
     });
   });
 
-  it('rejects an edit that conflicts with another shift', async () => {
-    const editedId = '00000000-0000-4000-8000-000000000108';
+  it("rejects an edit that conflicts with another shift", async () => {
+    const editedId = "00000000-0000-4000-8000-000000000108";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: editedId,
       trabajadorId: 2,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T16:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T16:00:00.000Z",
     });
     await seedShift(testDb!.db as unknown as DbExecutor, {
-      turnoId: '00000000-0000-4000-8000-000000000109',
+      turnoId: "00000000-0000-4000-8000-000000000109",
       trabajadorId: 2,
-      inicioAt: '2026-06-15T18:00:00.000Z',
-      terminoAt: '2026-06-15T22:00:00.000Z',
+      inicioAt: "2026-06-15T18:00:00.000Z",
+      terminoAt: "2026-06-15T22:00:00.000Z",
     });
 
     await expect(
@@ -247,45 +286,45 @@ describe('shift service', () => {
         testDb!.db as unknown as DbExecutor,
         {
           turnoId: editedId,
-          fecha: '15/06/2026',
-          horaInicio: '13:00',
-          horaTermino: '15:00',
+          fecha: "15/06/2026",
+          horaInicio: "13:00",
+          horaTermino: "15:00",
         },
         ownerActor,
-        new Date('2026-06-13T12:00:00.000Z'),
+        new Date("2026-06-13T12:00:00.000Z"),
       ),
     ).rejects.toBeInstanceOf(ShiftBusinessError);
   });
 
-  it('returns an empty calendar without modifying data', async () => {
+  it("returns an empty calendar without modifying data", async () => {
     const result = await listShifts(
       testDb!.db as unknown as DbExecutor,
-      { inicioSemana: '2026-06-15' },
+      { inicioSemana: "2026-06-15" },
       ownerActor,
-      new Date('2026-06-13T12:00:00.000Z'),
+      new Date("2026-06-13T12:00:00.000Z"),
     );
 
     expect(result).toEqual({
-      inicioSemana: '2026-06-15',
-      finSemana: '2026-06-21',
+      inicioSemana: "2026-06-15",
+      finSemana: "2026-06-21",
       turnos: [],
     });
   });
 
-  it('blocks edits and deletes after start or with attendance', async () => {
-    const startedId = '00000000-0000-4000-8000-000000000105';
-    const attendedId = '00000000-0000-4000-8000-000000000106';
+  it("blocks edits and deletes after start or with attendance", async () => {
+    const startedId = "00000000-0000-4000-8000-000000000105";
+    const attendedId = "00000000-0000-4000-8000-000000000106";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: startedId,
       trabajadorId: 2,
-      inicioAt: '2026-06-12T12:00:00.000Z',
-      terminoAt: '2026-06-12T20:00:00.000Z',
+      inicioAt: "2026-06-12T12:00:00.000Z",
+      terminoAt: "2026-06-12T20:00:00.000Z",
     });
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: attendedId,
       trabajadorId: 4,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T20:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T20:00:00.000Z",
     });
     await seedAttendance(testDb!.db as unknown as DbExecutor, attendedId, 4);
 
@@ -294,12 +333,12 @@ describe('shift service', () => {
         testDb!.db as unknown as DbExecutor,
         {
           turnoId: startedId,
-          fecha: '16/06/2026',
-          horaInicio: '09:00',
-          horaTermino: '17:00',
+          fecha: "16/06/2026",
+          horaInicio: "09:00",
+          horaTermino: "17:00",
         },
         ownerActor,
-        new Date('2026-06-13T12:00:00.000Z'),
+        new Date("2026-06-13T12:00:00.000Z"),
       ),
     ).rejects.toBeInstanceOf(ShiftBusinessError);
     await expect(
@@ -310,18 +349,18 @@ describe('shift service', () => {
           confirmacion: true,
         },
         ownerActor,
-        new Date('2026-06-13T12:00:00.000Z'),
+        new Date("2026-06-13T12:00:00.000Z"),
       ),
     ).rejects.toBeInstanceOf(ShiftBusinessError);
   });
 
-  it('physically deletes an eligible shift and audits the action', async () => {
-    const turnoId = '00000000-0000-4000-8000-000000000107';
+  it("physically deletes an eligible shift and audits the action", async () => {
+    const turnoId = "00000000-0000-4000-8000-000000000107";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
       trabajadorId: 2,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T20:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T20:00:00.000Z",
     });
 
     await deleteShift(
@@ -331,7 +370,7 @@ describe('shift service', () => {
         confirmacion: true,
       },
       ownerActor,
-      new Date('2026-06-13T12:00:00.000Z'),
+      new Date("2026-06-13T12:00:00.000Z"),
     );
     const rows = await testDb!.db.all<{ shifts: number; audits: number }>(sql`
       SELECT
@@ -342,13 +381,13 @@ describe('shift service', () => {
     expect(rows[0]).toEqual({ shifts: 0, audits: 1 });
   });
 
-  it('does not delete a shift when confirmation is cancelled', async () => {
-    const turnoId = '00000000-0000-4000-8000-000000000110';
+  it("does not delete a shift when confirmation is cancelled", async () => {
+    const turnoId = "00000000-0000-4000-8000-000000000110";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
       trabajadorId: 2,
-      inicioAt: '2026-06-15T12:00:00.000Z',
-      terminoAt: '2026-06-15T20:00:00.000Z',
+      inicioAt: "2026-06-15T12:00:00.000Z",
+      terminoAt: "2026-06-15T20:00:00.000Z",
     });
 
     await expect(
@@ -359,11 +398,11 @@ describe('shift service', () => {
           confirmacion: false,
         },
         ownerActor,
-        new Date('2026-06-13T12:00:00.000Z'),
+        new Date("2026-06-13T12:00:00.000Z"),
       ),
     ).rejects.toMatchObject({
       fieldErrors: {
-        confirmacion: 'Debe confirmar la eliminacion del turno.',
+        confirmacion: "Debe confirmar la eliminacion del turno.",
       },
     });
 
@@ -375,27 +414,31 @@ describe('shift service', () => {
     expect(rows[0].count).toBe(1);
   });
 
-  it('makes a created shift available to attendance registration', async () => {
-    const attendanceNow = new Date('2026-06-15T13:00:00.000Z');
-    const shift = await createShift(testDb!.db as unknown as DbExecutor, {
-      trabajadorId: 2,
-      fecha: '15/06/2026',
-      horaInicio: '08:00',
-      horaTermino: '16:00',
-    }, ownerActor);
+  it("makes a created shift available to attendance registration", async () => {
+    const attendanceNow = new Date("2026-06-15T13:00:00.000Z");
+    const shift = await createShift(
+      testDb!.db as unknown as DbExecutor,
+      {
+        trabajadorId: 2,
+        fecha: "15/06/2026",
+        horaInicio: "08:00",
+        horaTermino: "16:00",
+      },
+      ownerActor,
+    );
 
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       {
-        fase: 'confirmar',
-        usuarioId: '12345678-9',
-        trabajadorRut: '23456789-0',
+        fase: "confirmar",
+        usuarioId: "12345678-9",
+        trabajadorRut: "23456789-0",
       },
       attendanceNow,
     );
 
-    expect(result.status).toBe('registered');
-    if (result.status !== 'registered') {
+    expect(result.status).toBe("registered");
+    if (result.status !== "registered") {
       throw new Error(result.message);
     }
     expect(result.trabajador.turnoId).toBe(shift.turnoId);
@@ -403,24 +446,18 @@ describe('shift service', () => {
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-shift-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-shift-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
   const migration = await readFile(
-    join(process.cwd(), 'drizzle/migrations/0000_brave_proteus.sql'),
-    'utf8',
+    join(process.cwd(), "drizzle/migrations/0000_brave_proteus.sql"),
+    "utf8",
   );
 
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    const sqlStatement = statement.trim();
-
-    if (sqlStatement) {
-      await client.execute(sqlStatement);
-    }
-  }
+  await client.executeMultiple(migration);
 
   return { client, db, dir };
 }

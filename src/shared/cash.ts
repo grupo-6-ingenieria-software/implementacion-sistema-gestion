@@ -1,6 +1,6 @@
-import type { PaymentMethod } from './sales';
+import type { PaymentMethod } from "./sales";
 
-export type CashClosingStatus = 'abierta' | 'cerrada' | 'sin_registro';
+export type CashClosingStatus = "abierta" | "cerrada" | "sin_registro";
 
 export type CashClosingPaymentSummary = {
   currentAmount: number;
@@ -46,17 +46,17 @@ export type CashCloseResult = CashClosingSummary & {
 };
 
 export const cashPaymentMethods: readonly PaymentMethod[] = [
-  'efectivo',
-  'debito',
-  'credito',
-  'transferencia',
+  "efectivo",
+  "debito",
+  "credito",
+  "transferencia",
 ];
 
 export const cashPaymentMethodLabels: Record<PaymentMethod, string> = {
-  efectivo: 'Efectivo',
-  debito: 'Debito',
-  credito: 'Credito',
-  transferencia: 'Transferencia',
+  efectivo: "Efectivo",
+  debito: "Debito",
+  credito: "Credito",
+  transferencia: "Transferencia",
 };
 
 export function createEmptyCashPaymentSummary(): CashClosingPaymentSummary {

@@ -1,12 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { ControllerResponse } from '../../../shared/controllers';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
+import type { ControllerResponse } from "../../../shared/controllers";
 import {
   cashPaymentMethodLabels,
   cashPaymentMethods,
   type CashCloseResult,
   type CashClosingSummary,
-} from '../../../shared/cash';
-import type { PaymentMethod } from '../../../shared/sales';
+} from "../../../shared/cash";
+import type { PaymentMethod } from "../../../shared/sales";
 
 type CashClosingViewProps = {
   displayName?: string;
@@ -14,14 +20,14 @@ type CashClosingViewProps = {
 };
 
 type CashClosingState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
+  | { status: "loading" }
+  | { status: "error"; message: string }
   | {
       closeError?: string;
       isClosing: boolean;
       isRefreshing: boolean;
       showConfirmation: boolean;
-      status: 'ready';
+      status: "ready";
       summary: CashClosingSummary;
     };
 
@@ -29,12 +35,12 @@ export function CashClosingView({
   displayName,
   usuarioId,
 }: CashClosingViewProps): ReactElement {
-  const [state, setState] = useState<CashClosingState>({ status: 'loading' });
+  const [state, setState] = useState<CashClosingState>({ status: "loading" });
 
   const loadSummary = useCallback(
     async (options: { preserveData?: boolean } = {}): Promise<void> => {
       setState((current) => {
-        if (options.preserveData && current.status === 'ready') {
+        if (options.preserveData && current.status === "ready") {
           return {
             ...current,
             closeError: undefined,
@@ -42,33 +48,33 @@ export function CashClosingView({
           };
         }
 
-        return { status: 'loading' };
+        return { status: "loading" };
       });
 
       if (!usuarioId?.trim()) {
         setState({
-          status: 'error',
-          message: 'Se requiere una sesion valida para cerrar caja.',
+          status: "error",
+          message: "Se requiere una sesion valida para cerrar caja.",
         });
         return;
       }
 
       try {
         const response = await window.appApi.invoke<CashClosingSummary>(
-          'caja:resumen-cierre',
+          "caja:resumen-cierre",
           { usuarioId },
         );
 
         if (!response.ok) {
           setState({
-            status: 'error',
+            status: "error",
             message: response.error.message,
           });
           return;
         }
 
         setState({
-          status: 'ready',
+          status: "ready",
           summary: response.data,
           isClosing: false,
           isRefreshing: false,
@@ -76,8 +82,8 @@ export function CashClosingView({
         });
       } catch {
         setState({
-          status: 'error',
-          message: 'No fue posible comunicarse con el proceso principal.',
+          status: "error",
+          message: "No fue posible comunicarse con el proceso principal.",
         });
       }
     },
@@ -89,7 +95,7 @@ export function CashClosingView({
   }, [loadSummary]);
 
   const activePayments = useMemo(() => {
-    if (state.status !== 'ready') {
+    if (state.status !== "ready") {
       return [];
     }
 
@@ -106,7 +112,7 @@ export function CashClosingView({
 
   const requestClose = (): void => {
     setState((current) =>
-      current.status === 'ready'
+      current.status === "ready"
         ? { ...current, closeError: undefined, showConfirmation: true }
         : current,
     );
@@ -114,14 +120,14 @@ export function CashClosingView({
 
   const cancelClose = (): void => {
     setState((current) =>
-      current.status === 'ready'
+      current.status === "ready"
         ? { ...current, closeError: undefined, showConfirmation: false }
         : current,
     );
   };
 
   const confirmClose = async (): Promise<void> => {
-    if (state.status !== 'ready' || !usuarioId?.trim()) {
+    if (state.status !== "ready" || !usuarioId?.trim()) {
       return;
     }
 
@@ -133,7 +139,7 @@ export function CashClosingView({
 
     try {
       const response: ControllerResponse<CashCloseResult> =
-        await window.appApi.invoke('caja:cerrar', {
+        await window.appApi.invoke("caja:cerrar", {
           confirmacion: true,
           usuarioId,
         });
@@ -149,7 +155,7 @@ export function CashClosingView({
       }
 
       setState({
-        status: 'ready',
+        status: "ready",
         summary: response.data,
         isClosing: false,
         isRefreshing: false,
@@ -158,13 +164,13 @@ export function CashClosingView({
     } catch {
       setState({
         ...state,
-        closeError: 'No fue posible comunicarse con el proceso principal.',
+        closeError: "No fue posible comunicarse con el proceso principal.",
         isClosing: false,
       });
     }
   };
 
-  if (state.status === 'loading') {
+  if (state.status === "loading") {
     return (
       <section className="px-8 py-8" aria-live="polite">
         <div className="rounded-md border border-[#cbd5df] bg-white p-8 shadow-sm">
@@ -176,7 +182,7 @@ export function CashClosingView({
     );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
         <div className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-6 shadow-sm">
@@ -197,8 +203,8 @@ export function CashClosingView({
   }
 
   const { summary } = state;
-  const isClosed = summary.status === 'cerrada';
-  const canClose = summary.status === 'abierta' && !state.isClosing;
+  const isClosed = summary.status === "cerrada";
+  const canClose = summary.status === "abierta" && !state.isClosing;
 
   return (
     <section className="space-y-6 px-8 py-8">
@@ -217,7 +223,7 @@ export function CashClosingView({
           type="button"
           onClick={() => void loadSummary({ preserveData: true })}
         >
-          {state.isRefreshing ? 'Actualizando...' : 'Actualizar'}
+          {state.isRefreshing ? "Actualizando..." : "Actualizar"}
         </button>
       </div>
 
@@ -227,13 +233,13 @@ export function CashClosingView({
           title="La caja de este dia ya fue cerrada"
           message={
             summary.closedAt
-              ? `Cierre registrado a las ${formatTime(summary.closedAt)} por ${summary.closedBy?.nombre ?? summary.closedBy?.usuarioId ?? 'usuario registrado'}.`
-              : 'El cierre ya se encuentra registrado.'
+              ? `Cierre registrado a las ${formatTime(summary.closedAt)} por ${summary.closedBy?.nombre ?? summary.closedBy?.usuarioId ?? "usuario registrado"}.`
+              : "El cierre ya se encuentra registrado."
           }
         />
       ) : null}
 
-      {summary.status === 'sin_registro' ? (
+      {summary.status === "sin_registro" ? (
         <StatusMessage
           tone="warning"
           title="No hay caja registrada para hoy"
@@ -293,9 +299,7 @@ export function CashClosingView({
               <thead>
                 <tr className="border-b border-[#d7dee6] text-[#61717f]">
                   <th className="px-3 py-3 font-semibold">Método</th>
-                  <th className="px-3 py-3 text-right font-semibold">
-                    Ventas
-                  </th>
+                  <th className="px-3 py-3 text-right font-semibold">Ventas</th>
                   <th className="px-3 py-3 text-right font-semibold">Monto</th>
                   <th className="px-3 py-3 text-right font-semibold">
                     Anuladas
@@ -307,11 +311,7 @@ export function CashClosingView({
               </thead>
               <tbody>
                 {activePayments.map((method) => (
-                  <PaymentRow
-                    key={method}
-                    method={method}
-                    summary={summary}
-                  />
+                  <PaymentRow key={method} method={method} summary={summary} />
                 ))}
               </tbody>
             </table>
@@ -326,7 +326,7 @@ export function CashClosingView({
               Confirmación de cierre
             </h4>
             <p className="mt-1 text-sm text-[#61717f]">
-              Responsable actual: {displayName ?? usuarioId ?? 'sesion activa'}.
+              Responsable actual: {displayName ?? usuarioId ?? "sesion activa"}.
             </p>
           </div>
           <button
@@ -335,7 +335,7 @@ export function CashClosingView({
             type="button"
             onClick={requestClose}
           >
-            {state.isClosing ? 'Cerrando...' : 'Cerrar caja'}
+            {state.isClosing ? "Cerrando..." : "Cerrar caja"}
           </button>
         </div>
 
@@ -345,7 +345,8 @@ export function CashClosingView({
               Confirma que deseas cerrar la caja del día.
             </p>
             <p className="mt-1 text-sm text-[#6b4a24]">
-              Después del cierre no se podrán registrar nuevas ventas en esta caja.
+              Después del cierre no se podrán registrar nuevas ventas en esta
+              caja.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <button
@@ -418,7 +419,7 @@ function SummaryCard({
       <p className="text-sm font-semibold text-[#61717f]">{label}</p>
       <p
         className={`mt-3 text-2xl font-semibold ${
-          muted ? 'text-[#61717f]' : 'text-[#17202a]'
+          muted ? "text-[#61717f]" : "text-[#17202a]"
         }`}
       >
         {primary}
@@ -435,12 +436,12 @@ function StatusMessage({
 }: {
   message: string;
   title: string;
-  tone: 'error' | 'success' | 'warning';
+  tone: "error" | "success" | "warning";
 }): ReactElement {
   const styles = {
-    error: 'border-[#dba7a7] bg-[#fff7f7] text-[#8f2727]',
-    success: 'border-[#a9cfb9] bg-[#f2faf5] text-[#22583f]',
-    warning: 'border-[#e3ad72] bg-[#fff8ed] text-[#7a3f0c]',
+    error: "border-[#dba7a7] bg-[#fff7f7] text-[#8f2727]",
+    success: "border-[#a9cfb9] bg-[#f2faf5] text-[#22583f]",
+    warning: "border-[#e3ad72] bg-[#fff8ed] text-[#7a3f0c]",
   };
 
   return (
@@ -451,21 +452,21 @@ function StatusMessage({
   );
 }
 
-function getCashStatusLabel(status: CashClosingSummary['status']): string {
-  if (status === 'abierta') {
-    return 'Caja abierta';
+function getCashStatusLabel(status: CashClosingSummary["status"]): string {
+  if (status === "abierta") {
+    return "Caja abierta";
   }
 
-  if (status === 'cerrada') {
-    return 'Caja cerrada';
+  if (status === "cerrada") {
+    return "Caja cerrada";
   }
 
-  return 'Sin registro';
+  return "Sin registro";
 }
 
 function getCashTimingLabel(summary: CashClosingSummary): string {
   if (!summary.openedAt) {
-    return 'Sin horario de apertura registrado';
+    return "Sin horario de apertura registrado";
   }
 
   if (summary.closedAt) {
@@ -476,24 +477,24 @@ function getCashTimingLabel(summary: CashClosingSummary): string {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    dateStyle: 'long',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    dateStyle: "long",
   }).format(new Date(value));
 }
 
 function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     maximumFractionDigits: 0,
   }).format(value);
 }

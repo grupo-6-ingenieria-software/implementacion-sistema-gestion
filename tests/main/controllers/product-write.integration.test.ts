@@ -35,43 +35,96 @@ afterEach(async () => {
 describe("product write persistence", () => {
   it.each([
     ["CU1 E2 nombre obligatorio", { nombre: "" }, "nombre"],
-    ["CU1 E3 margen de precio", { precioCosto: 1000, precioVenta: 1000 }, "precioVenta"],
+    [
+      "CU1 E3 margen de precio",
+      { precioCosto: 1000, precioVenta: 1000 },
+      "precioVenta",
+    ],
     ["CU1 E4 valor decimal", { precioCosto: 700.5 }, "precioCosto"],
-  ] as const)("rejects %s in parameterized SQL without writes", async (_scenario, override, field) => {
-    testDb!.queries.length = 0;
-    await expect(testDb!.db.transaction((tx) =>
-      createProductWithExecutor(tx, schema, {
-        usuarioId: "12345678-9", ean13: "7802920000046", nombre: "Producto",
-        categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
-        ...override,
-      }),
-    )).rejects.toMatchObject({ reason: "validation", fieldErrors: { [field]: expect.any(String) } });
-    expect(relevantStatements(testDb!.queries).slice(-1)).toEqual(["select:validation"]);
-    const rows = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM producto`);
-    expect(Number(rows[0]?.total)).toBe(0);
-  });
+  ] as const)(
+    "rejects %s in parameterized SQL without writes",
+    async (_scenario, override, field) => {
+      testDb!.queries.length = 0;
+      await expect(
+        testDb!.db.transaction((tx) =>
+          createProductWithExecutor(tx, schema, {
+            usuarioId: "12345678-9",
+            ean13: "7802920000046",
+            nombre: "Producto",
+            categoriaId: 1,
+            precioCosto: 700,
+            precioVenta: 1000,
+            stockMinimo: 3,
+            ...override,
+          }),
+        ),
+      ).rejects.toMatchObject({
+        reason: "validation",
+        fieldErrors: { [field]: expect.any(String) },
+      });
+      expect(relevantStatements(testDb!.queries).slice(-1)).toEqual([
+        "select:validation",
+      ]);
+      const rows = await testDb!.db.all<{ total: number }>(
+        sql`SELECT COUNT(*) AS total FROM producto`,
+      );
+      expect(Number(rows[0]?.total)).toBe(0);
+    },
+  );
 
   it.each([
     ["CU2 E2 nombre obligatorio", { nombre: "" }, "nombre"],
-    ["CU2 E3 margen de precio", { precioCosto: 1000, precioVenta: 1000 }, "precioVenta"],
+    [
+      "CU2 E3 margen de precio",
+      { precioCosto: 1000, precioVenta: 1000 },
+      "precioVenta",
+    ],
     ["CU2 E4 valor decimal", { stockMinimo: 2.5 }, "stockMinimo"],
-  ] as const)("rejects %s after product, category and history reads", async (_scenario, override, field) => {
-    await testDb!.db.transaction((tx) => createProductWithExecutor(tx, schema, {
-      usuarioId: "12345678-9", ean13: "7802920000015", nombre: "Producto",
-      categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
-    }));
-    testDb!.queries.length = 0;
-    await expect(testDb!.db.transaction((tx) => editProductWithExecutor(tx, schema, {
-      usuarioId: "12345678-9", originalEan13: "7802920000015",
-      ean13: "7802920000015", nombre: "Producto editado", categoriaId: 1,
-      precioCosto: 800, precioVenta: 1200, stockMinimo: 4, ...override,
-    }))).rejects.toMatchObject({ reason: "validation", fieldErrors: { [field]: expect.any(String) } });
-    expect(relevantStatements(testDb!.queries).slice(2, 6)).toEqual([
-      "select:producto", "select:categoria", "select:historial_precio_producto", "select:validation",
-    ]);
-    const rows = await testDb!.db.all<{ nombre: string }>(sql`SELECT producto_nombre AS nombre FROM producto`);
-    expect(rows[0]?.nombre).toBe("Producto");
-  });
+  ] as const)(
+    "rejects %s after product, category and history reads",
+    async (_scenario, override, field) => {
+      await testDb!.db.transaction((tx) =>
+        createProductWithExecutor(tx, schema, {
+          usuarioId: "12345678-9",
+          ean13: "7802920000015",
+          nombre: "Producto",
+          categoriaId: 1,
+          precioCosto: 700,
+          precioVenta: 1000,
+          stockMinimo: 3,
+        }),
+      );
+      testDb!.queries.length = 0;
+      await expect(
+        testDb!.db.transaction((tx) =>
+          editProductWithExecutor(tx, schema, {
+            usuarioId: "12345678-9",
+            originalEan13: "7802920000015",
+            ean13: "7802920000015",
+            nombre: "Producto editado",
+            categoriaId: 1,
+            precioCosto: 800,
+            precioVenta: 1200,
+            stockMinimo: 4,
+            ...override,
+          }),
+        ),
+      ).rejects.toMatchObject({
+        reason: "validation",
+        fieldErrors: { [field]: expect.any(String) },
+      });
+      expect(relevantStatements(testDb!.queries).slice(2, 6)).toEqual([
+        "select:producto",
+        "select:categoria",
+        "select:historial_precio_producto",
+        "select:validation",
+      ]);
+      const rows = await testDb!.db.all<{ nombre: string }>(
+        sql`SELECT producto_nombre AS nombre FROM producto`,
+      );
+      expect(rows[0]?.nombre).toBe("Producto");
+    },
+  );
 
   it("checks EAN and category before field validation without partial writes", async () => {
     testDb!.queries.length = 0;
@@ -285,36 +338,59 @@ describe("product write persistence", () => {
     testDb!.queries.length = 0;
 
     const products = await queryActiveProductsWithExecutor(testDb!.db, schema, {
-      ean13: "7802920000015", limit: 1,
+      ean13: "7802920000015",
+      limit: 1,
     });
-    expect(products).toEqual([expect.objectContaining({
-      ean13: "7802920000015", categoria: "Lacteos", stockDisponible: 0,
-    })]);
+    expect(products).toEqual([
+      expect.objectContaining({
+        ean13: "7802920000015",
+        categoria: "Lacteos",
+        stockDisponible: 0,
+      }),
+    ]);
     expect(relevantStatements(testDb!.queries).slice(0, 4)).toEqual([
-      "select:producto", "select:categoria", "select:lote",
+      "select:producto",
+      "select:categoria",
+      "select:lote",
       "select:historial_precio_producto",
     ]);
 
     const partial = await queryActiveProductsWithExecutor(testDb!.db, schema, {
-      query: "292000001", limit: 10,
+      query: "292000001",
+      limit: 10,
     });
     expect(partial).toEqual([]);
   });
 
   it("loads product detail, current history and category options sequentially", async () => {
-    await testDb!.db.transaction((tx) => createProductWithExecutor(tx, schema, {
-      usuarioId: "12345678-9", ean13: "7802920000015", nombre: "Producto",
-      categoriaId: 1, precioCosto: 700, precioVenta: 1000, stockMinimo: 3,
-    }));
+    await testDb!.db.transaction((tx) =>
+      createProductWithExecutor(tx, schema, {
+        usuarioId: "12345678-9",
+        ean13: "7802920000015",
+        nombre: "Producto",
+        categoriaId: 1,
+        precioCosto: 700,
+        precioVenta: 1000,
+        stockMinimo: 3,
+      }),
+    );
     testDb!.queries.length = 0;
     const detail = await queryProductDetailWithExecutor(
-      testDb!.db, schema, "7802920000015", true,
+      testDb!.db,
+      schema,
+      "7802920000015",
+      true,
     );
-    const categories = await queryProductCategoriesWithExecutor(testDb!.db, schema);
+    const categories = await queryProductCategoriesWithExecutor(
+      testDb!.db,
+      schema,
+    );
     expect(detail).toMatchObject({ ean13: "7802920000015", precioCosto: 700 });
     expect(categories).toEqual([{ id: 1, nombre: "Lacteos" }]);
     expect(relevantStatements(testDb!.queries)).toEqual([
-      "select:producto", "select:historial_precio_producto", "select:categoria",
+      "select:producto",
+      "select:historial_precio_producto",
+      "select:categoria",
     ]);
   });
 });
@@ -327,7 +403,11 @@ async function createTestDatabase() {
   const queries: string[] = [];
   const db = drizzle(client, {
     schema,
-    logger: { logQuery(query) { queries.push(query); } },
+    logger: {
+      logQuery(query) {
+        queries.push(query);
+      },
+    },
   });
   await client.execute("PRAGMA foreign_keys = ON");
   const migrationsDir = join(process.cwd(), "drizzle/migrations");
@@ -335,9 +415,7 @@ async function createTestDatabase() {
     .filter((name) => name.endsWith(".sql"))
     .sort()) {
     const migration = await readFile(join(migrationsDir, file), "utf8");
-    for (const statement of migration.split("--> statement-breakpoint")) {
-      if (statement.trim()) await client.execute(statement.trim());
-    }
+    await client.executeMultiple(migration);
   }
   return { client, db, dir, queries };
 }
@@ -347,11 +425,20 @@ function relevantStatements(queries: string[]): string[] {
     const normalized = query.toLowerCase();
     const verb = normalized.trimStart().split(/\s+/, 1)[0];
     const tables = [
-      "historial_precio_producto", "usuario_version", "log_auditoria",
-      "trabajador", "categoria", "lote", "producto", "usuario",
+      "historial_precio_producto",
+      "usuario_version",
+      "log_auditoria",
+      "trabajador",
+      "categoria",
+      "lote",
+      "producto",
+      "usuario",
     ];
-    const table = tables.find((candidate) =>
-      normalized.includes(`\"${candidate}\"`) || normalized.includes(` ${candidate}`));
+    const table = tables.find(
+      (candidate) =>
+        normalized.includes(`\"${candidate}\"`) ||
+        normalized.includes(` ${candidate}`),
+    );
     if (verb === "select" && !table) return ["select:validation"];
     return table ? [`${verb}:${table}`] : [];
   });

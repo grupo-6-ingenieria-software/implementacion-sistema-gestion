@@ -1,6 +1,6 @@
-import { controllers } from '../../shared/controllers';
-import { sql, type SQL } from 'drizzle-orm';
-import { db } from '../../db/client';
+import { controllers } from "../../shared/controllers";
+import { sql, type SQL } from "drizzle-orm";
+import { db } from "../../db/client";
 import {
   calculateRecordedSaleTotal,
   type DailyPaymentSummary,
@@ -8,13 +8,13 @@ import {
   type DailySalesHistory,
   type DailySalesSummary,
   type PaymentMethod,
-} from '../../shared/sales';
+} from "../../shared/sales";
 import {
   controllerError,
   controllerSuccess,
   type RegisteredController,
-} from './base';
-import { getDashboardDay } from './dashboard-date';
+} from "./base";
+import { getDashboardDay } from "./dashboard-date";
 
 const metadata = controllers[17];
 
@@ -26,8 +26,8 @@ type DailySaleHeaderRow = {
   ventaId: string;
   fechaHora: string;
   metodoPago: PaymentMethod;
-  estado: 'completada' | 'anulada';
-  discountType: 'ninguno' | 'porcentaje' | 'monto';
+  estado: "completada" | "anulada";
+  discountType: "ninguno" | "porcentaje" | "monto";
   discountValue: number | null;
   usuarioId: string;
 };
@@ -37,9 +37,7 @@ export async function loadDailySalesHistory(
   now = new Date(),
 ): Promise<DailySalesHistory> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  // C18 respeta el orden de modelos del diseño: Venta -> Detalle -> HistorialPrecio
-  // -> Usuario -> Trabajador -> AnulacionVenta. Las consultas separadas hacen visible el
-  // contrato y evitan inferir una anulación sólo desde venta_estado.
+
   const saleRows = await database.all<DailySaleHeaderRow>(sql`
     SELECT
       v.venta_id AS ventaId,
@@ -60,7 +58,10 @@ export async function loadDailySalesHistory(
     return { ventas: [], resumen: summarizeDailySalesHistory([]) };
   }
 
-  const saleIds = sql.join(saleRows.map((row) => sql`${row.ventaId}`), sql`, `);
+  const saleIds = sql.join(
+    saleRows.map((row) => sql`${row.ventaId}`),
+    sql`, `,
+  );
   const detailRows = await database.all<{
     ventaId: string;
     cantidad: number;
@@ -72,28 +73,48 @@ export async function loadDailySalesHistory(
     FROM detalle_venta
     WHERE venta_id IN (${saleIds})
   `);
-  const priceIds = [...new Set(detailRows.map((row) => row.historialPrecioProductoId))];
-  const priceRows = priceIds.length === 0 ? [] : await database.all<{
-    historialPrecioProductoId: string;
-    precio: number;
-  }>(sql`
+  const priceIds = [
+    ...new Set(detailRows.map((row) => row.historialPrecioProductoId)),
+  ];
+  const priceRows =
+    priceIds.length === 0
+      ? []
+      : await database.all<{
+          historialPrecioProductoId: string;
+          precio: number;
+        }>(sql`
     SELECT historial_precio_producto_id AS historialPrecioProductoId,
       historial_precio_venta AS precio
     FROM historial_precio_producto
-    WHERE historial_precio_producto_id IN (${sql.join(priceIds.map((id) => sql`${id}`), sql`, `)})
+    WHERE historial_precio_producto_id IN (${sql.join(
+      priceIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `);
   const userIds = [...new Set(saleRows.map((row) => row.usuarioId))];
-  const userRows = await database.all<{ usuarioId: string; trabajadorId: number }>(sql`
+  const userRows = await database.all<{
+    usuarioId: string;
+    trabajadorId: number;
+  }>(sql`
     SELECT usuario_id AS usuarioId, trabajador_id AS trabajadorId
     FROM usuario
-    WHERE usuario_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})
+    WHERE usuario_id IN (${sql.join(
+      userIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `);
   const workerIds = [...new Set(userRows.map((row) => row.trabajadorId))];
-  const workerRows = workerIds.length === 0 ? [] : await database.all<{ trabajadorId: number; nombre: string }>(sql`
+  const workerRows =
+    workerIds.length === 0
+      ? []
+      : await database.all<{ trabajadorId: number; nombre: string }>(sql`
     SELECT trabajador_id AS trabajadorId,
       trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
     FROM trabajador
-    WHERE trabajador_id IN (${sql.join(workerIds.map((id) => sql`${id}`), sql`, `)})
+    WHERE trabajador_id IN (${sql.join(
+      workerIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `);
 
   const annulmentRows = await database.all<{ ventaId: string }>(sql`
@@ -101,16 +122,30 @@ export async function loadDailySalesHistory(
     FROM anulacion_venta
     WHERE venta_id IN (${saleIds})
   `);
-  const prices = new Map(priceRows.map((row) => [row.historialPrecioProductoId, Number(row.precio)]));
-  const details = new Map<string, { cantidadProductos: number; subtotal: number }>();
+  const prices = new Map(
+    priceRows.map((row) => [row.historialPrecioProductoId, Number(row.precio)]),
+  );
+  const details = new Map<
+    string,
+    { cantidadProductos: number; subtotal: number }
+  >();
   for (const detail of detailRows) {
-    const current = details.get(detail.ventaId) ?? { cantidadProductos: 0, subtotal: 0 };
+    const current = details.get(detail.ventaId) ?? {
+      cantidadProductos: 0,
+      subtotal: 0,
+    };
     current.cantidadProductos += Number(detail.cantidad);
-    current.subtotal += Number(detail.cantidad) * (prices.get(detail.historialPrecioProductoId) ?? 0);
+    current.subtotal +=
+      Number(detail.cantidad) *
+      (prices.get(detail.historialPrecioProductoId) ?? 0);
     details.set(detail.ventaId, current);
   }
-  const users = new Map(userRows.map((row) => [row.usuarioId, row.trabajadorId]));
-  const workers = new Map(workerRows.map((row) => [row.trabajadorId, row.nombre]));
+  const users = new Map(
+    userRows.map((row) => [row.usuarioId, row.trabajadorId]),
+  );
+  const workers = new Map(
+    workerRows.map((row) => [row.trabajadorId, row.nombre]),
+  );
   const annulled = new Set(annulmentRows.map((row) => row.ventaId));
 
   const ventas = saleRows.map<DailySale>((row) => {
@@ -120,7 +155,7 @@ export async function loadDailySalesHistory(
       ventaId: row.ventaId,
       fechaHora: row.fechaHora,
       trabajadorResponsable:
-        workerId === undefined ? '' : workers.get(workerId) ?? '',
+        workerId === undefined ? "" : (workers.get(workerId) ?? ""),
       cantidadProductos: Number(detail?.cantidadProductos ?? 0),
       total: calculateRecordedSaleTotal({
         subtotal: Number(detail?.subtotal ?? 0),
@@ -128,7 +163,7 @@ export async function loadDailySalesHistory(
         discountValue: row.discountValue,
       }),
       metodoPago: row.metodoPago,
-      estado: annulled.has(row.ventaId) ? 'anulada' : 'confirmada',
+      estado: annulled.has(row.ventaId) ? "anulada" : "confirmada",
     };
   });
 
@@ -155,7 +190,7 @@ export function summarizeDailySalesHistory(
   };
 
   for (const venta of ventas) {
-    if (venta.estado === 'anulada') {
+    if (venta.estado === "anulada") {
       summary.ventasAnuladas += 1;
       summary.montoAnulado += venta.total;
       continue;
@@ -185,14 +220,12 @@ export function createSalesHistoryController(
     metadata,
     handle: async () => {
       try {
-        return controllerSuccess(
-          await loadDailySalesHistory(database, now()),
-        );
+        return controllerSuccess(await loadDailySalesHistory(database, now()));
       } catch (error) {
         console.error(error);
         return controllerError(
-          'TECHNICAL_ERROR',
-          'No fue posible cargar las ventas del dia.',
+          "TECHNICAL_ERROR",
+          "No fue posible cargar las ventas del dia.",
           metadata.id,
         );
       }

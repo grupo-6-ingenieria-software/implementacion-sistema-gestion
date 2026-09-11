@@ -12,8 +12,8 @@ CREATE TABLE `ajuste_inventario` (
 	CONSTRAINT "ajuste_inventario_uuid" CHECK(length(ajuste_inventario_id) = 36),
 	CONSTRAINT "ajuste_cantidad_no_cero" CHECK("ajuste_inventario"."ajuste_cantidad" <> 0)
 );
---> statement-breakpoint
-CREATE INDEX `idx_ajuste_producto` ON `ajuste_inventario` (`producto_id`,`ajuste_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_ajuste_producto` ON `ajuste_inventario` (`producto_id`,`ajuste_fecha_hora`);
 CREATE TABLE `anulacion_venta` (
 	`anulacion_venta_id` text PRIMARY KEY NOT NULL,
 	`anulacion_fecha_hora` text DEFAULT (datetime('now')) NOT NULL,
@@ -24,8 +24,8 @@ CREATE TABLE `anulacion_venta` (
 	FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "anulacion_venta_uuid" CHECK(length(anulacion_venta_id) = 36)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `anulacion_venta_venta_id_unique` ON `anulacion_venta` (`venta_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `anulacion_venta_venta_id_unique` ON `anulacion_venta` (`venta_id`);
 CREATE TABLE `asistencia` (
 	`asistencia_id` text PRIMARY KEY NOT NULL,
 	`asistencia_fecha_hora_entrada` text NOT NULL,
@@ -38,8 +38,8 @@ CREATE TABLE `asistencia` (
 	CONSTRAINT "asistencia_rango_valido" CHECK("asistencia"."asistencia_fecha_hora_salida" IS NULL
        OR "asistencia"."asistencia_fecha_hora_entrada" <= "asistencia"."asistencia_fecha_hora_salida")
 );
---> statement-breakpoint
-CREATE INDEX `idx_asistencia_trabajador` ON `asistencia` (`trabajador_id`,`asistencia_fecha_hora_entrada`);--> statement-breakpoint
+
+CREATE INDEX `idx_asistencia_trabajador` ON `asistencia` (`trabajador_id`,`asistencia_fecha_hora_entrada`);
 CREATE TABLE `ausencia` (
 	`ausencia_id` text PRIMARY KEY NOT NULL,
 	`ausencia_fecha` text NOT NULL,
@@ -53,16 +53,16 @@ CREATE TABLE `ausencia` (
 	CONSTRAINT "ausencia_uuid" CHECK(length(ausencia_id) = 36),
 	CONSTRAINT "ausencia_tipo_enum" CHECK("ausencia"."ausencia_tipo" IN ('justificada','injustificada','licencia','vacaciones','permiso'))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_ausencia_trabajador_fecha` ON `ausencia` (`trabajador_id`,`ausencia_fecha`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_ausencia_trabajador_fecha` ON `ausencia` (`trabajador_id`,`ausencia_fecha`);
 CREATE TABLE `categoria` (
 	`categoria_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`categoria_nombre` text NOT NULL,
 	`categoria_exige_vencimiento` integer NOT NULL,
 	CONSTRAINT "categoria_exige_venc_bool" CHECK("categoria"."categoria_exige_vencimiento" IN (0,1))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `categoria_categoria_nombre_unique` ON `categoria` (`categoria_nombre`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `categoria_categoria_nombre_unique` ON `categoria` (`categoria_nombre`);
 CREATE TABLE `cierre_caja` (
 	`cierre_caja_id` text PRIMARY KEY NOT NULL,
 	`cierre_fecha_hora_inicio` text DEFAULT (datetime('now')) NOT NULL,
@@ -77,8 +77,8 @@ CREATE TABLE `cierre_caja` (
        OR ("cierre_caja"."cierre_estado" = 'cerrado' AND "cierre_caja"."cierre_fecha_hora_fin" IS NOT NULL
             AND "cierre_caja"."usuario_cierre_id" IS NOT NULL))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `cierre_caja_cierre_fecha_hora_inicio_unique` ON `cierre_caja` (`cierre_fecha_hora_inicio`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `cierre_caja_cierre_fecha_hora_inicio_unique` ON `cierre_caja` (`cierre_fecha_hora_inicio`);
 CREATE TABLE `contrasena` (
 	`contrasena_id` text PRIMARY KEY NOT NULL,
 	`contrasena_hash` text NOT NULL,
@@ -92,14 +92,14 @@ CREATE TABLE `contrasena` (
 	CONSTRAINT "contrasena_uuid" CHECK(length(contrasena_id) = 36),
 	CONSTRAINT "contrasena_isa_exclusivo" CHECK("contrasena"."es_contrasena_temporal" + "contrasena"."es_contrasena_definitiva" = 1)
 );
---> statement-breakpoint
-CREATE INDEX `idx_contrasena_usuario` ON `contrasena` (`usuario_id`,`contrasena_fecha_hora_creacion`);--> statement-breakpoint
+
+CREATE INDEX `idx_contrasena_usuario` ON `contrasena` (`usuario_id`,`contrasena_fecha_hora_creacion`);
 CREATE TABLE `contrasena_temporal` (
 	`contrasena_id` text PRIMARY KEY NOT NULL,
 	`contrasena_temporal_fecha_hora_expiracion` text NOT NULL,
 	FOREIGN KEY (`contrasena_id`) REFERENCES `contrasena`(`contrasena_id`) ON UPDATE no action ON DELETE cascade
 );
---> statement-breakpoint
+
 CREATE TABLE `detalle_pedido` (
 	`detalle_pedido_id` text PRIMARY KEY NOT NULL,
 	`pedido_proveedor_id` text NOT NULL,
@@ -112,9 +112,9 @@ CREATE TABLE `detalle_pedido` (
 	CONSTRAINT "detalle_pedido_solicitada_min" CHECK("detalle_pedido"."cantidad_solicitada" > 0),
 	CONSTRAINT "detalle_pedido_recibida_range" CHECK("detalle_pedido"."cantidad_recibida" IS NULL OR "detalle_pedido"."cantidad_recibida" >= 0)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_detalle_pedido` ON `detalle_pedido` (`pedido_proveedor_id`,`producto_id`);--> statement-breakpoint
-CREATE INDEX `idx_detalle_pedido_pedido` ON `detalle_pedido` (`pedido_proveedor_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_detalle_pedido` ON `detalle_pedido` (`pedido_proveedor_id`,`producto_id`);
+CREATE INDEX `idx_detalle_pedido_pedido` ON `detalle_pedido` (`pedido_proveedor_id`);
 CREATE TABLE `detalle_venta` (
 	`detalle_venta_id` text PRIMARY KEY NOT NULL,
 	`venta_id` text NOT NULL,
@@ -127,10 +127,10 @@ CREATE TABLE `detalle_venta` (
 	CONSTRAINT "detalle_venta_uuid" CHECK(length(detalle_venta_id) = 36),
 	CONSTRAINT "detalle_venta_cantidad_min" CHECK("detalle_venta"."detalle_venta_cantidad" > 0)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_detalle_venta` ON `detalle_venta` (`venta_id`,`producto_id`);--> statement-breakpoint
-CREATE INDEX `idx_detalle_venta_venta` ON `detalle_venta` (`venta_id`);--> statement-breakpoint
-CREATE INDEX `idx_detalle_venta_producto` ON `detalle_venta` (`producto_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_detalle_venta` ON `detalle_venta` (`venta_id`,`producto_id`);
+CREATE INDEX `idx_detalle_venta_venta` ON `detalle_venta` (`venta_id`);
+CREATE INDEX `idx_detalle_venta_producto` ON `detalle_venta` (`producto_id`);
 CREATE TABLE `historial_auditoria_pedido` (
 	`historial_auditoria_pedido_id` text PRIMARY KEY NOT NULL,
 	`historial_ap_tipo_evento` text NOT NULL,
@@ -142,8 +142,8 @@ CREATE TABLE `historial_auditoria_pedido` (
 	FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "historial_auditoria_pedido_uuid" CHECK(length(historial_auditoria_pedido_id) = 36)
 );
---> statement-breakpoint
-CREATE INDEX `idx_historial_ap_pedido` ON `historial_auditoria_pedido` (`pedido_proveedor_id`,`historial_ap_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_historial_ap_pedido` ON `historial_auditoria_pedido` (`pedido_proveedor_id`,`historial_ap_fecha_hora`);
 CREATE TABLE `historial_precio_producto` (
 	`historial_precio_producto_id` text PRIMARY KEY NOT NULL,
 	`historial_precio_costo` integer NOT NULL,
@@ -158,8 +158,8 @@ CREATE TABLE `historial_precio_producto` (
 	CONSTRAINT "historial_vigencia_rango" CHECK("historial_precio_producto"."historial_fecha_hora_vigencia_hasta" IS NULL
        OR "historial_precio_producto"."historial_fecha_hora_vigencia_desde" <= "historial_precio_producto"."historial_fecha_hora_vigencia_hasta")
 );
---> statement-breakpoint
-CREATE INDEX `idx_historial_precio_producto` ON `historial_precio_producto` (`producto_id`,`historial_fecha_hora_vigencia_desde`);--> statement-breakpoint
+
+CREATE INDEX `idx_historial_precio_producto` ON `historial_precio_producto` (`producto_id`,`historial_fecha_hora_vigencia_desde`);
 CREATE TABLE `intento_login` (
 	`intento_login_id` text PRIMARY KEY NOT NULL,
 	`intento_nombre_usuario_ingresado` text NOT NULL,
@@ -170,9 +170,9 @@ CREATE TABLE `intento_login` (
 	CONSTRAINT "intento_login_uuid" CHECK(length(intento_login_id) = 36),
 	CONSTRAINT "intento_login_exitoso_bool" CHECK("intento_login"."intento_exitoso" IN (0,1))
 );
---> statement-breakpoint
-CREATE INDEX `idx_intento_login_fecha` ON `intento_login` (`intento_fecha_hora`);--> statement-breakpoint
-CREATE INDEX `idx_intento_login_usuario` ON `intento_login` (`usuario_id`,`intento_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_intento_login_fecha` ON `intento_login` (`intento_fecha_hora`);
+CREATE INDEX `idx_intento_login_usuario` ON `intento_login` (`usuario_id`,`intento_fecha_hora`);
 CREATE TABLE `log_auditoria` (
 	`log_auditoria_id` text PRIMARY KEY NOT NULL,
 	`log_fecha_hora` text DEFAULT (datetime('now')) NOT NULL,
@@ -183,9 +183,9 @@ CREATE TABLE `log_auditoria` (
 	FOREIGN KEY (`usuario_version_id`) REFERENCES `usuario_version`(`usuario_version_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "log_auditoria_uuid" CHECK(length(log_auditoria_id) = 36)
 );
---> statement-breakpoint
-CREATE INDEX `idx_log_auditoria_fecha` ON `log_auditoria` (`log_fecha_hora`);--> statement-breakpoint
-CREATE INDEX `idx_log_auditoria_modulo` ON `log_auditoria` (`log_modulo`,`log_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_log_auditoria_fecha` ON `log_auditoria` (`log_fecha_hora`);
+CREATE INDEX `idx_log_auditoria_modulo` ON `log_auditoria` (`log_modulo`,`log_fecha_hora`);
 CREATE TABLE `log_errores_tecnicos` (
 	`log_errortecnicos_id` text PRIMARY KEY NOT NULL,
 	`log_errores_fecha_hora` text DEFAULT (datetime('now')) NOT NULL,
@@ -196,9 +196,9 @@ CREATE TABLE `log_errores_tecnicos` (
 	FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "log_errores_tecnicos_uuid" CHECK(length(log_errortecnicos_id) = 36)
 );
---> statement-breakpoint
-CREATE INDEX `idx_log_errores_fecha` ON `log_errores_tecnicos` (`log_errores_fecha_hora`);--> statement-breakpoint
-CREATE INDEX `idx_log_errores_modulo` ON `log_errores_tecnicos` (`log_errores_modulo`,`log_errores_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_log_errores_fecha` ON `log_errores_tecnicos` (`log_errores_fecha_hora`);
+CREATE INDEX `idx_log_errores_modulo` ON `log_errores_tecnicos` (`log_errores_modulo`,`log_errores_fecha_hora`);
 CREATE TABLE `lote` (
 	`lote_id` text PRIMARY KEY NOT NULL,
 	`lote_cantidad_inicial` integer NOT NULL,
@@ -218,15 +218,15 @@ CREATE TABLE `lote` (
 	CONSTRAINT "lote_precio_costo_min" CHECK("lote"."lote_precio_costo" >= 0),
 	CONSTRAINT "lote_isa_exclusivo" CHECK("lote"."es_lote_perecible" + "lote"."es_lote_no_perecible" = 1)
 );
---> statement-breakpoint
-CREATE INDEX `idx_lote_producto` ON `lote` (`producto_id`);--> statement-breakpoint
-CREATE INDEX `idx_lote_pedido` ON `lote` (`pedido_proveedor_id`);--> statement-breakpoint
+
+CREATE INDEX `idx_lote_producto` ON `lote` (`producto_id`);
+CREATE INDEX `idx_lote_pedido` ON `lote` (`pedido_proveedor_id`);
 CREATE TABLE `lote_perecible` (
 	`lote_id` text PRIMARY KEY NOT NULL,
 	`lote_perecible_fecha_vencimiento` text NOT NULL,
 	FOREIGN KEY (`lote_id`) REFERENCES `lote`(`lote_id`) ON UPDATE no action ON DELETE cascade
 );
---> statement-breakpoint
+
 CREATE TABLE `merma` (
 	`merma_id` text PRIMARY KEY NOT NULL,
 	`merma_motivo` text NOT NULL,
@@ -239,8 +239,8 @@ CREATE TABLE `merma` (
 	CONSTRAINT "merma_uuid" CHECK(length(merma_id) = 36),
 	CONSTRAINT "merma_motivo_enum" CHECK("merma"."merma_motivo" IN ('vencimiento','dano','robo','error_registro'))
 );
---> statement-breakpoint
-CREATE INDEX `idx_merma_producto` ON `merma` (`producto_id`,`merma_fecha_hora`);--> statement-breakpoint
+
+CREATE INDEX `idx_merma_producto` ON `merma` (`producto_id`,`merma_fecha_hora`);
 CREATE TABLE `merma_lote` (
 	`merma_lote_id` text PRIMARY KEY NOT NULL,
 	`merma_id` text NOT NULL,
@@ -251,8 +251,8 @@ CREATE TABLE `merma_lote` (
 	CONSTRAINT "merma_lote_uuid" CHECK(length(merma_lote_id) = 36),
 	CONSTRAINT "merma_lote_cantidad_min" CHECK("merma_lote"."merma_lote_cantidad_descontada" > 0)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_merma_lote` ON `merma_lote` (`merma_id`,`lote_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_merma_lote` ON `merma_lote` (`merma_id`,`lote_id`);
 CREATE TABLE `pedido_proveedor` (
 	`pedido_proveedor_id` text PRIMARY KEY NOT NULL,
 	`pedido_proveedor_fecha_hora_emision` text DEFAULT (datetime('now')) NOT NULL,
@@ -268,9 +268,9 @@ CREATE TABLE `pedido_proveedor` (
 	CONSTRAINT "pedido_proveedor_uuid" CHECK(length(pedido_proveedor_id) = 36),
 	CONSTRAINT "pedido_proveedor_estado_enum" CHECK("pedido_proveedor"."pedido_proveedor_estado" IN ('borrador','emitido','enviado','parcial','recibido','cancelado'))
 );
---> statement-breakpoint
-CREATE INDEX `idx_pedido_proveedor_proveedor` ON `pedido_proveedor` (`proveedor_id`);--> statement-breakpoint
-CREATE INDEX `idx_pedido_proveedor_estado` ON `pedido_proveedor` (`pedido_proveedor_estado`);--> statement-breakpoint
+
+CREATE INDEX `idx_pedido_proveedor_proveedor` ON `pedido_proveedor` (`proveedor_id`);
+CREATE INDEX `idx_pedido_proveedor_estado` ON `pedido_proveedor` (`pedido_proveedor_estado`);
 CREATE TABLE `producto` (
 	`producto_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`producto_ean_13` text NOT NULL,
@@ -286,11 +286,11 @@ CREATE TABLE `producto` (
 	CONSTRAINT "producto_stock_minimo_min" CHECK("producto"."producto_stock_minimo" >= 0),
 	CONSTRAINT "producto_estado_enum" CHECK("producto"."producto_estado" IN ('activo','inactivo'))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `producto_producto_ean_13_unique` ON `producto` (`producto_ean_13`);--> statement-breakpoint
-CREATE INDEX `idx_producto_nombre` ON `producto` (`producto_nombre`);--> statement-breakpoint
-CREATE INDEX `idx_producto_categoria` ON `producto` (`categoria_id`);--> statement-breakpoint
-CREATE INDEX `idx_producto_estado` ON `producto` (`producto_estado`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `producto_producto_ean_13_unique` ON `producto` (`producto_ean_13`);
+CREATE INDEX `idx_producto_nombre` ON `producto` (`producto_nombre`);
+CREATE INDEX `idx_producto_categoria` ON `producto` (`categoria_id`);
+CREATE INDEX `idx_producto_estado` ON `producto` (`producto_estado`);
 CREATE TABLE `proveedor` (
 	`proveedor_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`proveedor_rut` text NOT NULL,
@@ -301,8 +301,8 @@ CREATE TABLE `proveedor` (
 	CONSTRAINT "proveedor_rut_format" CHECK(length("proveedor"."proveedor_rut") BETWEEN 9 AND 12 AND "proveedor"."proveedor_rut" GLOB '[1-9]*-[0-9kK]'),
 	CONSTRAINT "proveedor_email_format" CHECK("proveedor"."proveedor_correo_electronico" LIKE '%_@_%._%')
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `proveedor_proveedor_rut_unique` ON `proveedor` (`proveedor_rut`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `proveedor_proveedor_rut_unique` ON `proveedor` (`proveedor_rut`);
 CREATE TABLE `proveedor_categoria` (
 	`proveedor_categoria_id` text PRIMARY KEY NOT NULL,
 	`proveedor_id` integer NOT NULL,
@@ -311,8 +311,8 @@ CREATE TABLE `proveedor_categoria` (
 	FOREIGN KEY (`categoria_id`) REFERENCES `categoria`(`categoria_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "proveedor_categoria_uuid" CHECK(length(proveedor_categoria_id) = 36)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_proveedor_categoria` ON `proveedor_categoria` (`proveedor_id`,`categoria_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_proveedor_categoria` ON `proveedor_categoria` (`proveedor_id`,`categoria_id`);
 CREATE TABLE `remuneracion` (
 	`remuneracion_id` text PRIMARY KEY NOT NULL,
 	`remuneracion_mes` integer NOT NULL,
@@ -329,8 +329,8 @@ CREATE TABLE `remuneracion` (
 	CONSTRAINT "remuneracion_anio_range" CHECK("remuneracion"."remuneracion_anio" BETWEEN 2020 AND 2100),
 	CONSTRAINT "remuneracion_bruto_min" CHECK("remuneracion"."remuneracion_monto_bruto" >= 0)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_remuneracion_trabajador_periodo` ON `remuneracion` (`trabajador_id`,`remuneracion_anio`,`remuneracion_mes`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_remuneracion_trabajador_periodo` ON `remuneracion` (`trabajador_id`,`remuneracion_anio`,`remuneracion_mes`);
 CREATE TABLE `remuneracion_tasa` (
 	`remuneracion_tasa_id` text PRIMARY KEY NOT NULL,
 	`remuneracion_id` text NOT NULL,
@@ -339,8 +339,8 @@ CREATE TABLE `remuneracion_tasa` (
 	FOREIGN KEY (`tasa_legal_id`) REFERENCES `tasa_legal`(`tasa_legal_id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "remuneracion_tasa_uuid" CHECK(length(remuneracion_tasa_id) = 36)
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_remuneracion_tasa` ON `remuneracion_tasa` (`remuneracion_id`,`tasa_legal_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `uq_remuneracion_tasa` ON `remuneracion_tasa` (`remuneracion_id`,`tasa_legal_id`);
 CREATE TABLE `sesion_usuario` (
 	`sesion_usuario_id` text PRIMARY KEY NOT NULL,
 	`sesion_fecha_hora_inicio` text DEFAULT (datetime('now')) NOT NULL,
@@ -354,8 +354,8 @@ CREATE TABLE `sesion_usuario` (
 	CONSTRAINT "sesion_cierre_coherente" CHECK(("sesion_usuario"."sesion_fecha_hora_cierre" IS NULL AND "sesion_usuario"."sesion_motivo_cierre" IS NULL)
        OR ("sesion_usuario"."sesion_fecha_hora_cierre" IS NOT NULL AND "sesion_usuario"."sesion_motivo_cierre" IS NOT NULL))
 );
---> statement-breakpoint
-CREATE INDEX `idx_sesion_usuario` ON `sesion_usuario` (`usuario_id`,`sesion_fecha_hora_inicio`);--> statement-breakpoint
+
+CREATE INDEX `idx_sesion_usuario` ON `sesion_usuario` (`usuario_id`,`sesion_fecha_hora_inicio`);
 CREATE TABLE `tasa_legal` (
 	`tasa_legal_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`tasa_legal_tipo` text NOT NULL,
@@ -367,7 +367,7 @@ CREATE TABLE `tasa_legal` (
 	CONSTRAINT "tasa_legal_vigencia_rango" CHECK("tasa_legal"."tasa_legal_fecha_vigencia_hasta" IS NULL
        OR "tasa_legal"."tasa_legal_fecha_vigencia_desde" <= "tasa_legal"."tasa_legal_fecha_vigencia_hasta")
 );
---> statement-breakpoint
+
 CREATE TABLE `trabajador` (
 	`trabajador_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`trabajador_rut` text NOT NULL,
@@ -381,8 +381,8 @@ CREATE TABLE `trabajador` (
 	CONSTRAINT "trabajador_email_format" CHECK("trabajador"."trabajador_correo_electronico" IS NULL OR "trabajador"."trabajador_correo_electronico" LIKE '%_@_%._%'),
 	CONSTRAINT "trabajador_estado_enum" CHECK("trabajador"."trabajador_estado" IN ('activo','inactivo'))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `trabajador_trabajador_rut_unique` ON `trabajador` (`trabajador_rut`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `trabajador_trabajador_rut_unique` ON `trabajador` (`trabajador_rut`);
 CREATE TABLE `turno` (
 	`turno_id` text PRIMARY KEY NOT NULL,
 	`turno_fecha_hora_inicio` text NOT NULL,
@@ -394,8 +394,8 @@ CREATE TABLE `turno` (
 	CONSTRAINT "turno_estado_enum" CHECK("turno"."turno_estado" IN ('planificado','en_curso','completado','cancelado')),
 	CONSTRAINT "turno_rango_valido" CHECK("turno"."turno_fecha_hora_inicio" < "turno"."turno_fecha_hora_fin")
 );
---> statement-breakpoint
-CREATE INDEX `idx_turno_trabajador` ON `turno` (`trabajador_id`,`turno_fecha_hora_inicio`);--> statement-breakpoint
+
+CREATE INDEX `idx_turno_trabajador` ON `turno` (`trabajador_id`,`turno_fecha_hora_inicio`);
 CREATE TABLE `usuario` (
 	`usuario_id` text PRIMARY KEY NOT NULL,
 	`usuario_rol` text NOT NULL,
@@ -406,8 +406,8 @@ CREATE TABLE `usuario` (
 	CONSTRAINT "usuario_id_length" CHECK(length("usuario"."usuario_id") BETWEEN 3 AND 50),
 	CONSTRAINT "usuario_rol_enum" CHECK("usuario"."usuario_rol" IN ('dueño','cajero','reponedor'))
 );
---> statement-breakpoint
-CREATE UNIQUE INDEX `usuario_trabajador_id_unique` ON `usuario` (`trabajador_id`);--> statement-breakpoint
+
+CREATE UNIQUE INDEX `usuario_trabajador_id_unique` ON `usuario` (`trabajador_id`);
 CREATE TABLE `usuario_version` (
 	`usuario_version_id` text PRIMARY KEY NOT NULL,
 	`usuario_version_nombre` text NOT NULL,
@@ -421,8 +421,8 @@ CREATE TABLE `usuario_version` (
 	CONSTRAINT "usuario_version_vigencia_rango" CHECK("usuario_version"."usuario_version_fecha_hora_vigencia_hasta" IS NULL
        OR "usuario_version"."usuario_version_fecha_hora_vigencia_desde" <= "usuario_version"."usuario_version_fecha_hora_vigencia_hasta")
 );
---> statement-breakpoint
-CREATE INDEX `idx_usuario_version_usuario` ON `usuario_version` (`usuario_id`,`usuario_version_fecha_hora_vigencia_desde`);--> statement-breakpoint
+
+CREATE INDEX `idx_usuario_version_usuario` ON `usuario_version` (`usuario_id`,`usuario_version_fecha_hora_vigencia_desde`);
 CREATE TABLE `venta` (
 	`venta_id` text PRIMARY KEY NOT NULL,
 	`venta_fecha_hora` text DEFAULT (datetime('now')) NOT NULL,
@@ -448,18 +448,18 @@ CREATE TABLE `venta` (
        OR ("venta"."venta_metodo_pago" <> 'efectivo'
             AND "venta"."es_venta_efectivo" = 0 AND "venta"."es_venta_electronica" = 1))
 );
---> statement-breakpoint
-CREATE INDEX `idx_venta_fecha` ON `venta` (`venta_fecha_hora`);--> statement-breakpoint
-CREATE INDEX `idx_venta_cierre` ON `venta` (`cierre_caja_id`);--> statement-breakpoint
-CREATE INDEX `idx_venta_cajero` ON `venta` (`usuario_cajero_id`,`venta_fecha_hora`);--> statement-breakpoint
-CREATE INDEX `idx_venta_estado` ON `venta` (`venta_estado`);--> statement-breakpoint
+
+CREATE INDEX `idx_venta_fecha` ON `venta` (`venta_fecha_hora`);
+CREATE INDEX `idx_venta_cierre` ON `venta` (`cierre_caja_id`);
+CREATE INDEX `idx_venta_cajero` ON `venta` (`usuario_cajero_id`,`venta_fecha_hora`);
+CREATE INDEX `idx_venta_estado` ON `venta` (`venta_estado`);
 CREATE TABLE `venta_efectivo` (
 	`venta_id` text PRIMARY KEY NOT NULL,
 	`venta_efectivo_monto_recibido` integer NOT NULL,
 	FOREIGN KEY (`venta_id`) REFERENCES `venta`(`venta_id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "venta_efectivo_min" CHECK("venta_efectivo"."venta_efectivo_monto_recibido" >= 0)
 );
---> statement-breakpoint
+
 CREATE TABLE `venta_lote` (
 	`venta_lote_id` text PRIMARY KEY NOT NULL,
 	`venta_id` text NOT NULL,
@@ -470,5 +470,5 @@ CREATE TABLE `venta_lote` (
 	CONSTRAINT "venta_lote_uuid" CHECK(length(venta_lote_id) = 36),
 	CONSTRAINT "venta_lote_cantidad_min" CHECK("venta_lote"."venta_lote_cantidad_consumida" > 0)
 );
---> statement-breakpoint
+
 CREATE UNIQUE INDEX `uq_venta_lote` ON `venta_lote` (`venta_id`,`lote_id`);

@@ -1,10 +1,14 @@
-import { randomUUID } from 'node:crypto';
-import { sql, type SQL } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
-import { db } from '../../db/client';
-import { controllerError, controllerSuccess, type RegisteredController } from './base';
-import { getDashboardDay } from './dashboard-date';
-import type { DailyCashState } from '../../shared/sales';
+import { randomUUID } from "node:crypto";
+import { sql, type SQL } from "drizzle-orm";
+import { controllers } from "../../shared/controllers";
+import { db } from "../../db/client";
+import {
+  controllerError,
+  controllerSuccess,
+  type RegisteredController,
+} from "./base";
+import { getDashboardDay } from "./dashboard-date";
+import type { DailyCashState } from "../../shared/sales";
 
 type CashCheckResponse = {
   disponible: boolean;
@@ -18,15 +22,14 @@ export type CashCheckDb = {
 
 export type DailyCashRegisterState = DailyCashState;
 
-/** C20: obtiene el estado de caja correspondiente únicamente al día consultado. */
 export async function inspectDailyCashRegister(
-  database: Pick<CashCheckDb, 'all'>,
+  database: Pick<CashCheckDb, "all">,
   now = new Date(),
 ): Promise<DailyCashRegisterState> {
   const { startUtc, endUtc } = getDashboardDay(now);
   const rows = await database.all<{
     cierreCajaId: string;
-    status: 'abierto' | 'cerrado';
+    status: "abierto" | "cerrado";
     openedAt: string;
     closedAt: string | null;
     closedByUserId: string | null;
@@ -46,9 +49,13 @@ export async function inspectDailyCashRegister(
     LIMIT 1
   `);
   const row = rows[0];
-  if (!row) return { status: 'sin_registro' };
-  if (row.status === 'abierto') {
-    return { status: 'abierta', cierreCajaId: row.cierreCajaId, openedAt: row.openedAt };
+  if (!row) return { status: "sin_registro" };
+  if (row.status === "abierto") {
+    return {
+      status: "abierta",
+      cierreCajaId: row.cierreCajaId,
+      openedAt: row.openedAt,
+    };
   }
   let closedByName: string | undefined;
   if (row.closedByUserId) {
@@ -69,7 +76,7 @@ export async function inspectDailyCashRegister(
     }
   }
   return {
-    status: 'cerrada',
+    status: "cerrada",
     cierreCajaId: row.cierreCajaId,
     openedAt: row.openedAt,
     closedAt: row.closedAt ?? row.openedAt,
@@ -84,7 +91,7 @@ export async function ensureDailyCashRegisterForSale(
   now = new Date(),
 ): Promise<DailyCashRegisterState> {
   const state = await inspectDailyCashRegister(database, now);
-  if (state.status !== 'sin_registro') return state;
+  if (state.status !== "sin_registro") return state;
 
   await database.run(sql`
     INSERT INTO cierre_caja (
@@ -103,18 +110,21 @@ export async function ensureDailyCashRegisterForSale(
   return inspectDailyCashRegister(database, now);
 }
 
-export const cashCheckController: RegisteredController<unknown, CashCheckResponse> = {
+export const cashCheckController: RegisteredController<
+  unknown,
+  CashCheckResponse
+> = {
   metadata: controllers[19],
   handle: async () => {
     const openCash = await ensureDailyCashRegisterForSale(
       db as unknown as CashCheckDb,
     );
 
-    if (openCash.status !== 'abierta') {
+    if (openCash.status !== "abierta") {
       return controllerError(
-        'BUSINESS_RULE',
-        'La caja se encuentra cerrada. No es posible registrar ventas.',
-        'cash-check',
+        "BUSINESS_RULE",
+        "La caja se encuentra cerrada. No es posible registrar ventas.",
+        "cash-check",
       );
     }
 

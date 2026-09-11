@@ -1,29 +1,14 @@
-/**
- * Login de depuración — SOLO desarrollo (`npm run dev:debug`).
- *
- * Se activa con la variable de entorno HUASCAR_DEBUG_LOGIN=1. Expone dos canales
- * IPC que se registran APARTE del registro de controladores de producción y que,
- * por tanto, NO pasan por el guard de identidad (auth-guard). Permiten:
- *
- *   - debug:listar-usuarios -> lista de usuarios activos para elegir.
- *   - debug:login-como      -> emite un JWT de sesión válido para el usuario
- *                              elegido SIN validar la contraseña.
- *
- * Estos handlers sólo se montan cuando isDebugLoginEnabled() es verdadero
- * (ver main/index.ts), de modo que en `npm run dev` o en producción no existen.
- */
+import type { IpcMain } from "electron";
+import { eq } from "drizzle-orm";
+import { db, schema } from "../../db/client";
+import { mapDatabaseRoleToTechnicalRole } from "./auth-context";
+import { signSessionToken } from "./auth-jwt";
+import { controllerError, controllerSuccess } from "./base";
+import type { ControllerResponse } from "../../shared/controllers";
+import type { LoginData } from "./auth-login";
 
-import type { IpcMain } from 'electron';
-import { eq } from 'drizzle-orm';
-import { db, schema } from '../../db/client';
-import { mapDatabaseRoleToTechnicalRole } from './auth-context';
-import { signSessionToken } from './auth-jwt';
-import { controllerError, controllerSuccess } from './base';
-import type { ControllerResponse } from '../../shared/controllers';
-import type { LoginData } from './auth-login';
-
-export const DEBUG_LOGIN_LIST_CHANNEL = 'debug:listar-usuarios';
-export const DEBUG_LOGIN_AS_CHANNEL = 'debug:login-como';
+export const DEBUG_LOGIN_LIST_CHANNEL = "debug:listar-usuarios";
+export const DEBUG_LOGIN_AS_CHANNEL = "debug:login-como";
 
 export type DebugUserItem = {
   usuarioId: string;
@@ -31,9 +16,8 @@ export type DebugUserItem = {
   rol: string;
 };
 
-/** True cuando la app se levantó con `npm run dev:debug`. */
 export function isDebugLoginEnabled(): boolean {
-  return process.env.HUASCAR_DEBUG_LOGIN === '1';
+  return process.env.HUASCAR_DEBUG_LOGIN === "1";
 }
 
 async function listActiveUsers(): Promise<DebugUserItem[]> {
@@ -52,7 +36,7 @@ async function listActiveUsers(): Promise<DebugUserItem[]> {
     );
 
   return rows
-    .filter((row) => row.estado === 'activo')
+    .filter((row) => row.estado === "activo")
     .map((row) => ({
       usuarioId: row.usuarioId,
       nombre: `${row.nombre} ${row.apellido}`.trim(),
@@ -64,12 +48,12 @@ async function loginAs(
   payload: unknown,
 ): Promise<ControllerResponse<LoginData>> {
   const usuarioId =
-    payload && typeof payload === 'object' && !Array.isArray(payload)
+    payload && typeof payload === "object" && !Array.isArray(payload)
       ? (payload as Record<string, unknown>).usuarioId
       : undefined;
 
-  if (typeof usuarioId !== 'string' || !usuarioId.trim()) {
-    return controllerError('VALIDATION_ERROR', 'Seleccione un usuario.');
+  if (typeof usuarioId !== "string" || !usuarioId.trim()) {
+    return controllerError("VALIDATION_ERROR", "Seleccione un usuario.");
   }
 
   const [user] = await db
@@ -88,16 +72,16 @@ async function loginAs(
     .where(eq(schema.usuario.usuarioId, usuarioId.trim()))
     .limit(1);
 
-  if (!user || user.estado !== 'activo') {
-    return controllerError('NOT_FOUND', 'Usuario no encontrado o inactivo.');
+  if (!user || user.estado !== "activo") {
+    return controllerError("NOT_FOUND", "Usuario no encontrado o inactivo.");
   }
 
   const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
 
   if (!role) {
     return controllerError(
-      'TECHNICAL_ERROR',
-      'El rol del usuario no es válido.',
+      "TECHNICAL_ERROR",
+      "El rol del usuario no es válido.",
     );
   }
 
@@ -145,8 +129,8 @@ export function registerDebugLogin(ipcMain: IpcMain): void {
       return controllerSuccess(await listActiveUsers());
     } catch {
       return controllerError(
-        'DATABASE_ERROR',
-        'No se pudieron listar los usuarios.',
+        "DATABASE_ERROR",
+        "No se pudieron listar los usuarios.",
       );
     }
   });
@@ -156,14 +140,14 @@ export function registerDebugLogin(ipcMain: IpcMain): void {
       return await loginAs(payload);
     } catch {
       return controllerError(
-        'DATABASE_ERROR',
-        'No fue posible iniciar la sesión de depuración.',
+        "DATABASE_ERROR",
+        "No fue posible iniciar la sesión de depuración.",
       );
     }
   });
 
   // eslint-disable-next-line no-console
   console.warn(
-    '[debug] Login de depuración ACTIVO (HUASCAR_DEBUG_LOGIN=1). No usar en producción.',
+    "[debug] Login de depuración ACTIVO (HUASCAR_DEBUG_LOGIN=1). No usar en producción.",
   );
 }

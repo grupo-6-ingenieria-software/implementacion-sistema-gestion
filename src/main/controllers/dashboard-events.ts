@@ -1,6 +1,6 @@
-import { BrowserWindow } from 'electron';
-import log from 'electron-log/main';
-import { DASHBOARD_UPDATED_EVENT } from '../../shared/dashboard';
+import { BrowserWindow } from "electron";
+import log from "electron-log/main";
+import { DASHBOARD_UPDATED_EVENT } from "../../shared/dashboard";
 
 export function notifyDashboardUpdated(): void {
   let windows: BrowserWindow[];
@@ -24,10 +24,8 @@ export function notifyDashboardUpdated(): void {
 function logNotificationError(error: unknown): void {
   try {
     log.error(
-      'No fue posible notificar la actualizacion del dashboard.',
+      "No fue posible notificar la actualizacion del dashboard.",
       error,
     );
-  } catch {
-    // La notificacion no debe alterar el resultado de la operacion confirmada.
-  }
+  } catch {}
 }

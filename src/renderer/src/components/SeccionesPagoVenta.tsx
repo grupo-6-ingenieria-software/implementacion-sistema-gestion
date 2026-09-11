@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
-import type { PaymentMethod } from '../../../shared/sales';
+import type { ReactElement } from "react";
+import type { PaymentMethod } from "../../../shared/sales";
 
 type SeccionesPagoVentaProps = {
   metodo: PaymentMethod;
@@ -22,13 +22,13 @@ export function SeccionesPagoVenta({
   return (
     <div className="rounded-md border border-[#cbd5df] bg-white p-4">
       <div className="grid grid-cols-2 gap-2">
-        {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map(
+        {(["efectivo", "debito", "credito", "transferencia"] as const).map(
           (option) => (
             <button
               className={`min-h-10 rounded-md px-3 py-2 text-sm font-semibold ${
                 metodo === option
-                  ? 'bg-[#244d61] text-white'
-                  : 'border border-[#cbd5df] bg-[#f8fafb] text-[#24313d]'
+                  ? "bg-[#244d61] text-white"
+                  : "border border-[#cbd5df] bg-[#f8fafb] text-[#24313d]"
               }`}
               key={option}
               type="button"
@@ -39,7 +39,7 @@ export function SeccionesPagoVenta({
           ),
         )}
       </div>
-      {metodo === 'efectivo' ? (
+      {metodo === "efectivo" ? (
         <div className="mt-4 grid gap-3">
           <label className="grid gap-1 text-sm font-semibold text-[#24313d]">
             Monto recibido
@@ -66,16 +66,16 @@ export function SeccionesPagoVenta({
 }
 
 const paymentLabels: Record<PaymentMethod, string> = {
-  efectivo: 'Efectivo',
-  debito: 'Débito',
-  credito: 'Crédito',
-  transferencia: 'Transferencia',
+  efectivo: "Efectivo",
+  debito: "Débito",
+  credito: "Crédito",
+  transferencia: "Transferencia",
 };
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     maximumFractionDigits: 0,
   }).format(value);
 }

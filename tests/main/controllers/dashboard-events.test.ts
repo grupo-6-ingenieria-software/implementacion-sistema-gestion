@@ -1,7 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DASHBOARD_UPDATED_EVENT } from '../../../src/shared/dashboard';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DASHBOARD_UPDATED_EVENT } from "../../../src/shared/dashboard";
 
-const { closeCashRegister, inspectDailyCashRegister, send, getAllWindows, logError, registerSale } = vi.hoisted(() => {
+const {
+  closeCashRegister,
+  inspectDailyCashRegister,
+  send,
+  getAllWindows,
+  logError,
+  registerSale,
+} = vi.hoisted(() => {
   const sendMock = vi.fn();
 
   return {
@@ -14,33 +21,33 @@ const { closeCashRegister, inspectDailyCashRegister, send, getAllWindows, logErr
   };
 });
 
-vi.mock('electron', () => ({
+vi.mock("electron", () => ({
   BrowserWindow: {
     getAllWindows,
   },
 }));
 
-vi.mock('../../../src/main/controllers/cash-check', async () => {
-  const actual = await vi.importActual<typeof import('../../../src/main/controllers/cash-check')>(
-    '../../../src/main/controllers/cash-check',
-  );
+vi.mock("../../../src/main/controllers/cash-check", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../src/main/controllers/cash-check")
+  >("../../../src/main/controllers/cash-check");
   return { ...actual, inspectDailyCashRegister };
 });
 
-vi.mock('electron-log/main', () => ({
+vi.mock("electron-log/main", () => ({
   default: {
     error: logError,
   },
 }));
 
-vi.mock('../../../src/db/client', () => ({
+vi.mock("../../../src/db/client", () => ({
   db: {},
 }));
 
-vi.mock('../../../src/main/controllers/sale-service', async () => {
+vi.mock("../../../src/main/controllers/sale-service", async () => {
   const actual = await vi.importActual<
-    typeof import('../../../src/main/controllers/sale-service')
-  >('../../../src/main/controllers/sale-service');
+    typeof import("../../../src/main/controllers/sale-service")
+  >("../../../src/main/controllers/sale-service");
 
   return {
     ...actual,
@@ -48,10 +55,10 @@ vi.mock('../../../src/main/controllers/sale-service', async () => {
   };
 });
 
-vi.mock('../../../src/main/controllers/cash-closing-service', async () => {
+vi.mock("../../../src/main/controllers/cash-closing-service", async () => {
   const actual = await vi.importActual<
-    typeof import('../../../src/main/controllers/cash-closing-service')
-  >('../../../src/main/controllers/cash-closing-service');
+    typeof import("../../../src/main/controllers/cash-closing-service")
+  >("../../../src/main/controllers/cash-closing-service");
 
   return {
     ...actual,
@@ -59,14 +66,14 @@ vi.mock('../../../src/main/controllers/cash-closing-service', async () => {
   };
 });
 
-import { notifyDashboardUpdated } from '../../../src/main/controllers/dashboard-events';
+import { notifyDashboardUpdated } from "../../../src/main/controllers/dashboard-events";
 import {
   SaleBusinessError,
   type SaleReceipt,
-} from '../../../src/main/controllers/sale-service';
-import { saleController } from '../../../src/main/controllers/sale';
-import { cashClosingController } from '../../../src/main/controllers/cash-closing';
-import type { CashCloseResult } from '../../../src/shared/cash';
+} from "../../../src/main/controllers/sale-service";
+import { saleController } from "../../../src/main/controllers/sale";
+import { cashClosingController } from "../../../src/main/controllers/cash-closing";
+import type { CashCloseResult } from "../../../src/shared/cash";
 
 beforeEach(() => {
   send.mockClear();
@@ -76,9 +83,9 @@ beforeEach(() => {
   registerSale.mockReset();
   inspectDailyCashRegister.mockReset();
   inspectDailyCashRegister.mockResolvedValue({
-    status: 'abierta',
-    cierreCajaId: 'caja-1',
-    openedAt: '2026-06-12T08:00:00.000Z',
+    status: "abierta",
+    cierreCajaId: "caja-1",
+    openedAt: "2026-06-12T08:00:00.000Z",
   });
   closeCashRegister.mockReset();
 });
@@ -87,17 +94,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('dashboard update events', () => {
-  it('emits the dashboard update event to every open window', () => {
+describe("dashboard update events", () => {
+  it("emits the dashboard update event to every open window", () => {
     notifyDashboardUpdated();
 
     expect(getAllWindows).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 
-  it('continues notifying other windows when one send fails', () => {
+  it("continues notifying other windows when one send fails", () => {
     const failedSend = vi.fn(() => {
-      throw new Error('window closed');
+      throw new Error("window closed");
     });
     const successfulSend = vi.fn();
     getAllWindows.mockReturnValue([
@@ -110,21 +117,21 @@ describe('dashboard update events', () => {
     expect(failedSend).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
     expect(successfulSend).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
     expect(logError).toHaveBeenCalledWith(
-      'No fue posible notificar la actualizacion del dashboard.',
+      "No fue posible notificar la actualizacion del dashboard.",
       expect.any(Error),
     );
   });
 
-  it('emits an update after a sale is registered successfully', async () => {
+  it("emits an update after a sale is registered successfully", async () => {
     registerSale.mockResolvedValueOnce(createSaleReceipt());
 
     const response = await saleController.handle(
       {
-        usuarioId: 'usuario-1',
+        usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
-        metodoPago: 'debito',
+        metodoPago: "debito",
       },
-      { channel: 'venta:registrar' },
+      { channel: "venta:registrar" },
     );
 
     expect(response.ok).toBe(true);
@@ -132,19 +139,19 @@ describe('dashboard update events', () => {
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 
-  it('keeps a successful sale response when dashboard notification fails', async () => {
+  it("keeps a successful sale response when dashboard notification fails", async () => {
     send.mockImplementationOnce(() => {
-      throw new Error('renderer unavailable');
+      throw new Error("renderer unavailable");
     });
     registerSale.mockResolvedValueOnce(createSaleReceipt());
 
     const response = await saleController.handle(
       {
-        usuarioId: 'usuario-1',
+        usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
-        metodoPago: 'debito',
+        metodoPago: "debito",
       },
-      { channel: 'venta:registrar' },
+      { channel: "venta:registrar" },
     );
 
     expect(response).toEqual({
@@ -152,57 +159,57 @@ describe('dashboard update events', () => {
       data: createSaleReceipt(),
     });
     expect(logError).toHaveBeenCalledWith(
-      'No fue posible notificar la actualizacion del dashboard.',
+      "No fue posible notificar la actualizacion del dashboard.",
       expect.any(Error),
     );
   });
 
-  it('does not emit an update when sale registration fails', async () => {
+  it("does not emit an update when sale registration fails", async () => {
     registerSale.mockRejectedValueOnce(
-      new SaleBusinessError('La caja se encuentra cerrada.'),
+      new SaleBusinessError("La caja se encuentra cerrada."),
     );
 
     const response = await saleController.handle(
       {
-        usuarioId: 'usuario-1',
+        usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
-        metodoPago: 'debito',
+        metodoPago: "debito",
       },
-      { channel: 'venta:registrar' },
+      { channel: "venta:registrar" },
     );
 
     expect(response.ok).toBe(false);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('emits an update after cash closing succeeds', async () => {
+  it("emits an update after cash closing succeeds", async () => {
     closeCashRegister.mockResolvedValueOnce(createCashCloseResult());
 
     const response = await cashClosingController.handle(
-      { confirmacion: true, usuarioId: 'usuario-1' },
-      { channel: 'caja:cerrar' },
+      { confirmacion: true, usuarioId: "usuario-1" },
+      { channel: "caja:cerrar" },
     );
 
     expect(response.ok).toBe(true);
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send).toHaveBeenNthCalledWith(1, 'caja:actualizada');
+    expect(send).toHaveBeenNthCalledWith(1, "caja:actualizada");
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 });
 
 function createSaleReceipt(): SaleReceipt {
   return {
-    ventaId: 'venta-1',
-    fechaHora: '2026-06-12T12:00:00.000Z',
+    ventaId: "venta-1",
+    fechaHora: "2026-06-12T12:00:00.000Z",
     responsable: {
-      usuarioId: 'usuario-1',
-      nombre: 'Trabajador Prueba',
-      rol: 'trabajador',
+      usuarioId: "usuario-1",
+      nombre: "Trabajador Prueba",
+      rol: "trabajador",
     },
-    metodoPago: 'debito',
+    metodoPago: "debito",
     subtotal: 1000,
     descuento: {
-      tipo: 'ninguno',
+      tipo: "ninguno",
       valor: 0,
     },
     total: 1000,
@@ -212,16 +219,16 @@ function createSaleReceipt(): SaleReceipt {
 
 function createCashCloseResult(): CashCloseResult {
   return {
-    cierreCajaId: 'caja-1',
-    closedAt: '2026-06-12T20:00:00.000Z',
+    cierreCajaId: "caja-1",
+    closedAt: "2026-06-12T20:00:00.000Z",
     closedBy: {
-      usuarioId: 'usuario-1',
-      nombre: 'Trabajador Prueba',
+      usuarioId: "usuario-1",
+      nombre: "Trabajador Prueba",
     },
     currentAmount: 1000,
     currentTransactions: 1,
-    generatedAt: '2026-06-12T20:00:00.000Z',
-    openedAt: '2026-06-12T08:00:00.000Z',
+    generatedAt: "2026-06-12T20:00:00.000Z",
+    openedAt: "2026-06-12T08:00:00.000Z",
     payments: {
       efectivo: {
         currentAmount: 0,
@@ -248,7 +255,7 @@ function createCashCloseResult(): CashCloseResult {
         voidedTransactions: 0,
       },
     },
-    status: 'cerrada',
+    status: "cerrada",
     voidedAmount: 0,
     voidedTransactions: 0,
   };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   defaultUserListFilters,
   formatRoleLabel,
@@ -9,7 +9,7 @@ import {
   type UserSortBy,
   type UserSortDirection,
   type UserStatusFilter,
-} from '../../../shared/users';
+} from "../../../shared/users";
 
 type UserManagementViewProps = {
   usuarioId: string;
@@ -19,12 +19,12 @@ export function UserManagementView({
   usuarioId,
 }: UserManagementViewProps): ReactElement {
   const [users, setUsers] = useState<UserListItem[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [rol, setRol] = useState<UserRoleFilter>(
-    defaultUserListFilters.rol ?? 'todos',
+    defaultUserListFilters.rol ?? "todos",
   );
   const [estado, setEstado] = useState<UserStatusFilter>(
-    defaultUserListFilters.estado ?? 'todos',
+    defaultUserListFilters.estado ?? "todos",
   );
   const [sortBy, setSortBy] = useState<UserSortBy>(
     defaultUserListFilters.sortBy,
@@ -60,7 +60,7 @@ export function UserManagementView({
       setError(null);
 
       const response = await window.appApi.invoke<UserListResponse>(
-        'usuario:listar',
+        "usuario:listar",
         payload,
       );
 
@@ -84,7 +84,7 @@ export function UserManagementView({
       }
 
       setUsers([]);
-      setError('No fue posible cargar los usuarios. Intente nuevamente.');
+      setError("No fue posible cargar los usuarios. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -104,7 +104,7 @@ export function UserManagementView({
 
     const response =
       await window.appApi.invoke<UserPasswordResetRequestResponse>(
-        'usuario:solicitar-restablecimiento',
+        "usuario:solicitar-restablecimiento",
         {
           usuarioId,
           usuarioObjetivoId: user.usuarioId,
@@ -198,7 +198,7 @@ export function UserManagementView({
       <section className="mt-6 overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-[#e3e8ee] px-5 py-4">
           <p className="text-sm font-semibold text-[#24313d]">
-            {loading ? 'Cargando usuarios...' : `${users.length} usuarios`}
+            {loading ? "Cargando usuarios..." : `${users.length} usuarios`}
           </p>
           <button
             className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -263,9 +263,9 @@ export function UserManagementView({
                     <td className="px-5 py-4">
                       <span
                         className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
-                          user.estado === 'activo'
-                            ? 'bg-[#e3f4ea] text-[#2d6a4f]'
-                            : 'bg-[#edf1f5] text-[#61717f]'
+                          user.estado === "activo"
+                            ? "bg-[#e3f4ea] text-[#2d6a4f]"
+                            : "bg-[#edf1f5] text-[#61717f]"
                         }`}
                       >
                         {capitalize(user.estado)}
@@ -274,7 +274,7 @@ export function UserManagementView({
                     <td className="px-5 py-4 text-[#24313d]">
                       {user.ultimoLoginFechaHora
                         ? formatDateTime(user.ultimoLoginFechaHora)
-                        : 'Sin registro'}
+                        : "Sin registro"}
                     </td>
                     <td className="px-5 py-4">
                       <button
@@ -347,7 +347,7 @@ function TemporaryPasswordDialog({
             type="button"
             onClick={() => void copyToClipboard()}
           >
-            {copied ? 'Copiada' : 'Copiar'}
+            {copied ? "Copiada" : "Copiar"}
           </button>
           <button
             className="rounded-md border border-[#244d61] bg-[#244d61] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#1d3e4f]"
@@ -388,7 +388,7 @@ function UserMessage({
 }
 
 function formatDateTime(value: string): string {
-  return value.replace('T', ' ').slice(0, 16);
+  return value.replace("T", " ").slice(0, 16);
 }
 
 function capitalize(value: string): string {
