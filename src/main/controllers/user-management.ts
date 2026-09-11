@@ -1,6 +1,6 @@
-import { asc, eq } from 'drizzle-orm';
-import { controllers, type ControllerResponse } from '../../shared/controllers';
-import type { Role } from '../../shared/navigation';
+import { asc, eq } from "drizzle-orm";
+import { controllers, type ControllerResponse } from "../../shared/controllers";
+import type { Role } from "../../shared/navigation";
 import {
   filterAndSortUserList,
   normalizeUserListPayload,
@@ -11,14 +11,14 @@ import {
   type UserPasswordResetRequestPayload,
   type UserPasswordResetRequestResponse,
   type UserStatus,
-} from '../../shared/users';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/users";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   type AuthenticatedUser,
-} from './auth-context';
-import { resetPasswordWithExecutor } from './password';
+} from "./auth-context";
+import { resetPasswordWithExecutor } from "./password";
 
 type UserManagementDependencies = {
   authorize: (
@@ -31,7 +31,8 @@ type UserManagementDependencies = {
   ) => Promise<ControllerResponse<UserPasswordResetRequestResponse>>;
 };
 
-type UserManagementResponse = UserListResponse | UserPasswordResetRequestResponse;
+type UserManagementResponse =
+  UserListResponse | UserPasswordResetRequestResponse;
 
 export function createUserManagementController(
   dependencies: UserManagementDependencies = userManagementDependencies,
@@ -41,9 +42,9 @@ export function createUserManagementController(
     context,
   ) => {
     try {
-      if (context.channel === 'usuario:listar') {
+      if (context.channel === "usuario:listar") {
         const usuarioId = normalizeUsuarioId(payload);
-        await dependencies.authorize(usuarioId, ['dueno']);
+        await dependencies.authorize(usuarioId, ["dueno"]);
 
         const filters = normalizeUserListPayload(payload);
         const users = await dependencies.listUsers();
@@ -56,30 +57,28 @@ export function createUserManagementController(
         };
       }
 
-      if (context.channel === 'usuario:solicitar-restablecimiento') {
+      if (context.channel === "usuario:solicitar-restablecimiento") {
         const normalizedPayload = normalizeUserPasswordResetPayload(payload);
 
         if (!normalizedPayload.usuarioObjetivoId) {
           return {
             ok: false,
             error: {
-              code: 'VALIDATION_ERROR',
-              controllerId: 'user-management',
-              message: 'Debe seleccionar un usuario valido.',
+              code: "VALIDATION_ERROR",
+              controllerId: "user-management",
+              message: "Debe seleccionar un usuario valido.",
             },
           };
         }
 
-        // resetPasswordWithExecutor autoriza al dueño y audita por sí mismo,
-        // por lo que delegamos la respuesta (éxito o error) directamente.
         return dependencies.requestPasswordReset(normalizedPayload);
       }
 
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
-          controllerId: 'user-management',
+          code: "INVALID_CHANNEL",
+          controllerId: "user-management",
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
@@ -88,8 +87,8 @@ export function createUserManagementController(
         return {
           ok: false,
           error: {
-            code: 'FORBIDDEN',
-            controllerId: 'user-management',
+            code: "FORBIDDEN",
+            controllerId: "user-management",
             message: error.message,
           },
         };
@@ -98,9 +97,9 @@ export function createUserManagementController(
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
-          controllerId: 'user-management',
-          message: 'No fue posible completar la operacion. Intente nuevamente.',
+          code: "DATABASE_ERROR",
+          controllerId: "user-management",
+          message: "No fue posible completar la operacion. Intente nuevamente.",
         },
       };
     }
@@ -114,7 +113,7 @@ export function createUserManagementController(
 
 const userManagementDependencies: UserManagementDependencies = {
   authorize: async (usuarioId, allowedRoles) => {
-    const { db, schema } = await import('../../db/client');
+    const { db, schema } = await import("../../db/client");
 
     return authorizeUser(db, schema, usuarioId, allowedRoles);
   },
@@ -125,7 +124,7 @@ const userManagementDependencies: UserManagementDependencies = {
 export const userManagementController = createUserManagementController();
 
 async function listUsers(): Promise<UserListItem[]> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   const rows = await db
     .select({
@@ -154,7 +153,7 @@ async function listUsers(): Promise<UserListItem[]> {
     usuarioId: row.usuarioId,
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
-    rol: normalizeUserRole(row.rol) ?? 'trabajador',
+    rol: normalizeUserRole(row.rol) ?? "trabajador",
     telefono: row.telefono,
     correoElectronico: row.correoElectronico ?? undefined,
     fechaIngreso: row.fechaIngreso,
@@ -166,7 +165,7 @@ async function listUsers(): Promise<UserListItem[]> {
 async function requestPasswordReset(
   payload: UserPasswordResetRequestPayload,
 ): Promise<ControllerResponse<UserPasswordResetRequestResponse>> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   // Reutiliza el generador de contraseña temporal de RF58: autoriza al dueño,
   // genera la temporal de 24h, persiste contrasena + contrasena_temporal y audita.
@@ -182,7 +181,7 @@ async function requestPasswordReset(
   return {
     ok: true,
     data: {
-      estado: 'completado',
+      estado: "completado",
       contrasenaTemporal: result.data.contrasenaTemporal,
       usuarioObjetivoId: result.data.usuarioObjetivoId,
     },
@@ -191,10 +190,10 @@ async function requestPasswordReset(
 
 function normalizeUsuarioId(payload: unknown): string | undefined {
   if (
-    typeof payload === 'object' &&
+    typeof payload === "object" &&
     payload !== null &&
-    'usuarioId' in payload &&
-    typeof payload.usuarioId === 'string'
+    "usuarioId" in payload &&
+    typeof payload.usuarioId === "string"
   ) {
     return payload.usuarioId.trim();
   }

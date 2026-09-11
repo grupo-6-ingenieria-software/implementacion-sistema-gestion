@@ -1,22 +1,22 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from "react";
 import {
   normalizeUserFormPayload,
   type UserFieldErrors,
   type UserFormValues,
   type UserMutationResponse,
   type UserRole,
-} from '../../../shared/users';
+} from "../../../shared/users";
 
 const emptyWorkerForm: UserFormValues = {
-  correoElectronico: '',
-  nombreCompleto: '',
-  rol: 'trabajador',
-  rut: '',
-  telefono: '',
+  correoElectronico: "",
+  nombreCompleto: "",
+  rol: "trabajador",
+  rut: "",
+  telefono: "",
 };
 
 function roleLabel(role: UserRole): string {
-  return role === 'dueno' ? 'Dueño' : 'Trabajador';
+  return role === "dueno" ? "Dueño" : "Trabajador";
 }
 
 type WorkerFormViewProps = {
@@ -37,9 +37,6 @@ export function WorkerFormView({
   const parsedValues = useMemo(() => normalizeUserFormPayload(form), [form]);
 
   async function handleSubmit(): Promise<void> {
-    // El backend es la fuente de verdad de RF21-E2/E3/E4. Enviar también los
-    // valores inválidos permite que el recorrido Vista → Controlador → Modelo
-    // retorne los errores de campo con el mismo contrato que una llamada IPC.
     setFieldErrors({});
     setMessage(null);
     setCreated(null);
@@ -47,7 +44,7 @@ export function WorkerFormView({
     setSaving(true);
 
     const response = await window.appApi.invoke<UserMutationResponse>(
-      'trabajador:registrar',
+      "trabajador:registrar",
       {
         ...parsedValues,
         usuarioId,
@@ -65,7 +62,7 @@ export function WorkerFormView({
     setForm(emptyWorkerForm);
     setFieldErrors({});
     setCreated(response.data);
-    setMessage('Trabajador registrado correctamente.');
+    setMessage("Trabajador registrado correctamente.");
   }
 
   return (
@@ -77,14 +74,14 @@ export function WorkerFormView({
             Registrar trabajador
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Ingresa los datos del trabajador. La cuenta de acceso se crea con
-            el RUT y una contrasena temporal.
+            Ingresa los datos del trabajador. La cuenta de acceso se crea con el
+            RUT y una contrasena temporal.
           </p>
         </div>
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/personal/trabajadores')}
+          onClick={() => onNavigate("/app/personal/trabajadores")}
         >
           Volver a trabajadores
         </button>
@@ -106,7 +103,10 @@ export function WorkerFormView({
                 placeholder="12345678-9"
                 value={form.rut}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, rut: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    rut: event.target.value,
+                  }))
                 }
               />
             </Field>
@@ -132,12 +132,13 @@ export function WorkerFormView({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    rol: event.target.value === 'dueno' ? 'dueno' : 'trabajador',
+                    rol:
+                      event.target.value === "dueno" ? "dueno" : "trabajador",
                   }))
                 }
               >
-                <option value="trabajador">{roleLabel('trabajador')}</option>
-                <option value="dueno">{roleLabel('dueno')}</option>
+                <option value="trabajador">{roleLabel("trabajador")}</option>
+                <option value="dueno">{roleLabel("dueno")}</option>
               </select>
             </Field>
 
@@ -151,19 +152,22 @@ export function WorkerFormView({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    telefono: event.target.value.replace(/\D/g, ''),
+                    telefono: event.target.value.replace(/\D/g, ""),
                   }))
                 }
               />
             </Field>
 
-            <Field label="Correo opcional" error={fieldErrors.correoElectronico}>
+            <Field
+              label="Correo opcional"
+              error={fieldErrors.correoElectronico}
+            >
               <input
                 className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
                 maxLength={50}
                 placeholder="correo@dominio.cl"
                 type="email"
-                value={form.correoElectronico ?? ''}
+                value={form.correoElectronico ?? ""}
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
@@ -178,8 +182,8 @@ export function WorkerFormView({
             <p
               className={`rounded-md border px-3 py-2 text-sm font-semibold ${
                 created
-                  ? 'border-[#b7dfc8] bg-[#effaf3] text-[#2d6a4f]'
-                  : 'border-[#fecdca] bg-[#fff3f1] text-[#b42318]'
+                  ? "border-[#b7dfc8] bg-[#effaf3] text-[#2d6a4f]"
+                  : "border-[#fecdca] bg-[#fff3f1] text-[#b42318]"
               }`}
             >
               {message}
@@ -211,12 +215,12 @@ export function WorkerFormView({
               disabled={saving}
               type="submit"
             >
-              {saving ? 'Guardando...' : 'Guardar trabajador'}
+              {saving ? "Guardando..." : "Guardar trabajador"}
             </button>
             <button
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate('/app/personal/trabajadores')}
+              onClick={() => onNavigate("/app/personal/trabajadores")}
             >
               Cancelar
             </button>
@@ -245,10 +249,18 @@ function Field({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase text-[#61717f]">{label}</dt>
+      <dt className="text-xs font-semibold uppercase text-[#61717f]">
+        {label}
+      </dt>
       <dd className="mt-1 font-mono text-sm font-semibold text-[#17202a]">
         {value}
       </dd>

@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
-import { isValidEan13, normalizeEan13 } from '../../../shared/ean13';
+import type { ReactElement } from "react";
+import { isValidEan13, normalizeEan13 } from "../../../shared/ean13";
 
 type CampoEAN13InputProps = {
   disabled?: boolean;
@@ -23,7 +23,7 @@ export function CampoEAN13Input({
       <input
         aria-invalid={hasError}
         className={`w-full rounded-md border px-3 py-2 disabled:bg-[#edf1f5] disabled:text-[#61717f] ${
-          hasError ? 'border-[#b42318]' : 'border-[#9ba9b5]'
+          hasError ? "border-[#b42318]" : "border-[#9ba9b5]"
         }`}
         disabled={disabled}
         inputMode="numeric"
@@ -32,7 +32,7 @@ export function CampoEAN13Input({
         value={value}
         onChange={(event) => onChange(normalizeEan13(event.target.value))}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && isValidEan13(normalized)) {
+          if (event.key === "Enter" && isValidEan13(normalized)) {
             onValidSubmit?.(normalized);
           }
         }}

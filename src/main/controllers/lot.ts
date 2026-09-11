@@ -244,7 +244,9 @@ async function findProviderById(
   const [provider] = await executor
     .select({ id: schema.proveedor.proveedorId })
     .from(schema.proveedor)
-    .where(sql`${schema.proveedor.proveedorId} = ${numericSqlValue(proveedorId)}`)
+    .where(
+      sql`${schema.proveedor.proveedorId} = ${numericSqlValue(proveedorId)}`,
+    )
     .limit(1);
 
   return provider ? { id: Number(provider.id) } : null;

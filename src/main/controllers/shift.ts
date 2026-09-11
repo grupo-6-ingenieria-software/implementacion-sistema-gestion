@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import { sql } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
+import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
+import { controllers } from "../../shared/controllers";
 import {
   addDaysToDateKey,
   formatShiftTimestamp,
@@ -22,20 +22,20 @@ import {
   type ShiftListPayload,
   type ShiftListResponse,
   type ShiftMutationResponse,
-} from '../../shared/shifts';
+} from "../../shared/shifts";
 import {
   controllerError,
   controllerSuccess,
   type RegisteredController,
-} from './base';
-import { db, schema } from '../../db/client';
-import { authorizeUser } from './auth-context';
-import { registerAuditLog, type DbExecutor } from './sale-service';
+} from "./base";
+import { db, schema } from "../../db/client";
+import { authorizeUser } from "./auth-context";
+import { registerAuditLog, type DbExecutor } from "./sale-service";
 
 const metadata = controllers[21];
 
 export type ShiftActor = {
-  role: 'dueno';
+  role: "dueno";
   usuarioId: string;
 };
 
@@ -64,7 +64,7 @@ export const shiftController: RegisteredController = {
   metadata,
   handle: async (payload, context) => {
     try {
-      if (context.channel === 'turno:listar') {
+      if (context.channel === "turno:listar") {
         const input = normalizeShiftListPayload(payload);
         assertValid(validateShiftListPayload(input));
         const actor = await requireOwner(input.usuarioId);
@@ -73,7 +73,7 @@ export const shiftController: RegisteredController = {
         );
       }
 
-      if (context.channel === 'turno:crear') {
+      if (context.channel === "turno:crear") {
         const input = normalizeShiftCreatePayload(payload);
         const actor = await requireOwner(input.usuarioId);
         return controllerSuccess(
@@ -81,7 +81,7 @@ export const shiftController: RegisteredController = {
         );
       }
 
-      if (context.channel === 'turno:editar') {
+      if (context.channel === "turno:editar") {
         const input = normalizeShiftEditPayload(payload);
         assertValid(validateShiftEditPayload(input));
         const actor = await requireOwner(input.usuarioId);
@@ -90,7 +90,7 @@ export const shiftController: RegisteredController = {
         );
       }
 
-      if (context.channel === 'turno:eliminar') {
+      if (context.channel === "turno:eliminar") {
         const input = normalizeShiftDeletePayload(payload);
         assertValid(validateShiftDeletePayload(input));
         const actor = await requireOwner(input.usuarioId);
@@ -100,7 +100,7 @@ export const shiftController: RegisteredController = {
       }
 
       return controllerError(
-        'INVALID_CHANNEL',
+        "INVALID_CHANNEL",
         `Canal IPC no registrado: ${context.channel}`,
         metadata.id,
       );
@@ -109,7 +109,7 @@ export const shiftController: RegisteredController = {
         return {
           ok: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: "VALIDATION_ERROR",
             controllerId: metadata.id,
             fieldErrors: error.fieldErrors,
             message: error.message,
@@ -118,17 +118,17 @@ export const shiftController: RegisteredController = {
       }
 
       if (error instanceof ShiftAccessError) {
-        return controllerError('FORBIDDEN', error.message, metadata.id);
+        return controllerError("FORBIDDEN", error.message, metadata.id);
       }
 
       if (error instanceof ShiftBusinessError) {
-        return controllerError('BUSINESS_RULE', error.message, metadata.id);
+        return controllerError("BUSINESS_RULE", error.message, metadata.id);
       }
 
       console.error(error);
       return controllerError(
-        'TECHNICAL_ERROR',
-        'No fue posible procesar los turnos. Intente nuevamente.',
+        "TECHNICAL_ERROR",
+        "No fue posible procesar los turnos. Intente nuevamente.",
         metadata.id,
       );
     }
@@ -170,8 +170,7 @@ export async function listShifts(
     .map((row) => mapShiftRow(row, now))
     .filter(
       (turno) =>
-        turno.fechaIso >= payload.inicioSemana &&
-        turno.fechaIso <= finSemana,
+        turno.fechaIso >= payload.inicioSemana && turno.fechaIso <= finSemana,
     );
 
   return {
@@ -191,8 +190,8 @@ export async function createShift(
     const worker = await findActiveWorker(tx, payload.trabajadorId);
 
     if (!worker) {
-      throw new ShiftValidationError('Revise los campos marcados.', {
-        trabajadorId: 'Seleccione un trabajador activo.',
+      throw new ShiftValidationError("Revise los campos marcados.", {
+        trabajadorId: "Seleccione un trabajador activo.",
       });
     }
 
@@ -226,8 +225,8 @@ export async function createShift(
 
     await registerAuditLog(tx, {
       usuarioId: actor.usuarioId,
-      tipoAccion: 'crear_turno',
-      modulo: 'personal',
+      tipoAccion: "crear_turno",
+      modulo: "personal",
       descripcion: `Turno creado para ${worker.nombreCompleto}: ${payload.fecha} ${payload.horaInicio}-${payload.horaTermino}.`,
     });
 
@@ -236,7 +235,7 @@ export async function createShift(
 }
 
 export async function validateShiftCreateInDatabase(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   payload: ShiftCreatePayload,
 ): Promise<ShiftFieldErrors> {
   const [validation] = await database.all<{
@@ -272,15 +271,16 @@ export async function validateShiftCreateInDatabase(
   const errors: ShiftFieldErrors = {};
 
   if (!validation?.fechaValida) {
-    errors.fecha = 'Ingrese la fecha en formato DD/MM/AAAA.';
+    errors.fecha = "Ingrese la fecha en formato DD/MM/AAAA.";
   }
   if (!validation?.inicioValido) {
-    errors.horaInicio = 'Ingrese la hora de inicio en formato HH:MM.';
+    errors.horaInicio = "Ingrese la hora de inicio en formato HH:MM.";
   }
   if (!validation?.terminoValido) {
-    errors.horaTermino = 'Ingrese la hora de termino en formato HH:MM.';
+    errors.horaTermino = "Ingrese la hora de termino en formato HH:MM.";
   } else if (validation.inicioValido && !validation.ordenValido) {
-    errors.horaTermino = 'La hora de termino debe ser posterior a la hora de inicio.';
+    errors.horaTermino =
+      "La hora de termino debe ser posterior a la hora de inicio.";
   }
 
   return errors;
@@ -298,7 +298,7 @@ export async function editShift(
     assertOwnerActor(actor);
     const existing = await findShift(tx, payload.turnoId);
 
-    assertShiftCanChange(existing, now, 'modificar');
+    assertShiftCanChange(existing, now, "modificar");
     await assertNoOverlap(
       tx,
       existing.trabajadorId,
@@ -317,8 +317,8 @@ export async function editShift(
 
     await registerAuditLog(tx, {
       usuarioId: actor.usuarioId,
-      tipoAccion: 'editar_turno',
-      modulo: 'personal',
+      tipoAccion: "editar_turno",
+      modulo: "personal",
       descripcion: `Turno de ${existing.trabajadorNombre} reprogramado a ${payload.fecha} ${payload.horaInicio}-${payload.horaTermino}.`,
     });
 
@@ -333,23 +333,20 @@ export async function deleteShift(
   now = new Date(),
 ): Promise<ShiftMutationResponse> {
   if (!payload.confirmacion) {
-    throw new ShiftValidationError(
-      'Debe confirmar la eliminacion del turno.',
-      {
-        confirmacion: 'Debe confirmar la eliminacion del turno.',
-      },
-    );
+    throw new ShiftValidationError("Debe confirmar la eliminacion del turno.", {
+      confirmacion: "Debe confirmar la eliminacion del turno.",
+    });
   }
 
   return database.transaction(async (tx) => {
     assertOwnerActor(actor);
     const existing = await findShift(tx, payload.turnoId);
 
-    assertShiftCanChange(existing, now, 'eliminar');
+    assertShiftCanChange(existing, now, "eliminar");
     await registerAuditLog(tx, {
       usuarioId: actor.usuarioId,
-      tipoAccion: 'eliminar_turno',
-      modulo: 'personal',
+      tipoAccion: "eliminar_turno",
+      modulo: "personal",
       descripcion: `Turno de ${existing.trabajadorNombre} eliminado (${existing.inicioAt} - ${existing.terminoAt}).`,
     });
     await tx.run(sql`DELETE FROM turno WHERE turno_id = ${payload.turnoId}`);
@@ -358,26 +355,28 @@ export async function deleteShift(
   });
 }
 
-async function requireOwner(usuarioId: string | undefined): Promise<ShiftActor> {
+async function requireOwner(
+  usuarioId: string | undefined,
+): Promise<ShiftActor> {
   try {
-    const user = await authorizeUser(db, schema, usuarioId, ['dueno']);
+    const user = await authorizeUser(db, schema, usuarioId, ["dueno"]);
     return {
-      role: 'dueno',
+      role: "dueno",
       usuarioId: user.usuarioId,
     };
   } catch {
-    throw new ShiftAccessError('No tiene permiso para gestionar turnos.');
+    throw new ShiftAccessError("No tiene permiso para gestionar turnos.");
   }
 }
 
 function assertOwnerActor(actor: ShiftActor): void {
-  if (!actor.usuarioId?.trim() || actor.role !== 'dueno') {
-    throw new ShiftAccessError('No tiene permiso para gestionar turnos.');
+  if (!actor.usuarioId?.trim() || actor.role !== "dueno") {
+    throw new ShiftAccessError("No tiene permiso para gestionar turnos.");
   }
 }
 
 async function findActiveWorker(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
 ): Promise<{ nombreCompleto: string } | null> {
   const rows = await database.all<{ nombreCompleto: string }>(sql`
@@ -392,7 +391,7 @@ async function findActiveWorker(
 }
 
 async function findShift(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   turnoId: string,
 ): Promise<ShiftRow | null> {
   const rows = await database.all<ShiftRow>(sql`
@@ -413,7 +412,7 @@ async function findShift(
 }
 
 async function assertNoOverlap(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
   inicioAt: string,
   terminoAt: string,
@@ -434,7 +433,7 @@ async function assertNoOverlap(
 
   if (Number(rows[0]?.count ?? 0) > 0) {
     throw new ShiftBusinessError(
-      'El trabajador ya tiene un turno que se superpone con el horario indicado.',
+      "El trabajador ya tiene un turno que se superpone con el horario indicado.",
     );
   }
 }
@@ -442,10 +441,10 @@ async function assertNoOverlap(
 function assertShiftCanChange(
   shift: ShiftRow | null,
   now: Date,
-  action: 'modificar' | 'eliminar',
+  action: "modificar" | "eliminar",
 ): asserts shift is ShiftRow {
   if (!shift) {
-    throw new ShiftBusinessError('El turno solicitado no existe.');
+    throw new ShiftBusinessError("El turno solicitado no existe.");
   }
 
   if (
@@ -486,7 +485,7 @@ function requireRange(values: {
   const range = parseShiftRange(values);
 
   if (!range) {
-    throw new ShiftValidationError('Revise los campos marcados.');
+    throw new ShiftValidationError("Revise los campos marcados.");
   }
 
   return range;
@@ -495,7 +494,7 @@ function requireRange(values: {
 function assertValid(errors: ShiftFieldErrors): void {
   if (hasShiftFieldErrors(errors)) {
     throw new ShiftValidationError(
-      'Revise los campos marcados antes de continuar.',
+      "Revise los campos marcados antes de continuar.",
       errors,
     );
   }

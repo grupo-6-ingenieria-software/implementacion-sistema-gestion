@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  like,
+  or,
+  sql,
+} from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import type { Role } from "../../shared/navigation";
 import {
@@ -362,9 +372,15 @@ async function queryInventoryProductsWithExecutor(
 
   const stockExpression = sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`;
   const stockRows = await db
-    .select({ productoId: schema.producto.productoId, stockActual: stockExpression })
+    .select({
+      productoId: schema.producto.productoId,
+      stockActual: stockExpression,
+    })
     .from(schema.producto)
-    .leftJoin(schema.lote, eq(schema.lote.productoId, schema.producto.productoId))
+    .leftJoin(
+      schema.lote,
+      eq(schema.lote.productoId, schema.producto.productoId),
+    )
     .where(inArray(schema.producto.productoId, productIds))
     .groupBy(schema.producto.productoId)
     .orderBy(
@@ -390,9 +406,7 @@ async function queryInventoryProductsWithExecutor(
           ),
         )
         .orderBy(
-          desc(
-            schema.historialPrecioProducto.historialFechaHoraVigenciaDesde,
-          ),
+          desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
         )
     : [];
 
@@ -406,8 +420,12 @@ async function queryInventoryProductsWithExecutor(
       costs.set(row.productoId, Number(row.precioCosto ?? 0));
     }
   }
-  const categoryRank = new Map(categoryRows.map((row, index) => [row.id, index]));
-  const stockRank = new Map(stockRows.map((row, index) => [row.productoId, index]));
+  const categoryRank = new Map(
+    categoryRows.map((row, index) => [row.id, index]),
+  );
+  const stockRank = new Map(
+    stockRows.map((row, index) => [row.productoId, index]),
+  );
   const orderedProducts = [...productRows];
   if (filters.sortBy === "categoria") {
     orderedProducts.sort(
@@ -464,7 +482,9 @@ export async function queryProductDetailWithExecutor(
     return visible;
   }
   const [price] = await db
-    .select({ precioCosto: schema.historialPrecioProducto.historialPrecioCosto })
+    .select({
+      precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
+    })
     .from(schema.historialPrecioProducto)
     .where(
       and(
@@ -472,7 +492,9 @@ export async function queryProductDetailWithExecutor(
         isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
       ),
     )
-    .orderBy(desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde))
+    .orderBy(
+      desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
+    )
     .limit(1);
   const { productoId: _productoId, ...visible } = product;
   return { ...visible, precioCosto: Number(price?.precioCosto ?? 0) };
@@ -483,7 +505,10 @@ export async function queryProductCategoriesWithExecutor(
   schema: typeof import("../../db/schema"),
 ): Promise<ProductCategoryOption[]> {
   return db
-    .select({ id: schema.categoria.categoriaId, nombre: schema.categoria.categoriaNombre })
+    .select({
+      id: schema.categoria.categoriaId,
+      nombre: schema.categoria.categoriaNombre,
+    })
     .from(schema.categoria)
     .orderBy(asc(schema.categoria.categoriaNombre));
 }
@@ -546,23 +571,33 @@ export async function queryActiveProductsWithExecutor(
         isNull(schema.historialPrecioProducto.historialFechaHoraVigenciaHasta),
       ),
     )
-    .orderBy(desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde));
+    .orderBy(
+      desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
+    );
   const categoryById = new Map(categories.map((row) => [row.id, row]));
-  const stockByProduct = new Map(stocks.map((row) => [row.productoId, Number(row.stockDisponible)]));
+  const stockByProduct = new Map(
+    stocks.map((row) => [row.productoId, Number(row.stockDisponible)]),
+  );
   const priceByProduct = new Map<number, number>();
-  for (const row of prices) if (!priceByProduct.has(row.productoId)) priceByProduct.set(row.productoId, Number(row.precioVenta));
+  for (const row of prices)
+    if (!priceByProduct.has(row.productoId))
+      priceByProduct.set(row.productoId, Number(row.precioVenta));
   return products.flatMap((product) => {
     const category = categoryById.get(product.categoriaId);
     if (!category) return [];
-    return [{
-      productoId: Number(product.productoId),
-      ean13: product.ean13,
-      nombre: product.nombre,
-      categoria: category.nombre,
-      exigeVencimiento: Boolean(category.exigeVencimiento),
-      precioVenta: priceByProduct.get(product.productoId) ?? Number(product.precioVentaBase),
-      stockDisponible: stockByProduct.get(product.productoId) ?? 0,
-    }];
+    return [
+      {
+        productoId: Number(product.productoId),
+        ean13: product.ean13,
+        nombre: product.nombre,
+        categoria: category.nombre,
+        exigeVencimiento: Boolean(category.exigeVencimiento),
+        precioVenta:
+          priceByProduct.get(product.productoId) ??
+          Number(product.precioVentaBase),
+        stockDisponible: stockByProduct.get(product.productoId) ?? 0,
+      },
+    ];
   });
 }
 

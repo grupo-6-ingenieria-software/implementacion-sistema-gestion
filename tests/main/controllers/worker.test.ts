@@ -1,37 +1,37 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { AttendanceWorkerOption } from '../../../src/shared/attendance';
-import type { Role } from '../../../src/shared/navigation';
+import { describe, expect, it, vi } from "vitest";
+import type { AttendanceWorkerOption } from "../../../src/shared/attendance";
+import type { Role } from "../../../src/shared/navigation";
 import type {
   UserFormValues,
   UserListItem,
   UserListResponse,
   UserStatusChangePayload,
-} from '../../../src/shared/users';
+} from "../../../src/shared/users";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from '../../../src/main/controllers/auth-context';
-import { createWorkerController } from '../../../src/main/controllers/worker';
+} from "../../../src/main/controllers/auth-context";
+import { createWorkerController } from "../../../src/main/controllers/worker";
 
 const workers: UserListItem[] = [
   {
-    usuarioId: '12345678-9',
-    rut: '12345678-9',
-    nombreCompleto: 'Maria Huascar',
-    rol: 'dueno',
-    telefono: '987654321',
-    correoElectronico: 'maria@huascar.cl',
-    fechaIngreso: '2024-01-01',
-    estado: 'activo',
+    usuarioId: "12345678-9",
+    rut: "12345678-9",
+    nombreCompleto: "Maria Huascar",
+    rol: "dueno",
+    telefono: "987654321",
+    correoElectronico: "maria@huascar.cl",
+    fechaIngreso: "2024-01-01",
+    estado: "activo",
   },
   {
-    usuarioId: '23456789-0',
-    rut: '23456789-0',
-    nombreCompleto: 'Camila Rojas',
-    rol: 'trabajador',
-    telefono: '912345678',
-    fechaIngreso: '2025-06-15',
-    estado: 'activo',
+    usuarioId: "23456789-0",
+    rut: "23456789-0",
+    nombreCompleto: "Camila Rojas",
+    rol: "trabajador",
+    telefono: "912345678",
+    fechaIngreso: "2025-06-15",
+    estado: "activo",
   },
 ];
 
@@ -58,11 +58,11 @@ function createController(overrides: Partial<Dependencies> = {}) {
   return createWorkerController(dependencies);
 }
 
-describe('worker controller', () => {
-  it('lists workers for owners', async () => {
+describe("worker controller", () => {
+  it("lists workers for owners", async () => {
     const response = await createController().handle(
-      { usuarioId: 'dueno', search: 'rojas' },
-      { channel: 'trabajador:listar' },
+      { usuarioId: "dueno", search: "rojas" },
+      { channel: "trabajador:listar" },
     );
 
     expect(response.ok).toBe(true);
@@ -70,120 +70,121 @@ describe('worker controller', () => {
       throw new Error(response.error.message);
     }
 
-    expect((response.data as UserListResponse).users.map((worker) => worker.rut))
-      .toEqual(['23456789-0']);
+    expect(
+      (response.data as UserListResponse).users.map((worker) => worker.rut),
+    ).toEqual(["23456789-0"]);
   });
 
-  it('rejects worker sessions for worker administration', async () => {
+  it("rejects worker sessions for worker administration", async () => {
     const response = await createController().handle(
-      { usuarioId: 'trabajador' },
-      { channel: 'trabajador:listar' },
+      { usuarioId: "trabajador" },
+      { channel: "trabajador:listar" },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden worker list');
+      throw new Error("Expected forbidden worker list");
     }
 
-    expect(response.error.code).toBe('FORBIDDEN');
+    expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it('creates worker accounts in the worker module', async () => {
+  it("creates worker accounts in the worker module", async () => {
     const createWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
     const response = await createController({ createWorker }).handle(
       {
-        correoElectronico: 'ana@huascar.cl',
-        nombreCompleto: 'Ana Soto',
-        rol: 'trabajador',
-        rut: '12.345.678-5',
-        telefono: '987654321',
-        usuarioId: 'dueno',
+        correoElectronico: "ana@huascar.cl",
+        nombreCompleto: "Ana Soto",
+        rol: "trabajador",
+        rut: "12.345.678-5",
+        telefono: "987654321",
+        usuarioId: "dueno",
       },
-      { channel: 'trabajador:registrar' },
+      { channel: "trabajador:registrar" },
     );
 
     expect(response.ok).toBe(true);
     expect(createWorker).toHaveBeenCalledWith({
-      correoElectronico: 'ana@huascar.cl',
-      nombreCompleto: 'Ana Soto',
-      rol: 'trabajador',
-      rut: '12345678-5',
-      telefono: '987654321',
-      usuarioId: 'dueno',
+      correoElectronico: "ana@huascar.cl",
+      nombreCompleto: "Ana Soto",
+      rol: "trabajador",
+      rut: "12345678-5",
+      telefono: "987654321",
+      usuarioId: "dueno",
     });
   });
 
-  it('returns field errors for invalid worker creation payloads', async () => {
+  it("returns field errors for invalid worker creation payloads", async () => {
     const response = await createController().handle(
       {
-        nombreCompleto: '',
-        rol: 'trabajador',
-        rut: '123',
-        telefono: '123',
-        usuarioId: 'dueno',
+        nombreCompleto: "",
+        rol: "trabajador",
+        rut: "123",
+        telefono: "123",
+        usuarioId: "dueno",
       },
-      { channel: 'trabajador:registrar' },
+      { channel: "trabajador:registrar" },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected validation error');
+      throw new Error("Expected validation error");
     }
 
-    expect(response.error.code).toBe('VALIDATION_ERROR');
+    expect(response.error.code).toBe("VALIDATION_ERROR");
     expect(response.error.fieldErrors?.rut).toBeDefined();
     expect(response.error.fieldErrors?.nombreCompleto).toBeDefined();
     expect(response.error.fieldErrors?.telefono).toBeDefined();
   });
 
-  it('updates workers without revalidating non-editable legacy RUT checksums', async () => {
+  it("updates workers without revalidating non-editable legacy RUT checksums", async () => {
     const updateWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
     const response = await createController({ updateWorker }).handle(
       {
-        correoElectronico: '',
-        nombreCompleto: 'Maria Huascar Editada',
-        rol: 'dueno',
-        rut: '12345678-9',
-        telefono: '987654321',
-        usuarioId: 'dueno',
+        correoElectronico: "",
+        nombreCompleto: "Maria Huascar Editada",
+        rol: "dueno",
+        rut: "12345678-9",
+        telefono: "987654321",
+        usuarioId: "dueno",
       },
-      { channel: 'trabajador:actualizar' },
+      { channel: "trabajador:actualizar" },
     );
 
     expect(response.ok).toBe(true);
     expect(updateWorker).toHaveBeenCalled();
   });
 
-  it('changes worker status after owner authorization', async () => {
+  it("changes worker status after owner authorization", async () => {
     const changeStatus = vi.fn(async (payload: UserStatusChangePayload) => ({
       usuarioId: payload.usuarioObjetivoId,
     }));
     const response = await createController({ changeStatus }).handle(
       {
-        estado: 'inactivo',
-        usuarioId: 'dueno',
-        usuarioObjetivoId: '23456789-0',
+        estado: "inactivo",
+        usuarioId: "dueno",
+        usuarioObjetivoId: "23456789-0",
       },
-      { channel: 'trabajador:cambiar-estado' },
+      { channel: "trabajador:cambiar-estado" },
     );
 
     expect(response.ok).toBe(true);
     expect(changeStatus).toHaveBeenCalledWith({
-      estado: 'inactivo',
-      usuarioId: 'dueno',
-      usuarioObjetivoId: '23456789-0',
+      estado: "inactivo",
+      usuarioId: "dueno",
+      usuarioObjetivoId: "23456789-0",
     });
   });
 
-  describe('trabajador:listar-activos', () => {
-    it('returns every active worker for owners', async () => {
+  describe("trabajador:listar-activos", () => {
+    it("returns every active worker for owners", async () => {
       const response = await createController().handle(
-        { usuarioId: '12345678-9' },
-        { channel: 'trabajador:listar-activos' },
+        { usuarioId: "12345678-9" },
+        { channel: "trabajador:listar-activos" },
       );
 
       expect(response.ok).toBe(true);
@@ -194,10 +195,10 @@ describe('worker controller', () => {
       expect(response.data as AttendanceWorkerOption[]).toEqual(activeWorkers);
     });
 
-    it('returns only the calling worker for the trabajador role', async () => {
+    it("returns only the calling worker for the trabajador role", async () => {
       const response = await createController().handle(
-        { usuarioId: '23456789-0' },
-        { channel: 'trabajador:listar-activos' },
+        { usuarioId: "23456789-0" },
+        { channel: "trabajador:listar-activos" },
       );
 
       expect(response.ok).toBe(true);
@@ -207,14 +208,14 @@ describe('worker controller', () => {
 
       const data = response.data as AttendanceWorkerOption[];
       expect(data).toHaveLength(1);
-      expect(data[0]?.rut).toBe('23456789-0');
-      expect(data[0]?.nombreCompleto).toBe('Camila Rojas');
+      expect(data[0]?.rut).toBe("23456789-0");
+      expect(data[0]?.nombreCompleto).toBe("Camila Rojas");
     });
 
-    it('does not leak other workers rut or names to a trabajador', async () => {
+    it("does not leak other workers rut or names to a trabajador", async () => {
       const response = await createController().handle(
-        { usuarioId: '23456789-0' },
-        { channel: 'trabajador:listar-activos' },
+        { usuarioId: "23456789-0" },
+        { channel: "trabajador:listar-activos" },
       );
 
       expect(response.ok).toBe(true);
@@ -226,8 +227,8 @@ describe('worker controller', () => {
       const ruts = data.map((worker) => worker.rut);
       const names = data.map((worker) => worker.nombreCompleto);
 
-      expect(ruts).not.toContain('12345678-9');
-      expect(names).not.toContain('Maria Huascar');
+      expect(ruts).not.toContain("12345678-9");
+      expect(names).not.toContain("Maria Huascar");
     });
   });
 });
@@ -246,22 +247,19 @@ function authorizeTestUser(
 
   return {
     role,
-    usuarioId: usuarioId ?? '',
+    usuarioId: usuarioId ?? "",
     usuarioRol: role,
-    trabajadorNombre: role === 'dueno' ? 'Dueno Prueba' : 'Trabajador Prueba',
+    trabajadorNombre: role === "dueno" ? "Dueno Prueba" : "Trabajador Prueba",
   };
 }
 
-// Identidades de sesion para las pruebas: ademas de los alias 'dueno'/'trabajador',
-// se reconocen los RUT de la fixture `workers` (usuarioId == RUT) para poder
-// ejercitar el self-scoping del canal por RUT real.
 function resolveTestRole(usuarioId: string | undefined): Role | null {
-  if (usuarioId === 'dueno') {
-    return 'dueno';
+  if (usuarioId === "dueno") {
+    return "dueno";
   }
 
-  if (usuarioId === 'trabajador') {
-    return 'trabajador';
+  if (usuarioId === "trabajador") {
+    return "trabajador";
   }
 
   const known = workers.find((worker) => worker.usuarioId === usuarioId);

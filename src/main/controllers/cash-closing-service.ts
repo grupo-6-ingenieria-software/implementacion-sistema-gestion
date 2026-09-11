@@ -1,24 +1,18 @@
-import { sql } from 'drizzle-orm';
-import type { Role } from '../../shared/navigation';
-import type { PaymentMethod } from '../../shared/sales';
+import { sql } from "drizzle-orm";
+import type { Role } from "../../shared/navigation";
+import type { PaymentMethod } from "../../shared/sales";
 import {
   createEmptyCashPaymentBreakdown,
   type CashCloseRequest,
   type CashCloseResult,
   type CashClosingRequest,
   type CashClosingSummary,
-} from '../../shared/cash';
-import { mapDatabaseRoleToTechnicalRole } from './auth-context';
-import {
-  calculateSaleAmount,
-  type SaleRow,
-} from './dashboard-service';
-import { getDashboardDay } from './dashboard-date';
-import {
-  registerAuditLog,
-  type DbExecutor,
-} from './sale-service';
-import { inspectDailyCashRegister } from './cash-check';
+} from "../../shared/cash";
+import { mapDatabaseRoleToTechnicalRole } from "./auth-context";
+import { calculateSaleAmount, type SaleRow } from "./dashboard-service";
+import { getDashboardDay } from "./dashboard-date";
+import { registerAuditLog, type DbExecutor } from "./sale-service";
+import { inspectDailyCashRegister } from "./cash-check";
 
 type CashUser = {
   role: Role;
@@ -33,7 +27,7 @@ type CashRegisterRow = {
   closedByName: string | null;
   closedByUserId: string | null;
   openedAt: string;
-  status: 'abierto' | 'cerrado';
+  status: "abierto" | "cerrado";
 };
 
 export class CashClosingValidationError extends Error {}
@@ -47,19 +41,20 @@ export async function getCashClosingSummary(
 ): Promise<CashClosingSummary> {
   await authorizeCashClosingUser(database, payload.usuarioId);
   const cashState = await inspectDailyCashRegister(database, now);
-  if (cashState.status === 'cerrada') {
-    throw new CashClosingBusinessError('La caja de este día ya fue cerrada.');
+  if (cashState.status === "cerrada") {
+    throw new CashClosingBusinessError("La caja de este día ya fue cerrada.");
   }
-  const cashRegister = cashState.status === 'abierta'
-    ? {
-        cierreCajaId: cashState.cierreCajaId,
-        closedAt: null,
-        closedByName: null,
-        closedByUserId: null,
-        openedAt: cashState.openedAt,
-        status: 'abierto' as const,
-      }
-    : undefined;
+  const cashRegister =
+    cashState.status === "abierta"
+      ? {
+          cierreCajaId: cashState.cierreCajaId,
+          closedAt: null,
+          closedByName: null,
+          closedByUserId: null,
+          openedAt: cashState.openedAt,
+          status: "abierto" as const,
+        }
+      : undefined;
 
   return buildSummary(database, cashRegister, now);
 }
@@ -70,23 +65,21 @@ export async function closeCashRegister(
   now = new Date(),
 ): Promise<CashCloseResult> {
   if (!payload.confirmacion) {
-    throw new CashClosingValidationError('Debe confirmar el cierre de caja.');
+    throw new CashClosingValidationError("Debe confirmar el cierre de caja.");
   }
 
   return database.transaction(async (tx) => {
     const user = await authorizeCashClosingUser(tx, payload.usuarioId);
     const cashState = await inspectDailyCashRegister(tx, now);
 
-    if (cashState.status === 'sin_registro') {
+    if (cashState.status === "sin_registro") {
       throw new CashClosingBusinessError(
-        'No hay una caja abierta para cerrar.',
+        "No hay una caja abierta para cerrar.",
       );
     }
 
-    if (cashState.status === 'cerrada') {
-      throw new CashClosingBusinessError(
-        'La caja de este dia ya fue cerrada.',
-      );
+    if (cashState.status === "cerrada") {
+      throw new CashClosingBusinessError("La caja de este dia ya fue cerrada.");
     }
 
     const cashRegister: CashRegisterRow = {
@@ -95,7 +88,7 @@ export async function closeCashRegister(
       closedByName: null,
       closedByUserId: null,
       openedAt: cashState.openedAt,
-      status: 'abierto',
+      status: "abierto",
     };
 
     const summary = await buildSummary(tx, cashRegister, now);
@@ -111,15 +104,13 @@ export async function closeCashRegister(
     `);
 
     if (result.rowsAffected === 0) {
-      throw new CashClosingBusinessError(
-        'La caja de este dia ya fue cerrada.',
-      );
+      throw new CashClosingBusinessError("La caja de este dia ya fue cerrada.");
     }
 
     await registerAuditLog(tx, {
       usuarioId: user.usuarioId,
-      tipoAccion: 'cerrar_caja',
-      modulo: 'caja',
+      tipoAccion: "cerrar_caja",
+      modulo: "caja",
       descripcion: `Cierre de caja ${cashRegister.cierreCajaId} registrado por ${user.trabajadorNombre} por $${summary.currentAmount}.`,
     });
 
@@ -130,20 +121,20 @@ export async function closeCashRegister(
         usuarioId: user.usuarioId,
         nombre: user.trabajadorNombre,
       },
-      status: 'cerrada',
+      status: "cerrada",
     };
   });
 }
 
 async function authorizeCashClosingUser(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   usuarioId: string | undefined,
 ): Promise<CashUser> {
   const normalizedUsuarioId = usuarioId?.trim();
 
   if (!normalizedUsuarioId) {
     throw new CashClosingValidationError(
-      'Se requiere un usuario autenticado para cerrar caja.',
+      "Se requiere un usuario autenticado para cerrar caja.",
     );
   }
 
@@ -166,7 +157,7 @@ async function authorizeCashClosingUser(
 
   if (!user) {
     throw new CashClosingAccessError(
-      'El usuario autenticado no esta activo o no existe.',
+      "El usuario autenticado no esta activo o no existe.",
     );
   }
 
@@ -185,16 +176,14 @@ async function authorizeCashClosingUser(
   const worker = workers[0];
   if (!worker) {
     throw new CashClosingAccessError(
-      'El usuario autenticado no esta activo o no existe.',
+      "El usuario autenticado no esta activo o no existe.",
     );
   }
 
   const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
 
-  if (!role || !['dueno', 'trabajador'].includes(role)) {
-    throw new CashClosingAccessError(
-      'No tiene permiso para cerrar caja.',
-    );
+  if (!role || !["dueno", "trabajador"].includes(role)) {
+    throw new CashClosingAccessError("No tiene permiso para cerrar caja.");
   }
 
   return {
@@ -207,16 +196,20 @@ async function authorizeCashClosingUser(
 }
 
 async function buildSummary(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   cashRegister: CashRegisterRow | undefined,
   now: Date,
 ): Promise<CashClosingSummary> {
   const saleRows = cashRegister
     ? await loadCashRegisterSaleRows(database, cashRegister.cierreCajaId, now)
     : [];
-  const annulledSaleIds = saleRows.length > 0
-    ? await loadCashRegisterAnnulledSaleIds(database, saleRows.map((row) => row.ventaId))
-    : new Set<string>();
+  const annulledSaleIds =
+    saleRows.length > 0
+      ? await loadCashRegisterAnnulledSaleIds(
+          database,
+          saleRows.map((row) => row.ventaId),
+        )
+      : new Set<string>();
   const payments = createEmptyCashPaymentBreakdown();
   let currentAmount = 0;
   let currentTransactions = 0;
@@ -244,35 +237,39 @@ async function buildSummary(
   return {
     cierreCajaId: cashRegister?.cierreCajaId,
     closedAt: cashRegister?.closedAt ?? undefined,
-    closedBy:
-      cashRegister?.closedByUserId
-        ? {
-            usuarioId: cashRegister.closedByUserId,
-            nombre: cashRegister.closedByName ?? undefined,
-          }
-        : undefined,
+    closedBy: cashRegister?.closedByUserId
+      ? {
+          usuarioId: cashRegister.closedByUserId,
+          nombre: cashRegister.closedByName ?? undefined,
+        }
+      : undefined,
     currentAmount,
     currentTransactions,
     generatedAt: now.toISOString(),
     openedAt: cashRegister?.openedAt,
     payments,
     status: cashRegister
-      ? cashRegister.status === 'abierto'
-        ? 'abierta'
-        : 'cerrada'
-      : 'sin_registro',
+      ? cashRegister.status === "abierto"
+        ? "abierta"
+        : "cerrada"
+      : "sin_registro",
     voidedAmount,
     voidedTransactions,
   };
 }
 
 async function loadCashRegisterSaleRows(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   cierreCajaId: string,
   now: Date,
 ): Promise<Array<SaleRow & { paymentMethod: PaymentMethod; ventaId: string }>> {
   const { startUtc, endUtc } = getDashboardDay(now);
-  const sales = await database.all<Omit<SaleRow, 'subtotal'> & { paymentMethod: PaymentMethod; ventaId: string }>(sql`
+  const sales = await database.all<
+    Omit<SaleRow, "subtotal"> & {
+      paymentMethod: PaymentMethod;
+      ventaId: string;
+    }
+  >(sql`
     SELECT
       v.venta_id AS ventaId,
       v.venta_estado AS state,
@@ -286,40 +283,61 @@ async function loadCashRegisterSaleRows(
       AND datetime(v.venta_fecha_hora) < datetime(${endUtc})
   `);
   if (sales.length === 0) return [];
-  const saleIds = sql.join(sales.map((row) => sql`${row.ventaId}`), sql`, `);
-  const details = await database.all<{ ventaId: string; cantidad: number; precioId: string }>(sql`
+  const saleIds = sql.join(
+    sales.map((row) => sql`${row.ventaId}`),
+    sql`, `,
+  );
+  const details = await database.all<{
+    ventaId: string;
+    cantidad: number;
+    precioId: string;
+  }>(sql`
     SELECT venta_id AS ventaId, detalle_venta_cantidad AS cantidad,
       historial_precio_producto_id AS precioId
     FROM detalle_venta
     WHERE venta_id IN (${saleIds})
   `);
   const priceIds = [...new Set(details.map((row) => row.precioId))];
-  const prices = priceIds.length === 0 ? [] : await database.all<{ precioId: string; precio: number }>(sql`
+  const prices =
+    priceIds.length === 0
+      ? []
+      : await database.all<{ precioId: string; precio: number }>(sql`
     SELECT historial_precio_producto_id AS precioId,
       historial_precio_venta AS precio
     FROM historial_precio_producto
-    WHERE historial_precio_producto_id IN (${sql.join(priceIds.map((id) => sql`${id}`), sql`, `)})
+    WHERE historial_precio_producto_id IN (${sql.join(
+      priceIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `);
-  const priceById = new Map(prices.map((row) => [row.precioId, Number(row.precio)]));
+  const priceById = new Map(
+    prices.map((row) => [row.precioId, Number(row.precio)]),
+  );
   const subtotalBySale = new Map<string, number>();
   for (const detail of details) {
     subtotalBySale.set(
       detail.ventaId,
-      (subtotalBySale.get(detail.ventaId) ?? 0)
-        + Number(detail.cantidad) * (priceById.get(detail.precioId) ?? 0),
+      (subtotalBySale.get(detail.ventaId) ?? 0) +
+        Number(detail.cantidad) * (priceById.get(detail.precioId) ?? 0),
     );
   }
-  return sales.map((row) => ({ ...row, subtotal: subtotalBySale.get(row.ventaId) ?? 0 }));
+  return sales.map((row) => ({
+    ...row,
+    subtotal: subtotalBySale.get(row.ventaId) ?? 0,
+  }));
 }
 
 async function loadCashRegisterAnnulledSaleIds(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   saleIds: string[],
 ): Promise<Set<string>> {
   const rows = await database.all<{ ventaId: string }>(sql`
     SELECT venta_id AS ventaId
     FROM anulacion_venta
-    WHERE venta_id IN (${sql.join(saleIds.map((id) => sql`${id}`), sql`, `)})
+    WHERE venta_id IN (${sql.join(
+      saleIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `);
   return new Set(rows.map((row) => row.ventaId));
 }

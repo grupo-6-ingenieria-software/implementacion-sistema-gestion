@@ -1,13 +1,16 @@
-import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../src/db/schema';
-import { initializeDatabase, resolveDatabaseInitPaths } from '../../src/db/init';
+import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../src/db/schema";
+import {
+  initializeDatabase,
+  resolveDatabaseInitPaths,
+} from "../../src/db/init";
 
 type TestDatabase = Awaited<ReturnType<typeof createEmptyDatabase>>;
 
@@ -27,33 +30,30 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('initializeDatabase', () => {
-  it('crea el esquema en una BD vacía (las migraciones se aplican)', async () => {
-    // Antes de inicializar, la BD está vacía: la tabla producto no existe.
-    const before = await tableExists(testDb!.client, 'producto');
+describe("initializeDatabase", () => {
+  it("crea el esquema en una BD vacía (las migraciones se aplican)", async () => {
+    const before = await tableExists(testDb!.client, "producto");
     expect(before).toBe(false);
 
     await initializeDatabase(testDb!.db, testDb!.client);
 
-    // Tras inicializar, una tabla conocida del esquema existe.
-    expect(await tableExists(testDb!.client, 'producto')).toBe(true);
-    expect(await tableExists(testDb!.client, 'venta')).toBe(true);
-    expect(await tableExists(testDb!.client, 'log_errores_tecnicos')).toBe(true);
+    expect(await tableExists(testDb!.client, "producto")).toBe(true);
+    expect(await tableExists(testDb!.client, "venta")).toBe(true);
+    expect(await tableExists(testDb!.client, "log_errores_tecnicos")).toBe(
+      true,
+    );
   });
 
-  it('instala los triggers de integridad y estos disparan', async () => {
+  it("instala los triggers de integridad y estos disparan", async () => {
     await initializeDatabase(testDb!.db, testDb!.client);
 
-    // Un trigger conocido quedó registrado.
     const triggers = await testDb!.client.execute(
       "SELECT name FROM sqlite_master WHERE type = 'trigger'",
     );
     const triggerNames = triggers.rows.map((row) => String(row.name));
-    expect(triggerNames).toContain('trg_log_errores_no_update');
-    expect(triggerNames).toContain('trg_log_errores_no_delete');
+    expect(triggerNames).toContain("trg_log_errores_no_update");
+    expect(triggerNames).toContain("trg_log_errores_no_delete");
 
-    // log_errores_tecnicos es append-only: insertar es válido (usuario_id es
-    // nullable), pero UPDATE y DELETE deben abortar vía RAISE(ABORT, ...).
     const id = randomUUID();
     await testDb!.client.execute({
       sql: `INSERT INTO log_errores_tecnicos
@@ -79,42 +79,42 @@ describe('initializeDatabase', () => {
     ).rejects.toThrow(/inmutable|RNF10|DELETE no permitido/i);
   });
 
-  it('es idempotente: ejecutarla dos veces no falla', async () => {
+  it("es idempotente: ejecutarla dos veces no falla", async () => {
     await initializeDatabase(testDb!.db, testDb!.client);
     await expect(
       initializeDatabase(testDb!.db, testDb!.client),
     ).resolves.toBeUndefined();
 
-    expect(await tableExists(testDb!.client, 'producto')).toBe(true);
+    expect(await tableExists(testDb!.client, "producto")).toBe(true);
   });
 });
 
-describe('resolveDatabaseInitPaths', () => {
-  it('usa rutas del repo en desarrollo', () => {
+describe("resolveDatabaseInitPaths", () => {
+  it("usa rutas del repo en desarrollo", () => {
     const paths = resolveDatabaseInitPaths({ isPackaged: false });
-    expect(paths.migrationsFolder).toContain(join('drizzle', 'migrations'));
-    expect(paths.triggersPath).toContain(join('src', 'db', 'triggers.sql'));
+    expect(paths.migrationsFolder).toContain(join("drizzle", "migrations"));
+    expect(paths.triggersPath).toContain(join("src", "db", "triggers.sql"));
   });
 
-  it('usa process.resourcesPath cuando está empaquetada', () => {
+  it("usa process.resourcesPath cuando está empaquetada", () => {
     const paths = resolveDatabaseInitPaths({
       isPackaged: true,
-      resourcesPath: '/opt/app/resources',
+      resourcesPath: "/opt/app/resources",
     });
     expect(paths.migrationsFolder).toBe(
-      join('/opt/app/resources', 'drizzle', 'migrations'),
+      join("/opt/app/resources", "drizzle", "migrations"),
     );
-    expect(paths.triggersPath).toBe(join('/opt/app/resources', 'triggers.sql'));
+    expect(paths.triggersPath).toBe(join("/opt/app/resources", "triggers.sql"));
   });
 });
 
 async function createEmptyDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-init-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-init-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
 
   return { client, db, dir };
 }

@@ -1,14 +1,5 @@
-/**
- * Emisión y verificación de JWT (RF55, RF56).
- *
- * Según la dimensión técnica (§4.2) la autenticación usa jsonwebtoken HS256 con
- * un secreto empaquetado en la aplicación: un token emitido es válido en
- * cualquier instancia local. El servidor no almacena la sesión en el token; la
- * tabla sesion_usuario lleva el control de inactividad (ver session.ts).
- */
-
-import jwt from 'jsonwebtoken';
-import type { Role } from '../../shared/navigation';
+import jwt from "jsonwebtoken";
+import type { Role } from "../../shared/navigation";
 
 export type SessionTokenClaims = {
   usuarioId: string;
@@ -18,46 +9,46 @@ export type SessionTokenClaims = {
   sesionId: string;
 };
 
-/**
- * Secreto del JWT. En producción se empaqueta vía variable de entorno
- * (JWT_SECRET) inyectada en el bundle; el valor por defecto sólo cubre el
- * entorno de desarrollo y pruebas.
- */
-const FALLBACK = 'huascar-dev-jwt-secret-change-me';
+const FALLBACK = "huascar-dev-jwt-secret-change-me";
 
 function resolveSecret(): string {
   const s = process.env.JWT_SECRET;
   if (s && s.length > 0) return s;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET is required in production');
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET is required in production");
   }
   return FALLBACK;
 }
 
 export function signSessionToken(claims: SessionTokenClaims): string {
-  return jwt.sign(claims, resolveSecret(), { algorithm: 'HS256', expiresIn: '8h' });
+  return jwt.sign(claims, resolveSecret(), {
+    algorithm: "HS256",
+    expiresIn: "8h",
+  });
 }
 
 export function verifySessionToken(token: unknown): SessionTokenClaims | null {
-  if (typeof token !== 'string' || token.length === 0) {
+  if (typeof token !== "string" || token.length === 0) {
     return null;
   }
 
   try {
-    const payload = jwt.verify(token, resolveSecret(), { algorithms: ['HS256'] });
+    const payload = jwt.verify(token, resolveSecret(), {
+      algorithms: ["HS256"],
+    });
 
-    if (typeof payload !== 'object' || payload === null) {
+    if (typeof payload !== "object" || payload === null) {
       return null;
     }
 
     const candidate = payload as Partial<SessionTokenClaims>;
 
     if (
-      typeof candidate.usuarioId !== 'string' ||
-      typeof candidate.sesionId !== 'string' ||
-      (candidate.rol !== 'dueno' && candidate.rol !== 'trabajador') ||
-      typeof candidate.usuarioRol !== 'string' ||
-      typeof candidate.passwordTemporal !== 'boolean'
+      typeof candidate.usuarioId !== "string" ||
+      typeof candidate.sesionId !== "string" ||
+      (candidate.rol !== "dueno" && candidate.rol !== "trabajador") ||
+      typeof candidate.usuarioRol !== "string" ||
+      typeof candidate.passwordTemporal !== "boolean"
     ) {
       return null;
     }

@@ -1,4 +1,4 @@
-const DASHBOARD_TIME_ZONE = 'America/Santiago';
+const DASHBOARD_TIME_ZONE = "America/Santiago";
 
 export type DashboardDay = {
   dateKey: string;
@@ -29,11 +29,11 @@ export function differenceInCalendarDays(
 }
 
 function formatDateKey(date: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: DASHBOARD_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
@@ -44,7 +44,7 @@ function addCalendarDays(dateKey: string, days: number): string {
 }
 
 function zonedMidnightToSqlUtc(dateKey: string): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
+  const [year, month, day] = dateKey.split("-").map(Number);
   const desiredAsUtc = Date.UTC(year, month - 1, day);
   let candidate = desiredAsUtc;
 
@@ -67,7 +67,7 @@ function zonedMidnightToSqlUtc(dateKey: string): string {
     candidate += correction;
   }
 
-  return new Date(candidate).toISOString().slice(0, 19).replace('T', ' ');
+  return new Date(candidate).toISOString().slice(0, 19).replace("T", " ");
 }
 
 function getZonedParts(date: Date): {
@@ -78,19 +78,19 @@ function getZonedParts(date: Date): {
   minute: number;
   second: number;
 } {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: DASHBOARD_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
   }).formatToParts(date);
   const values = Object.fromEntries(
     parts
-      .filter((part) => part.type !== 'literal')
+      .filter((part) => part.type !== "literal")
       .map((part) => [part.type, Number(part.value)]),
   );
 

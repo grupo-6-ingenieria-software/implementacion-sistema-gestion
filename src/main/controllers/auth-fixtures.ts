@@ -1,46 +1,34 @@
-/**
- * Utilidades de prueba compartidas para el módulo de autenticación.
- * Levanta una base libSQL temporal aplicando la migración real y permite
- * sembrar usuarios con contraseñas de forma controlada.
- */
-
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import * as schema from '../../db/schema';
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import * as schema from "../../db/schema";
 
 export type AuthTestDatabase = Awaited<
   ReturnType<typeof createAuthTestDatabase>
 >;
 
 export async function createAuthTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-auth-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-auth-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
 
   // Aplica TODAS las migraciones en orden (incl. 0001 que normaliza los roles
   // a 'dueno'/'trabajador'), igual que las demás pruebas de controladores.
-  const migrationsDir = join(process.cwd(), 'drizzle/migrations');
+  const migrationsDir = join(process.cwd(), "drizzle/migrations");
   const migrationFiles = (await readdir(migrationsDir))
-    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of migrationFiles) {
-    const migration = await readFile(join(migrationsDir, file), 'utf8');
+    const migration = await readFile(join(migrationsDir, file), "utf8");
 
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      const sqlStatement = statement.trim();
-
-      if (sqlStatement.length > 0) {
-        await client.execute(sqlStatement);
-      }
-    }
+    await client.executeMultiple(migration);
   }
 
   return { client, db, dir };
@@ -51,8 +39,8 @@ export type SeedUserOptions = {
   trabajadorId: number;
   rut: string;
   /** Rol almacenado en la BD (sin acento, esquema 2 roles: dueno | trabajador). */
-  rolBd?: 'dueno' | 'trabajador';
-  estado?: 'activo' | 'inactivo';
+  rolBd?: "dueno" | "trabajador";
+  estado?: "activo" | "inactivo";
   nombre?: string;
   apellido?: string;
   conContrasena?: boolean;
@@ -63,19 +51,19 @@ export type SeedUserOptions = {
 };
 
 export async function seedUser(
-  db: AuthTestDatabase['db'],
+  db: AuthTestDatabase["db"],
   options: SeedUserOptions,
 ): Promise<void> {
   const {
     usuarioId,
     trabajadorId,
     rut,
-    rolBd = 'dueno',
-    estado = 'activo',
-    nombre = 'María',
-    apellido = 'Huáscar',
+    rolBd = "dueno",
+    estado = "activo",
+    nombre = "María",
+    apellido = "Huáscar",
     conContrasena = true,
-    hash = 'hash-definitiva',
+    hash = "hash-definitiva",
     esTemporal = false,
     temporalExpiracion = null,
   } = options;
@@ -108,7 +96,7 @@ export async function seedUser(
     .insert(schema.contrasena)
     .values({
       contrasenaHash: hash,
-      contrasenaFechaHoraCreacion: '2026-01-01T00:00:00.000Z',
+      contrasenaFechaHoraCreacion: "2026-01-01T00:00:00.000Z",
       esContrasenaTemporal: esTemporal,
       esContrasenaDefinitiva: !esTemporal,
       usuarioId,
@@ -125,8 +113,13 @@ export async function seedUser(
 }
 
 export async function insertLoginAttempt(
-  db: AuthTestDatabase['db'],
-  attempt: { usuario: string; exitoso: boolean; fechaHora: string; usuarioId?: string | null },
+  db: AuthTestDatabase["db"],
+  attempt: {
+    usuario: string;
+    exitoso: boolean;
+    fechaHora: string;
+    usuarioId?: string | null;
+  },
 ): Promise<void> {
   await db.insert(schema.intentoLogin).values({
     intentoNombreUsuarioIngresado: attempt.usuario,

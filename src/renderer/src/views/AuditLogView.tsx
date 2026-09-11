@@ -5,13 +5,13 @@ import {
   useRef,
   useState,
   type ReactElement,
-} from 'react';
+} from "react";
 import {
   defaultAuditLogPageSize,
   type AuditLogEntry,
   type AuditLogQueryPayload,
   type AuditLogQueryResponse,
-} from '../../../shared/audit';
+} from "../../../shared/audit";
 
 type AuditLogViewProps = {
   usuarioId?: string;
@@ -25,56 +25,56 @@ export type AuditLogFilters = {
 };
 
 type AuditLogState =
-  | { status: 'loading' }
-  | { message: string; status: 'error' }
-  | { response: AuditLogQueryResponse; status: 'ready' };
+  | { status: "loading" }
+  | { message: string; status: "error" }
+  | { response: AuditLogQueryResponse; status: "ready" };
 
 const emptyFilters: AuditLogFilters = {
-  fechaDesde: '',
-  fechaHasta: '',
-  tipoAccion: '',
-  usuarioFiltroId: '',
+  fechaDesde: "",
+  fechaHasta: "",
+  tipoAccion: "",
+  usuarioFiltroId: "",
 };
 
 export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
   const [filters, setFilters] = useState<AuditLogFilters>(emptyFilters);
-  const [state, setState] = useState<AuditLogState>({ status: 'loading' });
+  const [state, setState] = useState<AuditLogState>({ status: "loading" });
   const initialLoadStartedRef = useRef(false);
 
   const loadLog = useCallback(
     async (nextFilters: AuditLogFilters, page = 1): Promise<void> => {
       if (!usuarioId?.trim()) {
         setState({
-          message: 'Se requiere una sesion valida para consultar el log.',
-          status: 'error',
+          message: "Se requiere una sesion valida para consultar el log.",
+          status: "error",
         });
         return;
       }
 
-      setState({ status: 'loading' });
+      setState({ status: "loading" });
 
       try {
         const response = await window.appApi.invoke<AuditLogQueryResponse>(
-          'auditoria:consultar',
+          "auditoria:consultar",
           buildAuditLogQueryPayload(usuarioId, nextFilters, page),
         );
 
         if (!response.ok) {
           setState({
             message: response.error.message,
-            status: 'error',
+            status: "error",
           });
           return;
         }
 
         setState({
           response: response.data,
-          status: 'ready',
+          status: "ready",
         });
       } catch {
         setState({
-          message: 'No fue posible comunicarse con el proceso principal.',
-          status: 'error',
+          message: "No fue posible comunicarse con el proceso principal.",
+          status: "error",
         });
       }
     },
@@ -90,13 +90,14 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
     void loadLog(emptyFilters);
   }, [loadLog]);
 
-  const availableUsers = state.status === 'ready' ? state.response.filters.usuarios : [];
+  const availableUsers =
+    state.status === "ready" ? state.response.filters.usuarios : [];
   const availableActions =
-    state.status === 'ready' ? state.response.filters.tiposAccion : [];
-  const currentPage = state.status === 'ready' ? state.response.page : 1;
-  const totalPages = state.status === 'ready' ? state.response.totalPages : 1;
+    state.status === "ready" ? state.response.filters.tiposAccion : [];
+  const currentPage = state.status === "ready" ? state.response.page : 1;
+  const totalPages = state.status === "ready" ? state.response.totalPages : 1;
   const pageSummary = useMemo(
-    () => (state.status === 'ready' ? getPageSummary(state.response) : ''),
+    () => (state.status === "ready" ? getPageSummary(state.response) : ""),
     [state],
   );
 
@@ -218,20 +219,20 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
       <section className="overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e3e8ee] px-5 py-4">
           <p className="text-sm font-semibold text-[#24313d]">
-            {state.status === 'ready' ? pageSummary : 'Cargando log...'}
+            {state.status === "ready" ? pageSummary : "Cargando log..."}
           </p>
-          {state.status === 'ready' ? (
+          {state.status === "ready" ? (
             <p className="text-xs font-semibold uppercase text-[#61717f]">
               Orden descendente por fecha y hora
             </p>
           ) : null}
         </div>
 
-        {state.status === 'loading' ? (
+        {state.status === "loading" ? (
           <AuditMessage message="Cargando registros de auditoria..." />
         ) : null}
 
-        {state.status === 'error' ? (
+        {state.status === "error" ? (
           <AuditMessage
             actionLabel="Intentar nuevamente"
             message={state.message}
@@ -239,15 +240,15 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
           />
         ) : null}
 
-        {state.status === 'ready' && state.response.entries.length === 0 ? (
+        {state.status === "ready" && state.response.entries.length === 0 ? (
           <AuditMessage message="No se encontraron movimientos para los filtros indicados." />
         ) : null}
 
-        {state.status === 'ready' && state.response.entries.length > 0 ? (
+        {state.status === "ready" && state.response.entries.length > 0 ? (
           <AuditTable entries={state.response.entries} />
         ) : null}
 
-        {state.status === 'ready' ? (
+        {state.status === "ready" ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e3e8ee] px-5 py-4">
             <p className="text-sm font-medium text-[#61717f]">
               Pagina {currentPage} de {totalPages}
@@ -293,11 +294,7 @@ export function buildAuditLogQueryPayload(
   };
 }
 
-function AuditTable({
-  entries,
-}: {
-  entries: AuditLogEntry[];
-}): ReactElement {
+function AuditTable({ entries }: { entries: AuditLogEntry[] }): ReactElement {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1020px] border-collapse text-left text-sm">
@@ -374,7 +371,7 @@ function AuditMessage({
 
 function getPageSummary(response: AuditLogQueryResponse): string {
   if (response.total === 0) {
-    return '0 registros';
+    return "0 registros";
   }
 
   const from = (response.page - 1) * response.pageSize + 1;
@@ -383,11 +380,11 @@ function getPageSummary(response: AuditLogQueryResponse): string {
 }
 
 function formatAction(value: string): string {
-  return value.replace(/_/g, ' ');
+  return value.replace(/_/g, " ");
 }
 
 function formatRole(value: string): string {
-  return value.replace('due\u00f1o', 'dueno');
+  return value.replace("due\u00f1o", "dueno");
 }
 
 export function formatDateTime(value: string): string {
@@ -397,9 +394,9 @@ export function formatDateTime(value: string): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat('es-CL', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    timeZone: 'America/Santiago',
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Santiago",
   }).format(date);
 }

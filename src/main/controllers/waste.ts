@@ -119,7 +119,8 @@ async function getWasteAvailability(
   const { db, schema } = await import("../../db/client");
   return db.transaction(async (tx) => {
     const user = await authorizeUser(tx, schema, payload.usuarioId, [
-      "dueno", "trabajador",
+      "dueno",
+      "trabajador",
     ]);
     void user;
     const product = await queryActiveProductByEan13(tx, schema, payload.ean13);
@@ -128,10 +129,17 @@ async function getWasteAvailability(
         ean13: "El producto no existe o se encuentra inactivo.",
       });
     }
-    const lots = await findAvailableLotsForProduct(tx, schema, product.productoId);
+    const lots = await findAvailableLotsForProduct(
+      tx,
+      schema,
+      product.productoId,
+    );
     return {
       ean13: payload.ean13,
-      stockDisponible: lots.reduce((total, lot) => total + lot.cantidadActual, 0),
+      stockDisponible: lots.reduce(
+        (total, lot) => total + lot.cantidadActual,
+        0,
+      ),
       criterioSalida: product.exigeVencimiento ? "fefo" : "fecha_ingreso",
     };
   });
@@ -345,7 +353,12 @@ async function findAvailableLotsForProduct(
       fechaVencimiento: schema.lotePerecible.lotePerecibleFechaVencimiento,
     })
     .from(schema.lotePerecible)
-    .where(inArray(schema.lotePerecible.loteId, lots.map((lot) => lot.loteId)))
+    .where(
+      inArray(
+        schema.lotePerecible.loteId,
+        lots.map((lot) => lot.loteId),
+      ),
+    )
     .orderBy(asc(schema.lotePerecible.lotePerecibleFechaVencimiento));
   const expirationByLot = new Map(
     expirations.map((row) => [row.loteId, row.fechaVencimiento]),

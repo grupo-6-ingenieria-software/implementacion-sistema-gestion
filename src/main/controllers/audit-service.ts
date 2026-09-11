@@ -1,18 +1,18 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { sql, type SQL } from "drizzle-orm";
 import {
   normalizeAuditLogQueryPayload,
   type AuditLogEntry,
   type AuditLogQueryResponse,
   type AuditLogUserOption,
   type NormalizedAuditLogQuery,
-} from '../../shared/audit';
-import type { ControllerResponse } from '../../shared/controllers';
-import * as appSchema from '../../db/schema';
+} from "../../shared/audit";
+import type { ControllerResponse } from "../../shared/controllers";
+import * as appSchema from "../../db/schema";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
-} from './auth-context';
+} from "./auth-context";
 
 type AuditRegisterPayload = {
   descripcion?: string;
@@ -23,8 +23,8 @@ type AuditRegisterPayload = {
 
 type AuditDatabase = {
   all: <TRow = Record<string, unknown>>(query: SQL) => Promise<TRow[]>;
-  insert: typeof import('../../db/client').db.insert;
-  select: typeof import('../../db/client').db.select;
+  insert: typeof import("../../db/client").db.insert;
+  select: typeof import("../../db/client").db.select;
 };
 
 export async function registerAuditEvent(
@@ -38,17 +38,17 @@ export async function registerAuditEvent(
     return {
       ok: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        controllerId: 'audit',
-        message: 'Los datos de auditoria estan incompletos.',
+        code: "VALIDATION_ERROR",
+        controllerId: "audit",
+        message: "Los datos de auditoria estan incompletos.",
       },
     };
   }
 
   try {
     const user = await authorizeUser(database, schema, input.usuarioId, [
-      'dueno',
-      'trabajador',
+      "dueno",
+      "trabajador",
     ]);
 
     await registerAuditLog(database, schema, {
@@ -64,8 +64,8 @@ export async function registerAuditEvent(
       return {
         ok: false,
         error: {
-          code: 'FORBIDDEN',
-          controllerId: 'audit',
+          code: "FORBIDDEN",
+          controllerId: "audit",
           message: error.message,
         },
       };
@@ -74,9 +74,9 @@ export async function registerAuditEvent(
     return {
       ok: false,
       error: {
-        code: 'DATABASE_ERROR',
-        controllerId: 'audit',
-        message: 'No fue posible registrar la auditoria. Intente nuevamente.',
+        code: "DATABASE_ERROR",
+        controllerId: "audit",
+        message: "No fue posible registrar la auditoria. Intente nuevamente.",
       },
     };
   }
@@ -92,12 +92,12 @@ export async function queryAuditLog(
   try {
     query = normalizeAuditLogQueryPayload(payload);
   } catch (error) {
-    if (error instanceof Error && 'fieldErrors' in error) {
+    if (error instanceof Error && "fieldErrors" in error) {
       return {
         ok: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          controllerId: 'audit',
+          code: "VALIDATION_ERROR",
+          controllerId: "audit",
           fieldErrors: error.fieldErrors as Record<string, string>,
           message: error.message,
         },
@@ -107,33 +107,33 @@ export async function queryAuditLog(
     return {
       ok: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        controllerId: 'audit',
-        message: 'Revise los filtros antes de consultar el log de auditoria.',
+        code: "VALIDATION_ERROR",
+        controllerId: "audit",
+        message: "Revise los filtros antes de consultar el log de auditoria.",
       },
     };
   }
 
   try {
     const user = await authorizeUser(database, schema, query.usuarioId, [
-      'dueno',
-      'trabajador',
+      "dueno",
+      "trabajador",
     ]);
 
-    if (user.role !== 'dueno') {
+    if (user.role !== "dueno") {
       await registerAuditLog(database, schema, {
         descripcion: `Intento denegado de consulta del log de auditoria por ${user.trabajadorNombre}.`,
-        modulo: 'administracion',
-        tipoAccion: 'acceso_denegado',
+        modulo: "administracion",
+        tipoAccion: "acceso_denegado",
         usuarioId: user.usuarioId,
       });
 
       return {
         ok: false,
         error: {
-          code: 'FORBIDDEN',
-          controllerId: 'audit',
-          message: 'No tiene permiso para consultar el log de auditoria.',
+          code: "FORBIDDEN",
+          controllerId: "audit",
+          message: "No tiene permiso para consultar el log de auditoria.",
         },
       };
     }
@@ -142,8 +142,8 @@ export async function queryAuditLog(
 
     await registerAuditLog(database, schema, {
       descripcion: buildAuditQueryDescription(query, result.total),
-      modulo: 'administracion',
-      tipoAccion: 'consulta',
+      modulo: "administracion",
+      tipoAccion: "consulta",
       usuarioId: user.usuarioId,
     });
 
@@ -153,8 +153,8 @@ export async function queryAuditLog(
       return {
         ok: false,
         error: {
-          code: 'FORBIDDEN',
-          controllerId: 'audit',
+          code: "FORBIDDEN",
+          controllerId: "audit",
           message: error.message,
         },
       };
@@ -163,9 +163,10 @@ export async function queryAuditLog(
     return {
       ok: false,
       error: {
-        code: 'DATABASE_ERROR',
-        controllerId: 'audit',
-        message: 'No fue posible consultar el log de auditoria. Intente nuevamente.',
+        code: "DATABASE_ERROR",
+        controllerId: "audit",
+        message:
+          "No fue posible consultar el log de auditoria. Intente nuevamente.",
       },
     };
   }
@@ -297,18 +298,18 @@ function buildAuditQueryDescription(
 
   if (query.fechaDesde || query.fechaHasta) {
     filters.push(
-      `fechas ${query.fechaDesde ?? 'inicio'} a ${query.fechaHasta ?? 'fin'}`,
+      `fechas ${query.fechaDesde ?? "inicio"} a ${query.fechaHasta ?? "fin"}`,
     );
   }
 
-  const filterText = filters.length > 0 ? filters.join(', ') : 'sin filtros';
+  const filterText = filters.length > 0 ? filters.join(", ") : "sin filtros";
   return `Consulta de log de auditoria pagina ${query.page} (${filterText}); ${total} registros coincidentes.`;
 }
 
 function normalizeAuditRegisterPayload(
   payload: unknown,
 ): Required<AuditRegisterPayload> | null {
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== "object") {
     return null;
   }
 
@@ -331,5 +332,5 @@ function normalizeAuditRegisterPayload(
 }
 
 function normalizeRequiredText(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

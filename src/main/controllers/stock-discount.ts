@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import { sql, type SQL } from 'drizzle-orm';
-import { controllers } from '../../shared/controllers';
-import { controllerError, type RegisteredController } from './base';
+import { randomUUID } from "node:crypto";
+import { sql, type SQL } from "drizzle-orm";
+import { controllers } from "../../shared/controllers";
+import { controllerError, type RegisteredController } from "./base";
 
 export type StockDiscountDb = {
   all: <TRow = Record<string, unknown>>(query: SQL) => Promise<TRow[]>;
@@ -22,15 +22,17 @@ export type PlannedLotConsumption = {
 
 export class StockDiscountBusinessError extends Error {}
 
-/** C17: selecciona y valida todos los lotes antes de persistir la venta. */
 export async function planStockDiscount(
-  database: Pick<StockDiscountDb, 'all'>,
+  database: Pick<StockDiscountDb, "all">,
   items: readonly StockDiscountItem[],
 ): Promise<PlannedLotConsumption[]> {
   const plan: PlannedLotConsumption[] = [];
 
   for (const item of items) {
-    const availability = await database.all<{ available: number; sufficient: number }>(sql`
+    const availability = await database.all<{
+      available: number;
+      sufficient: number;
+    }>(sql`
       SELECT
         COALESCE(SUM(lote_cantidad_actual), 0) AS available,
         CASE WHEN COALESCE(SUM(lote_cantidad_actual), 0) >= ${item.cantidad}
@@ -67,7 +69,10 @@ export async function planStockDiscount(
               lote_perecible_fecha_vencimiento AS fechaVencimiento
             FROM lote_perecible
             WHERE lote_id IN (
-              ${sql.join(lots.map((lot) => sql`${lot.loteId}`), sql`, `)}
+              ${sql.join(
+                lots.map((lot) => sql`${lot.loteId}`),
+                sql`, `,
+              )}
             )
           `)
         : [];
@@ -77,8 +82,8 @@ export async function planStockDiscount(
 
     const orderedLots = [...lots].sort((left, right) => {
       if (item.exigeVencimiento) {
-        const leftDate = expirationByLot.get(left.loteId) ?? '9999-12-31';
-        const rightDate = expirationByLot.get(right.loteId) ?? '9999-12-31';
+        const leftDate = expirationByLot.get(left.loteId) ?? "9999-12-31";
+        const rightDate = expirationByLot.get(right.loteId) ?? "9999-12-31";
         if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
       }
       return left.fechaIngreso.localeCompare(right.fechaIngreso);
@@ -89,7 +94,11 @@ export async function planStockDiscount(
       if (remaining === 0) break;
       const amount = Math.min(remaining, Number(lot.cantidadActual));
       if (amount <= 0) continue;
-      plan.push({ productoId: item.productoId, loteId: lot.loteId, cantidad: amount });
+      plan.push({
+        productoId: item.productoId,
+        loteId: lot.loteId,
+        cantidad: amount,
+      });
       remaining -= amount;
     }
 
@@ -105,7 +114,7 @@ export async function planStockDiscount(
 
 /** C17: aplica el plan con el orden contractual UPDATE lote -> INSERT venta_lote. */
 export async function applyStockDiscount(
-  database: Pick<StockDiscountDb, 'run'>,
+  database: Pick<StockDiscountDb, "run">,
   ventaId: string,
   plan: readonly PlannedLotConsumption[],
 ): Promise<void> {
@@ -119,7 +128,7 @@ export async function applyStockDiscount(
 
     if (result.rowsAffected === 0) {
       throw new StockDiscountBusinessError(
-        'El stock cambió durante la operación. Revise el carrito e intente nuevamente.',
+        "El stock cambió durante la operación. Revise el carrito e intente nuevamente.",
       );
     }
 
@@ -139,8 +148,8 @@ export const stockDiscountController: RegisteredController = {
   metadata: controllers[16],
   handle: async () =>
     controllerError(
-      'BUSINESS_RULE',
-      'El descuento de stock se ejecuta automáticamente al registrar una venta.',
-      'stock-discount',
+      "BUSINESS_RULE",
+      "El descuento de stock se ejecuta automáticamente al registrar una venta.",
+      "stock-discount",
     ),
 };

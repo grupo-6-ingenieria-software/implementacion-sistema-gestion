@@ -1,15 +1,15 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   loadExpirationAlerts,
   type DashboardDb,
-} from '../../../src/main/controllers/dashboard-service';
+} from "../../../src/main/controllers/dashboard-service";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -30,23 +30,22 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('expiration alerts integration', () => {
-  it('loads only active lots with stock in the expiration horizon', async () => {
+describe("expiration alerts integration", () => {
+  it("loads only active lots with stock in the expiration horizon", async () => {
     const result = await loadExpirationAlerts(
       testDb!.db as unknown as DashboardDb,
-      new Date('2026-06-12T12:00:00Z'),
+      new Date("2026-06-12T12:00:00Z"),
     );
 
     expect(result.expired.map((alert) => alert.lotId)).toEqual([
-      '00000000-0000-4000-8000-000000000101',
+      "00000000-0000-4000-8000-000000000101",
     ]);
     expect(result.expiringSoon.map((alert) => alert.lotId)).toEqual([
-      '00000000-0000-4000-8000-000000000102',
-      '00000000-0000-4000-8000-000000000103',
+      "00000000-0000-4000-8000-000000000102",
+      "00000000-0000-4000-8000-000000000103",
     ]);
     expect(result.expiringSoon.map((alert) => alert.daysRemaining)).toEqual([
-      0,
-      7,
+      0, 7,
     ]);
     expect(
       [...result.expired, ...result.expiringSoon].map((alert) => ({
@@ -56,74 +55,67 @@ describe('expiration alerts integration', () => {
       })),
     ).toEqual([
       {
-        ean13: '7802920000015',
-        productName: 'Leche 1L',
+        ean13: "7802920000015",
+        productName: "Leche 1L",
         quantity: 4,
       },
       {
-        ean13: '7802920000015',
-        productName: 'Leche 1L',
+        ean13: "7802920000015",
+        productName: "Leche 1L",
         quantity: 5,
       },
       {
-        ean13: '7802920000015',
-        productName: 'Leche 1L',
+        ean13: "7802920000015",
+        productName: "Leche 1L",
         quantity: 6,
       },
     ]);
   });
 });
 
-describe('expiration alert controller', () => {
-  it('returns a controlled technical error when the query fails', async () => {
+describe("expiration alert controller", () => {
+  it("returns a controlled technical error when the query fails", async () => {
     vi.resetModules();
-    vi.doMock('../../../src/db/client', () => ({
+    vi.doMock("../../../src/db/client", () => ({
       db: {
-        all: vi.fn().mockRejectedValue(new Error('db unavailable')),
+        all: vi.fn().mockRejectedValue(new Error("db unavailable")),
       },
     }));
 
-    const { expirationAlertController } = await import(
-      '../../../src/main/controllers/expiration-alert'
-    );
+    const { expirationAlertController } =
+      await import("../../../src/main/controllers/expiration-alert");
 
     await expect(
       expirationAlertController.handle(
         {},
-        { channel: 'dashboard:alertas-vencimiento' },
+        { channel: "dashboard:alertas-vencimiento" },
       ),
     ).resolves.toEqual({
       ok: false,
       error: {
-        code: 'TECHNICAL_ERROR',
-        controllerId: 'expiration-alert',
-        message: 'No fue posible cargar la informacion solicitada.',
+        code: "TECHNICAL_ERROR",
+        controllerId: "expiration-alert",
+        message: "No fue posible cargar la informacion solicitada.",
       },
     });
 
-    vi.doUnmock('../../../src/db/client');
+    vi.doUnmock("../../../src/db/client");
   });
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-expiration-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-expiration-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
   const migration = await readFile(
-    join(process.cwd(), 'drizzle/migrations/0000_brave_proteus.sql'),
-    'utf8',
+    join(process.cwd(), "drizzle/migrations/0000_brave_proteus.sql"),
+    "utf8",
   );
 
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    const sqlStatement = statement.trim();
-
-    if (sqlStatement.length > 0) {
-      await client.execute(sqlStatement);
-    }
-  }
+  await client.executeMultiple(migration);
 
   return { client, db, dir };
 }

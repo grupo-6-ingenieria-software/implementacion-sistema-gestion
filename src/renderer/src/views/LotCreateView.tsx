@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   normalizeLotRegisterPayload,
   type LotFieldErrors,
   type LotProviderOption,
   type LotRegisterPayload,
   type LotRegisterResponse,
-} from '../../../shared/lots';
-import type { ActiveProductSearchItem } from '../../../shared/products';
-import { CampoEAN13Input } from '../components';
+} from "../../../shared/lots";
+import type { ActiveProductSearchItem } from "../../../shared/products";
+import { CampoEAN13Input } from "../components";
 
 type LotCreateViewProps = {
   initialEan13?: string;
@@ -24,11 +24,11 @@ export type LotFormState = {
 };
 
 const emptyForm: LotFormState = {
-  ean13: '',
-  cantidad: '',
-  precioCosto: '',
-  fechaVencimiento: '',
-  proveedorId: '',
+  ean13: "",
+  cantidad: "",
+  precioCosto: "",
+  fechaVencimiento: "",
+  proveedorId: "",
 };
 
 export function LotCreateView({
@@ -38,11 +38,11 @@ export function LotCreateView({
 }: LotCreateViewProps): ReactElement {
   const [form, setForm] = useState<LotFormState>({
     ...emptyForm,
-    ean13: initialEan13 ?? '',
+    ean13: initialEan13 ?? "",
   });
   const [selectedProduct, setSelectedProduct] =
     useState<ActiveProductSearchItem | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<ActiveProductSearchItem[]>(
     [],
   );
@@ -70,7 +70,7 @@ export function LotCreateView({
       setFieldErrors({});
 
       const response = await window.appApi.invoke<ActiveProductSearchItem[]>(
-        'producto:buscar-activo',
+        "producto:buscar-activo",
         {
           ean13: initialEan13,
           limit: 1,
@@ -97,7 +97,7 @@ export function LotCreateView({
         return;
       }
 
-      setLoadError('No fue posible cargar el producto inicial.');
+      setLoadError("No fue posible cargar el producto inicial.");
       setLoading(false);
     });
 
@@ -113,7 +113,7 @@ export function LotCreateView({
       setProvidersLoading(true);
 
       const response = await window.appApi.invoke<LotProviderOption[]>(
-        'lote:proveedores',
+        "lote:proveedores",
         { usuarioId },
       );
 
@@ -146,7 +146,7 @@ export function LotCreateView({
       }
 
       setProviders([]);
-      setMessage('No fue posible cargar los proveedores.');
+      setMessage("No fue posible cargar los proveedores.");
       setProvidersLoading(false);
     });
 
@@ -163,13 +163,13 @@ export function LotCreateView({
   function selectProduct(product: ActiveProductSearchItem): void {
     setSelectedProduct(product);
     setSearchResults([]);
-    setSearch('');
+    setSearch("");
     setForm((current) => ({
       ...current,
       ean13: product.ean13,
       fechaVencimiento: product.exigeVencimiento
         ? current.fechaVencimiento
-        : '',
+        : "",
     }));
     setFieldErrors((current) => ({ ...current, ean13: undefined }));
   }
@@ -180,14 +180,14 @@ export function LotCreateView({
     setMessage(null);
 
     if (!query) {
-      setMessage('Ingrese un EAN-13 o nombre de producto para buscar.');
+      setMessage("Ingrese un EAN-13 o nombre de producto para buscar.");
       return;
     }
 
     setSearching(true);
 
     const response = await window.appApi.invoke<ActiveProductSearchItem[]>(
-      'producto:buscar-activo',
+      "producto:buscar-activo",
       {
         query,
         limit: 10,
@@ -206,7 +206,7 @@ export function LotCreateView({
     setSearchResults(response.data);
 
     if (response.data.length === 0) {
-      setMessage('No se encontraron productos activos para la busqueda.');
+      setMessage("No se encontraron productos activos para la busqueda.");
     }
   }
 
@@ -217,7 +217,7 @@ export function LotCreateView({
     setSaving(true);
 
     const response = await window.appApi.invoke<LotRegisterResponse>(
-      'lote:registrar',
+      "lote:registrar",
       payload,
     );
 
@@ -229,8 +229,8 @@ export function LotCreateView({
       return;
     }
 
-    setMessage('Lote registrado correctamente.');
-    window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
+    setMessage("Lote registrado correctamente.");
+    window.setTimeout(() => onNavigate("/app/inventario/productos"), 700);
   }
 
   return (
@@ -239,7 +239,7 @@ export function LotCreateView({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/inventario/productos')}
+          onClick={() => onNavigate("/app/inventario/productos")}
         >
           Volver a productos
         </button>
@@ -258,7 +258,7 @@ export function LotCreateView({
             <button
               className="w-fit rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate('/app/inventario/productos')}
+              onClick={() => onNavigate("/app/inventario/productos")}
             >
               Volver
             </button>
@@ -298,7 +298,7 @@ export function LotCreateView({
                       type="button"
                       onClick={() => void searchProducts()}
                     >
-                      {searching ? 'Buscando...' : 'Buscar producto'}
+                      {searching ? "Buscando..." : "Buscar producto"}
                     </button>
                   </div>
                 </Field>
@@ -316,7 +316,7 @@ export function LotCreateView({
                           {product.nombre}
                         </span>
                         <span className="text-xs text-[#61717f]">
-                          {product.ean13} - {product.categoria} - Stock{' '}
+                          {product.ean13} - {product.categoria} - Stock{" "}
                           {product.stockDisponible}
                         </span>
                       </button>
@@ -348,8 +348,8 @@ export function LotCreateView({
                   >
                     <option value="">
                       {providersLoading
-                        ? 'Cargando proveedores...'
-                        : 'Seleccione proveedor'}
+                        ? "Cargando proveedores..."
+                        : "Seleccione proveedor"}
                     </option>
                     {providers.map((provider) => (
                       <option key={provider.id} value={provider.id}>
@@ -368,7 +368,10 @@ export function LotCreateView({
                   />
                 </Field>
 
-                <Field label="Precio costo del lote" error={fieldErrors.precioCosto}>
+                <Field
+                  label="Precio costo del lote"
+                  error={fieldErrors.precioCosto}
+                >
                   <NumberInput
                     value={form.precioCosto}
                     onChange={(value) =>
@@ -410,12 +413,12 @@ export function LotCreateView({
                 disabled={saving}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Registrar lote'}
+                {saving ? "Guardando..." : "Registrar lote"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 type="button"
-                onClick={() => onNavigate('/app/inventario/productos')}
+                onClick={() => onNavigate("/app/inventario/productos")}
               >
                 Cancelar
               </button>
@@ -448,7 +451,7 @@ function ProductSummary({
         <Info label="Stock actual" value={String(product.stockDisponible)} />
         <Info
           label="Vencimiento"
-          value={product.exigeVencimiento ? 'Requerido' : 'No requerido'}
+          value={product.exigeVencimiento ? "Requerido" : "No requerido"}
         />
       </dl>
     </div>
@@ -475,7 +478,13 @@ function Field({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-[#61717f]">

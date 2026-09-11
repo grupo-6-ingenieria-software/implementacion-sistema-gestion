@@ -1,77 +1,46 @@
-/**
- * Guard de identidad y rol en el borde IPC (RF56, CU57).
- *
- * El renderer envía el JWT de sesión adjunto en cada invoke como `__authToken`
- * (ver preload/index.ts). El dispatcher (ver index.ts) llama a `guardChannel`
- * antes de despachar al controlador, de modo que la identidad y el rol se
- * derivan del token firmado y NO de parámetros que el renderer pueda falsificar.
- *
- * Política por canal:
- *  - PUBLIC:        sin token (sólo `auth:login`).
- *  - AUTHENTICATED: token válido de cualquier rol.
- *  - ROLE-GATED:    token válido + rol permitido, derivado del árbol de
- *                   navegación (`node.roles` por controlador).
- */
+import { controllers } from "../../shared/controllers";
+import type { ControllerId, Role } from "../../shared/navigation";
+import { navigationTree } from "../../shared/navigation";
+import { controllerError } from "./base";
+import type { ControllerContext } from "./base";
+import { verifySessionToken, type SessionTokenClaims } from "./auth-jwt";
+import { registerAuditLog } from "./auth-context";
+import { db, schema as appSchema } from "../../db/client";
+import {
+  NON_ACTIVITY_CHANNELS,
+  validateAndRefreshActiveSession,
+  type VerifySessionData,
+} from "./session";
+import { SESSION_EXPIRED_MESSAGE } from "../../shared/auth";
 
-import { controllers } from '../../shared/controllers';
-import type { ControllerId, Role } from '../../shared/navigation';
-import { navigationTree } from '../../shared/navigation';
-import { controllerError } from './base';
-import type { ControllerContext } from './base';
-import { verifySessionToken, type SessionTokenClaims } from './auth-jwt';
-import { registerAuditLog } from './auth-context';
-import { db, schema as appSchema } from '../../db/client';
-import { NON_ACTIVITY_CHANNELS, validateAndRefreshActiveSession, type VerifySessionData } from './session';
-import { SESSION_EXPIRED_MESSAGE } from '../../shared/auth';
+export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(["auth:login"]);
 
-/** Único canal público: sin él no se podría iniciar sesión. */
-export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(['auth:login']);
-
-/**
- * Canales que sólo exigen una sesión válida (cualquier rol). El cambio de
- * contraseña obligatorio, la verificación de sesión, el cierre de sesión y el
- * registro de auditoría aplican a ambos roles.
- */
 export const AUTHENTICATED_CHANNELS: ReadonlySet<string> = new Set([
-  'auth:cambiar-password',
-  'auth:restablecer-password',
-  'auth:verificar-sesion',
-  'auth:logout',
-  'auditoria:registrar',
+  "auth:cambiar-password",
+  "auth:restablecer-password",
+  "auth:verificar-sesion",
+  "auth:logout",
+  "auditoria:registrar",
 ]);
 
-/**
- * Overrides para canales compartidos entre módulos cuyo rol NO se puede derivar
- * del árbol de navegación. `trabajador:listar-activos` lo expone el controlador
- * `worker`, que en la navegación sólo aparece bajo nodos de dueño (Trabajadores,
- * Registrar trabajador); pero la vista de Asistencia (rol trabajador, RF29/RF30)
- * también lo usa para seleccionar al trabajador desde la lista de activos. El
- * propio `worker.ts` ya autoriza ese canal para `['dueno','trabajador']`, así que
- * sin este override el guard sería más restrictivo que el controlador y el
- * trabajador no podría abrir Asistencia.
- */
-export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<string, ReadonlySet<Role>> =
-  new Map<string, ReadonlySet<Role>>([
-    ['trabajador:listar-activos', new Set<Role>(['dueno', 'trabajador'])],
-  ]);
+export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
+  string,
+  ReadonlySet<Role>
+> = new Map<string, ReadonlySet<Role>>([
+  ["trabajador:listar-activos", new Set<Role>(["dueno", "trabajador"])],
+]);
 
-/**
- * Roles permitidos por canal, derivados del árbol de navegación: para cada
- * canal se toma la unión de `node.roles` de todos los nodos cuyo controlador
- * declara dicho canal. Así el mapeo se mantiene en sincronía con la navegación
- * en lugar de hardcodearse. Los canales compartidos entre módulos se ajustan
- * con `CHANNEL_ROLE_OVERRIDES`.
- */
-export const CHANNEL_ROLES: ReadonlyMap<string, ReadonlySet<Role>> =
-  buildChannelRoleMap();
+export const CHANNEL_ROLES: ReadonlyMap<
+  string,
+  ReadonlySet<Role>
+> = buildChannelRoleMap();
 
 function buildChannelRoleMap(): Map<string, Set<Role>> {
   const controllerRoles = new Map<ControllerId, Set<Role>>();
 
   for (const node of navigationTree) {
     for (const controllerId of node.controllerIds) {
-      const roles =
-        controllerRoles.get(controllerId) ?? new Set<Role>();
+      const roles = controllerRoles.get(controllerId) ?? new Set<Role>();
       for (const role of node.roles) {
         roles.add(role);
       }
@@ -89,10 +58,7 @@ function buildChannelRoleMap(): Map<string, Set<Role>> {
     }
 
     for (const channel of controller.channels) {
-      if (
-        PUBLIC_CHANNELS.has(channel) ||
-        AUTHENTICATED_CHANNELS.has(channel)
-      ) {
+      if (PUBLIC_CHANNELS.has(channel) || AUTHENTICATED_CHANNELS.has(channel)) {
         continue;
       }
 
@@ -100,8 +66,6 @@ function buildChannelRoleMap(): Map<string, Set<Role>> {
     }
   }
 
-  // Canales compartidos entre módulos: el override define el rol real del canal,
-  // por encima de la unión derivada de la navegación.
   for (const [channel, roles] of CHANNEL_ROLE_OVERRIDES) {
     channelRoles.set(channel, new Set(roles));
   }
@@ -130,46 +94,62 @@ export type GuardResult =
 
 export type RequestAuthorizationDeps = {
   identity: typeof guardChannel;
-  session: (claims: SessionTokenClaims, refresh: boolean) => Promise<VerifySessionData>;
+  session: (
+    claims: SessionTokenClaims,
+    refresh: boolean,
+  ) => Promise<VerifySessionData>;
 };
 
-/** C03 → JWT → C05. Nunca ejecutar negocio antes de validar la fila de sesión. */
 export async function authorizeRequest(
   channel: string,
   payload: unknown,
   onExpired: () => void = () => undefined,
   deps: RequestAuthorizationDeps = {
     identity: guardChannel,
-    session: (claims, refresh) => validateAndRefreshActiveSession(
-      db, appSchema, claims.sesionId, claims.usuarioId, refresh,
-    ),
+    session: (claims, refresh) =>
+      validateAndRefreshActiveSession(
+        db,
+        appSchema,
+        claims.sesionId,
+        claims.usuarioId,
+        refresh,
+      ),
   },
 ): Promise<GuardResult> {
   try {
     const result = await deps.identity(channel, payload);
     if (!result.ok || !result.context.claims) return result;
-    const session = await deps.session(result.context.claims, !NON_ACTIVITY_CHANNELS.has(channel));
+    const session = await deps.session(
+      result.context.claims,
+      !NON_ACTIVITY_CHANNELS.has(channel),
+    );
     if (!session.active) {
-      if (session.reason === 'inactividad') {
-        // La capa de sesión ya cerró y confirmó la persistencia antes de
-        // devolver este motivo; recién entonces se notifica al renderer.
+      if (session.reason === "inactividad") {
         onExpired();
       }
-      return { ok: false, response: controllerError('FORBIDDEN',
-        session.reason === 'inactividad' ? SESSION_EXPIRED_MESSAGE : 'No hay una sesión válida para realizar esta acción.') };
+      return {
+        ok: false,
+        response: controllerError(
+          "FORBIDDEN",
+          session.reason === "inactividad"
+            ? SESSION_EXPIRED_MESSAGE
+            : "No hay una sesión válida para realizar esta acción.",
+        ),
+      };
     }
     return result;
   } catch (error) {
-    console.error('Error al validar la sesión', error);
-    return { ok: false, response: controllerError('TECHNICAL_ERROR', 'No fue posible verificar la sesión. Intente nuevamente.') };
+    console.error("Error al validar la sesión", error);
+    return {
+      ok: false,
+      response: controllerError(
+        "TECHNICAL_ERROR",
+        "No fue posible verificar la sesión. Intente nuevamente.",
+      ),
+    };
   }
 }
 
-/**
- * Verifica el token del payload según la política del canal. En caso de éxito
- * para un canal autenticado/role-gated, sobrescribe `payload.usuarioId` con la
- * identidad de confianza y adjunta los claims al contexto del controlador.
- */
 export async function guardChannel(
   channel: string,
   payload: unknown,
@@ -188,8 +168,8 @@ export async function guardChannel(
     return {
       ok: false,
       response: controllerError(
-        'FORBIDDEN',
-        'No hay una sesión válida para realizar esta acción.',
+        "FORBIDDEN",
+        "No hay una sesión válida para realizar esta acción.",
       ),
     };
   }
@@ -200,8 +180,8 @@ export async function guardChannel(
     await deps
       .audit({
         descripcion: `Acceso denegado al canal ${channel} para el rol ${claims.rol}.`,
-        modulo: 'control_acceso',
-        tipoAccion: 'acceso_denegado',
+        modulo: "control_acceso",
+        tipoAccion: "acceso_denegado",
         usuarioId: claims.usuarioId,
       })
       .catch(() => undefined);
@@ -209,8 +189,8 @@ export async function guardChannel(
     return {
       ok: false,
       response: controllerError(
-        'FORBIDDEN',
-        'No tiene permiso para realizar esta acción.',
+        "FORBIDDEN",
+        "No tiene permiso para realizar esta acción.",
       ),
     };
   }
@@ -219,7 +199,7 @@ export async function guardChannel(
   // que los `authorizeUser(payload.usuarioId, ...)` existentes operen sobre el
   // usuario verificado sin tener que editar cada controlador.
   const trustedPayload =
-    payload && typeof payload === 'object' && !Array.isArray(payload)
+    payload && typeof payload === "object" && !Array.isArray(payload)
       ? { ...(payload as Record<string, unknown>), usuarioId: claims.usuarioId }
       : payload;
 
@@ -231,7 +211,7 @@ export async function guardChannel(
 }
 
 function extractToken(payload: unknown): unknown {
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     return (payload as Record<string, unknown>).__authToken;
   }
 

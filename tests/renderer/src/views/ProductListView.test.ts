@@ -1,62 +1,65 @@
-import { describe, expect, it } from 'vitest';
-import type { ProductListItem } from '../../../../src/shared/products';
-import { getProductActionsForRole, orderProductsForList } from '../../../../src/renderer/src/views/ProductListView';
+import { describe, expect, it } from "vitest";
+import type { ProductListItem } from "../../../../src/shared/products";
+import {
+  getProductActionsForRole,
+  orderProductsForList,
+} from "../../../../src/renderer/src/views/ProductListView";
 
 const product: ProductListItem = {
-  ean13: '7802920000015',
-  nombre: 'Coca-Cola 1.5L',
-  categoria: 'Bebidas',
+  ean13: "7802920000015",
+  nombre: "Coca-Cola 1.5L",
+  categoria: "Bebidas",
   categoriaId: 1,
   precioCosto: 1200,
   precioVenta: 1800,
   stockActual: 48,
   stockMinimo: 20,
-  estado: 'activo',
-  fechaRegistro: '2026-06-01',
+  estado: "activo",
+  fechaRegistro: "2026-06-01",
 };
 
 const inactiveProduct: ProductListItem = {
   ...product,
-  ean13: '7800000000122',
-  nombre: 'Hallulla',
-  estado: 'inactivo',
+  ean13: "7800000000122",
+  nombre: "Hallulla",
+  estado: "inactivo",
 };
 
-describe('ProductListView actions', () => {
-  it('shows administrative product actions to the owner', () => {
+describe("ProductListView actions", () => {
+  it("shows administrative product actions to the owner", () => {
     expect(
-      getProductActionsForRole('dueno', product).map((action) => action.label),
+      getProductActionsForRole("dueno", product).map((action) => action.label),
     ).toEqual([
-      'Editar',
-      'Cambiar estado',
-      'Eliminar',
-      'Registrar lote',
-      'Registrar merma',
+      "Editar",
+      "Cambiar estado",
+      "Eliminar",
+      "Registrar lote",
+      "Registrar merma",
     ]);
   });
 
-  it('shows only operational product actions to a worker', () => {
+  it("shows only operational product actions to a worker", () => {
     expect(
-      getProductActionsForRole('trabajador', product).map(
+      getProductActionsForRole("trabajador", product).map(
         (action) => action.label,
       ),
-    ).toEqual(['Cambiar estado', 'Eliminar', 'Registrar merma']);
+    ).toEqual(["Cambiar estado", "Eliminar", "Registrar merma"]);
   });
 
-  it('hides active-product operations for inactive products', () => {
+  it("hides active-product operations for inactive products", () => {
     expect(
-      getProductActionsForRole('dueno', inactiveProduct).map(
+      getProductActionsForRole("dueno", inactiveProduct).map(
         (action) => action.label,
       ),
-    ).toEqual(['Editar', 'Cambiar estado', 'Eliminar']);
+    ).toEqual(["Editar", "Cambiar estado", "Eliminar"]);
     expect(
-      getProductActionsForRole('trabajador', inactiveProduct).map(
+      getProductActionsForRole("trabajador", inactiveProduct).map(
         (action) => action.label,
       ),
-    ).toEqual(['Cambiar estado', 'Eliminar']);
+    ).toEqual(["Cambiar estado", "Eliminar"]);
   });
 
-  it('keeps inactive products at the end of the list', () => {
+  it("keeps inactive products at the end of the list", () => {
     expect(orderProductsForList([inactiveProduct, product])).toEqual([
       product,
       inactiveProduct,

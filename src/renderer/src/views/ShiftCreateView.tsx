@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { AttendanceWorkerOption } from '../../../shared/attendance';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import type { AttendanceWorkerOption } from "../../../shared/attendance";
 import {
   displayDateToIso,
   normalizeShiftCreatePayload,
   type ShiftFieldErrors,
   type ShiftMutationResponse,
-} from '../../../shared/shifts';
+} from "../../../shared/shifts";
 
 type ShiftCreateViewProps = {
   currentPath: string;
@@ -21,10 +21,10 @@ type FormState = {
 };
 
 const emptyForm: FormState = {
-  trabajadorId: '',
-  fecha: '',
-  horaInicio: '',
-  horaTermino: '',
+  trabajadorId: "",
+  fecha: "",
+  horaInicio: "",
+  horaTermino: "",
 };
 
 export type ShiftCreateContext = {
@@ -33,18 +33,16 @@ export type ShiftCreateContext = {
 };
 
 export function getShiftCreateContext(path: string): ShiftCreateContext {
-  const [, query = ''] = path.split('?');
+  const [, query = ""] = path.split("?");
   const params = new URLSearchParams(query);
-  const fecha = params.get('fecha')?.trim() ?? '';
-  const trabajadorIdText = params.get('trabajadorId')?.trim() ?? '';
+  const fecha = params.get("fecha")?.trim() ?? "";
+  const trabajadorIdText = params.get("trabajadorId")?.trim() ?? "";
   const trabajadorId = Number(trabajadorIdText);
 
   return {
-    fecha: displayDateToIso(fecha) ? fecha : '',
+    fecha: displayDateToIso(fecha) ? fecha : "",
     trabajadorId:
-      trabajadorIdText &&
-      Number.isInteger(trabajadorId) &&
-      trabajadorId > 0
+      trabajadorIdText && Number.isInteger(trabajadorId) && trabajadorId > 0
         ? trabajadorId
         : undefined,
   };
@@ -57,7 +55,7 @@ export function getActivePreselectedWorkerId(
   return trabajadorId &&
     workers.some((worker) => worker.trabajadorId === trabajadorId)
     ? String(trabajadorId)
-    : '';
+    : "";
 }
 
 export function ShiftCreateView({
@@ -93,7 +91,7 @@ export function ShiftCreateView({
 
     try {
       const response = await window.appApi.invoke<AttendanceWorkerOption[]>(
-        'trabajador:listar-activos',
+        "trabajador:listar-activos",
         { usuarioId },
       );
 
@@ -112,7 +110,7 @@ export function ShiftCreateView({
         ),
       }));
     } catch {
-      setLoadError('No fue posible comunicarse con el proceso principal.');
+      setLoadError("No fue posible comunicarse con el proceso principal.");
       setWorkers([]);
     } finally {
       setLoading(false);
@@ -140,7 +138,7 @@ export function ShiftCreateView({
 
     try {
       const response = await window.appApi.invoke<ShiftMutationResponse>(
-        'turno:crear',
+        "turno:crear",
         payload,
       );
 
@@ -150,10 +148,10 @@ export function ShiftCreateView({
         return;
       }
 
-      setMessage('Turno creado correctamente.');
-      window.setTimeout(() => onNavigate('/app/personal/turnos'), 700);
+      setMessage("Turno creado correctamente.");
+      window.setTimeout(() => onNavigate("/app/personal/turnos"), 700);
     } catch {
-      setMessage('No fue posible comunicarse con el proceso principal.');
+      setMessage("No fue posible comunicarse con el proceso principal.");
     } finally {
       setSaving(false);
     }
@@ -174,7 +172,7 @@ export function ShiftCreateView({
         <button
           className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/personal/turnos')}
+          onClick={() => onNavigate("/app/personal/turnos")}
         >
           Volver a turnos
         </button>
@@ -295,13 +293,13 @@ export function ShiftCreateView({
                 disabled={saving || workers.length === 0}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Guardar turno'}
+                {saving ? "Guardando..." : "Guardar turno"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 disabled={saving}
                 type="button"
-                onClick={() => onNavigate('/app/personal/turnos')}
+                onClick={() => onNavigate("/app/personal/turnos")}
               >
                 Cancelar
               </button>

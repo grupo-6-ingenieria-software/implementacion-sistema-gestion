@@ -1,10 +1,10 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
-import { controllers, type ControllerResponse } from '../../shared/controllers';
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { controllers, type ControllerResponse } from "../../shared/controllers";
 import {
   normalizeRut,
   type AttendanceWorkerOption,
-} from '../../shared/attendance';
-import type { Role } from '../../shared/navigation';
+} from "../../shared/attendance";
+import type { Role } from "../../shared/navigation";
 import {
   filterAndSortUserList,
   hasUserFieldErrors,
@@ -20,26 +20,28 @@ import {
   type UserMutationResponse,
   type UserStatus,
   type UserStatusChangePayload,
-} from '../../shared/users';
-import type { ControllerHandler, RegisteredController } from './base';
+} from "../../shared/users";
+import type { ControllerHandler, RegisteredController } from "./base";
 import {
   AccessDeniedError,
   authorizeUser,
   registerAuditLog,
   type AuthenticatedUser,
-} from './auth-context';
+} from "./auth-context";
 import {
   createTemporaryPasswordRecord,
   defaultDeps as defaultPasswordDeps,
   type PasswordDeps,
-} from './password';
+} from "./password";
 
 type WorkerDependencies = {
   authorize: (
     usuarioId: string | undefined,
     allowedRoles: readonly Role[],
   ) => Promise<AuthenticatedUser>;
-  changeStatus: (payload: UserStatusChangePayload) => Promise<UserMutationResponse>;
+  changeStatus: (
+    payload: UserStatusChangePayload,
+  ) => Promise<UserMutationResponse>;
   createWorker: (payload: UserFormValues) => Promise<UserMutationResponse>;
   listWorkers: () => Promise<UserListItem[]>;
   listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
@@ -47,9 +49,7 @@ type WorkerDependencies = {
 };
 
 type WorkerResponse =
-  | UserListResponse
-  | UserMutationResponse
-  | AttendanceWorkerOption[];
+  UserListResponse | UserMutationResponse | AttendanceWorkerOption[];
 
 export function createWorkerController(
   dependencies: WorkerDependencies = workerDependencies,
@@ -59,9 +59,9 @@ export function createWorkerController(
     context,
   ) => {
     try {
-      if (context.channel === 'trabajador:listar') {
+      if (context.channel === "trabajador:listar") {
         const usuarioId = normalizeUsuarioId(payload);
-        await dependencies.authorize(usuarioId, ['dueno']);
+        await dependencies.authorize(usuarioId, ["dueno"]);
 
         const filters = normalizeUserListPayload(payload);
         const workers = await dependencies.listWorkers();
@@ -74,11 +74,11 @@ export function createWorkerController(
         };
       }
 
-      if (context.channel === 'trabajador:listar-activos') {
+      if (context.channel === "trabajador:listar-activos") {
         const usuarioId = normalizeUsuarioId(payload);
         const user = await dependencies.authorize(usuarioId, [
-          'dueno',
-          'trabajador',
+          "dueno",
+          "trabajador",
         ]);
 
         const activeWorkers = await dependencies.listActiveWorkers();
@@ -89,7 +89,7 @@ export function createWorkerController(
         };
       }
 
-      if (context.channel === 'trabajador:registrar') {
+      if (context.channel === "trabajador:registrar") {
         const normalizedPayload = normalizeUserFormPayload(payload);
         const fieldErrors = validateUserFormValues(normalizedPayload);
 
@@ -97,7 +97,7 @@ export function createWorkerController(
           return validationError(fieldErrors);
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ['dueno']);
+        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
 
         return {
           ok: true,
@@ -105,7 +105,7 @@ export function createWorkerController(
         };
       }
 
-      if (context.channel === 'trabajador:actualizar') {
+      if (context.channel === "trabajador:actualizar") {
         const normalizedPayload = normalizeUserFormPayload(payload);
         const fieldErrors = validateUserFormValues(normalizedPayload, {
           validateRutFormat: false,
@@ -115,7 +115,7 @@ export function createWorkerController(
           return validationError(fieldErrors);
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ['dueno']);
+        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
 
         return {
           ok: true,
@@ -123,21 +123,21 @@ export function createWorkerController(
         };
       }
 
-      if (context.channel === 'trabajador:cambiar-estado') {
+      if (context.channel === "trabajador:cambiar-estado") {
         const normalizedPayload = normalizeUserStatusChangePayload(payload);
 
         if (!normalizedPayload.usuarioObjetivoId) {
           return {
             ok: false,
             error: {
-              code: 'VALIDATION_ERROR',
-              controllerId: 'worker',
-              message: 'Debe seleccionar un trabajador valido.',
+              code: "VALIDATION_ERROR",
+              controllerId: "worker",
+              message: "Debe seleccionar un trabajador valido.",
             },
           };
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ['dueno']);
+        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
 
         return {
           ok: true,
@@ -148,8 +148,8 @@ export function createWorkerController(
       return {
         ok: false,
         error: {
-          code: 'INVALID_CHANNEL',
-          controllerId: 'worker',
+          code: "INVALID_CHANNEL",
+          controllerId: "worker",
           message: `Canal IPC no registrado: ${context.channel}`,
         },
       };
@@ -163,9 +163,9 @@ export function createWorkerController(
       return {
         ok: false,
         error: {
-          code: 'DATABASE_ERROR',
-          controllerId: 'worker',
-          message: 'No fue posible completar la operacion. Intente nuevamente.',
+          code: "DATABASE_ERROR",
+          controllerId: "worker",
+          message: "No fue posible completar la operacion. Intente nuevamente.",
         },
       };
     }
@@ -179,7 +179,7 @@ export function createWorkerController(
 
 const workerDependencies: WorkerDependencies = {
   authorize: async (usuarioId, allowedRoles) => {
-    const { db, schema } = await import('../../db/client');
+    const { db, schema } = await import("../../db/client");
 
     return authorizeUser(db, schema, usuarioId, allowedRoles);
   },
@@ -193,7 +193,7 @@ const workerDependencies: WorkerDependencies = {
 export const workerController = createWorkerController();
 
 async function listWorkers(): Promise<UserListItem[]> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   return mapWorkerRows(
     await db
@@ -222,7 +222,7 @@ async function listWorkers(): Promise<UserListItem[]> {
 }
 
 async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   const rows = await db
     .select({
@@ -232,7 +232,7 @@ async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
       apellido: schema.trabajador.trabajadorApellido,
     })
     .from(schema.trabajador)
-    .where(eq(schema.trabajador.trabajadorEstado, 'activo'))
+    .where(eq(schema.trabajador.trabajadorEstado, "activo"))
     .orderBy(
       asc(schema.trabajador.trabajadorNombre),
       asc(schema.trabajador.trabajadorApellido),
@@ -248,7 +248,7 @@ async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
 async function createWorker(
   payload: UserFormValues,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   return createWorkerWithExecutor(db, schema, payload);
 }
@@ -265,14 +265,17 @@ export async function createWorkerWithExecutor(
   payload: UserFormValues,
   passwordDeps: PasswordDeps = defaultPasswordDeps,
 ): Promise<UserMutationResponse> {
-  let contrasenaTemporal = '';
+  let contrasenaTemporal = "";
 
   await database.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
+    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
     const existing = await findWorkerByRut(tx, schema, payload.rut);
 
     if (existing) {
-      throw new WorkerError('duplicate-rut', 'Ya existe un trabajador con ese RUT.');
+      throw new WorkerError(
+        "duplicate-rut",
+        "Ya existe un trabajador con ese RUT.",
+      );
     }
 
     const [createdWorker] = await tx
@@ -280,11 +283,11 @@ export async function createWorkerWithExecutor(
       .values({
         trabajadorRut: payload.rut,
         trabajadorNombre: payload.nombreCompleto,
-        trabajadorApellido: '',
+        trabajadorApellido: "",
         trabajadorTelefono: payload.telefono,
         trabajadorCorreoElectronico: payload.correoElectronico || null,
         trabajadorFechaIngreso: todayIsoDate(),
-        trabajadorEstado: 'activo',
+        trabajadorEstado: "activo",
       })
       .returning({ trabajadorId: schema.trabajador.trabajadorId });
 
@@ -310,8 +313,8 @@ export async function createWorkerWithExecutor(
     );
 
     await registerAuditLog(tx, schema, {
-      tipoAccion: 'registro',
-      modulo: 'trabajadores',
+      tipoAccion: "registro",
+      modulo: "trabajadores",
       descripcion: `Trabajador registrado: ${payload.rut}`,
       usuarioId: owner.usuarioId,
     });
@@ -323,14 +326,17 @@ export async function createWorkerWithExecutor(
 async function updateWorker(
   payload: UserFormValues,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
+    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
     const existing = await findWorkerByRut(tx, schema, payload.rut);
 
     if (!existing) {
-      throw new WorkerError('not-found', 'No se encontro el trabajador solicitado.');
+      throw new WorkerError(
+        "not-found",
+        "No se encontro el trabajador solicitado.",
+      );
     }
 
     const nameChanged = existing.nombreCompleto !== payload.nombreCompleto;
@@ -340,7 +346,7 @@ async function updateWorker(
       .update(schema.trabajador)
       .set({
         trabajadorNombre: payload.nombreCompleto,
-        trabajadorApellido: '',
+        trabajadorApellido: "",
         trabajadorTelefono: payload.telefono,
         trabajadorCorreoElectronico: payload.correoElectronico || null,
       })
@@ -370,8 +376,8 @@ async function updateWorker(
     }
 
     await registerAuditLog(tx, schema, {
-      tipoAccion: 'edicion',
-      modulo: 'trabajadores',
+      tipoAccion: "edicion",
+      modulo: "trabajadores",
       descripcion: `Trabajador actualizado: ${payload.rut}`,
       usuarioId: owner.usuarioId,
     });
@@ -383,14 +389,21 @@ async function updateWorker(
 async function changeStatus(
   payload: UserStatusChangePayload,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import('../../db/client');
+  const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ['dueno']);
-    const existing = await findWorkerByRut(tx, schema, payload.usuarioObjetivoId);
+    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+    const existing = await findWorkerByRut(
+      tx,
+      schema,
+      payload.usuarioObjetivoId,
+    );
 
     if (!existing) {
-      throw new WorkerError('not-found', 'No se encontro el trabajador solicitado.');
+      throw new WorkerError(
+        "not-found",
+        "No se encontro el trabajador solicitado.",
+      );
     }
 
     await tx
@@ -399,8 +412,8 @@ async function changeStatus(
       .where(eq(schema.trabajador.trabajadorId, existing.trabajadorId));
 
     await registerAuditLog(tx, schema, {
-      tipoAccion: 'edicion',
-      modulo: 'trabajadores',
+      tipoAccion: "edicion",
+      modulo: "trabajadores",
       descripcion: `Estado de trabajador ${existing.rut} cambiado a ${payload.estado}`,
       usuarioId: owner.usuarioId,
     });
@@ -440,7 +453,7 @@ async function findWorkerByRut(
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
     usuarioId: row.usuarioId,
-    rol: normalizeUserRole(row.rol) ?? 'trabajador',
+    rol: normalizeUserRole(row.rol) ?? "trabajador",
   };
 }
 
@@ -462,7 +475,7 @@ function mapWorkerRows(
     usuarioId: row.usuarioId,
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
-    rol: normalizeUserRole(row.rol) ?? 'trabajador',
+    rol: normalizeUserRole(row.rol) ?? "trabajador",
     telefono: row.telefono,
     correoElectronico: row.correoElectronico ?? undefined,
     fechaIngreso: row.fechaIngreso,
@@ -483,23 +496,21 @@ function scopeActiveWorkersToUser(
   activeWorkers: AttendanceWorkerOption[],
   user: AuthenticatedUser,
 ): AttendanceWorkerOption[] {
-  if (user.role === 'dueno') {
+  if (user.role === "dueno") {
     return activeWorkers;
   }
 
   const ownRut = normalizeRut(user.usuarioId);
 
-  return activeWorkers.filter(
-    (worker) => normalizeRut(worker.rut) === ownRut,
-  );
+  return activeWorkers.filter((worker) => normalizeRut(worker.rut) === ownRut);
 }
 
 function normalizeUsuarioId(payload: unknown): string | undefined {
   if (
-    typeof payload === 'object' &&
+    typeof payload === "object" &&
     payload !== null &&
-    'usuarioId' in payload &&
-    typeof payload.usuarioId === 'string'
+    "usuarioId" in payload &&
+    typeof payload.usuarioId === "string"
   ) {
     return payload.usuarioId.trim();
   }
@@ -507,14 +518,16 @@ function normalizeUsuarioId(payload: unknown): string | undefined {
   return undefined;
 }
 
-function validationError(fieldErrors: UserFieldErrors): ControllerResponse<never> {
+function validationError(
+  fieldErrors: UserFieldErrors,
+): ControllerResponse<never> {
   return {
     ok: false,
     error: {
-      code: 'VALIDATION_ERROR',
-      controllerId: 'worker',
+      code: "VALIDATION_ERROR",
+      controllerId: "worker",
       fieldErrors,
-      message: 'Revise los campos marcados antes de continuar.',
+      message: "Revise los campos marcados antes de continuar.",
     },
   };
 }
@@ -524,8 +537,8 @@ function normalizeWorkerError(error: unknown) {
     return {
       ok: false as const,
       error: {
-        code: 'FORBIDDEN' as const,
-        controllerId: 'worker' as const,
+        code: "FORBIDDEN" as const,
+        controllerId: "worker" as const,
         message: error.message,
       },
     };
@@ -535,14 +548,14 @@ function normalizeWorkerError(error: unknown) {
     return null;
   }
 
-  if (error.reason === 'duplicate-rut') {
+  if (error.reason === "duplicate-rut") {
     return {
       ok: false as const,
       error: {
-        code: 'VALIDATION_ERROR' as const,
-        controllerId: 'worker' as const,
+        code: "VALIDATION_ERROR" as const,
+        controllerId: "worker" as const,
         fieldErrors: { rut: error.message },
-        message: 'Revise los campos marcados antes de continuar.',
+        message: "Revise los campos marcados antes de continuar.",
       },
     };
   }
@@ -550,8 +563,8 @@ function normalizeWorkerError(error: unknown) {
   return {
     ok: false as const,
     error: {
-      code: 'NOT_FOUND' as const,
-      controllerId: 'worker' as const,
+      code: "NOT_FOUND" as const,
+      controllerId: "worker" as const,
       message: error.message,
     },
   };
@@ -563,17 +576,17 @@ function todayIsoDate(): string {
 
 class WorkerError extends Error {
   constructor(
-    readonly reason: 'duplicate-rut' | 'not-found',
+    readonly reason: "duplicate-rut" | "not-found",
     message: string,
   ) {
     super(message);
   }
 }
 
-type SchemaLike = typeof import('../../db/schema');
-type DatabaseLike = Pick<typeof import('../../db/client').db, 'transaction'>;
+type SchemaLike = typeof import("../../db/schema");
+type DatabaseLike = Pick<typeof import("../../db/client").db, "transaction">;
 type TransactionLike = {
-  insert: typeof import('../../db/client').db.insert;
-  select: typeof import('../../db/client').db.select;
-  update: typeof import('../../db/client').db.update;
+  insert: typeof import("../../db/client").db.insert;
+  select: typeof import("../../db/client").db.select;
+  update: typeof import("../../db/client").db.update;
 };

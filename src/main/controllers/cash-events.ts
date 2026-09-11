@@ -1,10 +1,9 @@
-import { BrowserWindow } from 'electron';
-import log from 'electron-log/main';
-import { DASHBOARD_UPDATED_EVENT } from '../../shared/dashboard';
+import { BrowserWindow } from "electron";
+import log from "electron-log/main";
+import { DASHBOARD_UPDATED_EVENT } from "../../shared/dashboard";
 
-export const CASH_UPDATED_EVENT = 'caja:actualizada';
+export const CASH_UPDATED_EVENT = "caja:actualizada";
 
-/** Notifica el contrato de caja y mantiene actualizado el dashboard. */
 export function notifyCashUpdated(): void {
   let windows: BrowserWindow[];
   try {
@@ -26,8 +25,6 @@ export function notifyCashUpdated(): void {
 
 function logNotificationError(error: unknown): void {
   try {
-    log.error('No fue posible notificar la actualización de caja.', error);
-  } catch {
-    // Una notificación no debe revertir un cierre ya confirmado.
-  }
+    log.error("No fue posible notificar la actualización de caja.", error);
+  } catch {}
 }
