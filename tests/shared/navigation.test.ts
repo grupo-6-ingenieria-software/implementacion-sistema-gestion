@@ -36,6 +36,9 @@ describe("navigation tree", () => {
         "attendance",
         "user-management",
         "audit-log",
+        "product-detail",
+        "stock-adjustment",
+        "movement-history",
       ]),
     );
   });

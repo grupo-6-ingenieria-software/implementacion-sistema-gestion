@@ -35,6 +35,9 @@ import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
 import { CashClosingView } from "./views/CashClosingView";
 import { LotCreateView } from "./views/LotCreateView";
+import { MovementHistoryView } from "./views/MovementHistoryView";
+import { ProductDetailView } from "./views/ProductDetailView";
+import { StockAdjustmentView } from "./views/StockAdjustmentView";
 import { ProductFormView } from "./views/ProductFormView";
 import { ProductDeleteView } from "./views/ProductDeleteView";
 import { ProductListView } from "./views/ProductListView";
@@ -744,6 +747,41 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "product-detail" && session.role && session.usuarioId) {
+    const detailEan13 = getProductDetailEan13(currentPath);
+    if (detailEan13) {
+      return (
+        <ProductDetailView
+          ean13={detailEan13}
+          role={session.role}
+          usuarioId={session.usuarioId}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+  }
+
+  if (node.id === "stock-adjustment" && session.role && session.usuarioId) {
+    return (
+      <StockAdjustmentView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "movement-history" && session.role && session.usuarioId) {
+    return (
+      <MovementHistoryView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+        initialEan13={getMovementHistoryEan13(currentPath)}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -910,6 +948,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "waste-create",
     "worker-create",
     "worker-list",
+    "product-detail",
+    "stock-adjustment",
+    "movement-history",
   ].includes(nodeId);
 }
 
@@ -933,6 +974,18 @@ export function getWasteCreateEan13(path: string): string | undefined {
 }
 
 export function getProductDeleteEan13(path: string): string | undefined {
+  const [, query = ""] = path.split("?");
+  const ean13 = new URLSearchParams(query).get("ean13");
+
+  return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getProductDetailEan13(path: string): string | undefined {
+  const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/detalle$/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function getMovementHistoryEan13(path: string): string | undefined {
   const [, query = ""] = path.split("?");
   const ean13 = new URLSearchParams(query).get("ean13");
 
