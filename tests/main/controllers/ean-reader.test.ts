@@ -1,34 +1,33 @@
-import { describe, expect, it } from 'vitest';
-import { eanReaderController } from '../../../src/main/controllers/ean-reader';
+import { describe, expect, it } from "vitest";
+import { eanReaderController } from "../../../src/main/controllers/ean-reader";
 
-describe('ean reader controller', () => {
-  it('accepts a valid EAN-13 capture', async () => {
+describe("ean reader controller", () => {
+  it("accepts a valid EAN-13 capture", async () => {
     const response = await eanReaderController.handle(
-      { value: '7802920000015' },
-      { channel: 'ean:validar-captura' },
+      { value: "7802920000015" },
+      { channel: "ean:validar-captura" },
     );
 
     expect(response).toEqual({
       ok: true,
-      data: { ean13: '7802920000015' },
+      data: { ean13: "7802920000015" },
     });
   });
 
-  it('rejects an EAN-13 capture with invalid length', async () => {
+  it("rejects an EAN-13 capture with invalid length", async () => {
     const response = await eanReaderController.handle(
-      { value: '780292000001' },
-      { channel: 'ean:validar-captura' },
+      { value: "780292000001" },
+      { channel: "ean:validar-captura" },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected EAN validation failure');
+      throw new Error("Expected EAN validation failure");
     }
 
-    expect(response.error.code).toBe('VALIDATION_ERROR');
+    expect(response.error.code).toBe("VALIDATION_ERROR");
     expect(response.error.fieldErrors).toMatchObject({
-      ean13:
-        'El codigo EAN-13 debe tener exactamente 13 digitos numericos.',
+      ean13: "El codigo EAN-13 debe tener exactamente 13 digitos numericos.",
     });
   });
 });

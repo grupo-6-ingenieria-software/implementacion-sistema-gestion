@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   normalizeProductStatusPayload,
   validateProductStatusPayload,
@@ -7,7 +7,7 @@ import {
   type ProductStatusFieldErrors,
   type ProductStatusPayload,
   type ProductStatusResponse,
-} from '../../../shared/products';
+} from "../../../shared/products";
 
 type ProductStatusViewProps = {
   ean13?: string;
@@ -20,13 +20,13 @@ export function ProductStatusView({
   onNavigate,
   usuarioId,
 }: ProductStatusViewProps): ReactElement {
-  const [product, setProduct] = useState<ProductDetailResponse['product'] | null>(
-    null,
-  );
-  const [categories, setCategories] = useState<ProductDetailResponse['categories']>(
-    [],
-  );
-  const [nextStatus, setNextStatus] = useState<ProductStatus>('inactivo');
+  const [product, setProduct] = useState<
+    ProductDetailResponse["product"] | null
+  >(null);
+  const [categories, setCategories] = useState<
+    ProductDetailResponse["categories"]
+  >([]);
+  const [nextStatus, setNextStatus] = useState<ProductStatus>("inactivo");
   const [fieldErrors, setFieldErrors] = useState<ProductStatusFieldErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,7 +43,7 @@ export function ProductStatusView({
       setFieldErrors({});
 
       const response = await window.appApi.invoke<ProductDetailResponse>(
-        'producto:estado',
+        "producto:estado",
         {
           ean13,
           usuarioId,
@@ -63,7 +63,7 @@ export function ProductStatusView({
       const loadedProduct = response.data.product;
       setProduct(loadedProduct);
       setCategories(response.data.categories);
-      setNextStatus(loadedProduct.estado === 'activo' ? 'inactivo' : 'activo');
+      setNextStatus(loadedProduct.estado === "activo" ? "inactivo" : "activo");
       setLoading(false);
     }
 
@@ -72,7 +72,7 @@ export function ProductStatusView({
         return;
       }
 
-      setLoadError('No fue posible cargar el producto. Intente nuevamente.');
+      setLoadError("No fue posible cargar el producto. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -93,12 +93,12 @@ export function ProductStatusView({
 
   const categoryName = useMemo(() => {
     if (!product) {
-      return '';
+      return "";
     }
 
     return (
       categories.find((category) => category.id === product.categoriaId)
-        ?.nombre ?? 'No disponible'
+        ?.nombre ?? "No disponible"
     );
   }, [categories, product]);
 
@@ -114,7 +114,7 @@ export function ProductStatusView({
     setSaving(true);
 
     const response = await window.appApi.invoke<ProductStatusResponse>(
-      'producto:cambiar-estado',
+      "producto:cambiar-estado",
       payload,
     );
 
@@ -127,7 +127,7 @@ export function ProductStatusView({
     }
 
     setMessage(`Producto cambiado a estado ${response.data.estado}.`);
-    window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
+    window.setTimeout(() => onNavigate("/app/inventario/productos"), 700);
   }
 
   return (
@@ -136,7 +136,7 @@ export function ProductStatusView({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/inventario/productos')}
+          onClick={() => onNavigate("/app/inventario/productos")}
         >
           Volver a productos
         </button>
@@ -155,7 +155,7 @@ export function ProductStatusView({
             <button
               className="w-fit rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate('/app/inventario/productos')}
+              onClick={() => onNavigate("/app/inventario/productos")}
             >
               Volver
             </button>
@@ -177,7 +177,10 @@ export function ProductStatusView({
               <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                 <Info label="EAN-13" value={product.ean13} />
                 <Info label="Categoria" value={categoryName} />
-                <Info label="Estado actual" value={formatStatus(product.estado)} />
+                <Info
+                  label="Estado actual"
+                  value={formatStatus(product.estado)}
+                />
                 <Info label="Nuevo estado" value={formatStatus(nextStatus)} />
               </dl>
             </div>
@@ -207,10 +210,10 @@ export function ProductStatusView({
               ) : (
                 <>
                   <p className="mt-2">
-                    Al confirmar, {product.nombre} quedara en estado{' '}
+                    Al confirmar, {product.nombre} quedara en estado{" "}
                     {formatStatus(nextStatus)}.
                   </p>
-                  {nextStatus === 'inactivo' ? (
+                  {nextStatus === "inactivo" ? (
                     <p className="mt-2 text-[#61717f]">
                       No estara disponible para seleccion en nuevas ventas ni
                       mermas, y se conservara su historial operativo.
@@ -238,12 +241,12 @@ export function ProductStatusView({
                 disabled={saving || nextStatus === product.estado}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Cambiar estado'}
+                {saving ? "Guardando..." : "Cambiar estado"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 type="button"
-                onClick={() => onNavigate('/app/inventario/productos')}
+                onClick={() => onNavigate("/app/inventario/productos")}
               >
                 Cancelar
               </button>
@@ -275,7 +278,13 @@ function Field({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-[#61717f]">
@@ -287,5 +296,5 @@ function Info({ label, value }: { label: string; value: string }): ReactElement 
 }
 
 function formatStatus(status: ProductStatus): string {
-  return status === 'activo' ? 'Activo' : 'Inactivo';
+  return status === "activo" ? "Activo" : "Inactivo";
 }

@@ -1,21 +1,21 @@
-import { sql } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
-import type { PasswordDeps } from '../../../src/main/controllers/password';
-import { createWorkerWithExecutor } from '../../../src/main/controllers/worker';
+import { sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
+import type { PasswordDeps } from "../../../src/main/controllers/password";
+import { createWorkerWithExecutor } from "../../../src/main/controllers/worker";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from '../../../src/main/controllers/auth-fixtures';
+} from "../../../src/main/controllers/auth-fixtures";
 
-const NOW = new Date('2026-06-13T12:00:00.000Z');
+const NOW = new Date("2026-06-13T12:00:00.000Z");
 
 const passwordDeps: PasswordDeps = {
   hashPassword: async (plain: string) => `hash:${plain}`,
   comparePassword: async () => false,
-  generateTempPassword: () => 'TmpWork1',
+  generateTempPassword: () => "TmpWork1",
   now: () => NOW,
 };
 
@@ -24,10 +24,10 @@ let testDb: AuthTestDatabase | undefined;
 beforeEach(async () => {
   testDb = await createAuthTestDatabase();
   await seedUser(testDb.db, {
-    usuarioId: '11111111-1',
+    usuarioId: "11111111-1",
     trabajadorId: 1,
-    rut: '11111111-1',
-    rolBd: 'dueno',
+    rut: "11111111-1",
+    rolBd: "dueno",
   });
 });
 
@@ -41,23 +41,23 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('createWorkerWithExecutor (alta de trabajador)', () => {
-  it('generates a 24h temporary password and returns it once', async () => {
+describe("createWorkerWithExecutor (alta de trabajador)", () => {
+  it("generates a 24h temporary password and returns it once", async () => {
     const response = await createWorkerWithExecutor(
       testDb!.db,
       schema,
       {
-        nombreCompleto: 'Ana Soto',
-        rol: 'trabajador',
-        rut: '22222222-2',
-        telefono: '987654321',
-        usuarioId: '11111111-1',
+        nombreCompleto: "Ana Soto",
+        rol: "trabajador",
+        rut: "22222222-2",
+        telefono: "987654321",
+        usuarioId: "11111111-1",
       },
       passwordDeps,
     );
 
-    expect(response.usuarioId).toBe('22222222-2');
-    expect(response.contrasenaTemporal).toBe('TmpWork1');
+    expect(response.usuarioId).toBe("22222222-2");
+    expect(response.contrasenaTemporal).toBe("TmpWork1");
 
     const counts = await testDb!.db.all<{
       temporales: number;
@@ -84,20 +84,20 @@ describe('createWorkerWithExecutor (alta de trabajador)', () => {
 
     // 24h después del NOW fijado en los deps.
     expect(expiry[0].contrasena_temporal_fecha_hora_expiracion).toBe(
-      '2026-06-14T12:00:00.000Z',
+      "2026-06-14T12:00:00.000Z",
     );
   });
 
-  it('rolls back the whole alta when the RUT is already registered', async () => {
+  it("rolls back the whole alta when the RUT is already registered", async () => {
     await createWorkerWithExecutor(
       testDb!.db,
       schema,
       {
-        nombreCompleto: 'Ana Soto',
-        rol: 'trabajador',
-        rut: '22222222-2',
-        telefono: '987654321',
-        usuarioId: '11111111-1',
+        nombreCompleto: "Ana Soto",
+        rol: "trabajador",
+        rut: "22222222-2",
+        telefono: "987654321",
+        usuarioId: "11111111-1",
       },
       passwordDeps,
     );
@@ -107,11 +107,11 @@ describe('createWorkerWithExecutor (alta de trabajador)', () => {
         testDb!.db,
         schema,
         {
-          nombreCompleto: 'Ana Soto Duplicada',
-          rol: 'trabajador',
-          rut: '22222222-2',
-          telefono: '987654321',
-          usuarioId: '11111111-1',
+          nombreCompleto: "Ana Soto Duplicada",
+          rol: "trabajador",
+          rut: "22222222-2",
+          telefono: "987654321",
+          usuarioId: "11111111-1",
         },
         passwordDeps,
       ),

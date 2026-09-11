@@ -1,25 +1,25 @@
-import { sql } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   changePasswordWithExecutor,
   resetPasswordWithExecutor,
   type PasswordDeps,
-} from '../../../src/main/controllers/password';
+} from "../../../src/main/controllers/password";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from '../../../src/main/controllers/auth-fixtures';
+} from "../../../src/main/controllers/auth-fixtures";
 
-const NOW = new Date('2026-06-13T12:00:00.000Z');
-const CURRENT = 'Current123';
+const NOW = new Date("2026-06-13T12:00:00.000Z");
+const CURRENT = "Current123";
 
 const deps: PasswordDeps = {
   hashPassword: async (plain: string) => `hash:${plain}`,
   comparePassword: async (plain: string) => plain === CURRENT,
-  generateTempPassword: () => 'TmpPass1',
+  generateTempPassword: () => "TmpPass1",
   now: () => NOW,
 };
 
@@ -39,24 +39,24 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('changePasswordWithExecutor (CU56b)', () => {
+describe("changePasswordWithExecutor (CU56b)", () => {
   beforeEach(async () => {
     await seedUser(testDb!.db, {
-      usuarioId: '12345678-9',
+      usuarioId: "12345678-9",
       trabajadorId: 1,
-      rut: '12345678-9',
-      rolBd: 'dueno',
+      rut: "12345678-9",
+      rolBd: "dueno",
     });
   });
 
-  it('stores a new definitive password and audits the change', async () => {
+  it("stores a new definitive password and audits the change", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
       {
-        usuarioId: '12345678-9',
+        usuarioId: "12345678-9",
         contrasenaActual: CURRENT,
-        contrasenaNueva: 'NuevaClave9',
+        contrasenaNueva: "NuevaClave9",
       },
       deps,
     );
@@ -81,12 +81,12 @@ describe('changePasswordWithExecutor (CU56b)', () => {
     });
   });
 
-  it('changes a temporary password without requiring the current one', async () => {
+  it("changes a temporary password without requiring the current one", async () => {
     await seedUser(testDb!.db, {
-      usuarioId: '33333333-3',
+      usuarioId: "33333333-3",
       trabajadorId: 3,
-      rut: '33333333-3',
-      rolBd: 'trabajador',
+      rut: "33333333-3",
+      rolBd: "trabajador",
       esTemporal: true,
     });
 
@@ -94,8 +94,8 @@ describe('changePasswordWithExecutor (CU56b)', () => {
       testDb!.db,
       schema,
       {
-        usuarioId: '33333333-3',
-        contrasenaNueva: 'NuevaClave9',
+        usuarioId: "33333333-3",
+        contrasenaNueva: "NuevaClave9",
       },
       deps,
     );
@@ -113,67 +113,67 @@ describe('changePasswordWithExecutor (CU56b)', () => {
     expect(counts[0].definitivas).toBe(1);
   });
 
-  it('still requires the current password for voluntary changes', async () => {
+  it("still requires the current password for voluntary changes", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
       {
-        usuarioId: '12345678-9',
-        contrasenaNueva: 'NuevaClave9',
+        usuarioId: "12345678-9",
+        contrasenaNueva: "NuevaClave9",
       },
       deps,
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('VALIDATION_ERROR');
-      expect(response.error.message).toContain('actual');
+      expect(response.error.code).toBe("VALIDATION_ERROR");
+      expect(response.error.message).toContain("actual");
     }
   });
 
-  it('rejects a wrong current password', async () => {
+  it("rejects a wrong current password", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
       {
-        usuarioId: '12345678-9',
-        contrasenaActual: 'Incorrecta9',
-        contrasenaNueva: 'NuevaClave9',
+        usuarioId: "12345678-9",
+        contrasenaActual: "Incorrecta9",
+        contrasenaNueva: "NuevaClave9",
       },
       deps,
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('VALIDATION_ERROR');
-      expect(response.error.message).toContain('actual');
+      expect(response.error.code).toBe("VALIDATION_ERROR");
+      expect(response.error.message).toContain("actual");
     }
   });
 
-  it('rejects a new password that does not meet complexity', async () => {
+  it("rejects a new password that does not meet complexity", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
       {
-        usuarioId: '12345678-9',
+        usuarioId: "12345678-9",
         contrasenaActual: CURRENT,
-        contrasenaNueva: 'debil',
+        contrasenaNueva: "debil",
       },
       deps,
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('VALIDATION_ERROR');
+      expect(response.error.code).toBe("VALIDATION_ERROR");
     }
   });
 
-  it('rejects a new password equal to the current one', async () => {
+  it("rejects a new password equal to the current one", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
       {
-        usuarioId: '12345678-9',
+        usuarioId: "12345678-9",
         contrasenaActual: CURRENT,
         contrasenaNueva: CURRENT,
       },
@@ -182,40 +182,40 @@ describe('changePasswordWithExecutor (CU56b)', () => {
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('BUSINESS_RULE');
+      expect(response.error.code).toBe("BUSINESS_RULE");
     }
   });
 });
 
-describe('resetPasswordWithExecutor (RF58)', () => {
+describe("resetPasswordWithExecutor (RF58)", () => {
   beforeEach(async () => {
     await seedUser(testDb!.db, {
-      usuarioId: '11111111-1',
+      usuarioId: "11111111-1",
       trabajadorId: 1,
-      rut: '11111111-1',
-      rolBd: 'dueno',
+      rut: "11111111-1",
+      rolBd: "dueno",
     });
     await seedUser(testDb!.db, {
-      usuarioId: '22222222-2',
+      usuarioId: "22222222-2",
       trabajadorId: 2,
-      rut: '22222222-2',
-      rolBd: 'trabajador',
-      nombre: 'Camila',
-      apellido: 'Rojas',
+      rut: "22222222-2",
+      rolBd: "trabajador",
+      nombre: "Camila",
+      apellido: "Rojas",
     });
   });
 
-  it('lets the owner generate a temporal password with 24h expiry', async () => {
+  it("lets the owner generate a temporal password with 24h expiry", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
-      { usuarioId: '11111111-1', usuarioObjetivoId: '22222222-2' },
+      { usuarioId: "11111111-1", usuarioObjetivoId: "22222222-2" },
       deps,
     );
 
     expect(response.ok).toBe(true);
     if (response.ok) {
-      expect(response.data.contrasenaTemporal).toBe('TmpPass1');
+      expect(response.data.contrasenaTemporal).toBe("TmpPass1");
     }
 
     const counts = await testDb!.db.all<{
@@ -236,31 +236,31 @@ describe('resetPasswordWithExecutor (RF58)', () => {
     });
   });
 
-  it('forbids a non-owner from resetting passwords', async () => {
+  it("forbids a non-owner from resetting passwords", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
-      { usuarioId: '22222222-2', usuarioObjetivoId: '11111111-1' },
+      { usuarioId: "22222222-2", usuarioObjetivoId: "11111111-1" },
       deps,
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('FORBIDDEN');
+      expect(response.error.code).toBe("FORBIDDEN");
     }
   });
 
-  it('returns not found for an unknown target user', async () => {
+  it("returns not found for an unknown target user", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
-      { usuarioId: '11111111-1', usuarioObjetivoId: '99999999-9' },
+      { usuarioId: "11111111-1", usuarioObjetivoId: "99999999-9" },
       deps,
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('NOT_FOUND');
+      expect(response.error.code).toBe("NOT_FOUND");
     }
   });
 });

@@ -1,29 +1,29 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from "react";
 import type {
   DailySalesHistory,
   DailySalesSummary,
   PaymentMethod,
   SaleState,
-} from '../../../shared/sales';
-import { formatChileanPeso } from '../../../shared/sales';
+} from "../../../shared/sales";
+import { formatChileanPeso } from "../../../shared/sales";
 
 type DailySalesState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; data: DailySalesHistory };
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; data: DailySalesHistory };
 
 const paymentMethods: PaymentMethod[] = [
-  'efectivo',
-  'debito',
-  'credito',
-  'transferencia',
+  "efectivo",
+  "debito",
+  "credito",
+  "transferencia",
 ];
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
-  efectivo: 'Efectivo',
-  debito: 'Debito',
-  credito: 'Credito',
-  transferencia: 'Transferencia',
+  efectivo: "Efectivo",
+  debito: "Debito",
+  credito: "Credito",
+  transferencia: "Transferencia",
 };
 
 export function DailySalesView({
@@ -31,27 +31,27 @@ export function DailySalesView({
 }: {
   usuarioId: string;
 }): ReactElement {
-  const [state, setState] = useState<DailySalesState>({ status: 'loading' });
+  const [state, setState] = useState<DailySalesState>({ status: "loading" });
 
   const loadSales = useCallback(async (): Promise<void> => {
-    setState({ status: 'loading' });
+    setState({ status: "loading" });
 
     try {
       const response = await window.appApi.invoke<DailySalesHistory>(
-        'venta:historial-dia',
+        "venta:historial-dia",
         { usuarioId },
       );
 
       if (!response.ok) {
-        setState({ status: 'error', message: response.error.message });
+        setState({ status: "error", message: response.error.message });
         return;
       }
 
-      setState({ status: 'ready', data: response.data });
+      setState({ status: "ready", data: response.data });
     } catch {
       setState({
-        status: 'error',
-        message: 'No fue posible comunicarse con el proceso principal.',
+        status: "error",
+        message: "No fue posible comunicarse con el proceso principal.",
       });
     }
   }, [usuarioId]);
@@ -60,7 +60,7 @@ export function DailySalesView({
     void loadSales();
   }, [loadSales]);
 
-  if (state.status === 'loading') {
+  if (state.status === "loading") {
     return (
       <section className="px-8 py-8" aria-live="polite">
         <div className="rounded-md border border-[#cbd5df] bg-white p-8 shadow-sm">
@@ -72,7 +72,7 @@ export function DailySalesView({
     );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
         <div className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-6 shadow-sm">
@@ -128,10 +128,7 @@ export function DailySalesView({
               </thead>
               <tbody>
                 {ventas.map((venta) => (
-                  <tr
-                    className="border-t border-[#e1e7ee]"
-                    key={venta.ventaId}
-                  >
+                  <tr className="border-t border-[#e1e7ee]" key={venta.ventaId}>
                     <td className="px-4 py-4 font-medium text-[#24313d]">
                       {venta.ventaId}
                     </td>
@@ -207,8 +204,8 @@ function DailySummary({
                   {formatChileanPeso(payment.monto)}
                 </dd>
                 <dd className="mt-1 text-xs text-[#61717f]">
-                  {payment.cantidadVentas}{' '}
-                  {payment.cantidadVentas === 1 ? 'venta' : 'ventas'}
+                  {payment.cantidadVentas}{" "}
+                  {payment.cantidadVentas === 1 ? "venta" : "ventas"}
                 </dd>
               </dl>
             );
@@ -220,9 +217,9 @@ function DailySummary({
         <article className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-5 shadow-sm xl:col-span-2">
           <h4 className="font-semibold text-[#8f2727]">Ventas anuladas</h4>
           <p className="mt-2 text-sm text-[#6f3333]">
-            {summary.ventasAnuladas}{' '}
-            {summary.ventasAnuladas === 1 ? 'venta anulada' : 'ventas anuladas'}
-            {' por '}
+            {summary.ventasAnuladas}{" "}
+            {summary.ventasAnuladas === 1 ? "venta anulada" : "ventas anuladas"}
+            {" por "}
             <span className="font-semibold">
               {formatChileanPeso(summary.montoAnulado)}
             </span>
@@ -249,8 +246,8 @@ function SummaryLine({
       <dd
         className={
           strong
-            ? 'text-xl font-semibold text-[#17202a]'
-            : 'font-semibold text-[#24313d]'
+            ? "text-xl font-semibold text-[#17202a]"
+            : "font-semibold text-[#24313d]"
         }
       >
         {value}
@@ -260,26 +257,24 @@ function SummaryLine({
 }
 
 function SaleStatus({ status }: { status: SaleState }): ReactElement {
-  const isVoided = status === 'anulada';
+  const isVoided = status === "anulada";
 
   return (
     <span
       className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        isVoided
-          ? 'bg-[#fff0f0] text-[#9a3333]'
-          : 'bg-[#e8f3ed] text-[#2d6a4f]'
+        isVoided ? "bg-[#fff0f0] text-[#9a3333]" : "bg-[#e8f3ed] text-[#2d6a4f]"
       }`}
     >
-      {isVoided ? 'Anulada' : 'Vigente'}
+      {isVoided ? "Anulada" : "Vigente"}
     </span>
   );
 }
 
 function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
   }).format(new Date(value));
 }

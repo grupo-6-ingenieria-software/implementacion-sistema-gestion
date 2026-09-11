@@ -1,10 +1,10 @@
-export type PaymentMethod = 'efectivo' | 'debito' | 'credito' | 'transferencia';
+export type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
 
 export type DailyCashState =
-  | { status: 'sin_registro' }
-  | { status: 'abierta'; cierreCajaId: string; openedAt: string }
+  | { status: "sin_registro" }
+  | { status: "abierta"; cierreCajaId: string; openedAt: string }
   | {
-      status: 'cerrada';
+      status: "cerrada";
       cierreCajaId: string;
       openedAt: string;
       closedAt: string;
@@ -37,8 +37,7 @@ export type SaleCartValidationResult = {
   subtotal: number;
 };
 
-/** Estado contractual expuesto por C18; la BD conserva `completada`. */
-export type SaleState = 'confirmada' | 'anulada';
+export type SaleState = "confirmada" | "anulada";
 
 export type SaleLineForTotals = {
   cantidad: number;
@@ -53,7 +52,7 @@ export type SaleTotals = {
 
 export type RecordedSaleTotalsInput = {
   subtotal: number;
-  discountType: 'ninguno' | 'porcentaje' | 'monto';
+  discountType: "ninguno" | "porcentaje" | "monto";
   discountValue: number | null;
 };
 
@@ -85,7 +84,7 @@ export type DailySalesHistory = {
   resumen: DailySalesSummary;
 };
 
-const chileanPesoFormatter = new Intl.NumberFormat('es-CL', {
+const chileanPesoFormatter = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 0,
 });
 
@@ -116,21 +115,26 @@ export function calculateRecordedSaleTotal(
   const subtotal = Number(sale.subtotal);
   const discount = Number(sale.discountValue ?? 0);
 
-  if (sale.discountType === 'porcentaje') {
+  if (sale.discountType === "porcentaje") {
     return Math.max(0, Math.round(subtotal * (1 - discount / 100)));
   }
 
-  if (sale.discountType === 'monto') {
+  if (sale.discountType === "monto") {
     return Math.max(0, subtotal - discount);
   }
 
   return subtotal;
 }
 
-export function calculateCashChange(total: number, montoRecibido: number): number {
+export function calculateCashChange(
+  total: number,
+  montoRecibido: number,
+): number {
   return Math.max(0, montoRecibido - total);
 }
 
 export function isElectronicPayment(method: PaymentMethod): boolean {
-  return method === 'debito' || method === 'credito' || method === 'transferencia';
+  return (
+    method === "debito" || method === "credito" || method === "transferencia"
+  );
 }

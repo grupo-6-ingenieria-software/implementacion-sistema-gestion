@@ -389,10 +389,17 @@ describe("product query controller", () => {
   it("returns not found before categories when product detail is missing", async () => {
     const calls: string[] = [];
     const controller = createProductQueryController({
-      authorize: async (usuarioId, roles) => authorizeTestUser(usuarioId, roles),
+      authorize: async (usuarioId, roles) =>
+        authorizeTestUser(usuarioId, roles),
       listProducts: async () => [],
-      listCategories: async () => { calls.push("categories"); return []; },
-      findProduct: async () => { calls.push("product"); return null; },
+      listCategories: async () => {
+        calls.push("categories");
+        return [];
+      },
+      findProduct: async () => {
+        calls.push("product");
+        return null;
+      },
       listActiveProducts: async () => [],
     });
     const response = await controller.handle(

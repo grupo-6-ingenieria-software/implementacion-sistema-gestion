@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from "react";
 import type {
   AttendanceSummary,
   DashboardAttendance,
@@ -9,9 +9,9 @@ import type {
   ExpirationAlerts,
   PaymentMethod,
   StockAlert,
-} from '../../../shared/dashboard';
-import type { Role } from '../../../shared/navigation';
-import { ResumenVentasDashboard } from '../components';
+} from "../../../shared/dashboard";
+import type { Role } from "../../../shared/navigation";
+import { ResumenVentasDashboard } from "../components";
 
 type DashboardViewProps = {
   role: Role;
@@ -20,10 +20,10 @@ type DashboardViewProps = {
 };
 
 type DashboardState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
+  | { status: "loading" }
+  | { status: "error"; message: string }
   | {
-      status: 'ready';
+      status: "ready";
       data: DashboardData;
       isRefreshing: boolean;
       refreshError?: string;
@@ -34,12 +34,12 @@ export function DashboardView({
   usuarioId,
   onNavigate,
 }: DashboardViewProps): ReactElement {
-  const [state, setState] = useState<DashboardState>({ status: 'loading' });
+  const [state, setState] = useState<DashboardState>({ status: "loading" });
 
   const loadDashboard = useCallback(
     async (options: { preserveData?: boolean } = {}): Promise<void> => {
       setState((current) => {
-        if (options.preserveData && current.status === 'ready') {
+        if (options.preserveData && current.status === "ready") {
           return {
             ...current,
             isRefreshing: true,
@@ -47,7 +47,7 @@ export function DashboardView({
           };
         }
 
-        return { status: 'loading' };
+        return { status: "loading" };
       });
 
       try {
@@ -55,14 +55,14 @@ export function DashboardView({
 
         if (!request) {
           setDashboardError(
-            'Se requiere una sesion valida para cargar el dashboard.',
+            "Se requiere una sesion valida para cargar el dashboard.",
             options.preserveData,
           );
           return;
         }
 
         const response = await window.appApi.invoke<DashboardData>(
-          'dashboard:cargar',
+          "dashboard:cargar",
           request,
         );
 
@@ -72,13 +72,13 @@ export function DashboardView({
         }
 
         setState({
-          status: 'ready',
+          status: "ready",
           data: response.data,
           isRefreshing: false,
         });
       } catch {
         setDashboardError(
-          'No fue posible comunicarse con el proceso principal.',
+          "No fue posible comunicarse con el proceso principal.",
           options.preserveData,
         );
       }
@@ -95,7 +95,7 @@ export function DashboardView({
 
   function setDashboardError(message: string, preserveData?: boolean): void {
     setState((current) => {
-      if (preserveData && current.status === 'ready') {
+      if (preserveData && current.status === "ready") {
         return {
           ...current,
           isRefreshing: false,
@@ -103,11 +103,11 @@ export function DashboardView({
         };
       }
 
-      return { status: 'error', message };
+      return { status: "error", message };
     });
   }
 
-  if (state.status === 'loading') {
+  if (state.status === "loading") {
     return (
       <section className="px-8 py-8" aria-live="polite">
         <div className="rounded-md border border-[#cbd5df] bg-white p-8 shadow-sm">
@@ -119,7 +119,7 @@ export function DashboardView({
     );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
         <div className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-6 shadow-sm">
@@ -141,9 +141,7 @@ export function DashboardView({
 
   const { data } = state;
   const hasStockAlerts = data.stockAlerts.length > 0;
-  const hasExpirationAlerts = shouldShowExpirationAlerts(
-    data.expirationAlerts,
-  );
+  const hasExpirationAlerts = shouldShowExpirationAlerts(data.expirationAlerts);
   const attendanceDisplay = getAttendanceDisplay(data.attendance);
 
   return (
@@ -159,7 +157,7 @@ export function DashboardView({
         </div>
         <p className="text-xs text-[#61717f]" aria-live="polite">
           {state.isRefreshing
-            ? 'Actualizando indicadores...'
+            ? "Actualizando indicadores..."
             : `Actualizado a las ${formatTime(data.generatedAt)}`}
         </p>
       </div>
@@ -197,9 +195,7 @@ export function DashboardView({
           {attendanceDisplay.secondary ? (
             <p
               className={`mt-3 text-sm font-semibold ${
-                attendanceDisplay.alert
-                  ? 'text-[#9a4f12]'
-                  : 'text-[#2d6a4f]'
+                attendanceDisplay.alert ? "text-[#9a4f12]" : "text-[#2d6a4f]"
               }`}
             >
               {attendanceDisplay.secondary}
@@ -208,7 +204,7 @@ export function DashboardView({
           <button
             className="mt-4 text-sm font-semibold text-[#244d61] underline-offset-4 hover:underline"
             type="button"
-            onClick={() => onNavigate('/app/personal/asistencia')}
+            onClick={() => onNavigate("/app/personal/asistencia")}
           >
             Ir a asistencia
           </button>
@@ -271,16 +267,12 @@ function CashSummaryCard({
   });
 
   return (
-    <IndicatorCard
-      title="Caja del dia"
-      icon="cash"
-      alert={false}
-    >
+    <IndicatorCard title="Caja del dia" icon="cash" alert={false}>
       <p className="text-2xl font-semibold text-[#17202a]">
         {getCashStatusLabel(cashSummary.status)}
       </p>
       <p className="mt-1 text-sm text-[#61717f]">
-        {cashSummary.currentTransactions} transacciones vigentes por{' '}
+        {cashSummary.currentTransactions} transacciones vigentes por{" "}
         {formatCurrency(cashSummary.currentAmount)}
       </p>
       {cashSummary.voidedTransactions > 0 ? (
@@ -294,7 +286,7 @@ function CashSummaryCard({
           Inicio: {formatTime(cashSummary.openedAt)}
           {cashSummary.closedAt
             ? ` - Cierre: ${formatTime(cashSummary.closedAt)}`
-            : ''}
+            : ""}
         </p>
       ) : (
         <p className="mt-3 text-sm font-medium text-[#61717f]">
@@ -307,7 +299,9 @@ function CashSummaryCard({
             const summary = cashSummary.byPaymentMethod[method];
             return (
               <div className="flex justify-between gap-3" key={method}>
-                <dt className="text-[#61717f]">{paymentMethodLabels[method]}</dt>
+                <dt className="text-[#61717f]">
+                  {paymentMethodLabels[method]}
+                </dt>
                 <dd className="font-semibold text-[#24313d]">
                   {formatCurrency(summary.currentAmount)}
                 </dd>
@@ -334,7 +328,7 @@ function IndicatorCard({
   return (
     <article
       className={`rounded-md border bg-white p-6 shadow-sm ${
-        alert ? 'border-[#e3ad72]' : 'border-[#cbd5df]'
+        alert ? "border-[#e3ad72]" : "border-[#cbd5df]"
       }`}
     >
       <div className="mb-4 flex items-center gap-3">
@@ -364,7 +358,7 @@ function IndicatorSection({
   return (
     <article
       className={`rounded-md border bg-white p-6 shadow-sm ${
-        alert ? 'border-[#e3ad72]' : 'border-[#cbd5df]'
+        alert ? "border-[#e3ad72]" : "border-[#cbd5df]"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -378,8 +372,8 @@ function IndicatorSection({
         <span
           className={`rounded-full px-3 py-1 text-sm font-semibold ${
             alert
-              ? 'bg-[#fff0dc] text-[#914b0e]'
-              : 'bg-[#e8f3ed] text-[#2d6a4f]'
+              ? "bg-[#fff0dc] text-[#914b0e]"
+              : "bg-[#e8f3ed] text-[#2d6a4f]"
           }`}
         >
           {count}
@@ -417,9 +411,7 @@ function StockAlertsTable({ alerts }: { alerts: StockAlert[] }): ReactElement {
                 {alert.productName}
               </td>
               <td className="px-3 py-3 text-[#61717f]">{alert.ean13}</td>
-              <td className="px-3 py-3 text-[#61717f]">
-                {alert.categoryName}
-              </td>
+              <td className="px-3 py-3 text-[#61717f]">{alert.categoryName}</td>
               <td className="px-3 py-3 text-right font-semibold text-[#9a4f12]">
                 {alert.currentStock}
               </td>
@@ -484,13 +476,13 @@ function ExpirationAlertsTable({
                   <td className="px-3 py-3">
                     <span
                       className={`font-semibold ${
-                        expired ? 'text-[#a02f2f]' : 'text-[#9a4f12]'
+                        expired ? "text-[#a02f2f]" : "text-[#9a4f12]"
                       }`}
                     >
                       {expired
-                        ? 'Vencido'
+                        ? "Vencido"
                         : alert.daysRemaining === 0
-                          ? 'Vence hoy'
+                          ? "Vence hoy"
                           : `${alert.daysRemaining} dias`}
                     </span>
                   </td>
@@ -524,7 +516,7 @@ export function createDashboardRequest(
   role: Role,
   usuarioId?: string,
 ): DashboardRequest | null {
-  if (role === 'trabajador') {
+  if (role === "trabajador") {
     const authenticatedUserId = usuarioId?.trim();
 
     if (!authenticatedUserId) {
@@ -546,28 +538,37 @@ export function createDashboardRequest(
 export function getAttendanceDisplay(
   attendance: AttendanceSummary | DashboardAttendance,
 ): AttendanceDisplay {
-  if ('scope' in attendance && attendance.scope === 'own') {
-    const time = (value: string) => new Intl.DateTimeFormat('es-CL', {
-      hour: '2-digit', minute: '2-digit', timeZone: 'America/Santiago',
-    }).format(new Date(value));
+  if ("scope" in attendance && attendance.scope === "own") {
+    const time = (value: string) =>
+      new Intl.DateTimeFormat("es-CL", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Santiago",
+      }).format(new Date(value));
     return {
-      title: 'Mi asistencia de hoy',
+      title: "Mi asistencia de hoy",
       alert: !attendance.enteredAt,
-      primary: attendance.enteredAt ? `Entrada ${time(attendance.enteredAt)}` : 'Sin entrada registrada',
+      primary: attendance.enteredAt
+        ? `Entrada ${time(attendance.enteredAt)}`
+        : "Sin entrada registrada",
       description: attendance.fullName,
-      secondary: attendance.exitedAt ? `Salida ${time(attendance.exitedAt)}` : attendance.enteredAt ? 'Jornada en curso' : 'Registre su asistencia',
+      secondary: attendance.exitedAt
+        ? `Salida ${time(attendance.exitedAt)}`
+        : attendance.enteredAt
+          ? "Jornada en curso"
+          : "Registre su asistencia",
     };
   }
   const alert = attendance.workersWithoutAttendance > 0;
 
   return {
     alert,
-    description: 'trabajadores activos con entrada registrada',
+    description: "trabajadores activos con entrada registrada",
     primary: `${attendance.workersWithAttendance} de ${attendance.activeWorkers}`,
     secondary: alert
       ? `${attendance.workersWithoutAttendance} sin registro de asistencia`
-      : 'Todos los trabajadores activos registraron asistencia',
-    title: 'Asistencia de hoy',
+      : "Todos los trabajadores activos registraron asistencia",
+    title: "Asistencia de hoy",
   };
 }
 
@@ -580,20 +581,20 @@ export function shouldShowExpirationAlerts(
   );
 }
 
-type DashboardIconName = 'attendance' | 'cash' | 'stock' | 'expiration';
+type DashboardIconName = "attendance" | "cash" | "stock" | "expiration";
 
 const paymentMethods: PaymentMethod[] = [
-  'efectivo',
-  'debito',
-  'credito',
-  'transferencia',
+  "efectivo",
+  "debito",
+  "credito",
+  "transferencia",
 ];
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
-  efectivo: 'Efectivo',
-  debito: 'Debito',
-  credito: 'Credito',
-  transferencia: 'Transferencia',
+  efectivo: "Efectivo",
+  debito: "Debito",
+  credito: "Credito",
+  transferencia: "Transferencia",
 };
 
 function DashboardIcon({
@@ -604,20 +605,18 @@ function DashboardIcon({
   alert: boolean;
 }): ReactElement {
   const path =
-    name === 'attendance'
-      ? 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M19 8v6 M22 11h-6'
-      : name === 'cash'
-        ? 'M3 7h18v10H3z M7 7V5h10v2 M7 12h.01 M17 12h.01 M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6'
-      : name === 'stock'
-        ? 'M3 7h18 M5 7l1 14h12l1-14 M9 11v6 M15 11v6 M8 3h8l1 4H7l1-4'
-        : 'M12 8v5l3 2 M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9';
+    name === "attendance"
+      ? "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M19 8v6 M22 11h-6"
+      : name === "cash"
+        ? "M3 7h18v10H3z M7 7V5h10v2 M7 12h.01 M17 12h.01 M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"
+        : name === "stock"
+          ? "M3 7h18 M5 7l1 14h12l1-14 M9 11v6 M15 11v6 M8 3h8l1 4H7l1-4"
+          : "M12 8v5l3 2 M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9";
 
   return (
     <span
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
-        alert
-          ? 'bg-[#fff0dc] text-[#9a4f12]'
-          : 'bg-[#e8f3ed] text-[#2d6a4f]'
+        alert ? "bg-[#fff0dc] text-[#9a4f12]" : "bg-[#e8f3ed] text-[#2d6a4f]"
       }`}
       aria-hidden="true"
     >
@@ -638,45 +637,45 @@ function DashboardIcon({
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    dateStyle: 'long',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    dateStyle: "long",
   }).format(new Date(value));
 }
 
 function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-function getCashStatusLabel(status: CashSummary['status']): string {
-  if (status === 'abierta') {
-    return 'Caja abierta';
+function getCashStatusLabel(status: CashSummary["status"]): string {
+  if (status === "abierta") {
+    return "Caja abierta";
   }
 
-  if (status === 'cerrada') {
-    return 'Caja cerrada';
+  if (status === "cerrada") {
+    return "Caja cerrada";
   }
 
-  return 'Sin caja registrada';
+  return "Sin caja registrada";
 }
 
 function formatShortDate(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'UTC',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   }).format(new Date(`${value}T00:00:00Z`));
 }

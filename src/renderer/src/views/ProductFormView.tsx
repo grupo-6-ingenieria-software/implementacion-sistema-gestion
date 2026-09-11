@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   invalidEan13Message,
   isValidEan13,
@@ -8,12 +8,12 @@ import {
   type ProductFormValues,
   type ProductListResponse,
   type ProductMutationResponse,
-} from '../../../shared/products';
-import { CampoEAN13Input } from '../components';
+} from "../../../shared/products";
+import { CampoEAN13Input } from "../components";
 
 type ProductFormViewProps = {
   ean13?: string;
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   usuarioId: string;
   onNavigate: (path: string) => void;
 };
@@ -28,12 +28,12 @@ export type ProductFormState = {
 };
 
 const emptyForm: ProductFormState = {
-  ean13: '',
-  nombre: '',
-  categoriaId: '',
-  precioCosto: '',
-  precioVenta: '',
-  stockMinimo: '',
+  ean13: "",
+  nombre: "",
+  categoriaId: "",
+  precioCosto: "",
+  precioVenta: "",
+  stockMinimo: "",
 };
 
 export function ProductFormView({
@@ -50,7 +50,7 @@ export function ProductFormView({
   const [message, setMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const title = mode === 'create' ? 'Nuevo producto' : 'Editar producto';
+  const title = mode === "create" ? "Nuevo producto" : "Editar producto";
 
   useEffect(() => {
     let isCurrent = true;
@@ -62,12 +62,15 @@ export function ProductFormView({
       setFieldErrors({});
 
       const response =
-        mode === 'edit'
-          ? await window.appApi.invoke<ProductDetailResponse>('producto:estado', {
-              ean13,
-              usuarioId,
-            })
-          : await window.appApi.invoke<ProductListResponse>('producto:listar', {
+        mode === "edit"
+          ? await window.appApi.invoke<ProductDetailResponse>(
+              "producto:estado",
+              {
+                ean13,
+                usuarioId,
+              },
+            )
+          : await window.appApi.invoke<ProductListResponse>("producto:listar", {
               usuarioId,
             });
 
@@ -81,14 +84,14 @@ export function ProductFormView({
         return;
       }
 
-      if (mode === 'edit') {
+      if (mode === "edit") {
         const detail = response.data as ProductDetailResponse;
         setCategories(detail.categories);
         setForm({
           ean13: detail.product.ean13,
           nombre: detail.product.nombre,
           categoriaId: String(detail.product.categoriaId),
-          precioCosto: String(detail.product.precioCosto ?? ''),
+          precioCosto: String(detail.product.precioCosto ?? ""),
           precioVenta: String(detail.product.precioVenta),
           stockMinimo: String(detail.product.stockMinimo),
         });
@@ -106,7 +109,7 @@ export function ProductFormView({
         return;
       }
 
-      setLoadError('No fue posible cargar el formulario. Intente nuevamente.');
+      setLoadError("No fue posible cargar el formulario. Intente nuevamente.");
       setLoading(false);
     });
 
@@ -132,10 +135,10 @@ export function ProductFormView({
     setSaving(true);
 
     const response = await window.appApi.invoke<ProductMutationResponse>(
-      mode === 'create' ? 'producto:registrar' : 'producto:editar',
+      mode === "create" ? "producto:registrar" : "producto:editar",
       {
         ...parsedValues,
-        originalEan13: mode === 'edit' ? ean13 : undefined,
+        originalEan13: mode === "edit" ? ean13 : undefined,
         usuarioId,
       },
     );
@@ -149,11 +152,11 @@ export function ProductFormView({
     }
 
     setMessage(
-      mode === 'create'
-        ? 'Producto registrado correctamente.'
-        : 'Producto actualizado correctamente.',
+      mode === "create"
+        ? "Producto registrado correctamente."
+        : "Producto actualizado correctamente.",
     );
-    window.setTimeout(() => onNavigate('/app/inventario/productos'), 700);
+    window.setTimeout(() => onNavigate("/app/inventario/productos"), 700);
   }
 
   return (
@@ -162,7 +165,7 @@ export function ProductFormView({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate('/app/inventario/productos')}
+          onClick={() => onNavigate("/app/inventario/productos")}
         >
           Volver a productos
         </button>
@@ -181,7 +184,7 @@ export function ProductFormView({
             <button
               className="w-fit rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate('/app/inventario/productos')}
+              onClick={() => onNavigate("/app/inventario/productos")}
             >
               Volver
             </button>
@@ -200,7 +203,7 @@ export function ProductFormView({
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="EAN-13" error={fieldErrors.ean13 ?? eanWarning}>
                 <CampoEAN13Input
-                  disabled={mode === 'edit'}
+                  disabled={mode === "edit"}
                   value={form.ean13}
                   onChange={(value) =>
                     setForm((current) => ({ ...current, ean13: value }))
@@ -282,12 +285,12 @@ export function ProductFormView({
                 disabled={saving}
                 type="submit"
               >
-                {saving ? 'Guardando...' : 'Guardar producto'}
+                {saving ? "Guardando..." : "Guardar producto"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                 type="button"
-                onClick={() => onNavigate('/app/inventario/productos')}
+                onClick={() => onNavigate("/app/inventario/productos")}
               >
                 Cancelar
               </button>
@@ -299,7 +302,9 @@ export function ProductFormView({
   );
 }
 
-export function buildProductFormValues(form: ProductFormState): ProductFormValues {
+export function buildProductFormValues(
+  form: ProductFormState,
+): ProductFormValues {
   return {
     ean13: form.ean13,
     nombre: form.nombre.trim(),
@@ -311,7 +316,7 @@ export function buildProductFormValues(form: ProductFormState): ProductFormValue
 }
 
 function parseNumericInput(value: string): number {
-  return value.trim() === '' ? Number.NaN : Number(value);
+  return value.trim() === "" ? Number.NaN : Number(value);
 }
 
 function Field({

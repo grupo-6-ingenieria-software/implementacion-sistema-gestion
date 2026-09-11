@@ -1,14 +1,14 @@
-import type { ControllerId } from './navigation';
+import type { ControllerId } from "./navigation";
 
 export type ControllerModule =
-  | 'auth'
-  | 'dashboard'
-  | 'inventario'
-  | 'ventas'
-  | 'caja'
-  | 'personal'
-  | 'administracion'
-  | 'lector-ean';
+  | "auth"
+  | "dashboard"
+  | "inventario"
+  | "ventas"
+  | "caja"
+  | "personal"
+  | "administracion"
+  | "lector-ean";
 
 export type ControllerMetadata = {
   id: ControllerId;
@@ -23,14 +23,14 @@ export type ControllerRequest<TPayload = unknown> = {
 };
 
 export type ControllerErrorCode =
-  | 'NOT_IMPLEMENTED'
-  | 'INVALID_CHANNEL'
-  | 'DATABASE_ERROR'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'VALIDATION_ERROR'
-  | 'BUSINESS_RULE'
-  | 'TECHNICAL_ERROR';
+  | "NOT_IMPLEMENTED"
+  | "INVALID_CHANNEL"
+  | "DATABASE_ERROR"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "VALIDATION_ERROR"
+  | "BUSINESS_RULE"
+  | "TECHNICAL_ERROR";
 
 export type ControllerResponse<TData = unknown> =
   | { ok: true; data: TData }
@@ -46,181 +46,181 @@ export type ControllerResponse<TData = unknown> =
 
 export const controllers = [
   {
-    id: 'auth-login',
-    name: 'AuthHandler',
-    module: 'auth',
-    channels: ['auth:login'],
+    id: "auth-login",
+    name: "AuthHandler",
+    module: "auth",
+    channels: ["auth:login"],
   },
   {
-    id: 'password',
-    name: 'PasswordHandler',
-    module: 'auth',
-    channels: ['auth:cambiar-password', 'auth:restablecer-password'],
+    id: "password",
+    name: "PasswordHandler",
+    module: "auth",
+    channels: ["auth:cambiar-password", "auth:restablecer-password"],
   },
   {
-    id: 'access-control',
-    name: 'ControlAccesoMiddleware',
-    module: 'auth',
-    channels: ['access:validate'],
+    id: "access-control",
+    name: "ControlAccesoMiddleware",
+    module: "auth",
+    channels: ["access:validate"],
   },
   {
-    id: 'audit',
-    name: 'AuditoriaHandler',
-    module: 'auth',
-    channels: ['auditoria:registrar', 'auditoria:consultar'],
+    id: "audit",
+    name: "AuditoriaHandler",
+    module: "auth",
+    channels: ["auditoria:registrar", "auditoria:consultar"],
   },
   {
-    id: 'session',
-    name: 'SesionHandler',
-    module: 'auth',
-    channels: ['auth:verificar-sesion', 'auth:logout'],
+    id: "session",
+    name: "SesionHandler",
+    module: "auth",
+    channels: ["auth:verificar-sesion", "auth:logout"],
   },
   {
-    id: 'dashboard',
-    name: 'DashboardHandler',
-    module: 'dashboard',
-    channels: ['dashboard:cargar'],
+    id: "dashboard",
+    name: "DashboardHandler",
+    module: "dashboard",
+    channels: ["dashboard:cargar"],
   },
   {
-    id: 'stock-alert',
-    name: 'AlertaStockHandler',
-    module: 'dashboard',
-    channels: ['dashboard:alertas-stock'],
+    id: "stock-alert",
+    name: "AlertaStockHandler",
+    module: "dashboard",
+    channels: ["dashboard:alertas-stock"],
   },
   {
-    id: 'expiration-alert',
-    name: 'AlertaVencimientoHandler',
-    module: 'dashboard',
-    channels: ['dashboard:alertas-vencimiento'],
+    id: "expiration-alert",
+    name: "AlertaVencimientoHandler",
+    module: "dashboard",
+    channels: ["dashboard:alertas-vencimiento"],
   },
   {
-    id: 'daily-sales-total',
-    name: 'TotalVentasDiaHandler',
-    module: 'dashboard',
-    channels: ['dashboard:total-ventas-dia'],
+    id: "daily-sales-total",
+    name: "TotalVentasDiaHandler",
+    module: "dashboard",
+    channels: ["dashboard:total-ventas-dia"],
   },
   {
-    id: 'product-create',
-    name: 'RegistrarProductoHandler',
-    module: 'inventario',
-    channels: ['producto:registrar'],
+    id: "product-create",
+    name: "RegistrarProductoHandler",
+    module: "inventario",
+    channels: ["producto:registrar"],
   },
   {
-    id: 'product-edit',
-    name: 'EditarProductoHandler',
-    module: 'inventario',
-    channels: ['producto:editar'],
+    id: "product-edit",
+    name: "EditarProductoHandler",
+    module: "inventario",
+    channels: ["producto:editar"],
   },
   {
-    id: 'product-status',
-    name: 'CambiarEstadoProductoHandler',
-    module: 'inventario',
-    channels: ['producto:cambiar-estado'],
+    id: "product-status",
+    name: "CambiarEstadoProductoHandler",
+    module: "inventario",
+    channels: ["producto:cambiar-estado"],
   },
   {
-    id: 'product-query',
-    name: 'ConsultaProductoHandler',
-    module: 'inventario',
-    channels: ['producto:listar', 'producto:buscar-activo', 'producto:estado', 'producto:buscar'],
-  },
-  {
-    id: 'lot',
-    name: 'LoteHandler',
-    module: 'inventario',
-    channels: ['lote:registrar', 'lote:proveedores'],
-  },
-  {
-    id: 'waste',
-    name: 'MermaHandler',
-    module: 'inventario',
-    channels: ['merma:registrar', 'merma:disponibilidad'],
-  },
-  {
-    id: 'sale',
-    name: 'VentaHandler',
-    module: 'ventas',
+    id: "product-query",
+    name: "ConsultaProductoHandler",
+    module: "inventario",
     channels: [
-      'venta:registrar',
-      'venta:producto',
-      'venta:verificar-caja',
-      'venta:validar-carrito',
+      "producto:listar",
+      "producto:buscar-activo",
+      "producto:estado",
+      "producto:buscar",
     ],
   },
   {
-    id: 'stock-discount',
-    name: 'DescuentoStockHandler',
-    module: 'ventas',
-    channels: ['stock:descontar'],
+    id: "lot",
+    name: "LoteHandler",
+    module: "inventario",
+    channels: ["lote:registrar", "lote:proveedores"],
   },
   {
-    id: 'sales-history',
-    name: 'HistorialVentasHandler',
-    module: 'ventas',
-    channels: ['venta:historial-dia'],
+    id: "waste",
+    name: "MermaHandler",
+    module: "inventario",
+    channels: ["merma:registrar", "merma:disponibilidad"],
   },
   {
-    id: 'cash-closing',
-    name: 'CierreCajaHandler',
-    module: 'caja',
-    channels: ['caja:resumen-cierre', 'caja:cerrar'],
-  },
-  {
-    id: 'cash-check',
-    name: 'VerificacionCajaHandler',
-    module: 'caja',
-    channels: ['caja:verificar-disponible'],
-  },
-  {
-    id: 'worker',
-    name: 'TrabajadorHandler',
-    module: 'personal',
+    id: "sale",
+    name: "VentaHandler",
+    module: "ventas",
     channels: [
-      'trabajador:listar',
-      'trabajador:registrar',
-      'trabajador:actualizar',
-      'trabajador:cambiar-estado',
-      'trabajador:listar-activos',
+      "venta:registrar",
+      "venta:producto",
+      "venta:verificar-caja",
+      "venta:validar-carrito",
     ],
   },
   {
-    id: 'shift',
-    name: 'TurnoHandler',
-    module: 'personal',
+    id: "stock-discount",
+    name: "DescuentoStockHandler",
+    module: "ventas",
+    channels: ["stock:descontar"],
+  },
+  {
+    id: "sales-history",
+    name: "HistorialVentasHandler",
+    module: "ventas",
+    channels: ["venta:historial-dia"],
+  },
+  {
+    id: "cash-closing",
+    name: "CierreCajaHandler",
+    module: "caja",
+    channels: ["caja:resumen-cierre", "caja:cerrar"],
+  },
+  {
+    id: "cash-check",
+    name: "VerificacionCajaHandler",
+    module: "caja",
+    channels: ["caja:verificar-disponible"],
+  },
+  {
+    id: "worker",
+    name: "TrabajadorHandler",
+    module: "personal",
     channels: [
-      'turno:crear',
-      'turno:listar',
-      'turno:editar',
-      'turno:eliminar',
+      "trabajador:listar",
+      "trabajador:registrar",
+      "trabajador:actualizar",
+      "trabajador:cambiar-estado",
+      "trabajador:listar-activos",
     ],
   },
   {
-    id: 'attendance',
-    name: 'AsistenciaHandler',
-    module: 'personal',
+    id: "shift",
+    name: "TurnoHandler",
+    module: "personal",
+    channels: ["turno:crear", "turno:listar", "turno:editar", "turno:eliminar"],
+  },
+  {
+    id: "attendance",
+    name: "AsistenciaHandler",
+    module: "personal",
     channels: [
-      'asistencia:entrada',
-      'asistencia:entrada-sin-turno',
-      'asistencia:salida',
-      'asistencia:resumen-dashboard',
+      "asistencia:entrada",
+      "asistencia:entrada-sin-turno",
+      "asistencia:salida",
+      "asistencia:resumen-dashboard",
     ],
   },
   {
-    id: 'ean-reader',
-    name: 'LectorEANHandler',
-    module: 'lector-ean',
-    channels: ['ean:validar-captura'],
+    id: "ean-reader",
+    name: "LectorEANHandler",
+    module: "lector-ean",
+    channels: ["ean:validar-captura"],
   },
   {
-    id: 'user-management',
-    name: 'GestionUsuariosHandler',
-    module: 'administracion',
-    channels: ['usuario:listar', 'usuario:solicitar-restablecimiento'],
+    id: "user-management",
+    name: "GestionUsuariosHandler",
+    module: "administracion",
+    channels: ["usuario:listar", "usuario:solicitar-restablecimiento"],
   },
   {
-    id: 'product-delete',
-    name: 'EliminarProductoHandler',
-    module: 'inventario',
-    channels: ['producto:eliminar'],
+    id: "product-delete",
+    name: "EliminarProductoHandler",
+    module: "inventario",
+    channels: ["producto:eliminar"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

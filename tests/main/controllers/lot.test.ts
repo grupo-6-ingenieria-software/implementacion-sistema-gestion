@@ -1,17 +1,17 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
-import { AccessDeniedError } from '../../../src/main/controllers/auth-context';
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
+import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
 import {
   createLotController,
   registerLotWithExecutor,
   type LotError,
-} from '../../../src/main/controllers/lot';
+} from "../../../src/main/controllers/lot";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -32,8 +32,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('lot controller', () => {
-  it('maps authorization failures to forbidden responses', async () => {
+describe("lot controller", () => {
+  it("maps authorization failures to forbidden responses", async () => {
     const controller = createLotController({
       listProviders: async () => [],
       register: async () => {
@@ -43,56 +43,56 @@ describe('lot controller', () => {
 
     const response = await controller.handle(
       {
-        ean13: '7802920000015',
+        ean13: "7802920000015",
         cantidad: 10,
         precioCosto: 700,
         proveedorId: 1,
-        usuarioId: 'trabajador',
+        usuarioId: "trabajador",
       },
-      { channel: 'lote:registrar' },
+      { channel: "lote:registrar" },
     );
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected forbidden lot response');
+      throw new Error("Expected forbidden lot response");
     }
 
-    expect(response.error.code).toBe('FORBIDDEN');
+    expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it('rejects channels not declared for the lot controller', async () => {
+  it("rejects channels not declared for the lot controller", async () => {
     const controller = createLotController({
       listProviders: async () => [],
       register: async () => ({
-        loteId: '00000000-0000-4000-8000-000000000001',
-        ean13: '7802920000015',
+        loteId: "00000000-0000-4000-8000-000000000001",
+        ean13: "7802920000015",
       }),
     });
 
-    const response = await controller.handle({}, { channel: 'lote:preparar' });
+    const response = await controller.handle({}, { channel: "lote:preparar" });
 
     expect(response.ok).toBe(false);
     if (response.ok) {
-      throw new Error('Expected invalid channel');
+      throw new Error("Expected invalid channel");
     }
 
-    expect(response.error.code).toBe('INVALID_CHANNEL');
+    expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it('lists providers for lot registration', async () => {
+  it("lists providers for lot registration", async () => {
     const controller = createLotController({
       listProviders: async () => [
-        { id: 1, nombre: 'Distribuidora Central S.A.' },
+        { id: 1, nombre: "Distribuidora Central S.A." },
       ],
       register: async () => ({
-        loteId: '00000000-0000-4000-8000-000000000001',
-        ean13: '7802920000015',
+        loteId: "00000000-0000-4000-8000-000000000001",
+        ean13: "7802920000015",
       }),
     });
 
     const response = await controller.handle(
-      { usuarioId: 'dueno' },
-      { channel: 'lote:proveedores' },
+      { usuarioId: "dueno" },
+      { channel: "lote:proveedores" },
     );
 
     expect(response.ok).toBe(true);
@@ -101,18 +101,18 @@ describe('lot controller', () => {
     }
 
     expect(response.data).toEqual([
-      { id: 1, nombre: 'Distribuidora Central S.A.' },
+      { id: 1, nombre: "Distribuidora Central S.A." },
     ]);
   });
 
-  it('registers a non-perishable lot, movement and audit log', async () => {
+  it("registers a non-perishable lot, movement and audit log", async () => {
     const result = await testDb!.db.transaction((tx) =>
       registerLotWithExecutor(tx, schema, {
-        ean13: '7802920000022',
+        ean13: "7802920000022",
         cantidad: 24,
         precioCosto: 900,
         proveedorId: 1,
-        usuarioId: '12345678-9',
+        usuarioId: "12345678-9",
       }),
     );
 
@@ -135,7 +135,7 @@ describe('lot controller', () => {
       WHERE l.lote_id = ${result.loteId}
     `);
 
-    expect(result.ean13).toBe('7802920000022');
+    expect(result.ean13).toBe("7802920000022");
     expect(rows[0]).toMatchObject({
       perecible: 0,
       noPerecible: 1,
@@ -145,16 +145,16 @@ describe('lot controller', () => {
     });
   });
 
-  it('registers a perishable lot with expiration subtype', async () => {
+  it("registers a perishable lot with expiration subtype", async () => {
     testDb!.queries.length = 0;
     const result = await testDb!.db.transaction((tx) =>
       registerLotWithExecutor(tx, schema, {
-        ean13: '7802920000015',
+        ean13: "7802920000015",
         cantidad: 10,
         precioCosto: 700,
-        fechaVencimiento: '2027-01-01',
+        fechaVencimiento: "2027-01-01",
         proveedorId: 1,
-        usuarioId: '12345678-9',
+        usuarioId: "12345678-9",
       }),
     );
 
@@ -166,109 +166,136 @@ describe('lot controller', () => {
       WHERE lote_id = ${result.loteId}
     `);
 
-    expect(rows).toEqual([{ fechaVencimiento: '2027-01-01' }]);
+    expect(rows).toEqual([{ fechaVencimiento: "2027-01-01" }]);
     expect(firstBusinessOperations(testDb!.queries).slice(0, 9)).toEqual([
-      'select:producto', 'select:categoria', 'select:validation',
-      'select:validation', 'select:proveedor', 'insert:lote',
-      'insert:lote_perecible', 'insert:ajuste_inventario',
-      'select:usuario_version',
+      "select:producto",
+      "select:categoria",
+      "select:validation",
+      "select:validation",
+      "select:proveedor",
+      "insert:lote",
+      "insert:lote_perecible",
+      "insert:ajuste_inventario",
+      "select:usuario_version",
     ]);
   });
 
-  it('rejects inactive products and missing providers', async () => {
+  it("rejects inactive products and missing providers", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerLotWithExecutor(tx, schema, {
-          ean13: '7802920000039',
+          ean13: "7802920000039",
           cantidad: 10,
           precioCosto: 700,
           proveedorId: 1,
-          usuarioId: '12345678-9',
+          usuarioId: "12345678-9",
         }),
       ),
     ).rejects.toMatchObject({
-      reason: 'product-not-found',
+      reason: "product-not-found",
     } satisfies Partial<LotError>);
 
     await expect(
       testDb!.db.transaction((tx) =>
         registerLotWithExecutor(tx, schema, {
-          ean13: '7802920000022',
+          ean13: "7802920000022",
           cantidad: 10,
           precioCosto: 700,
           proveedorId: 999,
-          usuarioId: '12345678-9',
+          usuarioId: "12345678-9",
         }),
       ),
     ).rejects.toMatchObject({
-      reason: 'provider-not-found',
+      reason: "provider-not-found",
     } satisfies Partial<LotError>);
   });
 
-  it('rejects missing, malformed, impossible and non-future expiration dates with contractual messages', async () => {
+  it("rejects missing, malformed, impossible and non-future expiration dates with contractual messages", async () => {
     const expirationCases = [
-      [undefined, 'La fecha de vencimiento es obligatoria para esta categoria.'],
-      ['not-a-date', 'Ingrese una fecha de vencimiento valida.'],
-      ['2027-02-30', 'Ingrese una fecha de vencimiento valida.'],
-      ['2020-01-01', 'La fecha de vencimiento debe ser posterior a hoy.'],
+      [
+        undefined,
+        "La fecha de vencimiento es obligatoria para esta categoria.",
+      ],
+      ["not-a-date", "Ingrese una fecha de vencimiento valida."],
+      ["2027-02-30", "Ingrese una fecha de vencimiento valida."],
+      ["2020-01-01", "La fecha de vencimiento debe ser posterior a hoy."],
     ] as const;
 
     for (const [fechaVencimiento, message] of expirationCases) {
-      await expect(testDb!.db.transaction((tx) =>
-        registerLotWithExecutor(tx, schema, {
-          ean13: '7802920000015', cantidad: 10, precioCosto: 700,
-          fechaVencimiento, proveedorId: 1, usuarioId: '12345678-9',
-        }),
-      )).rejects.toMatchObject({
-        reason: 'validation', fieldErrors: { fechaVencimiento: message },
+      await expect(
+        testDb!.db.transaction((tx) =>
+          registerLotWithExecutor(tx, schema, {
+            ean13: "7802920000015",
+            cantidad: 10,
+            precioCosto: 700,
+            fechaVencimiento,
+            proveedorId: 1,
+            usuarioId: "12345678-9",
+          }),
+        ),
+      ).rejects.toMatchObject({
+        reason: "validation",
+        fieldErrors: { fechaVencimiento: message },
       } satisfies Partial<LotError>);
     }
 
-    const rows = await testDb!.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM lote`);
+    const rows = await testDb!.db.all<{ total: number }>(
+      sql`SELECT COUNT(*) AS total FROM lote`,
+    );
     expect(Number(rows[0]?.total)).toBe(0);
   });
 });
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-lot-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-lot-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const queries: string[] = [];
-  const db = drizzle(client, { schema, logger: { logQuery(query) { queries.push(query); } } });
+  const db = drizzle(client, {
+    schema,
+    logger: {
+      logQuery(query) {
+        queries.push(query);
+      },
+    },
+  });
 
-  await client.execute('PRAGMA foreign_keys = ON');
-  const migrationsDir = join(process.cwd(), 'drizzle/migrations');
+  await client.execute("PRAGMA foreign_keys = ON");
+  const migrationsDir = join(process.cwd(), "drizzle/migrations");
   const migrationFiles = (await readdir(migrationsDir))
-    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of migrationFiles) {
-    const migration = await readFile(join(migrationsDir, file), 'utf8');
+    const migration = await readFile(join(migrationsDir, file), "utf8");
 
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      const sqlStatement = statement.trim();
-
-      if (sqlStatement.length > 0) {
-        await client.execute(sqlStatement);
-      }
-    }
+    await client.executeMultiple(migration);
   }
 
   return { client, db, dir, queries };
 }
 
 function firstBusinessOperations(queries: string[]): string[] {
-  const tables = ['lote_perecible', 'ajuste_inventario', 'usuario_version', 'categoria', 'proveedor', 'producto', 'lote'];
+  const tables = [
+    "lote_perecible",
+    "ajuste_inventario",
+    "usuario_version",
+    "categoria",
+    "proveedor",
+    "producto",
+    "lote",
+  ];
   return queries.flatMap((query) => {
     const normalized = query.toLowerCase();
     const verb = normalized.trimStart().split(/\s+/, 1)[0];
     const table = tables.find((name) => normalized.includes(`\"${name}\"`));
-    if (verb === 'select' && !normalized.includes(' from ')) return ['select:validation'];
+    if (verb === "select" && !normalized.includes(" from "))
+      return ["select:validation"];
     return table ? [`${verb}:${table}`] : [];
   });
 }
 
-async function seedLotFixture(db: TestDatabase['db']): Promise<void> {
+async function seedLotFixture(db: TestDatabase["db"]): Promise<void> {
   await db.run(sql`
     INSERT INTO trabajador (
       trabajador_id,

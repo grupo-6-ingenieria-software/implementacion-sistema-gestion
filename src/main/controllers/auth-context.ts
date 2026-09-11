@@ -1,6 +1,6 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { getAuditTimestamp } from '../../shared/audit';
-import type { Role } from '../../shared/navigation';
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { getAuditTimestamp } from "../../shared/audit";
+import type { Role } from "../../shared/navigation";
 
 export type AuthenticatedUser = {
   role: Role;
@@ -10,7 +10,7 @@ export type AuthenticatedUser = {
 };
 
 export class AccessDeniedError extends Error {
-  constructor(message = 'No tiene permiso para realizar esta accion.') {
+  constructor(message = "No tiene permiso para realizar esta accion.") {
     super(message);
   }
 }
@@ -22,7 +22,9 @@ export async function authorizeUser(
   allowedRoles: readonly Role[],
 ): Promise<AuthenticatedUser> {
   if (!usuarioId?.trim()) {
-    throw new AccessDeniedError('No hay un usuario autenticado para esta accion.');
+    throw new AccessDeniedError(
+      "No hay un usuario autenticado para esta accion.",
+    );
   }
 
   const [account] = await executor
@@ -36,7 +38,9 @@ export async function authorizeUser(
     .limit(1);
 
   if (!account) {
-    throw new AccessDeniedError('El usuario autenticado no esta activo o no existe.');
+    throw new AccessDeniedError(
+      "El usuario autenticado no esta activo o no existe.",
+    );
   }
 
   const [worker] = await executor
@@ -49,14 +53,16 @@ export async function authorizeUser(
     .where(eq(schema.trabajador.trabajadorId, account.trabajadorId))
     .limit(1);
 
-  if (!worker || worker.trabajadorEstado !== 'activo') {
-    throw new AccessDeniedError('El usuario autenticado no esta activo o no existe.');
+  if (!worker || worker.trabajadorEstado !== "activo") {
+    throw new AccessDeniedError(
+      "El usuario autenticado no esta activo o no existe.",
+    );
   }
 
   const role = mapDatabaseRoleToTechnicalRole(account.usuarioRol);
 
   if (!role || !allowedRoles.includes(role)) {
-    throw new AccessDeniedError('No tiene permiso para realizar esta accion.');
+    throw new AccessDeniedError("No tiene permiso para realizar esta accion.");
   }
 
   return {
@@ -96,16 +102,16 @@ export async function registerAuditLog(
 export function mapDatabaseRoleToTechnicalRole(role: string): Role | null {
   const normalized = normalizeRole(role);
 
-  if (normalized.includes('duen')) {
-    return 'dueno';
+  if (normalized.includes("duen")) {
+    return "dueno";
   }
 
   if (
-    normalized === 'trabajador' ||
-    normalized === 'cajero' ||
-    normalized === 'reponedor'
+    normalized === "trabajador" ||
+    normalized === "cajero" ||
+    normalized === "reponedor"
   ) {
-    return 'trabajador';
+    return "trabajador";
   }
 
   return null;
@@ -135,8 +141,8 @@ async function getOrCreateCurrentUserVersion(
   }
 
   const user = await authorizeUser(executor, schema, usuarioId, [
-    'dueno',
-    'trabajador',
+    "dueno",
+    "trabajador",
   ]);
 
   const [createdVersion] = await executor
@@ -154,26 +160,24 @@ async function getOrCreateCurrentUserVersion(
 
 function normalizeRole(role: string): string {
   return role
-    .toLocaleLowerCase('es')
-    .replace(/ã±/g, 'n')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\u00c3\u00b1/g, 'n')
-    .replace(/\u00c3\u0192\u00c2\u00b1/g, 'n');
+    .toLocaleLowerCase("es")
+    .replace(/ã±/g, "n")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\u00c3\u00b1/g, "n")
+    .replace(/\u00c3\u0192\u00c2\u00b1/g, "n");
 }
 
-function toAuditRole(
-  user: AuthenticatedUser,
-): 'dueno' | 'trabajador' {
-  if (user.role === 'dueno') {
-    return 'dueno';
+function toAuditRole(user: AuthenticatedUser): "dueno" | "trabajador" {
+  if (user.role === "dueno") {
+    return "dueno";
   }
 
-  return 'trabajador';
+  return "trabajador";
 }
 
-type SchemaLike = typeof import('../../db/schema');
+type SchemaLike = typeof import("../../db/schema");
 type ExecutorLike = {
-  insert: typeof import('../../db/client').db.insert;
-  select: typeof import('../../db/client').db.select;
+  insert: typeof import("../../db/client").db.insert;
+  select: typeof import("../../db/client").db.select;
 };

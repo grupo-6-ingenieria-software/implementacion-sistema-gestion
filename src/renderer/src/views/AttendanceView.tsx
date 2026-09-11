@@ -1,23 +1,29 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import type {
   AttendanceEntryResult,
   AttendanceExitResult,
   AttendanceWorkerOption,
-} from '../../../shared/attendance';
-import type { Role } from '../../../shared/navigation';
-import { normalizeRut } from '../../../shared/attendance';
+} from "../../../shared/attendance";
+import type { Role } from "../../../shared/navigation";
+import { normalizeRut } from "../../../shared/attendance";
 
 type AttendanceViewProps = {
   role: Role;
   usuarioId?: string;
 };
 
-type Mode = 'entrada' | 'salida';
+type Mode = "entrada" | "salida";
 
 type PageState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready' };
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready" };
 
 type PendingNoShift = {
   message: string;
@@ -38,15 +44,15 @@ export function AttendanceView({
   role,
   usuarioId,
 }: AttendanceViewProps): ReactElement {
-  const [pageState, setPageState] = useState<PageState>({ status: 'loading' });
+  const [pageState, setPageState] = useState<PageState>({ status: "loading" });
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
-  const [mode, setMode] = useState<Mode>('entrada');
-  const [rut, setRut] = useState('');
-  const [search, setSearch] = useState('');
+  const [mode, setMode] = useState<Mode>("entrada");
+  const [rut, setRut] = useState("");
+  const [search, setSearch] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [messageTone, setMessageTone] = useState<'error' | 'success' | 'warning'>(
-    'success',
-  );
+  const [messageTone, setMessageTone] = useState<
+    "error" | "success" | "warning"
+  >("success");
   const [pendingNoShift, setPendingNoShift] = useState<PendingNoShift | null>(
     null,
   );
@@ -57,32 +63,28 @@ export function AttendanceView({
   const loadWorkers = useCallback(async (): Promise<void> => {
     if (!usuarioId?.trim()) {
       setPageState({
-        status: 'error',
-        message: 'Se requiere una sesion valida para registrar asistencia.',
+        status: "error",
+        message: "Se requiere una sesion valida para registrar asistencia.",
       });
       return;
     }
 
-    setPageState({ status: 'loading' });
+    setPageState({ status: "loading" });
 
     const response = await window.appApi.invoke<AttendanceWorkerOption[]>(
-      'trabajador:listar-activos',
+      "trabajador:listar-activos",
       { usuarioId },
     );
 
     if (!response.ok) {
-      setPageState({ status: 'error', message: response.error.message });
+      setPageState({ status: "error", message: response.error.message });
       return;
     }
 
     setWorkers(response.data);
 
-    if (role === 'trabajador') {
-      // Resolver al propio trabajador por RUT (usuarioId == RUT de la sesion),
-      // nunca por posicion: si el backend devolviera mas de un trabajador
-      // (p.ej. rol desincronizado), data[0] podria ser OTRO trabajador y la
-      // operacion se rechazaria con "no tiene permisos para otro trabajador".
-      const ownRut = normalizeRut(usuarioId ?? '');
+    if (role === "trabajador") {
+      const ownRut = normalizeRut(usuarioId ?? "");
       const self =
         response.data.find((worker) => normalizeRut(worker.rut) === ownRut) ??
         (response.data.length === 1 ? response.data[0] : undefined);
@@ -92,7 +94,7 @@ export function AttendanceView({
       }
     }
 
-    setPageState({ status: 'ready' });
+    setPageState({ status: "ready" });
   }, [role, usuarioId]);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export function AttendanceView({
   }, [loadWorkers]);
 
   const filteredWorkers = useMemo(() => {
-    const normalizedSearch = search.trim().toLocaleLowerCase('es');
+    const normalizedSearch = search.trim().toLocaleLowerCase("es");
 
     if (!normalizedSearch) {
       return workers;
@@ -110,7 +112,7 @@ export function AttendanceView({
       (worker) =>
         worker.rut.includes(normalizedSearch) ||
         worker.nombreCompleto
-          .toLocaleLowerCase('es')
+          .toLocaleLowerCase("es")
           .includes(normalizedSearch),
     );
   }, [search, workers]);
@@ -119,11 +121,7 @@ export function AttendanceView({
     (worker) => worker.rut === normalizeRut(rut),
   );
 
-  // Trabajador propio para el panel "Asistencia propia": se identifica por RUT
-  // de la sesion, no por posicion en la lista. Si no aparece, WorkerSelfPanel
-  // muestra el aviso "no se encontro trabajador asociado" en vez de etiquetar
-  // por error a otro trabajador como propio.
-  const ownRut = normalizeRut(usuarioId ?? '');
+  const ownRut = normalizeRut(usuarioId ?? "");
   const selfWorker = useMemo(
     () =>
       workers.find((worker) => normalizeRut(worker.rut) === ownRut) ??
@@ -134,14 +132,17 @@ export function AttendanceView({
 
   async function submit(): Promise<void> {
     if (!usuarioId?.trim()) {
-      showMessage('error', 'Se requiere una sesion valida para registrar asistencia.');
+      showMessage(
+        "error",
+        "Se requiere una sesion valida para registrar asistencia.",
+      );
       return;
     }
 
     const trabajadorRut = normalizeRut(rut);
 
     if (!trabajadorRut) {
-      showMessage('error', 'Seleccione o ingrese un trabajador.');
+      showMessage("error", "Seleccione o ingrese un trabajador.");
       return;
     }
 
@@ -150,16 +151,16 @@ export function AttendanceView({
     setPendingConfirmation(null);
     setMessage(null);
 
-    if (mode === 'entrada') {
+    if (mode === "entrada") {
       const response = await window.appApi.invoke<AttendanceEntryResult>(
-        'asistencia:entrada',
-        { fase: 'prevalidar', usuarioId, trabajadorRut },
+        "asistencia:entrada",
+        { fase: "prevalidar", usuarioId, trabajadorRut },
       );
 
       setIsSubmitting(false);
 
       if (!response.ok) {
-        showMessage('error', response.error.message);
+        showMessage("error", response.error.message);
         return;
       }
 
@@ -168,9 +169,9 @@ export function AttendanceView({
     }
 
     const response = await window.appApi.invoke<AttendanceExitResult>(
-      'asistencia:salida',
+      "asistencia:salida",
       {
-        fase: 'prevalidar',
+        fase: "prevalidar",
         usuarioId,
         trabajadorRut,
       },
@@ -179,13 +180,13 @@ export function AttendanceView({
     setIsSubmitting(false);
 
     if (!response.ok) {
-      showMessage('error', response.error.message);
+      showMessage("error", response.error.message);
       return;
     }
 
-    if (response.data.status === 'ready_for_confirmation') {
+    if (response.data.status === "ready_for_confirmation") {
       setPendingConfirmation({
-        kind: 'salida',
+        kind: "salida",
         trabajadorRut: response.data.trabajador.rut,
         trabajadorNombre: response.data.trabajador.nombreCompleto,
         entradaAt: response.data.entradaAt,
@@ -205,13 +206,13 @@ export function AttendanceView({
     setMessage(null);
 
     const channel =
-      pendingConfirmation.kind === 'entrada'
-        ? 'asistencia:entrada'
-        : 'asistencia:salida';
+      pendingConfirmation.kind === "entrada"
+        ? "asistencia:entrada"
+        : "asistencia:salida";
     const response = await window.appApi.invoke<
       AttendanceEntryResult | AttendanceExitResult
     >(channel, {
-      fase: 'confirmar',
+      fase: "confirmar",
       usuarioId,
       trabajadorRut: pendingConfirmation.trabajadorRut,
     });
@@ -220,29 +221,29 @@ export function AttendanceView({
     setPendingConfirmation(null);
 
     if (!response.ok) {
-      showMessage('error', response.error.message);
+      showMessage("error", response.error.message);
       return;
     }
 
-    if (response.data.status !== 'registered') {
+    if (response.data.status !== "registered") {
       showMessage(
-        'warning',
-        'message' in response.data
+        "warning",
+        "message" in response.data
           ? response.data.message
-          : 'Vuelva a confirmar la operacion.',
+          : "Vuelva a confirmar la operacion.",
       );
       return;
     }
 
-    if (pendingConfirmation.kind === 'entrada') {
+    if (pendingConfirmation.kind === "entrada") {
       showMessage(
-        'success',
+        "success",
         `Entrada registrada a las ${formatTime(response.data.entradaAt)}.`,
       );
       return;
     }
 
-    if ('salidaAt' in response.data) {
+    if ("salidaAt" in response.data) {
       showExitSuccess(response.data);
     }
   }
@@ -256,10 +257,10 @@ export function AttendanceView({
     setMessage(null);
 
     const response = await window.appApi.invoke<AttendanceEntryResult>(
-      'asistencia:entrada-sin-turno',
+      "asistencia:entrada-sin-turno",
       {
         usuarioId,
-        fase: 'confirmar',
+        fase: "confirmar",
         trabajadorRut: pendingNoShift.trabajadorRut,
       },
     );
@@ -268,13 +269,13 @@ export function AttendanceView({
     setPendingNoShift(null);
 
     if (!response.ok) {
-      showMessage('error', response.error.message);
+      showMessage("error", response.error.message);
       return;
     }
 
-    if (response.data.status === 'registered') {
+    if (response.data.status === "registered") {
       showMessage(
-        'success',
+        "success",
         `Entrada registrada a las ${formatTime(response.data.entradaAt)}.`,
       );
     }
@@ -282,23 +283,23 @@ export function AttendanceView({
 
   function cancelWithoutShift(): void {
     setPendingNoShift(null);
-    showMessage('warning', 'Registro cancelado. No se registro la entrada.');
+    showMessage("warning", "Registro cancelado. No se registro la entrada.");
   }
 
   function handleEntryResponse(result: AttendanceEntryResult): void {
-    if (result.status === 'requires_no_shift_confirmation') {
+    if (result.status === "requires_no_shift_confirmation") {
       setPendingNoShift({
         message: result.message,
         trabajadorRut: result.trabajador.rut,
         trabajadorNombre: result.trabajador.nombreCompleto,
       });
-      showMessage('warning', result.message);
+      showMessage("warning", result.message);
       return;
     }
 
-    if (result.status === 'ready_for_confirmation') {
+    if (result.status === "ready_for_confirmation") {
       setPendingConfirmation({
-        kind: 'entrada',
+        kind: "entrada",
         trabajadorRut: result.trabajador.rut,
         trabajadorNombre: result.trabajador.nombreCompleto,
         turnoInicio: result.trabajador.turnoInicio,
@@ -308,49 +309,47 @@ export function AttendanceView({
     }
 
     showMessage(
-      'success',
+      "success",
       `Entrada registrada a las ${formatTime(result.entradaAt)}.`,
     );
   }
 
   function showExitSuccess(
-    result: Extract<AttendanceExitResult, { status: 'registered' }>,
+    result: Extract<AttendanceExitResult, { status: "registered" }>,
   ): void {
     showMessage(
-      'success',
+      "success",
       `Salida registrada a las ${formatTime(result.salidaAt)}. Horas trabajadas: ${result.horasTrabajadas}.`,
     );
   }
 
   function selectWorker(worker: AttendanceWorkerOption): void {
     setRut(worker.rut);
-    setSearch('');
+    setSearch("");
     setMessage(null);
     setPendingNoShift(null);
     setPendingConfirmation(null);
   }
 
   function showMessage(
-    tone: 'error' | 'success' | 'warning',
+    tone: "error" | "success" | "warning",
     nextMessage: string,
   ): void {
     setMessageTone(tone);
     setMessage(nextMessage);
   }
 
-  if (pageState.status === 'loading') {
+  if (pageState.status === "loading") {
     return (
       <section className="px-8 py-8" aria-live="polite">
         <div className="rounded-md border border-[#cbd5df] bg-white p-8 shadow-sm">
-          <p className="font-semibold text-[#244d61]">
-            Cargando asistencia...
-          </p>
+          <p className="font-semibold text-[#244d61]">Cargando asistencia...</p>
         </div>
       </section>
     );
   }
 
-  if (pageState.status === 'error') {
+  if (pageState.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
         <StatusMessage
@@ -385,22 +384,22 @@ export function AttendanceView({
                 </h4>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <ModeButton
-                    active={mode === 'entrada'}
+                    active={mode === "entrada"}
                     description="Registra fecha y hora actual de entrada."
                     label="Entrada"
                     onClick={() => {
-                      setMode('entrada');
+                      setMode("entrada");
                       setPendingNoShift(null);
                       setPendingConfirmation(null);
                       setMessage(null);
                     }}
                   />
                   <ModeButton
-                    active={mode === 'salida'}
+                    active={mode === "salida"}
                     description="Registra salida y calcula horas trabajadas."
                     label="Salida"
                     onClick={() => {
-                      setMode('salida');
+                      setMode("salida");
                       setPendingNoShift(null);
                       setPendingConfirmation(null);
                       setMessage(null);
@@ -414,7 +413,7 @@ export function AttendanceView({
                   Trabajador
                 </h4>
                 <div className="mt-4">
-                  {role === 'dueno' ? (
+                  {role === "dueno" ? (
                     <OwnerWorkerPicker
                       filteredWorkers={filteredWorkers}
                       rut={rut}
@@ -444,10 +443,10 @@ export function AttendanceView({
                   onClick={() => void submit()}
                 >
                   {isSubmitting
-                    ? 'Registrando...'
-                    : mode === 'entrada'
-                      ? 'Registrar entrada'
-                      : 'Registrar salida'}
+                    ? "Registrando..."
+                    : mode === "entrada"
+                      ? "Registrar entrada"
+                      : "Registrar salida"}
                 </button>
                 <button
                   className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -457,8 +456,8 @@ export function AttendanceView({
                     setMessage(null);
                     setPendingNoShift(null);
                     setPendingConfirmation(null);
-                    if (role === 'dueno') {
-                      setRut('');
+                    if (role === "dueno") {
+                      setRut("");
                     }
                   }}
                 >
@@ -483,7 +482,10 @@ export function AttendanceView({
               pending={pendingConfirmation}
               onCancel={() => {
                 setPendingConfirmation(null);
-                showMessage('warning', 'Registro cancelado. No se realizaron cambios.');
+                showMessage(
+                  "warning",
+                  "Registro cancelado. No se realizaron cambios.",
+                );
               }}
               onConfirm={() => void confirmAttendance()}
             />
@@ -508,7 +510,9 @@ export function AttendanceView({
               <Info label="RUT" value={selectedWorker.rut} />
               <Info
                 label="Operacion"
-                value={mode === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
+                value={
+                  mode === "entrada" ? "Registrar entrada" : "Registrar salida"
+                }
               />
             </dl>
           ) : rut.trim() ? (
@@ -516,7 +520,9 @@ export function AttendanceView({
               <Info label="RUT ingresado" value={normalizeRut(rut)} />
               <Info
                 label="Operacion"
-                value={mode === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
+                value={
+                  mode === "entrada" ? "Registrar entrada" : "Registrar salida"
+                }
               />
             </dl>
           ) : (
@@ -545,8 +551,8 @@ function ModeButton({
     <button
       className={`rounded-md border px-4 py-4 text-left transition ${
         active
-          ? 'border-[#244d61] bg-[#eef6f2] text-[#17202a] shadow-sm'
-          : 'border-[#d7dee6] bg-white text-[#61717f] hover:border-[#9ba9b5] hover:text-[#17202a]'
+          ? "border-[#244d61] bg-[#eef6f2] text-[#17202a] shadow-sm"
+          : "border-[#d7dee6] bg-white text-[#61717f] hover:border-[#9ba9b5] hover:text-[#17202a]"
       }`}
       type="button"
       onClick={onClick}
@@ -605,7 +611,7 @@ function OwnerWorkerPicker({
           {filteredWorkers.map((worker) => (
             <button
               className={`grid w-full gap-1 border-t border-[#edf1f5] px-4 py-3 text-left first:border-t-0 transition hover:bg-[#f6f7f9] ${
-                selectedWorker?.rut === worker.rut ? 'bg-[#e8f3ed]' : 'bg-white'
+                selectedWorker?.rut === worker.rut ? "bg-[#e8f3ed]" : "bg-white"
               }`}
               key={worker.trabajadorId}
               type="button"
@@ -643,9 +649,7 @@ function WorkerSelfPanel({
 
   return (
     <div className="rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4">
-      <p className="text-sm font-semibold text-[#61717f]">
-        Asistencia propia
-      </p>
+      <p className="text-sm font-semibold text-[#61717f]">Asistencia propia</p>
       <p className="mt-2 text-lg font-semibold text-[#17202a]">
         {worker.nombreCompleto}
       </p>
@@ -674,8 +678,8 @@ function NoShiftConfirmation({
         Trabajador sin turno asignado
       </h4>
       <p className="mt-2 text-sm text-[#6b4a24]">
-        {pendingNoShift.trabajadorNombre} no tiene turno para hoy. El registro de
-        entrada solo se guardara si confirma esta advertencia.
+        {pendingNoShift.trabajadorNombre} no tiene turno para hoy. El registro
+        de entrada solo se guardara si confirma esta advertencia.
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button
@@ -716,18 +720,24 @@ function AttendanceConfirmation({
         Confirmacion requerida
       </p>
       <h4 className="mt-1 text-lg font-semibold text-[#17202a]">
-        Confirmar {pending.kind === 'entrada' ? 'entrada' : 'salida'}
+        Confirmar {pending.kind === "entrada" ? "entrada" : "salida"}
       </h4>
       <p className="mt-2 text-sm text-[#435563]">
         {pending.trabajadorNombre}
         {pending.entradaAt
           ? ` tiene una entrada abierta desde las ${formatTime(pending.entradaAt)}.`
-          : ' tiene sus datos y turno validados.'}
+          : " tiene sus datos y turno validados."}
       </p>
-      {pending.kind === 'entrada' && pending.turnoInicio && pending.turnoFin ? (
+      {pending.kind === "entrada" && pending.turnoInicio && pending.turnoFin ? (
         <dl className="mt-4 grid gap-3 rounded-md border border-[#cbd5df] bg-white p-4 sm:grid-cols-2">
-          <Info label="Inicio del turno" value={formatDateTime(pending.turnoInicio)} />
-          <Info label="Fin del turno" value={formatDateTime(pending.turnoFin)} />
+          <Info
+            label="Inicio del turno"
+            value={formatDateTime(pending.turnoInicio)}
+          />
+          <Info
+            label="Fin del turno"
+            value={formatDateTime(pending.turnoFin)}
+          />
         </dl>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-3">
@@ -759,12 +769,12 @@ function StatusMessage({
 }: {
   message: string;
   title: string;
-  tone: 'error' | 'success' | 'warning';
+  tone: "error" | "success" | "warning";
 }): ReactElement {
   const styles = {
-    error: 'border-[#dba7a7] bg-[#fff7f7] text-[#8f2727]',
-    success: 'border-[#a9cfb9] bg-[#f2faf5] text-[#22583f]',
-    warning: 'border-[#e3ad72] bg-[#fff8ed] text-[#7a3f0c]',
+    error: "border-[#dba7a7] bg-[#fff7f7] text-[#8f2727]",
+    success: "border-[#a9cfb9] bg-[#f2faf5] text-[#22583f]",
+    warning: "border-[#e3ad72] bg-[#fff8ed] text-[#7a3f0c]",
   };
 
   return (
@@ -775,7 +785,13 @@ function StatusMessage({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }): ReactElement {
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-[#61717f]">
@@ -786,30 +802,30 @@ function Info({ label, value }: { label: string; value: string }): ReactElement 
   );
 }
 
-function getMessageTitle(tone: 'error' | 'success' | 'warning'): string {
-  if (tone === 'error') {
-    return 'No se pudo registrar';
+function getMessageTitle(tone: "error" | "success" | "warning"): string {
+  if (tone === "error") {
+    return "No se pudo registrar";
   }
 
-  if (tone === 'warning') {
-    return 'Atencion';
+  if (tone === "warning") {
+    return "Atencion";
   }
 
-  return 'Registro completado';
+  return "Registro completado";
 }
 
 function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
 function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'America/Santiago',
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    dateStyle: "medium",
+    timeStyle: "short",
   }).format(new Date(value));
 }

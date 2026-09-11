@@ -1,12 +1,12 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { createClient } from '@libsql/client';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { createClient } from "@libsql/client";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   AttendanceAccessError,
   AttendanceBusinessError,
@@ -14,12 +14,12 @@ import {
   registerAttendanceEntry,
   registerAttendanceEntryWithoutShift,
   registerAttendanceExit,
-} from '../../../src/main/controllers/attendance-service';
-import type { DbExecutor } from '../../../src/main/controllers/sale-service';
+} from "../../../src/main/controllers/attendance-service";
+import type { DbExecutor } from "../../../src/main/controllers/sale-service";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
-const now = new Date('2026-06-12T12:30:00.000Z');
+const now = new Date("2026-06-12T12:30:00.000Z");
 let testDb: TestDatabase | undefined;
 
 beforeEach(async () => {
@@ -37,41 +37,44 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('attendance service', () => {
-  it('lists active workers for the owner', async () => {
-    const workers = await listActiveWorkers(testDb!.db as unknown as DbExecutor, {
-      usuarioId: '12345678-9',
-    });
+describe("attendance service", () => {
+  it("lists active workers for the owner", async () => {
+    const workers = await listActiveWorkers(
+      testDb!.db as unknown as DbExecutor,
+      {
+        usuarioId: "12345678-9",
+      },
+    );
 
     expect(workers).toEqual([
       {
         trabajadorId: 2,
-        rut: '23456789-0',
-        nombreCompleto: 'Camila Rojas',
+        rut: "23456789-0",
+        nombreCompleto: "Camila Rojas",
       },
       {
         trabajadorId: 1,
-        rut: '12345678-9',
-        nombreCompleto: 'Maria Huascar',
+        rut: "12345678-9",
+        nombreCompleto: "Maria Huascar",
       },
       {
         trabajadorId: 4,
-        rut: '45678901-2',
-        nombreCompleto: 'Pedro Soto',
+        rut: "45678901-2",
+        nombreCompleto: "Pedro Soto",
       },
     ]);
   });
 
-  it('registers an entry with the worker shift', async () => {
+  it("registers an entry with the worker shift", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
 
     const preview = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9', trabajadorRut: '23.456.789-0' },
+      { usuarioId: "12345678-9", trabajadorRut: "23.456.789-0" },
       now,
     );
 
-    expect(preview.status).toBe('ready_for_confirmation');
+    expect(preview.status).toBe("ready_for_confirmation");
     expect(
       Number(
         (
@@ -85,21 +88,21 @@ describe('attendance service', () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       {
-        fase: 'confirmar',
-        usuarioId: '12345678-9',
-        trabajadorRut: '23.456.789-0',
+        fase: "confirmar",
+        usuarioId: "12345678-9",
+        trabajadorRut: "23.456.789-0",
       },
       now,
     );
 
-    expect(result.status).toBe('registered');
-    if (result.status !== 'registered') {
+    expect(result.status).toBe("registered");
+    if (result.status !== "registered") {
       throw new Error(result.message);
     }
 
-    expect(result.trabajador.rut).toBe('23456789-0');
+    expect(result.trabajador.rut).toBe("23456789-0");
     expect(result.trabajador.turnoId).toBe(
-      '00000000-0000-4000-8000-000000000201',
+      "00000000-0000-4000-8000-000000000201",
     );
     expect(result.entradaAt).toBe(now.toISOString());
 
@@ -111,60 +114,72 @@ describe('attendance service', () => {
     expect(Number(rows[0].count)).toBe(1);
   });
 
-  it('revalidates an absence added between entry preview and confirmation', async () => {
+  it("revalidates an absence added between entry preview and confirmation", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
-      usuarioId: '12345678-9',
-      trabajadorRut: '23456789-0',
+      usuarioId: "12345678-9",
+      trabajadorRut: "23456789-0",
     };
 
     await expect(
-      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
-    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        request,
+        now,
+      ),
+    ).resolves.toMatchObject({ status: "ready_for_confirmation" });
     await seedAbsence(testDb!.db as unknown as DbExecutor, 2);
 
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
-        { ...request, fase: 'confirmar' },
+        { ...request, fase: "confirmar" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it('revalidates a shift removed between entry preview and confirmation', async () => {
+  it("revalidates a shift removed between entry preview and confirmation", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
-      usuarioId: '12345678-9',
-      trabajadorRut: '23456789-0',
+      usuarioId: "12345678-9",
+      trabajadorRut: "23456789-0",
     };
 
     await expect(
-      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
-    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        request,
+        now,
+      ),
+    ).resolves.toMatchObject({ status: "ready_for_confirmation" });
     await testDb!.db.run(sql`DELETE FROM turno WHERE trabajador_id = 2`);
 
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
-        { ...request, fase: 'confirmar' },
+        { ...request, fase: "confirmar" },
         now,
       ),
-    ).resolves.toMatchObject({ status: 'requires_no_shift_confirmation' });
+    ).resolves.toMatchObject({ status: "requires_no_shift_confirmation" });
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it('revalidates worker state changed between entry preview and confirmation', async () => {
+  it("revalidates worker state changed between entry preview and confirmation", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
-      usuarioId: '12345678-9',
-      trabajadorRut: '23456789-0',
+      usuarioId: "12345678-9",
+      trabajadorRut: "23456789-0",
     };
 
     await expect(
-      registerAttendanceEntry(testDb!.db as unknown as DbExecutor, request, now),
-    ).resolves.toMatchObject({ status: 'ready_for_confirmation' });
+      registerAttendanceEntry(
+        testDb!.db as unknown as DbExecutor,
+        request,
+        now,
+      ),
+    ).resolves.toMatchObject({ status: "ready_for_confirmation" });
     await testDb!.db.run(sql`
       UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 2
     `);
@@ -172,14 +187,14 @@ describe('attendance service', () => {
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
-        { ...request, fase: 'confirmar' },
+        { ...request, fase: "confirmar" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it('registers an entry when the stored worker rut has dots', async () => {
+  it("registers an entry when the stored worker rut has dots", async () => {
     await testDb!.db.run(sql`
       UPDATE trabajador
       SET trabajador_rut = '23.456.789-0'
@@ -189,33 +204,33 @@ describe('attendance service', () => {
     const result = await registerAttendanceEntryWithoutShift(
       testDb!.db as unknown as DbExecutor,
       {
-        fase: 'confirmar',
-        usuarioId: '12345678-9',
-        trabajadorRut: '23456789-0',
+        fase: "confirmar",
+        usuarioId: "12345678-9",
+        trabajadorRut: "23456789-0",
       },
       now,
     );
 
-    expect(result.status).toBe('registered');
-    if (result.status !== 'registered') {
+    expect(result.status).toBe("registered");
+    if (result.status !== "registered") {
       throw new Error(result.message);
     }
 
-    expect(result.trabajador.rut).toBe('23456789-0');
+    expect(result.trabajador.rut).toBe("23456789-0");
   });
 
-  it('asks for confirmation when the worker has no shift', async () => {
+  it("asks for confirmation when the worker has no shift", async () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+      { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
       now,
     );
 
     expect(result).toMatchObject({
-      status: 'requires_no_shift_confirmation',
+      status: "requires_no_shift_confirmation",
       trabajador: {
-        rut: '23456789-0',
-        nombreCompleto: 'Camila Rojas',
+        rut: "23456789-0",
+        nombreCompleto: "Camila Rojas",
       },
     });
 
@@ -225,18 +240,18 @@ describe('attendance service', () => {
     expect(Number(rows[0].count)).toBe(0);
   });
 
-  it('registers an entry without shift after confirmation', async () => {
+  it("registers an entry without shift after confirmation", async () => {
     const result = await registerAttendanceEntryWithoutShift(
       testDb!.db as unknown as DbExecutor,
       {
-        fase: 'confirmar',
-        usuarioId: '12345678-9',
-        trabajadorRut: '23456789-0',
+        fase: "confirmar",
+        usuarioId: "12345678-9",
+        trabajadorRut: "23456789-0",
       },
       now,
     );
 
-    expect(result.status).toBe('registered');
+    expect(result.status).toBe("registered");
     const rows = await testDb!.db.all<{ turnoId: string | null }>(sql`
       SELECT turno_id AS turnoId
       FROM asistencia
@@ -252,60 +267,63 @@ describe('attendance service', () => {
     expect(Number(auditRows[0].count)).toBe(1);
   });
 
-  it('blocks duplicate entries', async () => {
+  it("blocks duplicate entries", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 2);
 
     await expect(
       registerAttendanceEntryWithoutShift(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+        { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it('blocks inactive workers', async () => {
+  it("blocks inactive workers", async () => {
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9', trabajadorRut: '34567890-1' },
+        { usuarioId: "12345678-9", trabajadorRut: "34567890-1" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it('blocks workers from registering another worker attendance', async () => {
+  it("blocks workers from registering another worker attendance", async () => {
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '23456789-0', trabajadorRut: '45678901-2' },
+        { usuarioId: "23456789-0", trabajadorRut: "45678901-2" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceAccessError);
   });
 
-  it('blocks entries when the worker has an absence for the day', async () => {
+  it("blocks entries when the worker has an absence for the day", async () => {
     await seedAbsence(testDb!.db as unknown as DbExecutor, 2);
 
     await expect(
       registerAttendanceEntryWithoutShift(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+        { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it('registers an exit and calculates worked hours', async () => {
-    const asistenciaId = await seedAttendance(testDb!.db as unknown as DbExecutor, 2);
+  it("registers an exit and calculates worked hours", async () => {
+    const asistenciaId = await seedAttendance(
+      testDb!.db as unknown as DbExecutor,
+      2,
+    );
 
     const preview = await registerAttendanceExit(
       testDb!.db as unknown as DbExecutor,
-      { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
-      new Date('2026-06-12T20:00:00.000Z'),
+      { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
+      new Date("2026-06-12T20:00:00.000Z"),
     );
 
-    expect(preview.status).toBe('ready_for_confirmation');
+    expect(preview.status).toBe("ready_for_confirmation");
     const afterPreview = await testDb!.db.all<{
       salidaAt: string | null;
       auditCount: number;
@@ -321,23 +339,23 @@ describe('attendance service', () => {
     const result = await registerAttendanceExit(
       testDb!.db as unknown as DbExecutor,
       {
-        fase: 'confirmar',
-        usuarioId: '12345678-9',
-        trabajadorRut: '23456789-0',
+        fase: "confirmar",
+        usuarioId: "12345678-9",
+        trabajadorRut: "23456789-0",
       },
-      new Date('2026-06-12T20:00:00.000Z'),
+      new Date("2026-06-12T20:00:00.000Z"),
     );
 
     expect(result).toMatchObject({
-      status: 'registered',
+      status: "registered",
       asistenciaId,
-      entradaAt: '2026-06-12T12:00:00.000Z',
-      salidaAt: '2026-06-12T20:00:00.000Z',
-      horasTrabajadas: '08:00',
+      entradaAt: "2026-06-12T12:00:00.000Z",
+      salidaAt: "2026-06-12T20:00:00.000Z",
+      horasTrabajadas: "08:00",
     });
   });
 
-  it('rolls back an entry when the audit insert fails', async () => {
+  it("rolls back an entry when the audit insert fails", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     await abortAttendanceAuditWrites(testDb!.db as unknown as DbExecutor);
 
@@ -345,9 +363,9 @@ describe('attendance service', () => {
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
         {
-          fase: 'confirmar',
-          usuarioId: '12345678-9',
-          trabajadorRut: '23456789-0',
+          fase: "confirmar",
+          usuarioId: "12345678-9",
+          trabajadorRut: "23456789-0",
         },
         now,
       ),
@@ -356,7 +374,7 @@ describe('attendance service', () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it('rolls back an exit when the audit insert fails', async () => {
+  it("rolls back an exit when the audit insert fails", async () => {
     const asistenciaId = await seedAttendance(
       testDb!.db as unknown as DbExecutor,
       2,
@@ -367,11 +385,11 @@ describe('attendance service', () => {
       registerAttendanceExit(
         testDb!.db as unknown as DbExecutor,
         {
-          fase: 'confirmar',
-          usuarioId: '12345678-9',
-          trabajadorRut: '23456789-0',
+          fase: "confirmar",
+          usuarioId: "12345678-9",
+          trabajadorRut: "23456789-0",
         },
-        new Date('2026-06-12T20:00:00.000Z'),
+        new Date("2026-06-12T20:00:00.000Z"),
       ),
     ).rejects.toThrow();
 
@@ -383,37 +401,37 @@ describe('attendance service', () => {
     expect(rows).toEqual([{ salidaAt: null }]);
   });
 
-  it('blocks exits without a previous entry', async () => {
+  it("blocks exits without a previous entry", async () => {
     await expect(
       registerAttendanceExit(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+        { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it('blocks duplicate exits', async () => {
+  it("blocks duplicate exits", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 2, {
-      salidaAt: '2026-06-12T20:00:00.000Z',
+      salidaAt: "2026-06-12T20:00:00.000Z",
     });
 
     await expect(
       registerAttendanceExit(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '12345678-9', trabajadorRut: '23456789-0' },
+        { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it('blocks a worker from registering another worker exit', async () => {
+  it("blocks a worker from registering another worker exit", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 4);
 
     await expect(
       registerAttendanceExit(
         testDb!.db as unknown as DbExecutor,
-        { usuarioId: '23456789-0', trabajadorRut: '45678901-2' },
+        { usuarioId: "23456789-0", trabajadorRut: "45678901-2" },
         now,
       ),
     ).rejects.toBeInstanceOf(AttendanceAccessError);
@@ -443,24 +461,18 @@ async function abortAttendanceAuditWrites(database: DbExecutor): Promise<void> {
 }
 
 async function createTestDatabase() {
-  const dir = await mkdtemp(join(tmpdir(), 'huascar-attendance-'));
-  const dbPath = join(dir, 'test.db').replace(/\\/g, '/');
+  const dir = await mkdtemp(join(tmpdir(), "huascar-attendance-"));
+  const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
   const db = drizzle(client, { schema });
 
-  await client.execute('PRAGMA foreign_keys = ON');
+  await client.execute("PRAGMA foreign_keys = ON");
   const migration = await readFile(
-    join(process.cwd(), 'drizzle/migrations/0000_brave_proteus.sql'),
-    'utf8',
+    join(process.cwd(), "drizzle/migrations/0000_brave_proteus.sql"),
+    "utf8",
   );
 
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    const sqlStatement = statement.trim();
-
-    if (sqlStatement.length > 0) {
-      await client.execute(sqlStatement);
-    }
-  }
+  await client.executeMultiple(migration);
 
   return { client, db, dir };
 }
@@ -544,7 +556,10 @@ async function seedAttendance(
   return asistenciaId;
 }
 
-async function seedAbsence(db: DbExecutor, trabajadorId: number): Promise<void> {
+async function seedAbsence(
+  db: DbExecutor,
+  trabajadorId: number,
+): Promise<void> {
   await db.run(sql`
     INSERT INTO ausencia (
       ausencia_id,

@@ -1,43 +1,19 @@
-/**
- * SesionHandler — Verificación de sesión, inactividad y cierre (RF56, CU56 e4).
- *
- * Es la única fuente de verdad sobre el estado de la sesión en la base de datos:
- *  - Canal auth:verificar-sesion: el guard persistente consulta propietario,
- *    estado y último acceso en una sola lectura. Si alcanza 30 minutos cierra y
- *    confirma la fila; si sigue activa, el controlador reutiliza ese resultado
- *    sin una segunda consulta y sin renovar el último acceso.
- *  - Canal auth:logout: cierre manual de la sesión activa (motivo_cierre =
- *    'manual'), invocado por el renderer al cerrar sesión.
- *
- * El último acceso se renueva dentro de validateAndRefreshActiveSession con un
- * UPDATE RETURNING condicional y atómico antes de despachar cada acción real.
- *
- * La identidad se deriva del JWT verificado por el guard del dispatcher; el
- * sesionId proviene de los claims firmados (ver auth-guard.ts / auth-jwt.ts).
- */
-
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import { controllers, type ControllerResponse } from '../../shared/controllers';
-import { INACTIVITY_MS } from '../../shared/auth';
-import { db, schema as appSchema } from '../../db/client';
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { controllers, type ControllerResponse } from "../../shared/controllers";
+import { INACTIVITY_MS } from "../../shared/auth";
+import { db, schema as appSchema } from "../../db/client";
 import {
   controllerSuccess,
   type ControllerContext,
   type RegisteredController,
-} from './base';
+} from "./base";
 
-type SchemaLike = typeof import('../../db/schema');
-type SessionExecutor = Pick<typeof db, 'select' | 'update'>;
+type SchemaLike = typeof import("../../db/schema");
+type SessionExecutor = Pick<typeof db, "select" | "update">;
 
-export const LOGOUT_CHANNEL = 'auth:logout';
-export const VERIFY_SESSION_CHANNEL = 'auth:verificar-sesion';
+export const LOGOUT_CHANNEL = "auth:logout";
+export const VERIFY_SESSION_CHANNEL = "auth:verificar-sesion";
 
-/**
- * Canales que NO cuentan como actividad del usuario y por tanto NO deben
- * refrescar sesion_fecha_hora_ultimo_acceso: el latido (sólo consulta) y el
- * cierre de sesión (no tiene sentido refrescar una sesión que se está cerrando).
- * El dispatcher refresca el último acceso en cualquier otro canal autenticado.
- */
 export const NON_ACTIVITY_CHANNELS: ReadonlySet<string> = new Set([
   VERIFY_SESSION_CHANNEL,
   LOGOUT_CHANNEL,
@@ -48,11 +24,11 @@ export type LogoutData = {
 };
 
 export type SessionInactiveReason =
-  | 'token-invalido'
-  | 'sesion-inexistente'
-  | 'inactividad'
-  | 'manual'
-  | 'sistema';
+  | "token-invalido"
+  | "sesion-inexistente"
+  | "inactividad"
+  | "manual"
+  | "sistema";
 
 export type VerifySessionData = {
   active: boolean;
@@ -67,13 +43,6 @@ const defaultDeps: SessionDeps = {
   now: () => new Date(),
 };
 
-/**
- * Verifica la vigencia de la sesión identificada por `sesionId`. El JWT ya fue
- * verificado por el guard del dispatcher (auth-guard.ts), que es la única fuente
- * de verificación de tokens; aquí se confía en el sesionId de los claims, igual
- * que en el cierre de sesión. No se vuelve a leer ningún token del payload (el
- * renderer lo envía como `__authToken`, no como `token`).
- */
 export async function verifySessionWithExecutor(
   database: SessionExecutor,
   schema: SchemaLike,
@@ -83,7 +52,7 @@ export async function verifySessionWithExecutor(
   if (!sesionId) {
     return controllerSuccess<VerifySessionData>({
       active: false,
-      reason: 'token-invalido',
+      reason: "token-invalido",
     });
   }
 
@@ -100,7 +69,7 @@ export async function verifySessionWithExecutor(
   if (!sesion) {
     return controllerSuccess<VerifySessionData>({
       active: false,
-      reason: 'sesion-inexistente',
+      reason: "sesion-inexistente",
     });
   }
 
@@ -119,26 +88,21 @@ export async function verifySessionWithExecutor(
       .update(schema.sesionUsuario)
       .set({
         sesionFechaHoraCierre: now.toISOString(),
-        sesionMotivoCierre: 'inactividad',
+        sesionMotivoCierre: "inactividad",
       })
       .where(eq(schema.sesionUsuario.sesionUsuarioId, sesionId));
 
     return controllerSuccess<VerifySessionData>({
       active: false,
-      reason: 'inactividad',
+      reason: "inactividad",
     });
   }
 
-  // Sesión activa dentro de la ventana de actividad. El latido es de SÓLO
-  // LECTURA: NO refresca el último acceso, para que la inactividad se acumule
-  // mientras el usuario no realice ninguna acción (ver refreshSessionActivity,
-  // invocada por el dispatcher en los IPC de acción real).
   return controllerSuccess<VerifySessionData>({ active: true });
 }
 
-/** C05: comprobar propietario/estado/ventana y renovar atómicamente antes de negocio. */
 export async function validateAndRefreshActiveSession(
-  database: Pick<typeof db, 'transaction'>,
+  database: Pick<typeof db, "transaction">,
   schema: SchemaLike,
   sesionId: string,
   usuarioId: string,
@@ -152,7 +116,9 @@ export async function validateAndRefreshActiveSession(
       return inspectSessionState(tx, schema, sesionId, usuarioId, now, false);
     }
 
-    const inactivityBoundary = new Date(now.getTime() - INACTIVITY_MS).toISOString();
+    const inactivityBoundary = new Date(
+      now.getTime() - INACTIVITY_MS,
+    ).toISOString();
     const renewed = await tx
       .update(schema.sesionUsuario)
       .set({ sesionFechaHoraUltimoAcceso: now.toISOString() })
@@ -186,7 +152,9 @@ async function inspectSessionState(
   now: Date,
   renewalAttempted: boolean,
 ): Promise<VerifySessionData> {
-  const inactivityBoundary = new Date(now.getTime() - INACTIVITY_MS).toISOString();
+  const inactivityBoundary = new Date(
+    now.getTime() - INACTIVITY_MS,
+  ).toISOString();
   const [session] = await database
     .select({
       usuarioId: schema.sesionUsuario.usuarioId,
@@ -201,7 +169,7 @@ async function inspectSessionState(
     .limit(1);
 
   if (!session || session.usuarioId !== usuarioId) {
-    return { active: false, reason: 'sesion-inexistente' };
+    return { active: false, reason: "sesion-inexistente" };
   }
 
   if (session.cierre) {
@@ -209,11 +177,11 @@ async function inspectSessionState(
   }
 
   if (!session.timestampValido) {
-    return { active: false, reason: 'sistema' };
+    return { active: false, reason: "sistema" };
   }
 
   if (session.dentroVentana && renewalAttempted) {
-    throw new Error('No fue posible renovar una sesión activa');
+    throw new Error("No fue posible renovar una sesión activa");
   }
 
   if (session.dentroVentana) {
@@ -224,7 +192,7 @@ async function inspectSessionState(
     .update(schema.sesionUsuario)
     .set({
       sesionFechaHoraCierre: now.toISOString(),
-      sesionMotivoCierre: 'inactividad',
+      sesionMotivoCierre: "inactividad",
     })
     .where(
       and(
@@ -236,7 +204,7 @@ async function inspectSessionState(
     .returning({ id: schema.sesionUsuario.sesionUsuarioId });
 
   if (closed.length === 0) {
-    throw new Error('No fue posible cerrar la sesión expirada');
+    throw new Error("No fue posible cerrar la sesión expirada");
   }
 
   const [confirmation] = await database
@@ -253,11 +221,11 @@ async function inspectSessionState(
     )
     .limit(1);
 
-  if (!confirmation?.cierre || confirmation.motivoCierre !== 'inactividad') {
-    throw new Error('No se confirmó el cierre por inactividad');
+  if (!confirmation?.cierre || confirmation.motivoCierre !== "inactividad") {
+    throw new Error("No se confirmó el cierre por inactividad");
   }
 
-  return { active: false, reason: 'inactividad' };
+  return { active: false, reason: "inactividad" };
 }
 
 /**
@@ -312,7 +280,7 @@ export async function closeSessionWithExecutor(
     .update(schema.sesionUsuario)
     .set({
       sesionFechaHoraCierre: now.toISOString(),
-      sesionMotivoCierre: 'manual',
+      sesionMotivoCierre: "manual",
     })
     .where(
       and(
@@ -326,11 +294,11 @@ export async function closeSessionWithExecutor(
 }
 
 function normalizeReason(motivo: string | null): SessionInactiveReason {
-  if (motivo === 'inactividad' || motivo === 'manual' || motivo === 'sistema') {
+  if (motivo === "inactividad" || motivo === "manual" || motivo === "sistema") {
     return motivo;
   }
 
-  return 'sistema';
+  return "sistema";
 }
 
 export function createSessionController(

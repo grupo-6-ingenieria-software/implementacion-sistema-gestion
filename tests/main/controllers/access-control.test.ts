@@ -1,25 +1,25 @@
-import { sql } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../../../src/db/schema';
+import { sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "../../../src/db/schema";
 import {
   validateAccessWithExecutor,
   type AccessControlDeps,
-} from '../../../src/main/controllers/access-control';
-import type { SessionTokenClaims } from '../../../src/main/controllers/auth-jwt';
+} from "../../../src/main/controllers/access-control";
+import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from '../../../src/main/controllers/auth-fixtures';
+} from "../../../src/main/controllers/auth-fixtures";
 
-function claimsFor(rol: 'dueno' | 'trabajador'): SessionTokenClaims {
+function claimsFor(rol: "dueno" | "trabajador"): SessionTokenClaims {
   return {
-    usuarioId: '12345678-9',
+    usuarioId: "12345678-9",
     rol,
-    usuarioRol: rol === 'dueno' ? 'dueno' : 'trabajador',
+    usuarioRol: rol === "dueno" ? "dueno" : "trabajador",
     passwordTemporal: false,
-    sesionId: '00000000-0000-4000-8000-000000000777',
+    sesionId: "00000000-0000-4000-8000-000000000777",
   };
 }
 
@@ -43,27 +43,27 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe('validateAccessWithExecutor (RF56/CU57)', () => {
-  it('forbids access without a valid token', async () => {
+describe("validateAccessWithExecutor (RF56/CU57)", () => {
+  it("forbids access without a valid token", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: 'bad', ruta: '/app/inicio' },
+      { token: "bad", ruta: "/app/inicio" },
       depsWith(null),
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('FORBIDDEN');
+      expect(response.error.code).toBe("FORBIDDEN");
     }
   });
 
-  it('allows a route permitted for the role', async () => {
+  it("allows a route permitted for the role", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: 't', ruta: '/app/inicio' },
-      depsWith(claimsFor('dueno')),
+      { token: "t", ruta: "/app/inicio" },
+      depsWith(claimsFor("dueno")),
     );
 
     expect(response.ok).toBe(true);
@@ -72,24 +72,24 @@ describe('validateAccessWithExecutor (RF56/CU57)', () => {
     }
   });
 
-  it('denies a route not permitted for the role and audits it', async () => {
+  it("denies a route not permitted for the role and audits it", async () => {
     await seedUser(testDb!.db, {
-      usuarioId: '12345678-9',
+      usuarioId: "12345678-9",
       trabajadorId: 1,
-      rut: '12345678-9',
-      rolBd: 'trabajador',
+      rut: "12345678-9",
+      rolBd: "trabajador",
     });
 
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: 't', ruta: '/app/personal/trabajadores' },
-      depsWith(claimsFor('trabajador')),
+      { token: "t", ruta: "/app/personal/trabajadores" },
+      depsWith(claimsFor("trabajador")),
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('FORBIDDEN');
+      expect(response.error.code).toBe("FORBIDDEN");
     }
 
     const rows = await testDb!.db.all<{ total: number }>(
@@ -98,31 +98,31 @@ describe('validateAccessWithExecutor (RF56/CU57)', () => {
     expect(Number(rows[0]?.total)).toBe(1);
   });
 
-  it('validates the route is present', async () => {
+  it("validates the route is present", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: 't', ruta: '' },
-      depsWith(claimsFor('dueno')),
+      { token: "t", ruta: "" },
+      depsWith(claimsFor("dueno")),
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('VALIDATION_ERROR');
+      expect(response.error.code).toBe("VALIDATION_ERROR");
     }
   });
 
-  it('returns not found for an unknown route', async () => {
+  it("returns not found for an unknown route", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: 't', ruta: '/app/no-existe' },
-      depsWith(claimsFor('dueno')),
+      { token: "t", ruta: "/app/no-existe" },
+      depsWith(claimsFor("dueno")),
     );
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe('NOT_FOUND');
+      expect(response.error.code).toBe("NOT_FOUND");
     }
   });
 });

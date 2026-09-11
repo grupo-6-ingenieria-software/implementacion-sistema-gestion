@@ -5,8 +5,8 @@ import {
   useRef,
   useState,
   type ReactElement,
-} from 'react';
-import type { AttendanceWorkerOption } from '../../../shared/attendance';
+} from "react";
+import type { AttendanceWorkerOption } from "../../../shared/attendance";
 import {
   addDaysToDateKey,
   getWeekStartDateKey,
@@ -17,7 +17,7 @@ import {
   type ShiftFieldErrors,
   type ShiftListResponse,
   type ShiftMutationResponse,
-} from '../../../shared/shifts';
+} from "../../../shared/shifts";
 
 type ShiftCalendarViewProps = {
   onNavigate: (path: string) => void;
@@ -25,9 +25,9 @@ type ShiftCalendarViewProps = {
 };
 
 type PageState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; data: ShiftListResponse; refreshing: boolean };
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; data: ShiftListResponse; refreshing: boolean };
 
 type EditForm = {
   fecha: string;
@@ -49,10 +49,10 @@ export async function loadShiftCalendarData(
   shifts: ShiftListResponse;
 }> {
   const [workersResponse, shiftsResponse] = await Promise.all([
-    invoke<AttendanceWorkerOption[]>('trabajador:listar-activos', {
+    invoke<AttendanceWorkerOption[]>("trabajador:listar-activos", {
       usuarioId: input.usuarioId,
     }),
-    invoke<ShiftListResponse>('turno:listar', {
+    invoke<ShiftListResponse>("turno:listar", {
       usuarioId: input.usuarioId,
       inicioSemana: input.inicioSemana,
       trabajadorId: input.trabajadorId,
@@ -74,17 +74,15 @@ export async function loadShiftCalendarData(
 }
 
 export type ShiftResultEvent =
-  | 'edit-success'
-  | 'delete-success'
-  | 'start-operation';
+  "edit-success" | "delete-success" | "start-operation";
 
 export function getShiftResultMessage(event: ShiftResultEvent): string | null {
-  if (event === 'edit-success') {
-    return 'Turno actualizado correctamente.';
+  if (event === "edit-success") {
+    return "Turno actualizado correctamente.";
   }
 
-  if (event === 'delete-success') {
-    return 'Turno eliminado correctamente.';
+  if (event === "delete-success") {
+    return "Turno eliminado correctamente.";
   }
 
   return null;
@@ -99,7 +97,7 @@ export function buildShiftCreatePath(
   });
 
   if (trabajadorId && Number.isInteger(trabajadorId) && trabajadorId > 0) {
-    params.set('trabajadorId', String(trabajadorId));
+    params.set("trabajadorId", String(trabajadorId));
   }
 
   return `/app/personal/turnos/nuevo?${params.toString()}`;
@@ -113,13 +111,13 @@ export function isLatestShiftCalendarRequest(
 }
 
 const dayNames = [
-  'Lunes',
-  'Martes',
-  'Miercoles',
-  'Jueves',
-  'Viernes',
-  'Sabado',
-  'Domingo',
+  "Lunes",
+  "Martes",
+  "Miercoles",
+  "Jueves",
+  "Viernes",
+  "Sabado",
+  "Domingo",
 ];
 
 export function ShiftCalendarView({
@@ -127,10 +125,10 @@ export function ShiftCalendarView({
   usuarioId,
 }: ShiftCalendarViewProps): ReactElement {
   const [weekStart, setWeekStart] = useState(getWeekStartDateKey);
-  const [workerFilter, setWorkerFilter] = useState('');
+  const [workerFilter, setWorkerFilter] = useState("");
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
-  const [state, setState] = useState<PageState>({ status: 'loading' });
+  const [state, setState] = useState<PageState>({ status: "loading" });
   const [selected, setSelected] = useState<ShiftCalendarItem | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ShiftFieldErrors>({});
@@ -145,9 +143,9 @@ export function ShiftCalendarView({
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
       setState((current) =>
-        preserveData && current.status === 'ready'
+        preserveData && current.status === "ready"
           ? { ...current, refreshing: true }
-          : { status: 'loading' },
+          : { status: "loading" },
       );
 
       try {
@@ -162,18 +160,18 @@ export function ShiftCalendarView({
         }
 
         setWorkers(data.workers);
-        setState({ status: 'ready', data: data.shifts, refreshing: false });
+        setState({ status: "ready", data: data.shifts, refreshing: false });
       } catch (error) {
         if (!isLatestShiftCalendarRequest(requestId, requestIdRef.current)) {
           return;
         }
 
         setState({
-          status: 'error',
+          status: "error",
           message:
             error instanceof Error
               ? error.message
-              : 'No fue posible comunicarse con el proceso principal.',
+              : "No fue posible comunicarse con el proceso principal.",
         });
       }
     },
@@ -211,7 +209,7 @@ export function ShiftCalendarView({
     );
     setFieldErrors({});
     setActionMessage(null);
-    setResultMessage(getShiftResultMessage('start-operation'));
+    setResultMessage(getShiftResultMessage("start-operation"));
     setDeleting(false);
   }
 
@@ -228,7 +226,7 @@ export function ShiftCalendarView({
     const errors = validateShiftEditPayload(payload);
     setFieldErrors(errors);
     setActionMessage(null);
-    setResultMessage(getShiftResultMessage('start-operation'));
+    setResultMessage(getShiftResultMessage("start-operation"));
 
     if (Object.keys(errors).length > 0) {
       return;
@@ -238,7 +236,7 @@ export function ShiftCalendarView({
 
     try {
       const response = await window.appApi.invoke<ShiftMutationResponse>(
-        'turno:editar',
+        "turno:editar",
         payload,
       );
 
@@ -250,10 +248,10 @@ export function ShiftCalendarView({
 
       setSelected(null);
       setEditForm(null);
-      setResultMessage(getShiftResultMessage('edit-success'));
+      setResultMessage(getShiftResultMessage("edit-success"));
       await loadCalendar(true);
     } catch {
-      setActionMessage('No fue posible comunicarse con el proceso principal.');
+      setActionMessage("No fue posible comunicarse con el proceso principal.");
     } finally {
       setSaving(false);
     }
@@ -266,11 +264,11 @@ export function ShiftCalendarView({
 
     setSaving(true);
     setActionMessage(null);
-    setResultMessage(getShiftResultMessage('start-operation'));
+    setResultMessage(getShiftResultMessage("start-operation"));
 
     try {
       const response = await window.appApi.invoke<ShiftMutationResponse>(
-        'turno:eliminar',
+        "turno:eliminar",
         {
           turnoId: selected.turnoId,
           confirmacion: true,
@@ -287,16 +285,16 @@ export function ShiftCalendarView({
       setSelected(null);
       setEditForm(null);
       setDeleting(false);
-      setResultMessage(getShiftResultMessage('delete-success'));
+      setResultMessage(getShiftResultMessage("delete-success"));
       await loadCalendar(true);
     } catch {
-      setActionMessage('No fue posible comunicarse con el proceso principal.');
+      setActionMessage("No fue posible comunicarse con el proceso principal.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (state.status === 'loading') {
+  if (state.status === "loading") {
     return (
       <section className="px-8 py-8" aria-live="polite">
         <div className="rounded-md border border-[#cbd5df] bg-white p-8 shadow-sm">
@@ -308,7 +306,7 @@ export function ShiftCalendarView({
     );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
         <div className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-6 shadow-sm">
@@ -337,7 +335,7 @@ export function ShiftCalendarView({
             Calendario semanal de turnos
           </h3>
           <p className="mt-2 text-sm text-[#61717f]">
-            Semana del {isoDateToDisplay(state.data.inicioSemana)} al{' '}
+            Semana del {isoDateToDisplay(state.data.inicioSemana)} al{" "}
             {isoDateToDisplay(state.data.finSemana)}.
           </p>
         </div>
@@ -364,7 +362,7 @@ export function ShiftCalendarView({
           <p className="text-xs text-[#61717f]">
             {selectedDateKey
               ? `Fecha seleccionada: ${isoDateToDisplay(selectedDateKey)}`
-              : 'Seleccione un dia del calendario.'}
+              : "Seleccione un dia del calendario."}
           </p>
         </div>
       </div>
@@ -430,8 +428,8 @@ export function ShiftCalendarView({
             <article
               className={`min-h-44 rounded-md border bg-white p-3 shadow-sm ${
                 selectedDateKey === day.dateKey
-                  ? 'border-[#2d6a4f] ring-2 ring-[#b7d8c5]'
-                  : 'border-[#cbd5df]'
+                  ? "border-[#2d6a4f] ring-2 ring-[#b7d8c5]"
+                  : "border-[#cbd5df]"
               }`}
               key={day.dateKey}
             >
@@ -452,8 +450,8 @@ export function ShiftCalendarView({
                   <button
                     className={`rounded-md border p-3 text-left transition hover:bg-[#eef4f1] ${
                       selected?.turnoId === turno.turnoId
-                        ? 'border-[#2d6a4f] bg-[#e8f3ed]'
-                        : 'border-[#d7dee6] bg-[#f8fafb]'
+                        ? "border-[#2d6a4f] bg-[#e8f3ed]"
+                        : "border-[#d7dee6] bg-[#f8fafb]"
                     }`}
                     key={turno.turnoId}
                     type="button"
@@ -494,7 +492,7 @@ export function ShiftCalendarView({
           }}
           onConfirmDelete={() => void confirmDelete()}
           onDelete={() => {
-            setResultMessage(getShiftResultMessage('start-operation'));
+            setResultMessage(getShiftResultMessage("start-operation"));
             setDeleting(true);
           }}
           onEditChange={setEditForm}
@@ -596,7 +594,7 @@ function ShiftDetail({
                 Confirma la eliminacion del turno
               </p>
               <p className="mt-2 text-sm text-[#6b4a24]">
-                {shift.trabajadorNombre}, {shift.fecha}, de {shift.horaInicio} a{' '}
+                {shift.trabajadorNombre}, {shift.fecha}, de {shift.horaInicio} a{" "}
                 {shift.horaTermino}.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
@@ -614,7 +612,7 @@ function ShiftDetail({
                   type="button"
                   onClick={onConfirmDelete}
                 >
-                  {saving ? 'Eliminando...' : 'Confirmar eliminacion'}
+                  {saving ? "Eliminando..." : "Confirmar eliminacion"}
                 </button>
               </div>
             </div>
@@ -626,7 +624,7 @@ function ShiftDetail({
                 type="button"
                 onClick={onSave}
               >
-                {saving ? 'Guardando...' : 'Guardar cambios'}
+                {saving ? "Guardando..." : "Guardar cambios"}
               </button>
               <button
                 className="rounded-md border border-[#b66a60] px-4 py-2 text-sm font-semibold text-[#8a3b2d] transition hover:bg-[#fff3f1]"

@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { sql, type SQL } from 'drizzle-orm';
+import { randomUUID } from "node:crypto";
+import { sql, type SQL } from "drizzle-orm";
 import {
   calculateCashChange,
   calculateSaleTotals,
@@ -7,17 +7,17 @@ import {
   type SaleCartItemInput,
   type SaleCartValidationRequest,
   type SaleCartValidationResult,
-} from '../../shared/sales';
-import { getAuditTimestamp } from '../../shared/audit';
+} from "../../shared/sales";
+import { getAuditTimestamp } from "../../shared/audit";
 import {
   ensureDailyCashRegisterForSale,
   inspectDailyCashRegister,
-} from './cash-check';
+} from "./cash-check";
 import {
   applyStockDiscount,
   planStockDiscount,
   StockDiscountBusinessError,
-} from './stock-discount';
+} from "./stock-discount";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
@@ -65,7 +65,7 @@ export type SaleReceipt = {
   metodoPago: PaymentMethod;
   subtotal: number;
   descuento: {
-    tipo: 'ninguno' | 'monto';
+    tipo: "ninguno" | "monto";
     valor: number;
     razon?: string;
   };
@@ -88,13 +88,14 @@ export type DbExecutor = {
 export class SaleValidationError extends Error {}
 export class SaleBusinessError extends Error {}
 
-/** Compatibilidad interna: resuelve sólo una caja abierta del día vigente. */
 export async function getOpenCashRegister(
   database: DbExecutor,
   now = new Date(),
 ): Promise<{ cierreCajaId: string } | null> {
   const state = await ensureDailyCashRegisterForSale(database, now);
-  return state.status === 'abierta' ? { cierreCajaId: state.cierreCajaId } : null;
+  return state.status === "abierta"
+    ? { cierreCajaId: state.cierreCajaId }
+    : null;
 }
 
 export async function registerSale(
@@ -104,9 +105,9 @@ export async function registerSale(
 ): Promise<SaleReceipt> {
   return database.transaction(async (tx) => {
     const transactionCashState = await inspectDailyCashRegister(tx, now);
-    if (transactionCashState.status === 'cerrada') {
+    if (transactionCashState.status === "cerrada") {
       throw new SaleBusinessError(
-        'La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.',
+        "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       );
     }
     await validateSalePayloadRules(tx, payload);
@@ -119,7 +120,7 @@ export async function registerSale(
       );
 
       if (!item) {
-        throw new SaleValidationError('No fue posible preparar el carrito.');
+        throw new SaleValidationError("No fue posible preparar el carrito.");
       }
 
       if (item.ean13 && item.ean13 !== product.ean13) {
@@ -139,7 +140,12 @@ export async function registerSale(
     const requestedDiscount = normalized.descuento?.monto ?? 0;
     const totals = calculateSaleTotals(receiptLines, requestedDiscount);
 
-    await validateCalculatedSaleRules(tx, normalized, totals.subtotal, totals.total);
+    await validateCalculatedSaleRules(
+      tx,
+      normalized,
+      totals.subtotal,
+      totals.total,
+    );
 
     let stockPlan;
     try {
@@ -161,22 +167,24 @@ export async function registerSale(
     // Revalidación transaccional: el plan de stock se completa antes de abrir la
     // primera caja del día, por lo que un carrito inválido no genera escrituras.
     const cashState = await ensureDailyCashRegisterForSale(tx, now);
-    if (cashState.status === 'cerrada') {
+    if (cashState.status === "cerrada") {
       throw new SaleBusinessError(
-        'La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.',
+        "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       );
     }
-    if (cashState.status !== 'abierta') {
-      throw new SaleBusinessError('No fue posible habilitar la caja del día.');
+    if (cashState.status !== "abierta") {
+      throw new SaleBusinessError("No fue posible habilitar la caja del día.");
     }
 
     const ventaId = randomUUID();
     const fechaHora = now.toISOString();
-    const descuentoTipo = totals.descuento > 0 ? 'monto' : 'ninguno';
+    const descuentoTipo = totals.descuento > 0 ? "monto" : "ninguno";
     const descuentoValor = totals.descuento > 0 ? totals.descuento : null;
     const descuentoRazon =
-      totals.descuento > 0 ? normalized.descuento?.razon.trim() ?? null : null;
-    const esEfectivo = normalized.metodoPago === 'efectivo';
+      totals.descuento > 0
+        ? (normalized.descuento?.razon.trim() ?? null)
+        : null;
+    const esEfectivo = normalized.metodoPago === "efectivo";
 
     await tx.run(sql`
       INSERT INTO venta (
@@ -251,8 +259,8 @@ export async function registerSale(
 
     await registerAuditLog(tx, {
       usuarioId: normalized.usuarioId,
-      tipoAccion: 'registrar_venta',
-      modulo: 'ventas',
+      tipoAccion: "registrar_venta",
+      modulo: "ventas",
       descripcion: `Venta ${ventaId} registrada por ${responsable.nombre} por $${totals.total}.`,
     });
 
@@ -279,16 +287,19 @@ export async function registerSale(
 
 /** Validación remota y de solo lectura usada mientras se edita el carrito. */
 export async function validateSaleCart(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   payload: SaleCartValidationRequest,
 ): Promise<SaleCartValidationResult> {
   await validateCartItemRules(database, payload?.items);
   const items = normalizeCartItems(payload?.items);
   const products = await loadProductSnapshots(database, items);
-  const lines: SaleCartValidationResult['lines'] = [];
+  const lines: SaleCartValidationResult["lines"] = [];
   for (const product of products) {
-    const item = items.find((candidate) => candidate.productoId === product.productoId);
-    if (!item) throw new SaleValidationError('No fue posible validar el carrito.');
+    const item = items.find(
+      (candidate) => candidate.productoId === product.productoId,
+    );
+    if (!item)
+      throw new SaleValidationError("No fue posible validar el carrito.");
     const matches = await database.all<{ accepted: number }>(sql`
       SELECT 1 AS accepted
       FROM producto
@@ -302,7 +313,9 @@ export async function validateSaleCart(
         ) >= ${item.cantidad}
     `);
     if (!matches[0] && item.ean13 && item.ean13 !== product.ean13) {
-      throw new SaleValidationError(`El producto ${product.nombre} no coincide con el EAN-13 ingresado.`);
+      throw new SaleValidationError(
+        `El producto ${product.nombre} no coincide con el EAN-13 ingresado.`,
+      );
     }
     if (!matches[0]) {
       throw new SaleBusinessError(
@@ -326,14 +339,17 @@ export async function validateSaleCart(
 }
 
 async function validateSalePayloadRules(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   payload: SaleRegisterPayload,
 ): Promise<void> {
-  const record = payload && typeof payload === 'object'
-    ? payload as unknown as Record<string, unknown>
-    : {};
-  const usuarioId = typeof record.usuarioId === 'string' ? record.usuarioId : null;
-  const method = typeof record.metodoPago === 'string' ? record.metodoPago : null;
+  const record =
+    payload && typeof payload === "object"
+      ? (payload as unknown as Record<string, unknown>)
+      : {};
+  const usuarioId =
+    typeof record.usuarioId === "string" ? record.usuarioId : null;
+  const method =
+    typeof record.metodoPago === "string" ? record.metodoPago : null;
   const itemsJson = safeJson(record.items);
   const rows = await database.all<{ accepted: number }>(sql`
     SELECT 1 AS accepted
@@ -344,25 +360,42 @@ async function validateSalePayloadRules(
       AND json_array_length(${itemsJson}) > 0
   `);
   if (!rows[0]) {
-    if (!usuarioId) throw new SaleValidationError('No hay un usuario responsable para la venta.');
-    if (!method || !['efectivo', 'debito', 'credito', 'transferencia'].includes(method)) {
-      throw new SaleValidationError('Seleccione un método de pago válido.');
+    if (!usuarioId)
+      throw new SaleValidationError(
+        "No hay un usuario responsable para la venta.",
+      );
+    if (
+      !method ||
+      !["efectivo", "debito", "credito", "transferencia"].includes(method)
+    ) {
+      throw new SaleValidationError("Seleccione un método de pago válido.");
     }
-    throw new SaleValidationError('Agregue al menos un producto al carrito.');
+    throw new SaleValidationError("Agregue al menos un producto al carrito.");
   }
-  await validateCartItemRules(database, Array.isArray(record.items) ? record.items as SaleCartItemInput[] : undefined);
-
-  const hasDiscount = record.descuento !== undefined && record.descuento !== null;
-  const discountShapeValid = !hasDiscount || (
-    typeof record.descuento === 'object' && !Array.isArray(record.descuento)
+  await validateCartItemRules(
+    database,
+    Array.isArray(record.items)
+      ? (record.items as SaleCartItemInput[])
+      : undefined,
   );
-  const discount = discountShapeValid && hasDiscount
-    ? record.descuento as Record<string, unknown>
-    : undefined;
+
+  const hasDiscount =
+    record.descuento !== undefined && record.descuento !== null;
+  const discountShapeValid =
+    !hasDiscount ||
+    (typeof record.descuento === "object" && !Array.isArray(record.descuento));
+  const discount =
+    discountShapeValid && hasDiscount
+      ? (record.descuento as Record<string, unknown>)
+      : undefined;
   const discountAmount = bindableNumber(hasDiscount ? discount?.monto : 0);
-  const discountReason = typeof discount?.razon === 'string' ? discount.razon : null;
+  const discountReason =
+    typeof discount?.razon === "string" ? discount.razon : null;
   const received = bindableNumber(record.montoRecibido);
-  const numeric = await database.all<{ discountValid: number; receivedValid: number }>(sql`
+  const numeric = await database.all<{
+    discountValid: number;
+    receivedValid: number;
+  }>(sql`
     SELECT
       CASE WHEN ${discountShapeValid ? 1 : 0} = 1
         AND typeof(${discountAmount}) IN ('integer', 'real')
@@ -379,32 +412,40 @@ async function validateSalePayloadRules(
   if (!numeric[0]?.discountValid) {
     throw new SaleValidationError(
       discountAmount !== null && discountAmount > 0 && !discountReason?.trim()
-        ? 'La razón del descuento es obligatoria cuando se aplica un descuento.'
-        : 'El descuento debe ser un monto entero mayor o igual a cero.',
+        ? "La razón del descuento es obligatoria cuando se aplica un descuento."
+        : "El descuento debe ser un monto entero mayor o igual a cero.",
     );
   }
   if (!numeric[0]?.receivedValid) {
     throw new SaleValidationError(
-      'Ingrese un monto recibido válido para el pago en efectivo.',
+      "Ingrese un monto recibido válido para el pago en efectivo.",
     );
   }
 }
 
 async function validateCartItemRules(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   items: readonly SaleCartItemInput[] | undefined,
 ): Promise<void> {
   const list = Array.isArray(items) ? items : [];
   const shape = await database.all<{ accepted: number }>(sql`
     SELECT 1 AS accepted WHERE ${list.length} > 0
   `);
-  if (!shape[0]) throw new SaleValidationError('Agregue al menos un producto al carrito.');
+  if (!shape[0])
+    throw new SaleValidationError("Agregue al menos un producto al carrito.");
   for (const item of list) {
-    const productId = bindableNumber((item as SaleCartItemInput | undefined)?.productoId);
-    const quantity = bindableNumber((item as SaleCartItemInput | undefined)?.cantidad);
+    const productId = bindableNumber(
+      (item as SaleCartItemInput | undefined)?.productoId,
+    );
+    const quantity = bindableNumber(
+      (item as SaleCartItemInput | undefined)?.cantidad,
+    );
     const rawEan13 = (item as SaleCartItemInput | undefined)?.ean13;
-    const ean13ShapeValid = rawEan13 === undefined || rawEan13 === null || typeof rawEan13 === 'string';
-    const ean13 = typeof rawEan13 === 'string' ? rawEan13 : null;
+    const ean13ShapeValid =
+      rawEan13 === undefined ||
+      rawEan13 === null ||
+      typeof rawEan13 === "string";
+    const ean13 = typeof rawEan13 === "string" ? rawEan13 : null;
     const valid = await database.all<{ accepted: number }>(sql`
       SELECT 1 AS accepted
       WHERE typeof(${productId}) IN ('integer', 'real')
@@ -418,24 +459,30 @@ async function validateCartItemRules(
     `);
     if (!valid[0]) {
       if (!ean13ShapeValid || (ean13 !== null && !ean13.trim())) {
-        throw new SaleValidationError('El EAN-13 del carrito debe ser un texto válido.');
+        throw new SaleValidationError(
+          "El EAN-13 del carrito debe ser un texto válido.",
+        );
       }
       if (!Number.isInteger(productId) || Number(productId) <= 0) {
-        throw new SaleValidationError('El carrito contiene un producto inválido.');
+        throw new SaleValidationError(
+          "El carrito contiene un producto inválido.",
+        );
       }
-      throw new SaleValidationError('La cantidad de cada producto debe ser un número entero mayor a cero.');
+      throw new SaleValidationError(
+        "La cantidad de cada producto debe ser un número entero mayor a cero.",
+      );
     }
   }
 }
 
 async function validateCalculatedSaleRules(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   payload: SaleRegisterPayload,
   subtotal: number,
   total: number,
 ): Promise<void> {
   const discount = payload.descuento?.monto ?? 0;
-  const reason = payload.descuento?.razon ?? '';
+  const reason = payload.descuento?.razon ?? "";
   const received = payload.montoRecibido ?? null;
   const rows = await database.all<{ accepted: number }>(sql`
     SELECT 1 AS accepted
@@ -444,17 +491,29 @@ async function validateCalculatedSaleRules(
       AND (${payload.metodoPago} <> 'efectivo' OR ${received} >= ${total})
   `);
   if (rows[0]) return;
-  if (discount > subtotal) throw new SaleValidationError('El descuento no puede ser mayor al subtotal de la venta.');
-  if (discount > 0 && !reason.trim()) throw new SaleValidationError('La razón del descuento es obligatoria cuando se aplica un descuento.');
-  throw new SaleBusinessError('El monto recibido es insuficiente para confirmar la venta.');
+  if (discount > subtotal)
+    throw new SaleValidationError(
+      "El descuento no puede ser mayor al subtotal de la venta.",
+    );
+  if (discount > 0 && !reason.trim())
+    throw new SaleValidationError(
+      "La razón del descuento es obligatoria cuando se aplica un descuento.",
+    );
+  throw new SaleBusinessError(
+    "El monto recibido es insuficiente para confirmar la venta.",
+  );
 }
 
 function bindableNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function safeJson(value: unknown): string {
-  try { return JSON.stringify(value) ?? 'null'; } catch { return 'null'; }
+  try {
+    return JSON.stringify(value) ?? "null";
+  } catch {
+    return "null";
+  }
 }
 
 export async function registerAuditLog(
@@ -494,7 +553,7 @@ export async function registerAuditLog(
 async function getResponsibleUser(
   database: DbExecutor,
   usuarioId: string,
-): Promise<SaleReceipt['responsable']> {
+): Promise<SaleReceipt["responsable"]> {
   const users = await database.all<{
     usuarioId: string;
     rol: string;
@@ -512,7 +571,7 @@ async function getResponsibleUser(
 
   if (!user) {
     throw new SaleValidationError(
-      'No fue posible identificar al trabajador responsable de la venta.',
+      "No fue posible identificar al trabajador responsable de la venta.",
     );
   }
   const workers = await database.all<{ nombre: string }>(sql`
@@ -524,10 +583,14 @@ async function getResponsibleUser(
   `);
   if (!workers[0]) {
     throw new SaleValidationError(
-      'No fue posible identificar al trabajador responsable de la venta.',
+      "No fue posible identificar al trabajador responsable de la venta.",
     );
   }
-  return { usuarioId: user.usuarioId, rol: user.rol, nombre: workers[0].nombre };
+  return {
+    usuarioId: user.usuarioId,
+    rol: user.rol,
+    nombre: workers[0].nombre,
+  };
 }
 
 async function getOrCreateCurrentUserVersion(
@@ -572,7 +635,9 @@ async function getOrCreateCurrentUserVersion(
   return usuarioVersionId;
 }
 
-function normalizeSalePayload(payload: SaleRegisterPayload): SaleRegisterPayload {
+function normalizeSalePayload(
+  payload: SaleRegisterPayload,
+): SaleRegisterPayload {
   const items = normalizeCartItems(payload.items);
 
   const descuentoMonto = payload.descuento?.monto ?? 0;
@@ -585,15 +650,17 @@ function normalizeSalePayload(payload: SaleRegisterPayload): SaleRegisterPayload
       descuentoMonto > 0
         ? {
             monto: descuentoMonto,
-            razon: payload.descuento?.razon ?? '',
+            razon: payload.descuento?.razon ?? "",
           }
         : undefined,
   };
 }
 
-function normalizeCartItems(items: readonly SaleCartItemInput[] | undefined): SaleRegisterItemInput[] {
+function normalizeCartItems(
+  items: readonly SaleCartItemInput[] | undefined,
+): SaleRegisterItemInput[] {
   if (!Array.isArray(items) || items.length === 0) {
-    throw new SaleValidationError('Agregue al menos un producto al carrito.');
+    throw new SaleValidationError("Agregue al menos un producto al carrito.");
   }
   const itemsByProduct = new Map<number, SaleRegisterItemInput>();
   for (const item of items) {
@@ -611,7 +678,7 @@ function normalizeCartItems(items: readonly SaleCartItemInput[] | undefined): Sa
 }
 
 async function loadProductSnapshots(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   items: readonly SaleRegisterItemInput[],
 ): Promise<SaleProductSnapshot[]> {
   const products: SaleProductSnapshot[] = [];
@@ -638,10 +705,15 @@ async function loadProductSnapshots(
     const product = productRows[0];
 
     if (!product) {
-      throw new SaleValidationError('El producto no existe o se encuentra inactivo.');
+      throw new SaleValidationError(
+        "El producto no existe o se encuentra inactivo.",
+      );
     }
 
-    const categories = await database.all<{ categoria: string; exigeVencimiento: number }>(sql`
+    const categories = await database.all<{
+      categoria: string;
+      exigeVencimiento: number;
+    }>(sql`
       SELECT categoria_nombre AS categoria,
         categoria_exige_vencimiento AS exigeVencimiento
       FROM categoria
@@ -650,7 +722,7 @@ async function loadProductSnapshots(
     `);
     const category = categories[0];
     if (!category) {
-      throw new SaleValidationError('La categoría del producto no existe.');
+      throw new SaleValidationError("La categoría del producto no existe.");
     }
     const prices = await database.all<{
       historialPrecioProductoId: string;
@@ -681,7 +753,9 @@ async function loadProductSnapshots(
       ean13: product.ean13,
       nombre: product.nombre,
       categoria: category.categoria,
-      precioUnitario: Number(price.precioUnitario ?? product.productoPrecioVenta),
+      precioUnitario: Number(
+        price.precioUnitario ?? product.productoPrecioVenta,
+      ),
       historialPrecioProductoId: price.historialPrecioProductoId,
       stockDisponible: Number(stocks[0]?.stockDisponible ?? 0),
       exigeVencimiento: Boolean(category.exigeVencimiento),

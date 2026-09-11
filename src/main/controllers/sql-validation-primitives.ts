@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 
-export type SqlValidationExecutor = Pick<typeof import("../../db/client").db, "all">;
+export type SqlValidationExecutor = Pick<
+  typeof import("../../db/client").db,
+  "all"
+>;
 export type SqlScalar = number | string | null;
 
 export function numericSqlValue(value: number): SqlScalar {

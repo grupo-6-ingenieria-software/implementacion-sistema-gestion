@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import {
   isValidRutFormat,
   normalizeRut,
@@ -8,11 +8,11 @@ import {
   type AttendanceRequest,
   type AttendanceWorkerOption,
   type AttendanceWorkerSummary,
-} from '../../shared/attendance';
-import type { Role } from '../../shared/navigation';
-import { getDashboardDay } from './dashboard-date';
-import { mapDatabaseRoleToTechnicalRole } from './auth-context';
-import { registerAuditLog, type DbExecutor } from './sale-service';
+} from "../../shared/attendance";
+import type { Role } from "../../shared/navigation";
+import { getDashboardDay } from "./dashboard-date";
+import { mapDatabaseRoleToTechnicalRole } from "./auth-context";
+import { registerAuditLog, type DbExecutor } from "./sale-service";
 
 export class AttendanceValidationError extends Error {}
 export class AttendanceBusinessError extends Error {}
@@ -47,13 +47,13 @@ type AttendanceRow = {
 };
 
 export async function listActiveWorkers(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   payload: unknown,
 ): Promise<AttendanceWorkerOption[]> {
   const usuarioId = getUsuarioId(payload);
   const user = await authorizeAttendanceUser(database, usuarioId);
 
-  if (user.role !== 'dueno') {
+  if (user.role !== "dueno") {
     return [
       {
         trabajadorId: user.trabajadorId,
@@ -108,7 +108,7 @@ export async function registerAttendanceExit(
     const worker = await findWorkerByRut(tx, normalized.trabajadorRut);
 
     assertWorkerCanBeUsed(worker);
-    assertCanOperateWorker(user, worker, 'salida');
+    assertCanOperateWorker(user, worker, "salida");
 
     const attendance = await findOpenTodayAttendance(
       tx,
@@ -125,18 +125,18 @@ export async function registerAttendanceExit(
 
       if (closedAttendance?.salidaAt) {
         throw new AttendanceBusinessError(
-          'Ya existe una salida registrada hoy para este trabajador',
+          "Ya existe una salida registrada hoy para este trabajador",
         );
       }
 
       throw new AttendanceBusinessError(
-        'No existe una entrada registrada hoy para este trabajador',
+        "No existe una entrada registrada hoy para este trabajador",
       );
     }
 
-    if (normalized.fase === 'prevalidar') {
+    if (normalized.fase === "prevalidar") {
       return {
-        status: 'ready_for_confirmation',
+        status: "ready_for_confirmation",
         asistenciaId: attendance.asistenciaId,
         entradaAt: attendance.entradaAt,
         trabajador: summarizeWorker(worker),
@@ -153,19 +153,19 @@ export async function registerAttendanceExit(
 
     if (result.rowsAffected === 0) {
       throw new AttendanceBusinessError(
-        'Ya existe una salida registrada hoy para este trabajador',
+        "Ya existe una salida registrada hoy para este trabajador",
       );
     }
 
     await registerAuditLog(tx, {
       usuarioId: user.usuarioId,
-      tipoAccion: 'registrar_salida_asistencia',
-      modulo: 'personal',
+      tipoAccion: "registrar_salida_asistencia",
+      modulo: "personal",
       descripcion: `Salida de asistencia registrada para ${worker.nombreCompleto} por ${user.nombreCompleto}.`,
     });
 
     return {
-      status: 'registered',
+      status: "registered",
       asistenciaId: attendance.asistenciaId,
       entradaAt: attendance.entradaAt,
       salidaAt,
@@ -188,41 +188,38 @@ async function registerEntry(
     const worker = await findWorkerByRut(tx, normalized.trabajadorRut);
 
     assertWorkerCanBeUsed(worker);
-    assertCanOperateWorker(user, worker, 'entrada');
+    assertCanOperateWorker(user, worker, "entrada");
     await assertNoAbsence(tx, worker.trabajadorId, now);
 
     const existing = await findTodayAttendance(tx, worker.trabajadorId, now);
 
     if (existing) {
       throw new AttendanceBusinessError(
-        'Ya existe una entrada registrada hoy para este trabajador',
+        "Ya existe una entrada registrada hoy para este trabajador",
       );
     }
 
     const shift = await findTodayShift(tx, worker.trabajadorId, now);
 
-    if (
-      !shift &&
-      (normalized.fase === 'prevalidar' || !allowWithoutShift)
-    ) {
+    if (!shift && (normalized.fase === "prevalidar" || !allowWithoutShift)) {
       return {
-        status: 'requires_no_shift_confirmation',
+        status: "requires_no_shift_confirmation",
         message:
-          'El trabajador no tiene turno asignado para el dia de hoy. Desea registrar la entrada igualmente?',
+          "El trabajador no tiene turno asignado para el dia de hoy. Desea registrar la entrada igualmente?",
         trabajador: summarizeWorker(worker),
       };
     }
 
     if (shift && allowWithoutShift) {
       throw new AttendanceBusinessError(
-        'El trabajador ahora tiene un turno asignado. Vuelva a validar la entrada.',
+        "El trabajador ahora tiene un turno asignado. Vuelva a validar la entrada.",
       );
     }
 
-    if (normalized.fase === 'prevalidar') {
+    if (normalized.fase === "prevalidar") {
       return {
-        status: 'ready_for_confirmation',
-        message: 'Confirme el registro de entrada para este trabajador.',
+        status: "ready_for_confirmation",
+        message: "Confirme el registro de entrada para este trabajador.",
         trabajador: summarizeWorker(worker, shift),
       };
     }
@@ -250,14 +247,14 @@ async function registerEntry(
     await registerAuditLog(tx, {
       usuarioId: user.usuarioId,
       tipoAccion: shift
-        ? 'registrar_entrada_asistencia'
-        : 'registrar_entrada_sin_turno',
-      modulo: 'personal',
+        ? "registrar_entrada_asistencia"
+        : "registrar_entrada_sin_turno",
+      modulo: "personal",
       descripcion: `Entrada de asistencia registrada para ${worker.nombreCompleto} por ${user.nombreCompleto}.`,
     });
 
     return {
-      status: 'registered',
+      status: "registered",
       asistenciaId,
       entradaAt,
       trabajador: summarizeWorker(worker, shift),
@@ -266,14 +263,14 @@ async function registerEntry(
 }
 
 async function authorizeAttendanceUser(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   usuarioId: string | undefined,
 ): Promise<AttendanceUser> {
   const normalizedUsuarioId = usuarioId?.trim();
 
   if (!normalizedUsuarioId) {
     throw new AttendanceValidationError(
-      'Se requiere una sesion valida para registrar asistencia.',
+      "Se requiere una sesion valida para registrar asistencia.",
     );
   }
 
@@ -294,7 +291,7 @@ async function authorizeAttendanceUser(
 
   if (!account) {
     throw new AttendanceAccessError(
-      'El usuario autenticado no esta activo o no existe.',
+      "El usuario autenticado no esta activo o no existe.",
     );
   }
 
@@ -315,17 +312,17 @@ async function authorizeAttendanceUser(
   `);
   const worker = workerRows[0];
 
-  if (!worker || worker.trabajadorEstado !== 'activo') {
+  if (!worker || worker.trabajadorEstado !== "activo") {
     throw new AttendanceAccessError(
-      'El usuario autenticado no esta activo o no existe.',
+      "El usuario autenticado no esta activo o no existe.",
     );
   }
 
   const role = mapDatabaseRoleToTechnicalRole(account.usuarioRol);
 
-  if (!role || !['dueno', 'trabajador'].includes(role)) {
+  if (!role || !["dueno", "trabajador"].includes(role)) {
     throw new AttendanceAccessError(
-      'No tiene permiso para registrar asistencia.',
+      "No tiene permiso para registrar asistencia.",
     );
   }
 
@@ -342,37 +339,37 @@ async function authorizeAttendanceUser(
 function normalizeAttendanceRequest(
   payload: AttendanceRequest,
 ): Required<AttendanceRequest> {
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== "object") {
     throw new AttendanceValidationError(
-      'Se requiere un trabajador para registrar asistencia.',
+      "Se requiere un trabajador para registrar asistencia.",
     );
   }
 
   const usuarioId = payload.usuarioId?.trim();
-  const trabajadorRut = normalizeRut(payload.trabajadorRut ?? '');
+  const trabajadorRut = normalizeRut(payload.trabajadorRut ?? "");
 
   if (!usuarioId) {
     throw new AttendanceValidationError(
-      'Se requiere una sesion valida para registrar asistencia.',
+      "Se requiere una sesion valida para registrar asistencia.",
     );
   }
 
   if (!isValidRutFormat(trabajadorRut)) {
-    throw new AttendanceValidationError('Ingrese un RUT valido.');
+    throw new AttendanceValidationError("Ingrese un RUT valido.");
   }
 
   return {
-    fase: payload.fase === 'confirmar' ? 'confirmar' : 'prevalidar',
+    fase: payload.fase === "confirmar" ? "confirmar" : "prevalidar",
     usuarioId,
     trabajadorRut,
   };
 }
 
 async function findWorkerByRut(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorRut: string,
 ): Promise<WorkerRow | null> {
-  const rutLookupKey = trabajadorRut.replace(/-/g, '');
+  const rutLookupKey = trabajadorRut.replace(/-/g, "");
   const rows = await database.all<WorkerRow>(sql`
     SELECT
       trabajador_id AS trabajadorId,
@@ -393,16 +390,18 @@ async function findWorkerByRut(
     : null;
 }
 
-function assertWorkerCanBeUsed(worker: WorkerRow | null): asserts worker is WorkerRow {
+function assertWorkerCanBeUsed(
+  worker: WorkerRow | null,
+): asserts worker is WorkerRow {
   if (!worker) {
     throw new AttendanceBusinessError(
-      'El trabajador no existe o no se encuentra registrado.',
+      "El trabajador no existe o no se encuentra registrado.",
     );
   }
 
-  if (worker.estado !== 'activo') {
+  if (worker.estado !== "activo") {
     throw new AttendanceBusinessError(
-      'Trabajador inactivo: no puede registrar asistencia',
+      "Trabajador inactivo: no puede registrar asistencia",
     );
   }
 }
@@ -410,9 +409,9 @@ function assertWorkerCanBeUsed(worker: WorkerRow | null): asserts worker is Work
 function assertCanOperateWorker(
   user: AttendanceUser,
   worker: WorkerRow,
-  action: 'entrada' | 'salida',
+  action: "entrada" | "salida",
 ): void {
-  if (user.role === 'dueno') {
+  if (user.role === "dueno") {
     return;
   }
 
@@ -421,14 +420,14 @@ function assertCanOperateWorker(
   }
 
   throw new AttendanceAccessError(
-    action === 'entrada'
-      ? 'No tiene permisos para registrar la entrada de otro trabajador'
-      : 'No tiene permisos para registrar la salida de otro trabajador',
+    action === "entrada"
+      ? "No tiene permisos para registrar la entrada de otro trabajador"
+      : "No tiene permisos para registrar la salida de otro trabajador",
   );
 }
 
 async function assertNoAbsence(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
   now: Date,
 ): Promise<void> {
@@ -443,13 +442,13 @@ async function assertNoAbsence(
 
   if (rows[0]) {
     throw new AttendanceBusinessError(
-      'El trabajador tiene una ausencia registrada para este dia.',
+      "El trabajador tiene una ausencia registrada para este dia.",
     );
   }
 }
 
 async function findTodayAttendance(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
   now: Date,
 ): Promise<AttendanceRow | null> {
@@ -471,7 +470,7 @@ async function findTodayAttendance(
 }
 
 async function findOpenTodayAttendance(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
   now: Date,
 ): Promise<AttendanceRow | null> {
@@ -494,7 +493,7 @@ async function findOpenTodayAttendance(
 }
 
 async function findTodayShift(
-  database: Pick<DbExecutor, 'all'>,
+  database: Pick<DbExecutor, "all">,
   trabajadorId: number,
   now: Date,
 ): Promise<ShiftRow | null> {
@@ -536,15 +535,15 @@ function formatWorkedHours(entradaAt: string, salidaAt: string): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function getUsuarioId(payload: unknown): string | undefined {
   if (
-    typeof payload === 'object' &&
+    typeof payload === "object" &&
     payload !== null &&
-    'usuarioId' in payload &&
-    typeof payload.usuarioId === 'string'
+    "usuarioId" in payload &&
+    typeof payload.usuarioId === "string"
   ) {
     return payload.usuarioId;
   }

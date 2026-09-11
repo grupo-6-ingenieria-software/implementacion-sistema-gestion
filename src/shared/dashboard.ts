@@ -1,33 +1,33 @@
-export const DASHBOARD_UPDATED_EVENT = 'dashboard:actualizado';
+export const DASHBOARD_UPDATED_EVENT = "dashboard:actualizado";
 
 export type DashboardRequest =
   | {
-      role: 'dueno';
+      role: "dueno";
       usuarioId?: string;
     }
   | {
-      role: 'trabajador';
+      role: "trabajador";
       usuarioId: string;
     };
 
 export function isDashboardRequest(
   payload: unknown,
 ): payload is DashboardRequest {
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== "object") {
     return false;
   }
 
   const request = payload as { role?: unknown; usuarioId?: unknown };
 
-  if (request.role === 'dueno') {
+  if (request.role === "dueno") {
     return (
-      request.usuarioId === undefined || typeof request.usuarioId === 'string'
+      request.usuarioId === undefined || typeof request.usuarioId === "string"
     );
   }
 
   return (
-    request.role === 'trabajador' &&
-    typeof request.usuarioId === 'string' &&
+    request.role === "trabajador" &&
+    typeof request.usuarioId === "string" &&
     request.usuarioId.trim().length > 0
   );
 }
@@ -61,7 +61,7 @@ export type DailySalesSummary = {
   voidedTransactions: number;
 };
 
-export type PaymentMethod = 'efectivo' | 'debito' | 'credito' | 'transferencia';
+export type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
 
 export type PaymentMethodSummary = {
   currentAmount: number;
@@ -71,7 +71,7 @@ export type PaymentMethodSummary = {
 };
 
 export type CashSummary = DailySalesSummary & {
-  status: 'abierta' | 'cerrada' | 'sin_registro';
+  status: "abierta" | "cerrada" | "sin_registro";
   openedAt?: string;
   closedAt?: string;
   byPaymentMethod: Record<PaymentMethod, PaymentMethodSummary>;
@@ -90,8 +90,14 @@ export type AttendanceSummary = {
 };
 
 export type DashboardAttendance =
-  | ({ scope: 'global' } & AttendanceSummary)
-  | { scope: 'own'; workerId: number; fullName: string; enteredAt: string | null; exitedAt: string | null };
+  | ({ scope: "global" } & AttendanceSummary)
+  | {
+      scope: "own";
+      workerId: number;
+      fullName: string;
+      enteredAt: string | null;
+      exitedAt: string | null;
+    };
 
 export type DashboardData = {
   generatedAt: string;
