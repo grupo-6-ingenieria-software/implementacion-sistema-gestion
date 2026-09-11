@@ -10,6 +10,7 @@
     "dev:debug": "HUASCAR_DEBUG_LOGIN=1 electron-vite dev",
     "build": "electron-vite build",
     "build:win": "electron-vite build && electron-builder --win --publish always",
+    "build:mac": "electron-vite build && electron-builder --mac --publish always",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -74,6 +75,9 @@
     ],
     "win": {
       "target": "portable"
+    },
+    "mac": {
+      "target": "dmg"
     },
     "publish": {
       "provider": "github",
