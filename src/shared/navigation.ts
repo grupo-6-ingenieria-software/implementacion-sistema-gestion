@@ -4,6 +4,7 @@ export type NavGroup =
   | "publico"
   | "inicio"
   | "inventario"
+  | "proveedores"
   | "ventas"
   | "caja"
   | "personal"
@@ -35,7 +36,9 @@ export type ControllerId =
   | "worker"
   | "shift"
   | "attendance"
-  | "ean-reader";
+  | "ean-reader"
+  | "supplier-order"
+  | "supplier-order-reception";
 
 export type NavNode = {
   id: string;
@@ -219,6 +222,39 @@ export const navigationTree = [
     ],
   },
   {
+    id: "supplier-order-create",
+    viewName: "RegistrarPedidoProveedorView",
+    label: "Registrar pedido",
+    path: "/app/proveedores/pedidos/nuevo",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: true,
+    entryFrom: "Menu Proveedores > Registrar pedido.",
+    controllerIds: [
+      "access-control",
+      "supplier-order",
+      "lot",
+      "product-query",
+      "audit",
+      "ean-reader",
+    ],
+  },
+  {
+    id: "supplier-order-receptions",
+    viewName: "ConfirmarRecepcionPedidoView",
+    label: "Recepciones e historial de pedidos",
+    path: "/app/proveedores/pedidos",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: true,
+    entryFrom: "Menu Proveedores > Recepciones e historial de pedidos.",
+    controllerIds: [
+      "access-control",
+      "supplier-order-reception",
+      "audit",
+    ],
+  },
+  {
     id: "sale-register",
     viewName: "SaleRegisterView",
     label: "Registrar venta",
@@ -348,6 +384,7 @@ export const internalComponents = [
       "lot-create",
       "waste-create",
       "sale-register",
+      "supplier-order-create",
     ],
     controllerIds: ["ean-reader"],
   },
@@ -368,6 +405,7 @@ export const internalComponents = [
 export const appMenuGroups: readonly NavGroup[] = [
   "inicio",
   "inventario",
+  "proveedores",
   "ventas",
   "caja",
   "personal",
@@ -378,6 +416,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   publico: "Publico",
   inicio: "Inicio",
   inventario: "Inventario",
+  proveedores: "Proveedores",
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
@@ -493,6 +532,8 @@ export function validateNavigationTree(): string[] {
     "product-delete",
     "lot-create",
     "waste-create",
+    "supplier-order-create",
+    "supplier-order-receptions",
     "sale-register",
     "daily-sales",
     "cash-closing",

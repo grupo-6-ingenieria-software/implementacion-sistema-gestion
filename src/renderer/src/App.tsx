@@ -42,6 +42,8 @@ import { ProductStatusView } from "./views/ProductStatusView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
 import { ShiftCalendarView } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
+import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
+import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
 import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
@@ -694,6 +696,24 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "supplier-order-create" && session.usuarioId) {
+    return (
+      <SupplierOrderCreateView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "supplier-order-receptions" && session.usuarioId) {
+    return (
+      <SupplierOrderReceptionView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "sale-register") {
     return <SaleRegisterView session={session} />;
   }
@@ -904,6 +924,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "supplier-order-create",
+    "supplier-order-receptions",
     "audit-log",
     "shift-calendar",
     "shift-create",

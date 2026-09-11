@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { ControllerResponse } from "../shared/controllers";
 import { DASHBOARD_UPDATED_EVENT } from "../shared/dashboard";
 import { SESSION_EXPIRED_EVENT } from "../shared/auth";
+import { SUPPLIER_ORDERS_UPDATED_EVENT } from "../shared/supplier-orders";
 
 export type AppApi = {
   debugMode: boolean;
@@ -13,6 +14,7 @@ export type AppApi = {
   setSessionToken: (token: string | null) => void;
   onDashboardUpdated: (listener: () => void) => () => void;
   onSessionExpired: (listener: () => void) => () => void;
+  onSupplierOrdersUpdated: (listener: () => void) => () => void;
 };
 
 let sessionToken: string | null = null;
@@ -50,6 +52,14 @@ const api: AppApi = {
 
     return () => {
       ipcRenderer.removeListener(SESSION_EXPIRED_EVENT, handleExpired);
+    };
+  },
+  onSupplierOrdersUpdated: (listener) => {
+    const handleUpdate = (): void => listener();
+    ipcRenderer.on(SUPPLIER_ORDERS_UPDATED_EVENT, handleUpdate);
+
+    return () => {
+      ipcRenderer.removeListener(SUPPLIER_ORDERS_UPDATED_EVENT, handleUpdate);
     };
   },
 };
