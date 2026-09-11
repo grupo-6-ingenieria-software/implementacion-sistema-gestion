@@ -1,4 +1,3 @@
-// Interacciones reales en Chromium; API simulada para aislar navegación y cancelación.
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
