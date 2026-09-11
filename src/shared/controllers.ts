@@ -222,6 +222,21 @@ export const controllers = [
     module: "inventario",
     channels: ["producto:eliminar"],
   },
+  {
+    id: "remuneracion",
+    name: "RemuneracionHandler",
+    module: "personal",
+    channels: ["remuneracion:registrar"],
+  },
+  {
+    id: "configuracion-previsional",
+    name: "ConfigPrevisionalHandler",
+    module: "personal",
+    channels: [
+      "configuracion:previsional-obtener",
+      "configuracion:previsional-actualizar",
+    ],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);
