@@ -136,12 +136,13 @@ async function listProviders(payload: unknown): Promise<LotProviderOption[]> {
   const { db, schema } = await import("../../db/client");
   const usuarioId = normalizeUsuarioIdPayload(payload);
 
-  await authorizeUser(db, schema, usuarioId, ["dueno"]);
+  await authorizeUser(db, schema, usuarioId, ["dueno", "trabajador"]);
 
   return db
     .select({
       id: schema.proveedor.proveedorId,
       nombre: schema.proveedor.proveedorNombreRazonSocial,
+      rut: schema.proveedor.proveedorRut,
     })
     .from(schema.proveedor)
     .orderBy(schema.proveedor.proveedorNombreRazonSocial);
