@@ -47,17 +47,21 @@ jobs:
       - name: Test
         run: npm test
 
-  # Empaqueta el .exe portable de Windows y publica un GitHub Release.
+  # Sube la version, la commitea + taggea a main y crea el GitHub Release (vacio).
   # Solo corre al hacer merge/push a main, y solo si build-and-test pasa.
-  release:
-    name: release-windows
+  # Los jobs release-windows y release-macos corren en paralelo despues de este y
+  # cada uno sube su artefacto a ese release.
+  version:
+    name: version
     needs: build-and-test
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
       || github.event_name == 'workflow_dispatch'
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
     steps:
       # RELEASE_TOKEN: PAT de un integrante del team con bypass de branch protection
       # (el GITHUB_TOKEN por defecto NO puede saltar la proteccion de main).
@@ -72,25 +76,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
-
       # Sube la version en package.json. Push a main -> patch (0.1.0 -> 0.1.1 ...).
       # Disparo manual -> usa el input `bump` (patch/minor/major), p.ej. minor para
       # cerrar un incremento (0.1.20 -> 0.2.0).
       - name: Bump version
         id: bump
-        shell: pwsh
         run: |
-          $bump = "${{ github.event.inputs.bump }}"
-          if (-not $bump) { $bump = "patch" }
-          npm version $bump --no-git-tag-version
-          $v = node -p "require('./package.json').version"
-          echo "version=$v" >> $env:GITHUB_OUTPUT
+          npm version "${{ github.event.inputs.bump || 'patch' }}" --no-git-tag-version
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       # Commitea el bump + tag a main. [skip ci] evita re-disparar este workflow (sin loop).
       - name: Commit, tag and push bump
-        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -98,8 +94,33 @@ jobs:
           git tag "v${{ steps.bump.outputs.version }}"
           git push origin "HEAD:main" --follow-tags
 
-      # electron-vite build + electron-builder: genera el .exe portable y lo publica
-      # en el GitHub Release del tag recien creado.
+      # Crear el release aca evita que windows y macos lo creen dos veces en paralelo.
+      - name: Create GitHub Release
+        run: gh release create "v${{ steps.bump.outputs.version }}" --title "${{ steps.bump.outputs.version }}" --verify-tag
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+  # electron-vite build + electron-builder: genera el .exe portable y lo sube
+  # al GitHub Release del tag recien creado.
+  release-windows:
+    name: release-windows
+    needs: version
+    runs-on: windows-latest
+    steps:
+      # Checkout del tag: package.json ya trae la version nueva.
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.version.outputs.version }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Build and publish portable .exe
         run: npm run build:win
         env:
@@ -108,3 +129,32 @@ jobs:
           # Sin esto el exe cae al fallback file:./local.db y no conecta a Turso.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+
+  # Igual que release-windows, pero genera un .dmg (arm64, Apple Silicon).
+  # Sin firma de Apple: al primer arranque abrir con clic derecho -> Abrir.
+  release-macos:
+    name: release-macos
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.version.outputs.version }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and publish .dmg
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+          # Sin certificado de Apple: no buscar identidad de firma en el keychain.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
