@@ -86,13 +86,15 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       # Commitea el bump + tag a main. [skip ci] evita re-disparar este workflow (sin loop).
+      # El tag se pushea explicito: `git tag` crea un tag liviano y `--follow-tags`
+      # solo empuja tags anotados. `--atomic`: main y tag entran juntos o ninguno.
       - name: Commit, tag and push bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "chore(release): v${{ steps.bump.outputs.version }} [skip ci]"
           git tag "v${{ steps.bump.outputs.version }}"
-          git push origin "HEAD:main" --follow-tags
+          git push --atomic origin "HEAD:main" "refs/tags/v${{ steps.bump.outputs.version }}"
 
       # Crear el release aca evita que windows y macos lo creen dos veces en paralelo.
       - name: Create GitHub Release
