@@ -26,6 +26,9 @@ import { shiftController } from "./shift";
 import { stockAlertController } from "./stock-alert";
 import { stockDiscountController } from "./stock-discount";
 import { userManagementController } from "./user-management";
+import { movementHistoryController } from "./movement-history";
+import { productDetailController } from "./product-detail";
+import { stockAdjustmentController } from "./stock-adjustment";
 import { wasteController } from "./waste";
 import { workerController } from "./worker";
 import type { RegisteredController } from "./base";
@@ -58,6 +61,9 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     eanReaderController,
     userManagementController,
     productDeleteController,
+    productDetailController,
+    stockAdjustmentController,
+    movementHistoryController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {

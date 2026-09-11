@@ -355,6 +355,10 @@ export function getProductActionsForRole(
   if (role === "dueno") {
     const actions: ProductAction[] = [
       {
+        label: "Ver detalle",
+        path: `/app/inventario/productos/${ean13}/detalle`,
+      },
+      {
         label: "Editar",
         path: `/app/inventario/productos/${ean13}/editar`,
       },
@@ -385,6 +389,10 @@ export function getProductActionsForRole(
   }
 
   const actions: ProductAction[] = [
+    {
+      label: "Ver detalle",
+      path: `/app/inventario/productos/${ean13}/detalle`,
+    },
     {
       label: "Cambiar estado",
       path: `/app/inventario/productos/${ean13}/estado`,
