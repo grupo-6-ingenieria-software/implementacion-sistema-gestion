@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import type { AttendanceWorkerOption } from "../../../shared/attendance";
 import {
   DEFAULT_PREVISIONAL_RATES,
@@ -46,12 +53,14 @@ export function RegistrarRemuneracionView({
   );
   const [fieldErrors, setFieldErrors] = useState<RemuneracionFieldErrors>({});
   const [loading, setLoading] = useState(true);
+  const [workersLoading, setWorkersLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<RemuneracionMutationResponse | null>(
     null,
   );
   const [saving, setSaving] = useState(false);
+  const isFirstWorkersFetch = useRef(true);
 
   async function loadFormData(): Promise<void> {
     setLoading(true);
@@ -60,8 +69,8 @@ export function RegistrarRemuneracionView({
     try {
       const [workersResponse, ratesResponse] = await Promise.all([
         window.appApi.invoke<AttendanceWorkerOption[]>(
-          "trabajador:listar-activos",
-          { usuarioId },
+          "remuneracion:trabajadores-elegibles",
+          { usuarioId, mes: form.mes, anio: form.anio },
         ),
         window.appApi.invoke<PrevisionalRates>(
           "configuracion:previsional-obtener",
@@ -89,8 +98,55 @@ export function RegistrarRemuneracionView({
   }
 
   useEffect(() => {
+    isFirstWorkersFetch.current = true;
     void loadFormData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuarioId]);
+
+  // El trabajador inactivo solo debe verse elegible en el mes/anio en que
+  // realmente registra turno o asistencia (precondicion de CU34): al cambiar
+  // el periodo se vuelve a pedir la lista y se limpia la seleccion si el
+  // trabajador elegido deja de ser valido para el nuevo periodo.
+  useEffect(() => {
+    if (isFirstWorkersFetch.current) {
+      isFirstWorkersFetch.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    setWorkersLoading(true);
+
+    void window.appApi
+      .invoke<AttendanceWorkerOption[]>("remuneracion:trabajadores-elegibles", {
+        usuarioId,
+        mes: form.mes,
+        anio: form.anio,
+      })
+      .then((response) => {
+        if (cancelled || !response.ok) {
+          return;
+        }
+
+        setWorkers(response.data);
+        setForm((current) =>
+          response.data.some(
+            (worker) => String(worker.trabajadorId) === current.trabajadorId,
+          )
+            ? current
+            : { ...current, trabajadorId: "" },
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setWorkersLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.mes, form.anio]);
 
   const payload = useMemo(
     () =>
@@ -193,7 +249,8 @@ export function RegistrarRemuneracionView({
           >
             <Field label="Trabajador" error={fieldErrors.trabajadorId}>
               <select
-                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal disabled:opacity-60"
+                disabled={workersLoading}
                 value={form.trabajadorId}
                 onChange={(event) =>
                   setForm((current) => ({
@@ -202,13 +259,21 @@ export function RegistrarRemuneracionView({
                   }))
                 }
               >
-                <option value="">Seleccione trabajador</option>
+                <option value="">
+                  {workersLoading
+                    ? "Actualizando trabajadores del periodo..."
+                    : "Seleccione trabajador"}
+                </option>
                 {workers.map((worker) => (
                   <option key={worker.trabajadorId} value={worker.trabajadorId}>
                     {worker.nombreCompleto} - {worker.rut}
                   </option>
                 ))}
               </select>
+              <span className="text-xs font-normal text-[#61717f]">
+                Incluye trabajadores activos y trabajadores inactivos con
+                turno o asistencia registrada en el mes/anio seleccionado.
+              </span>
             </Field>
 
             <div className="grid gap-5 md:grid-cols-3">
@@ -322,7 +387,7 @@ export function RegistrarRemuneracionView({
             <div className="flex flex-wrap gap-3 border-t border-[#e3e8ee] pt-5">
               <button
                 className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                disabled={saving || workers.length === 0}
+                disabled={saving || workersLoading || workers.length === 0}
                 type="submit"
               >
                 {saving ? "Guardando..." : "Guardar remuneracion"}
@@ -340,7 +405,7 @@ function Field({
   error,
   label,
 }: {
-  children: ReactElement;
+  children: ReactNode;
   error?: string;
   label: string;
 }): ReactElement {

@@ -11,6 +11,7 @@ import { updatePrevisionalRates } from "../../../src/main/controllers/configurac
 import {
   RemuneracionBusinessError,
   RemuneracionValidationError,
+  listEligibleWorkers,
   registerRemuneracion,
   remuneracionController,
 } from "../../../src/main/controllers/remuneracion";
@@ -132,6 +133,71 @@ describe("remuneracion service", () => {
     );
 
     expect(result.remuneracionId).toBeDefined();
+  });
+
+  describe("listEligibleWorkers", () => {
+    it("lists an inactive worker only for the month/year they had a shift", async () => {
+      await testDb!.db.run(sql`
+        INSERT INTO turno (
+          turno_id, turno_fecha_hora_inicio, turno_fecha_hora_fin,
+          turno_estado, trabajador_id
+        )
+        VALUES (
+          ${randomUUID()}, '2026-06-10T12:00:00.000Z', '2026-06-10T20:00:00.000Z',
+          'completado', 3
+        )
+      `);
+
+      const juneRuts = (
+        await listEligibleWorkers(testDb!.db as unknown as DbExecutor, {
+          mes: 6,
+          anio: 2026,
+        })
+      ).map((worker) => worker.rut);
+
+      expect(juneRuts).toContain("33333333-3");
+
+      const julyRuts = (
+        await listEligibleWorkers(testDb!.db as unknown as DbExecutor, {
+          mes: 7,
+          anio: 2026,
+        })
+      ).map((worker) => worker.rut);
+
+      expect(julyRuts).not.toContain("33333333-3");
+    });
+
+    it("always lists active workers regardless of the period", async () => {
+      const rows = await listEligibleWorkers(
+        testDb!.db as unknown as DbExecutor,
+        { mes: 1, anio: 2020 },
+      );
+
+      expect(rows.map((worker) => worker.rut)).toContain("22222222-2");
+    });
+
+    it("never lists an inactive worker with no activity at all", async () => {
+      const rows = await listEligibleWorkers(
+        testDb!.db as unknown as DbExecutor,
+        { mes: 6, anio: 2026 },
+      );
+
+      expect(rows.map((worker) => worker.rut)).not.toContain("33333333-3");
+    });
+
+    it("rejects non-owner sessions through the IPC channel", async () => {
+      const response = await remuneracionController.handle(
+        { usuarioId: "22222222-2", mes: 6, anio: 2026 },
+        { channel: "remuneracion:trabajadores-elegibles" },
+      );
+
+      expect(response.ok).toBe(false);
+      if (response.ok) {
+        throw new Error("Expected forbidden response");
+      }
+
+      expect(response.error.code).toBe("FORBIDDEN");
+    });
   });
 
   it("rejects non-owner sessions through the IPC channel", async () => {
