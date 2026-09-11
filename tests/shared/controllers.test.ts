@@ -53,11 +53,11 @@ describe("controller registry", () => {
     ).toBe(true);
   });
 
-  it("keeps remuneracion scoped to its registration channel", () => {
+  it("keeps remuneracion scoped to its documented channels", () => {
     expect(
       controllers.find((controller) => controller.id === "remuneracion")
         ?.channels,
-    ).toEqual(["remuneracion:registrar"]);
+    ).toEqual(["remuneracion:registrar", "remuneracion:trabajadores-elegibles"]);
   });
 
   it("keeps configuracion previsional scoped to its documented channels", () => {

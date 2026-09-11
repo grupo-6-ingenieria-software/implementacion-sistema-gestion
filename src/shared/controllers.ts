@@ -226,7 +226,7 @@ export const controllers = [
     id: "remuneracion",
     name: "RemuneracionHandler",
     module: "personal",
-    channels: ["remuneracion:registrar"],
+    channels: ["remuneracion:registrar", "remuneracion:trabajadores-elegibles"],
   },
   {
     id: "configuracion-previsional",

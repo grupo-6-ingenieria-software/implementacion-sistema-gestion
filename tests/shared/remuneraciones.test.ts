@@ -3,8 +3,10 @@ import {
   calculateRemuneracion,
   hasRemuneracionFieldErrors,
   normalizeRemuneracionCreatePayload,
+  normalizeRemuneracionPeriodoPayload,
   roundToNearestPeso,
   validateRemuneracionCreatePayload,
+  validateRemuneracionPeriodo,
 } from "../../src/shared/remuneraciones";
 
 describe("remuneraciones shared module", () => {
@@ -73,5 +75,19 @@ describe("remuneraciones shared module", () => {
     });
 
     expect(hasRemuneracionFieldErrors(errors)).toBe(false);
+  });
+
+  it("normalizes and validates a period payload independently of trabajador/bruto", () => {
+    const normalized = normalizeRemuneracionPeriodoPayload({
+      usuarioId: "dueno",
+      mes: "13",
+      anio: "2026",
+    });
+
+    expect(normalized).toEqual({ usuarioId: "dueno", mes: 13, anio: 2026 });
+
+    const errors = validateRemuneracionPeriodo(normalized);
+    expect(errors.mes).toBeDefined();
+    expect(errors.anio).toBeUndefined();
   });
 });

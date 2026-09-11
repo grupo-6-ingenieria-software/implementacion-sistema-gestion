@@ -28,6 +28,12 @@ export type RemuneracionMutationResponse = RemuneracionCalculo & {
   remuneracionId: string;
 };
 
+export type RemuneracionPeriodoPayload = {
+  usuarioId?: string;
+  mes: number;
+  anio: number;
+};
+
 export const MESES_LABEL = [
   "Enero",
   "Febrero",
@@ -61,14 +67,23 @@ export function normalizeRemuneracionCreatePayload(
   };
 }
 
-export function validateRemuneracionCreatePayload(
-  values: RemuneracionCreatePayload,
-): RemuneracionFieldErrors {
-  const errors: RemuneracionFieldErrors = {};
+export function normalizeRemuneracionPeriodoPayload(
+  payload: unknown,
+): RemuneracionPeriodoPayload {
+  const record = isRecord(payload) ? payload : {};
 
-  if (!Number.isInteger(values.trabajadorId) || values.trabajadorId <= 0) {
-    errors.trabajadorId = "Seleccione un trabajador.";
-  }
+  return {
+    usuarioId: getOptionalString(record, "usuarioId"),
+    mes: normalizeInteger(record.mes),
+    anio: normalizeInteger(record.anio),
+  };
+}
+
+export function validateRemuneracionPeriodo(values: {
+  mes: number;
+  anio: number;
+}): RemuneracionFieldErrors {
+  const errors: RemuneracionFieldErrors = {};
 
   if (!Number.isInteger(values.mes) || values.mes < 1 || values.mes > 12) {
     errors.mes = "Seleccione un mes valido.";
@@ -80,6 +95,18 @@ export function validateRemuneracionCreatePayload(
     values.anio > MAX_REMUNERACION_ANIO
   ) {
     errors.anio = "Ingrese un anio valido.";
+  }
+
+  return errors;
+}
+
+export function validateRemuneracionCreatePayload(
+  values: RemuneracionCreatePayload,
+): RemuneracionFieldErrors {
+  const errors: RemuneracionFieldErrors = validateRemuneracionPeriodo(values);
+
+  if (!Number.isInteger(values.trabajadorId) || values.trabajadorId <= 0) {
+    errors.trabajadorId = "Seleccione un trabajador.";
   }
 
   if (!Number.isFinite(values.montoBruto) || values.montoBruto <= 0) {

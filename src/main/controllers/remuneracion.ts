@@ -1,14 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
+import type { AttendanceWorkerOption } from "../../shared/attendance";
 import {
   calculateRemuneracion,
   hasRemuneracionFieldErrors,
   normalizeRemuneracionCreatePayload,
+  normalizeRemuneracionPeriodoPayload,
   validateRemuneracionCreatePayload,
+  validateRemuneracionPeriodo,
   type RemuneracionCreatePayload,
   type RemuneracionFieldErrors,
   type RemuneracionMutationResponse,
+  type RemuneracionPeriodoPayload,
 } from "../../shared/remuneraciones";
 import {
   controllerError,
@@ -53,6 +57,15 @@ export const remuneracionController: RegisteredController = {
             input,
             actor,
           ),
+        );
+      }
+
+      if (context.channel === "remuneracion:trabajadores-elegibles") {
+        const input = normalizeRemuneracionPeriodoPayload(payload);
+        assertValid(validateRemuneracionPeriodo(input));
+        await requireOwner(input.usuarioId);
+        return controllerSuccess(
+          await listEligibleWorkers(db as unknown as DbExecutor, input),
         );
       }
 
@@ -168,6 +181,49 @@ export async function registerRemuneracion(
 
     return { remuneracionId, descuentos, montoLiquido };
   });
+}
+
+/**
+ * Trabajadores seleccionables para un periodo: activos, mas los inactivos
+ * que igual registran turno o asistencia ese mes (precondicion de CU34). Un
+ * trabajador inactivo sin actividad en el mes elegido no aparece aqui, pero
+ * si aparecera para el mes en que si tuvo actividad.
+ */
+export async function listEligibleWorkers(
+  database: Pick<DbExecutor, "all">,
+  payload: RemuneracionPeriodoPayload,
+): Promise<AttendanceWorkerOption[]> {
+  const rows = await database.all<{
+    trabajadorId: number;
+    rut: string;
+    nombreCompleto: string;
+  }>(sql`
+    SELECT
+      t.trabajador_id AS trabajadorId,
+      t.trabajador_rut AS rut,
+      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombreCompleto
+    FROM trabajador t
+    WHERE t.trabajador_estado = 'activo'
+       OR EXISTS (
+         SELECT 1 FROM turno tu
+         WHERE tu.trabajador_id = t.trabajador_id
+           AND CAST(strftime('%Y', datetime(tu.turno_fecha_hora_inicio)) AS INTEGER) = ${payload.anio}
+           AND CAST(strftime('%m', datetime(tu.turno_fecha_hora_inicio)) AS INTEGER) = ${payload.mes}
+       )
+       OR EXISTS (
+         SELECT 1 FROM asistencia a
+         WHERE a.trabajador_id = t.trabajador_id
+           AND CAST(strftime('%Y', datetime(a.asistencia_fecha_hora_entrada)) AS INTEGER) = ${payload.anio}
+           AND CAST(strftime('%m', datetime(a.asistencia_fecha_hora_entrada)) AS INTEGER) = ${payload.mes}
+       )
+    ORDER BY t.trabajador_nombre, t.trabajador_apellido
+  `);
+
+  return rows.map((row) => ({
+    trabajadorId: row.trabajadorId,
+    rut: row.rut,
+    nombreCompleto: row.nombreCompleto,
+  }));
 }
 
 async function findEligibleWorker(
