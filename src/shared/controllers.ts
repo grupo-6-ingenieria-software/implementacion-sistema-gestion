@@ -224,6 +224,21 @@ export const controllers = [
     channels: ["producto:eliminar"],
   },
   {
+    id: "remuneracion",
+    name: "RemuneracionHandler",
+    module: "personal",
+    channels: ["remuneracion:registrar", "remuneracion:trabajadores-elegibles"],
+  },
+  {
+    id: "configuracion-previsional",
+    name: "ConfigPrevisionalHandler",
+    module: "personal",
+    channels: [
+      "configuracion:previsional-obtener",
+      "configuracion:previsional-actualizar",
+    ],
+  },
+  {
     id: "supplier-order",
     name: "PedidoProveedorHandler",
     module: "proveedores",

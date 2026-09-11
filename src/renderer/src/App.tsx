@@ -30,6 +30,7 @@ import {
 } from "../../shared/auth";
 import { formatRutInput, rutToBackend } from "../../shared/users";
 import { AuditLogView } from "./views/AuditLogView";
+import { ConfigurarPorcentajesPrevisionalesView } from "./views/ConfigurarPorcentajesPrevisionalesView";
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
@@ -39,6 +40,7 @@ import { ProductFormView } from "./views/ProductFormView";
 import { ProductDeleteView } from "./views/ProductDeleteView";
 import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
+import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
 import { ShiftCalendarView } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
@@ -828,6 +830,21 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "remuneracion-create" && session.usuarioId) {
+    return (
+      <RegistrarRemuneracionView
+        onNavigate={onNavigate}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === "configuracion-previsional" && session.usuarioId) {
+    return (
+      <ConfigurarPorcentajesPrevisionalesView usuarioId={session.usuarioId} />
+    );
+  }
+
   return <ViewUnavailable />;
 }
 
@@ -927,6 +944,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "supplier-order-create",
     "supplier-order-receptions",
     "audit-log",
+    "remuneracion-create",
+    "configuracion-previsional",
     "shift-calendar",
     "shift-create",
     "waste-create",

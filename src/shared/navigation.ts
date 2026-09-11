@@ -37,6 +37,8 @@ export type ControllerId =
   | "shift"
   | "attendance"
   | "ean-reader"
+  | "remuneracion"
+  | "configuracion-previsional"
   | "supplier-order"
   | "supplier-order-reception";
 
@@ -350,6 +352,33 @@ export const navigationTree = [
     controllerIds: ["access-control", "attendance", "audit"],
   },
   {
+    id: "remuneracion-create",
+    viewName: "RegistrarRemuneracionView",
+    label: "Remuneraciones",
+    path: "/app/personal/remuneraciones/nueva",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Menu Personal > Remuneraciones > Registrar.",
+    controllerIds: [
+      "access-control",
+      "remuneracion",
+      "configuracion-previsional",
+      "audit",
+    ],
+  },
+  {
+    id: "configuracion-previsional",
+    viewName: "ConfigurarPorcentajesPrevisionalesView",
+    label: "Configuracion previsional",
+    path: "/app/personal/configuracion-previsional",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Menu Personal > Configuracion previsional.",
+    controllerIds: ["access-control", "configuracion-previsional", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -542,6 +571,8 @@ export function validateNavigationTree(): string[] {
     "shift-calendar",
     "shift-create",
     "attendance",
+    "remuneracion-create",
+    "configuracion-previsional",
     "user-management",
     "audit-log",
   ]);
