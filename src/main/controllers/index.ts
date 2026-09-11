@@ -27,6 +27,8 @@ import { sessionController } from "./session";
 import { shiftController } from "./shift";
 import { stockAlertController } from "./stock-alert";
 import { stockDiscountController } from "./stock-discount";
+import { supplierOrderController } from "./supplier-order";
+import { supplierOrderReceptionController } from "./supplier-order-reception";
 import { userManagementController } from "./user-management";
 import { wasteController } from "./waste";
 import { workerController } from "./worker";
@@ -62,6 +64,8 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     productDeleteController,
     remuneracionController,
     configPrevisionalController,
+    supplierOrderController,
+    supplierOrderReceptionController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {
