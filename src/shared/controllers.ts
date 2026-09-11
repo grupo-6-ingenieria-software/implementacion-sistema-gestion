@@ -4,6 +4,7 @@ export type ControllerModule =
   | "auth"
   | "dashboard"
   | "inventario"
+  | "proveedores"
   | "ventas"
   | "caja"
   | "personal"
@@ -235,6 +236,24 @@ export const controllers = [
     channels: [
       "configuracion:previsional-obtener",
       "configuracion:previsional-actualizar",
+    ],
+  },
+  {
+    id: "supplier-order",
+    name: "PedidoProveedorHandler",
+    module: "proveedores",
+    channels: ["pedido:registrar"],
+  },
+  {
+    id: "supplier-order-reception",
+    name: "RecepcionPedidoHandler",
+    module: "proveedores",
+    channels: [
+      "pedido:listar",
+      "pedido:detalle",
+      "pedido:confirmar-recepcion",
+      "pedido:cancelar",
+      "pedido:cerrar-saldo",
     ],
   },
 ] as const satisfies readonly ControllerMetadata[];

@@ -26,6 +26,8 @@ describe("navigation tree", () => {
         "product-delete",
         "lot-create",
         "waste-create",
+        "supplier-order-create",
+        "supplier-order-receptions",
         "sale-register",
         "daily-sales",
         "cash-closing",
@@ -60,6 +62,7 @@ describe("navigation tree", () => {
     expect(getVisibleGroups("dueno")).toEqual([
       "inicio",
       "inventario",
+      "proveedores",
       "ventas",
       "caja",
       "personal",
@@ -69,6 +72,7 @@ describe("navigation tree", () => {
     expect(getVisibleGroups("trabajador")).toEqual([
       "inicio",
       "inventario",
+      "proveedores",
       "ventas",
       "caja",
       "personal",
