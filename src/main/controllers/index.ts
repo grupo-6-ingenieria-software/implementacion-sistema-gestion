@@ -8,6 +8,7 @@ import { auditController } from "./audit";
 import { authLoginController } from "./auth-login";
 import { cashCheckController } from "./cash-check";
 import { cashClosingController } from "./cash-closing";
+import { configPrevisionalController } from "./configuracion-previsional";
 import { dailySalesTotalController } from "./daily-sales-total";
 import { dashboardController } from "./dashboard";
 import { eanReaderController } from "./ean-reader";
@@ -19,6 +20,7 @@ import { productDeleteController } from "./product-delete";
 import { productEditController } from "./product-edit";
 import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
+import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
@@ -60,6 +62,8 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     eanReaderController,
     userManagementController,
     productDeleteController,
+    remuneracionController,
+    configPrevisionalController,
     supplierOrderController,
     supplierOrderReceptionController,
   ];
