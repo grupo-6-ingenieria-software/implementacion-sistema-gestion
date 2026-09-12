@@ -168,8 +168,8 @@ describe("navigation tree", () => {
     }
   });
 
-  it("allows only the owner to access V16 and V17", () => {
-    for (const path of ["/app/personal/turnos", "/app/personal/turnos/nuevo"]) {
+  it("keeps shift creation exclusive to the owner (CU28 calendar is shared)", () => {
+    for (const path of ["/app/personal/turnos/nuevo"]) {
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,

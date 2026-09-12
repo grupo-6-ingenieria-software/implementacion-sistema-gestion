@@ -3,6 +3,11 @@ import { isValidRutFormat, normalizeRut } from "./attendance";
 export type WorkerRole = "dueno" | "trabajador";
 export type WorkerStatus = "activo" | "inactivo";
 
+export type ActiveWorkerListPayload = {
+  usuarioId?: string;
+  contexto?: "calendario";
+};
+
 export type WorkerListFilters = {
   estado?: WorkerStatus | "todos";
   rol?: WorkerRole | "todos";

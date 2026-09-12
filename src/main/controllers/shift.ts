@@ -29,13 +29,18 @@ import {
   type RegisteredController,
 } from "./base";
 import { db, schema } from "../../db/client";
-import { authorizeUser } from "./auth-context";
+import { AccessDeniedError, authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 
 const metadata = controllers[21];
 
 export type ShiftActor = {
   role: "dueno";
+  usuarioId: string;
+};
+
+export type ShiftReader = {
+  role: "dueno" | "trabajador";
   usuarioId: string;
 };
 
@@ -67,7 +72,7 @@ export const shiftController: RegisteredController = {
       if (context.channel === "turno:listar") {
         const input = normalizeShiftListPayload(payload);
         assertValid(validateShiftListPayload(input));
-        const actor = await requireOwner(input.usuarioId);
+        const actor = await requireReader(input.usuarioId, context.claims?.rol);
         return controllerSuccess(
           await listShifts(db as unknown as DbExecutor, input, actor),
         );
@@ -138,10 +143,13 @@ export const shiftController: RegisteredController = {
 export async function listShifts(
   database: DbExecutor,
   payload: ShiftListPayload,
-  actor: ShiftActor,
+  actor: ShiftReader,
   now = new Date(),
 ): Promise<ShiftListResponse> {
-  assertOwnerActor(actor);
+  if (!actor.usuarioId?.trim() || !["dueno", "trabajador"].includes(actor.role)) {
+    throw new ShiftAccessError("No tiene permiso para consultar turnos.");
+  }
+  assertValid(validateShiftListPayload(payload));
   const finSemana = addDaysToDateKey(payload.inicioSemana, 6);
   const finExclusivo = addDaysToDateKey(payload.inicioSemana, 7);
   const startAt = `${payload.inicioSemana}T00:00:00.000Z`;
@@ -167,7 +175,10 @@ export async function listShifts(
   `);
 
   const turnos = rows
-    .map((row) => mapShiftRow(row, now))
+    .map((row) => {
+      const item = mapShiftRow(row, now);
+      return { ...item, puedeModificar: actor.role === "dueno" && item.puedeModificar };
+    })
     .filter(
       (turno) =>
         turno.fechaIso >= payload.inicioSemana && turno.fechaIso <= finSemana,
@@ -353,6 +364,21 @@ export async function deleteShift(
 
     return { turnoId: payload.turnoId };
   });
+}
+
+async function requireReader(
+  usuarioId: string | undefined,
+  sessionRole?: ShiftReader["role"],
+): Promise<ShiftReader> {
+  try {
+    const user = await authorizeUser(db, schema, usuarioId, ["dueno", "trabajador"]);
+    return { role: sessionRole ?? user.role, usuarioId: user.usuarioId };
+  } catch (error) {
+    if (error instanceof AccessDeniedError) {
+      throw new ShiftAccessError("No tiene permiso para consultar turnos.");
+    }
+    throw error;
+  }
 }
 
 async function requireOwner(
