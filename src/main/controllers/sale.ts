@@ -11,7 +11,6 @@ import {
   SaleValidationError,
   validateSaleCart,
   type DbExecutor,
-  type SaleRegisterPayload,
 } from "./sale-service";
 import { notifyDashboardUpdated } from "./dashboard-events";
 import { inspectDailyCashRegister, type CashCheckDb } from "./cash-check";
@@ -21,6 +20,8 @@ import type {
   DailyCashState,
   SaleCartValidationRequest,
   SaleCartValidationResult,
+  SaleReceipt,
+  SaleRegisterRequest,
 } from "../../shared/sales";
 
 type SaleControllerDependencies = {
@@ -74,22 +75,29 @@ export function createSaleController(
           );
         }
 
-        const cashState = await dependencies.inspectCash(
-          db as unknown as CashCheckDb,
-        );
-        if (cashState.status === "cerrada") {
-          return controllerError(
-            "BUSINESS_RULE",
-            "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
-            "sale",
+        if (!context.claims) {
+          throw new AccessDeniedError(
+            "No hay una sesión válida para registrar la venta.",
           );
         }
+        const input = (payload ?? {}) as SaleRegisterRequest;
+        const request: SaleRegisterRequest = {
+          items: input.items,
+          metodoPago: input.metodoPago,
+          montoRecibido: input.montoRecibido,
+          descuento: input.descuento,
+        };
         const receipt = await dependencies.register(
           db as unknown as DbExecutor,
-          payload as SaleRegisterPayload,
+          request,
+          {
+            usuarioId: context.claims.usuarioId,
+            sesionId: context.claims.sesionId,
+            rol: context.claims.rol,
+          },
         );
         dependencies.notify();
-        return controllerSuccess(receipt);
+        return controllerSuccess<SaleReceipt>(receipt);
       } catch (error) {
         if (error instanceof SaleValidationError) {
           return controllerError("VALIDATION_ERROR", error.message, "sale");

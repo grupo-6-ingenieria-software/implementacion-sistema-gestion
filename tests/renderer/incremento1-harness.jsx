@@ -6,5 +6,6 @@ import { ProductDeleteView } from '../../src/renderer/src/views/ProductDeleteVie
 import { ProductStatusView } from '../../src/renderer/src/views/ProductStatusView';
 import { WorkerListView } from '../../src/renderer/src/views/WorkerListView';
 const views = { CashClosingView, AttendanceView, ProductDeleteView, ProductStatusView, WorkerListView };
-const View = views[new URL(location.href).searchParams.get('view')];
-createRoot(document.getElementById('root')).render(<View role="trabajador" usuarioId="12345678-9" ean13="7802920000015" initialEan13="7802920000015" onNavigate={path => { window.lastNavigation = path; }} />);
+const params = new URL(location.href).searchParams;
+const View = views[params.get('view')];
+createRoot(document.getElementById('root')).render(<View role={params.get('role') ?? "trabajador"} usuarioId="12345678-9" ean13="7802920000015" initialEan13="7802920000015" onNavigate={path => { window.lastNavigation = path; }} />);

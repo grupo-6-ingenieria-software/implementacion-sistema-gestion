@@ -58,7 +58,14 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     }
   });
 
-  it("allows a route permitted for the role", async () => {
+  it("allows a route permitted for the role and audits the grant in Main", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "12345678-9",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
@@ -70,6 +77,77 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     if (response.ok) {
       expect(response.data.allowed).toBe(true);
     }
+
+    const rows = await testDb!.db.all<{ total: number }>(
+      sql`SELECT COUNT(*) AS total FROM log_auditoria WHERE log_tipo_accion = 'acceso_concedido'`,
+    );
+    expect(Number(rows[0]?.total)).toBe(1);
+  });
+
+  it("decides with the session role over the JWT role (D2)", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "12345678-9",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
+    // JWT dueno con sesión congelada en trabajador: la ruta de solo Dueño se
+    // niega con el rol de la sesión.
+    const denied = await validateAccessWithExecutor(
+      testDb!.db,
+      schema,
+      { token: "t", ruta: "/app/admin/usuarios", __rolSesion: "trabajador" },
+      depsWith(claimsFor("dueno")),
+    );
+
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) {
+      expect(denied.error.code).toBe("FORBIDDEN");
+    }
+
+    // JWT trabajador con sesión congelada en dueno: se concede con el rol de
+    // la sesión.
+    const granted = await validateAccessWithExecutor(
+      testDb!.db,
+      schema,
+      { token: "t", ruta: "/app/admin/usuarios", __rolSesion: "dueno" },
+      depsWith(claimsFor("trabajador")),
+    );
+
+    expect(granted.ok).toBe(true);
+    if (granted.ok) {
+      expect(granted.data.role).toBe("dueno");
+    }
+
+    const rows = await testDb!.db.all<{ accion: string; total: number }>(
+      sql`SELECT log_tipo_accion AS accion, COUNT(*) AS total FROM log_auditoria GROUP BY log_tipo_accion`,
+    );
+    const byAction = Object.fromEntries(
+      rows.map((row) => [row.accion, Number(row.total)]),
+    );
+    expect(byAction).toEqual({
+      acceso_concedido: 1,
+      acceso_denegado: 1,
+    });
+  });
+
+  it("falls back to the JWT role when the guard did not attach a session role", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "12345678-9",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
+    const response = await validateAccessWithExecutor(
+      testDb!.db,
+      schema,
+      { token: "t", ruta: "/app/inicio", __rolSesion: "invalido" },
+      depsWith(claimsFor("dueno")),
+    );
+
+    expect(response.ok).toBe(true);
   });
 
   it("denies a route not permitted for the role and audits it", async () => {
@@ -83,7 +161,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
-      { token: "t", ruta: "/app/personal/trabajadores" },
+      { token: "t", ruta: "/app/admin/usuarios" },
       depsWith(claimsFor("trabajador")),
     );
 

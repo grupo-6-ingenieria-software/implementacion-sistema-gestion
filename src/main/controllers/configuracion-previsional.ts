@@ -19,7 +19,9 @@ import { db, schema } from "../../db/client";
 import { authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 
-const metadata = controllers[30];
+const metadata = controllers.find(
+  (controller) => controller.id === "configuracion-previsional",
+)!;
 
 export type PrevisionalActor = {
   role: "dueno";

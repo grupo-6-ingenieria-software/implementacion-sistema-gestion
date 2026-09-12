@@ -162,7 +162,7 @@ export const controllers = [
     id: "sales-history",
     name: "HistorialVentasHandler",
     module: "ventas",
-    channels: ["venta:historial-dia"],
+    channels: ["venta:historial-dia", "venta:buscar", "venta:detalle"],
   },
   {
     id: "cash-closing",
@@ -222,6 +222,12 @@ export const controllers = [
     name: "EliminarProductoHandler",
     module: "inventario",
     channels: ["producto:eliminar"],
+  },
+  {
+    id: "sale-annulment",
+    name: "AnulacionVentaHandler",
+    module: "ventas",
+    channels: ["venta:anular"],
   },
   {
     id: "product-detail",
