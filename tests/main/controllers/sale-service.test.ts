@@ -8,12 +8,44 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import {
-  registerSale,
+  registerSale as registerSaleWithActor,
   SaleBusinessError,
   SaleValidationError,
   validateSaleCart,
   type DbExecutor,
 } from "../../../src/main/controllers/sale-service";
+import type { SaleRegisterRequest } from "../../../src/shared/sales";
+import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+
+const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
+
+type TestSalePayload = SaleRegisterRequest & { usuarioId?: string };
+
+function registerSale(
+  database: DbExecutor,
+  payload: TestSalePayload,
+  now?: Date,
+) {
+  if (!payload) {
+    return registerSaleWithActor(
+      database,
+      payload as never,
+      {
+        usuarioId: "12345678-9",
+        sesionId: TEST_SESSION_ID,
+        rol: "dueno",
+      },
+      now,
+    );
+  }
+  const { usuarioId = "12345678-9", ...request } = payload;
+  return registerSaleWithActor(
+    database,
+    request,
+    { usuarioId, sesionId: TEST_SESSION_ID, rol: "dueno" },
+    now,
+  );
+}
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -35,6 +67,221 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
+  it.each(["dueno", "trabajador"] as const)(
+    "CU37 preserves discounted registration for %s",
+    async (rol) => {
+      await testDb!.db.run(
+        sql`UPDATE usuario SET usuario_rol = ${rol} WHERE usuario_id = '12345678-9'`,
+      );
+      const result = await registerSaleWithActor(
+        testDb!.db as unknown as DbExecutor,
+        {
+          metodoPago: "debito",
+          items: [{ productoId: 1, cantidad: 1 }],
+          descuento: { monto: 100, razon: "Promoción" },
+        },
+        {
+          usuarioId: "12345678-9",
+          sesionId: TEST_SESSION_ID,
+          rol,
+        },
+      );
+      expect(result.total).toBe(900);
+      expect(result.responsable.rol).toBe(rol);
+    },
+  );
+
+  it("persists the signed session role and current worker name as an immutable snapshot", async () => {
+    await testDb!.db.run(sql`
+      UPDATE usuario SET usuario_rol = 'trabajador'
+      WHERE usuario_id = '12345678-9'
+    `);
+
+    const receipt = await registerSaleWithActor(
+      testDb!.db as unknown as DbExecutor,
+      {
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 1 }],
+      },
+      {
+        usuarioId: "12345678-9",
+        sesionId: TEST_SESSION_ID,
+        rol: "dueno",
+      },
+    );
+
+    expect(receipt.responsable).toEqual({
+      usuarioId: "12345678-9",
+      nombre: "Maria Huascar",
+      rol: "dueno",
+    });
+
+    await testDb!.db.run(sql`
+      UPDATE trabajador
+      SET trabajador_nombre = 'Nombre', trabajador_apellido = 'Nuevo'
+      WHERE trabajador_id = 1
+    `);
+    const stored = await testDb!.db.all(sql`
+      SELECT usuario_cajero_id AS usuarioId,
+        venta_responsable_nombre AS nombre,
+        venta_responsable_rol AS rol
+      FROM venta
+    `);
+    expect(stored).toEqual([
+      { usuarioId: "12345678-9", nombre: "Maria Huascar", rol: "dueno" },
+    ]);
+  });
+
+  it.each(["cerrada", "ajena", "expirada", "trabajador-inactivo"] as const)(
+    "rejects %s identity/session state without sale-side writes",
+    async (scenario) => {
+      if (scenario === "cerrada") {
+        await testDb!.db.run(sql`
+          UPDATE sesion_usuario
+          SET sesion_fecha_hora_cierre = '2026-06-12T17:00:00.000Z',
+              sesion_motivo_cierre = 'manual'
+          WHERE sesion_usuario_id = ${TEST_SESSION_ID}
+        `);
+      } else if (scenario === "expirada") {
+        await testDb!.db.run(sql`
+          UPDATE sesion_usuario
+          SET sesion_fecha_hora_ultimo_acceso = '2026-06-12T17:29:59.000Z'
+          WHERE sesion_usuario_id = ${TEST_SESSION_ID}
+        `);
+      } else if (scenario === "trabajador-inactivo") {
+        await testDb!.db.run(sql`
+          UPDATE trabajador SET trabajador_estado = 'inactivo'
+          WHERE trabajador_id = 1
+        `);
+      }
+
+      await expect(
+        registerSaleWithActor(
+          testDb!.db as unknown as DbExecutor,
+          {
+            metodoPago: "debito",
+            items: [{ productoId: 1, cantidad: 1 }],
+          },
+          {
+            usuarioId:
+              scenario === "ajena" ? "usuario-ajeno" : "12345678-9",
+            sesionId: TEST_SESSION_ID,
+            rol: "dueno",
+          },
+          new Date("2026-06-12T18:00:00.000Z"),
+        ),
+      ).rejects.toBeInstanceOf(AccessDeniedError);
+
+      const rows = await testDb!.db.all(sql`
+        SELECT
+          (SELECT COUNT(*) FROM venta) AS ventas,
+          (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+          (SELECT COUNT(*) FROM venta_lote) AS consumos,
+          (SELECT COUNT(*) FROM log_auditoria) AS auditorias,
+          (SELECT SUM(lote_cantidad_actual) FROM lote) AS stock,
+          (SELECT COUNT(*) FROM cierre_caja) AS cajas
+      `);
+      expect(rows).toEqual([
+        {
+          ventas: 0,
+          detalles: 0,
+          consumos: 0,
+          auditorias: 0,
+          stock: 6,
+          cajas: 1,
+        },
+      ]);
+    },
+  );
+  it.each([
+    [500, "  Promoción  ", "monto", 500, "Promoción", 2500],
+    [0, "", "ninguno", null, null, 3000],
+    [0, "Razón descartada", "ninguno", null, null, 3000],
+    [3000, "Cortesía", "monto", 3000, "Cortesía", 0],
+  ] as const)(
+    "CU37 persists discount %s and calculates authoritative totals",
+    async (monto, razon, tipo, valor, storedReason, total) => {
+      const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: "12345678-9",
+        metodoPago: "efectivo",
+        montoRecibido: 3000,
+        items: [{ productoId: 1, cantidad: 3 }],
+        descuento: { monto, razon },
+      });
+      expect(receipt).toMatchObject({
+        subtotal: 3000,
+        total,
+        vuelto: 3000 - total,
+        descuento: { tipo, valor: monto, razon: storedReason ?? undefined },
+      });
+      const rows = await testDb!.db.all(
+        sql`SELECT venta_descuento_tipo AS tipo, venta_descuento_valor AS valor, venta_descuento_razon AS razon FROM venta`,
+      );
+      expect(rows).toEqual([{ tipo, valor, razon: storedReason }]);
+    },
+  );
+
+  it.each([
+    { monto: 3001, razon: "Rango" },
+    { monto: 500, razon: "" },
+    { monto: 500, razon: " \t\n " },
+    { monto: -1, razon: "Negativo" },
+    { monto: NaN, razon: "Inválido" },
+    { monto: Infinity, razon: "Inválido" },
+    { monto: Number.MAX_SAFE_INTEGER + 1, razon: "Inválido" },
+    { monto: "500", razon: "Tipo incorrecto" },
+    { monto: "1.500", razon: "Texto IPC" },
+  ])("CU37 rejects invalid discount %j without writes", async (descuento) => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: "12345678-9",
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 3 }],
+        descuento: descuento as never,
+      }),
+    ).rejects.toBeInstanceOf(SaleValidationError);
+    const rows = await testDb!.db.all(sql`SELECT
+      (SELECT COUNT(*) FROM venta) AS ventas, (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+      (SELECT COUNT(*) FROM venta_efectivo) AS efectivo, (SELECT COUNT(*) FROM venta_lote) AS consumos,
+      (SELECT COUNT(*) FROM log_auditoria) AS auditorias, (SELECT SUM(lote_cantidad_actual) FROM lote) AS stock,
+      (SELECT COUNT(*) FROM cierre_caja) AS cajas`);
+    expect(rows).toEqual([
+      {
+        ventas: 0,
+        detalles: 0,
+        efectivo: 0,
+        consumos: 0,
+        auditorias: 0,
+        stock: 6,
+        cajas: 1,
+      },
+    ]);
+  });
+
+  it("CU37 revalidates against a price changed after cart preview", async () => {
+    const database = testDb!.db as unknown as DbExecutor;
+    expect(
+      (
+        await validateSaleCart(database, {
+          items: [{ productoId: 1, cantidad: 1 }],
+        })
+      ).subtotal,
+    ).toBe(1000);
+    await testDb!.db.run(
+      sql`UPDATE historial_precio_producto SET historial_precio_venta = 400 WHERE producto_id = 1`,
+    );
+    await expect(
+      registerSale(database, {
+        usuarioId: "12345678-9",
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 1 }],
+        descuento: { monto: 500, razon: "Promoción" },
+      }),
+    ).rejects.toThrow("mayor al subtotal");
+    expect(
+      await testDb!.db.all(sql`SELECT COUNT(*) AS cantidad FROM venta`),
+    ).toEqual([{ cantidad: 0 }]);
+  });
   it("validates the cart with SQL reads and performs no writes", async () => {
     const result = await validateSaleCart(testDb!.db as unknown as DbExecutor, {
       items: [{ productoId: 1, ean13: "7802920000015", cantidad: 2 }],
@@ -77,16 +324,27 @@ describe("registerSale", () => {
 
   it("rechecks a closed cash register at transaction start before malformed payload rules", async () => {
     const outerAll = vi.fn().mockResolvedValueOnce([]);
-    const transactionAll = vi.fn().mockResolvedValueOnce([
-      {
-        cierreCajaId: "caja-1",
-        status: "cerrado",
-        openedAt: "2026-06-12T08:00:00.000Z",
-        closedAt: "2026-06-12T20:00:00.000Z",
-        closedByUserId: null,
-        closedByName: null,
-      },
-    ]);
+    const transactionAll = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          usuarioId: "12345678-9",
+          sesionFechaHoraCierre: null,
+          sesionVigente: 1,
+          trabajadorEstado: "activo",
+          nombre: "Maria Huascar",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          cierreCajaId: "caja-1",
+          status: "cerrado",
+          openedAt: "2026-06-12T08:00:00.000Z",
+          closedAt: "2026-06-12T20:00:00.000Z",
+          closedByUserId: null,
+          closedByName: null,
+        },
+      ]);
     const tx = {
       all: transactionAll,
       run: vi.fn(),
@@ -101,7 +359,7 @@ describe("registerSale", () => {
     await expect(registerSale(database, null as never)).rejects.toBeInstanceOf(
       SaleBusinessError,
     );
-    expect(transactionAll).toHaveBeenCalledOnce();
+    expect(transactionAll).toHaveBeenCalledTimes(2);
     expect(tx.run).not.toHaveBeenCalled();
   });
 
@@ -370,9 +628,58 @@ describe("registerSale", () => {
     }
   });
 
-  it("revierte venta, detalle y stock si falla venta_lote después del descuento", async () => {
-    const faultyDb = failWhenWritingVentaLote(
+  it.each([
+    "INSERT INTO venta (",
+    "INSERT INTO venta_efectivo",
+    "INSERT INTO detalle_venta",
+    "UPDATE lote",
+    "INSERT INTO venta_lote",
+    "INSERT INTO log_auditoria",
+  ])("rolls back every sale-side write when %s fails", async (sqlFragment) => {
+    const faultyDb = failWhenWriting(
       testDb!.db as unknown as DbExecutor,
+      sqlFragment,
+    );
+
+    await expect(
+      registerSale(faultyDb, {
+        usuarioId: "12345678-9",
+        metodoPago: "efectivo",
+        montoRecibido: 1000,
+        items: [{ productoId: 1, cantidad: 1 }],
+      }),
+    ).rejects.toThrow(`fallo inyectado en ${sqlFragment}`);
+
+    const counts = await testDb!.db.all<{
+      ventas: number;
+      detalles: number;
+      efectivo: number;
+      movimientos: number;
+      auditorias: number;
+      stock: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM venta) AS ventas,
+        (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+        (SELECT COUNT(*) FROM venta_efectivo) AS efectivo,
+        (SELECT COUNT(*) FROM venta_lote) AS movimientos,
+        (SELECT COUNT(*) FROM log_auditoria) AS auditorias,
+        (SELECT SUM(lote_cantidad_actual) FROM lote WHERE producto_id = 1) AS stock
+    `);
+
+    expect(Number(counts[0].ventas)).toBe(0);
+    expect(Number(counts[0].detalles)).toBe(0);
+    expect(Number(counts[0].efectivo)).toBe(0);
+    expect(Number(counts[0].movimientos)).toBe(0);
+    expect(Number(counts[0].auditorias)).toBe(0);
+    expect(Number(counts[0].stock)).toBe(6);
+  });
+
+  it("rolls back an automatically opened cash register when a later write fails", async () => {
+    await testDb!.db.run(sql`DELETE FROM cierre_caja`);
+    const faultyDb = failWhenWriting(
+      testDb!.db as unknown as DbExecutor,
+      "INSERT INTO log_auditoria",
     );
 
     await expect(
@@ -381,32 +688,22 @@ describe("registerSale", () => {
         metodoPago: "debito",
         items: [{ productoId: 1, cantidad: 1 }],
       }),
-    ).rejects.toThrow("fallo inyectado en venta_lote");
+    ).rejects.toThrow("fallo inyectado en INSERT INTO log_auditoria");
 
-    const counts = await testDb!.db.all<{
-      ventas: number;
-      detalles: number;
-      movimientos: number;
-      auditorias: number;
-      stock: number;
-    }>(sql`
-      SELECT
-        (SELECT COUNT(*) FROM venta) AS ventas,
-        (SELECT COUNT(*) FROM detalle_venta) AS detalles,
-        (SELECT COUNT(*) FROM venta_lote) AS movimientos,
-        (SELECT COUNT(*) FROM log_auditoria) AS auditorias,
-        (SELECT SUM(lote_cantidad_actual) FROM lote WHERE producto_id = 1) AS stock
-    `);
-
-    expect(Number(counts[0].ventas)).toBe(0);
-    expect(Number(counts[0].detalles)).toBe(0);
-    expect(Number(counts[0].movimientos)).toBe(0);
-    expect(Number(counts[0].auditorias)).toBe(0);
-    expect(Number(counts[0].stock)).toBe(6);
+    expect(
+      await testDb!.db.all(sql`
+        SELECT (SELECT COUNT(*) FROM cierre_caja) AS cajas,
+          (SELECT COUNT(*) FROM venta) AS ventas,
+          (SELECT SUM(lote_cantidad_actual) FROM lote) AS stock
+      `),
+    ).toEqual([{ cajas: 0, ventas: 0, stock: 6 }]);
   });
 });
 
-function failWhenWritingVentaLote(database: DbExecutor): DbExecutor {
+function failWhenWriting(
+  database: DbExecutor,
+  sqlFragment: string,
+): DbExecutor {
   return {
     all: (query) => database.all(query),
     run: (query) => database.run(query),
@@ -416,8 +713,8 @@ function failWhenWritingVentaLote(database: DbExecutor): DbExecutor {
           all: (query) => tx.all(query),
           transaction: (nested) => tx.transaction(nested),
           run: (query) => {
-            if (extractSqlText(query).includes("venta_lote")) {
-              throw new Error("fallo inyectado en venta_lote");
+            if (extractSqlText(query).includes(sqlFragment)) {
+              throw new Error(`fallo inyectado en ${sqlFragment}`);
             }
             return tx.run(query);
           },
@@ -469,6 +766,21 @@ async function seedSaleFixture(db: DbExecutor): Promise<void> {
       trabajador_id
     )
     VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1)
+  `);
+
+  await db.run(sql`
+    INSERT INTO sesion_usuario (
+      sesion_usuario_id,
+      sesion_fecha_hora_inicio,
+      sesion_fecha_hora_ultimo_acceso,
+      usuario_id
+    )
+    VALUES (
+      ${TEST_SESSION_ID},
+      '2026-01-01T00:00:00.000Z',
+      '2099-01-01T00:00:00.000Z',
+      '12345678-9'
+    )
   `);
 
   await db.run(sql`

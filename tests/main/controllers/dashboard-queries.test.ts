@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import {
   calculateSaleAmount,
   loadAttendanceSummary,
@@ -6,6 +7,7 @@ import {
   loadDailySalesSummary,
   loadExpirationAlerts,
   loadStockAlerts,
+  summarizeDailySales,
   type DashboardDb,
 } from "../../../src/main/controllers/dashboard-service";
 import {
@@ -15,6 +17,7 @@ import {
 } from "../../../src/renderer/src/views/DashboardView";
 
 const allMock = vi.fn();
+const dialect = new SQLiteSyncDialect();
 const database: DashboardDb = {
   all: allMock,
 };
@@ -59,6 +62,52 @@ function queueExpiration(rows: any[]) {
 }
 
 describe("daily sales calculation", () => {
+  it("queries only the half-open UTC range for the Chilean civil day", async () => {
+    allMock.mockResolvedValueOnce([]);
+
+    await loadDailySalesSummary(
+      database,
+      new Date("2026-06-11T12:00:00.000Z"),
+    );
+
+    const query = dialect.sqlToQuery(allMock.mock.calls[0][0]);
+    expect(query.sql).toContain(
+      "datetime(venta_fecha_hora) >= datetime(?) AND datetime(venta_fecha_hora) < datetime(?)",
+    );
+    expect(query.params).toEqual([
+      "2026-06-11 04:00:00",
+      "2026-06-12 04:00:00",
+    ]);
+  });
+
+  it("returns every CU44 indicator at zero when the day has no sales", () => {
+    expect(summarizeDailySales([])).toEqual({
+      currentAmount: 0,
+      currentTransactions: 0,
+      voidedAmount: 0,
+      voidedTransactions: 0,
+    });
+  });
+
+  it("keeps a discounted voided sale separate from current sales", () => {
+    expect(
+      summarizeDailySales([
+        {
+          state: "anulada",
+          paymentMethod: "efectivo",
+          discountType: "monto",
+          discountValue: 500,
+          subtotal: 3_000,
+        },
+      ]),
+    ).toEqual({
+      currentAmount: 0,
+      currentTransactions: 0,
+      voidedAmount: 2_500,
+      voidedTransactions: 1,
+    });
+  });
+
   it("keeps the subtotal when there is no discount", () => {
     expect(
       calculateSaleAmount({

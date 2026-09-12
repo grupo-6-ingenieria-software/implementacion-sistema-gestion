@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactElement,
 } from "react";
@@ -59,8 +60,14 @@ export function AttendanceView({
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [workedHours, setWorkedHours] = useState<{
+    trabajadorRut: string;
+    value: string;
+  } | null>(null);
+  const selectionVersion = useRef(0);
 
   const loadWorkers = useCallback(async (): Promise<void> => {
+    const version = selectionVersion.current;
     if (!usuarioId?.trim()) {
       setPageState({
         status: "error",
@@ -75,6 +82,8 @@ export function AttendanceView({
       "trabajador:listar-activos",
       { usuarioId },
     );
+
+    if (version !== selectionVersion.current) return;
 
     if (!response.ok) {
       setPageState({ status: "error", message: response.error.message });
@@ -98,7 +107,16 @@ export function AttendanceView({
   }, [role, usuarioId]);
 
   useEffect(() => {
+    selectionVersion.current += 1;
+    setWorkedHours(null);
+    setPendingNoShift(null);
+    setPendingConfirmation(null);
+    setMessage(null);
+    setIsSubmitting(false);
     void loadWorkers();
+    return () => {
+      selectionVersion.current += 1;
+    };
   }, [loadWorkers]);
 
   const filteredWorkers = useMemo(() => {
@@ -146,6 +164,7 @@ export function AttendanceView({
       return;
     }
 
+    const version = selectionVersion.current;
     setIsSubmitting(true);
     setPendingNoShift(null);
     setPendingConfirmation(null);
@@ -157,6 +176,7 @@ export function AttendanceView({
         { fase: "prevalidar", usuarioId, trabajadorRut },
       );
 
+      if (version !== selectionVersion.current) return;
       setIsSubmitting(false);
 
       if (!response.ok) {
@@ -177,6 +197,7 @@ export function AttendanceView({
       },
     );
 
+    if (version !== selectionVersion.current) return;
     setIsSubmitting(false);
 
     if (!response.ok) {
@@ -202,6 +223,7 @@ export function AttendanceView({
       return;
     }
 
+    const version = selectionVersion.current;
     setIsSubmitting(true);
     setMessage(null);
 
@@ -217,6 +239,7 @@ export function AttendanceView({
       trabajadorRut: pendingConfirmation.trabajadorRut,
     });
 
+    if (version !== selectionVersion.current) return;
     setIsSubmitting(false);
     setPendingConfirmation(null);
 
@@ -236,6 +259,10 @@ export function AttendanceView({
     }
 
     if (pendingConfirmation.kind === "entrada") {
+      setWorkedHours({
+        trabajadorRut: normalizeRut(response.data.trabajador.rut),
+        value: "Pendiente",
+      });
       showMessage(
         "success",
         `Entrada registrada a las ${formatTime(response.data.entradaAt)}.`,
@@ -253,6 +280,7 @@ export function AttendanceView({
       return;
     }
 
+    const version = selectionVersion.current;
     setIsSubmitting(true);
     setMessage(null);
 
@@ -265,6 +293,7 @@ export function AttendanceView({
       },
     );
 
+    if (version !== selectionVersion.current) return;
     setIsSubmitting(false);
     setPendingNoShift(null);
 
@@ -274,6 +303,10 @@ export function AttendanceView({
     }
 
     if (response.data.status === "registered") {
+      setWorkedHours({
+        trabajadorRut: normalizeRut(response.data.trabajador.rut),
+        value: "Pendiente",
+      });
       showMessage(
         "success",
         `Entrada registrada a las ${formatTime(response.data.entradaAt)}.`,
@@ -308,6 +341,10 @@ export function AttendanceView({
       return;
     }
 
+    setWorkedHours({
+      trabajadorRut: normalizeRut(result.trabajador.rut),
+      value: "Pendiente",
+    });
     showMessage(
       "success",
       `Entrada registrada a las ${formatTime(result.entradaAt)}.`,
@@ -317,6 +354,10 @@ export function AttendanceView({
   function showExitSuccess(
     result: Extract<AttendanceExitResult, { status: "registered" }>,
   ): void {
+    setWorkedHours({
+      trabajadorRut: normalizeRut(result.trabajador.rut),
+      value: result.horasTrabajadas,
+    });
     showMessage(
       "success",
       `Salida registrada a las ${formatTime(result.salidaAt)}. Horas trabajadas: ${result.horasTrabajadas}.`,
@@ -324,11 +365,21 @@ export function AttendanceView({
   }
 
   function selectWorker(worker: AttendanceWorkerOption): void {
-    setRut(worker.rut);
+    changeWorkerRut(worker.rut);
     setSearch("");
-    setMessage(null);
+  }
+
+  function changeWorkerRut(value: string): void {
+    if (normalizeRut(value) !== normalizeRut(rut)) {
+      // A previous selection's in-flight result must not populate this one.
+      selectionVersion.current += 1;
+      setWorkedHours(null);
+      setIsSubmitting(false);
+    }
+    setRut(value);
     setPendingNoShift(null);
     setPendingConfirmation(null);
+    setMessage(null);
   }
 
   function showMessage(
@@ -419,11 +470,7 @@ export function AttendanceView({
                       rut={rut}
                       search={search}
                       selectedWorker={selectedWorker}
-                      onRutChange={(value) => {
-                        setRut(value);
-                        setPendingNoShift(null);
-                        setMessage(null);
-                      }}
+                      onRutChange={changeWorkerRut}
                       onSearchChange={setSearch}
                       onSelectWorker={selectWorker}
                     />
@@ -457,7 +504,7 @@ export function AttendanceView({
                     setPendingNoShift(null);
                     setPendingConfirmation(null);
                     if (role === "dueno") {
-                      setRut("");
+                      changeWorkerRut("");
                     }
                   }}
                 >
@@ -530,6 +577,19 @@ export function AttendanceView({
               Seleccione un trabajador activo o ingrese su RUT.
             </p>
           )}
+          <dl
+            className="mt-5 border-t border-[#e3e8ee] pt-4 text-sm"
+            aria-live="polite"
+          >
+            <Info
+              label="Horas trabajadas"
+              value={
+                workedHours?.trabajadorRut === normalizeRut(rut)
+                  ? workedHours.value
+                  : "Sin información"
+              }
+            />
+          </dl>
         </aside>
       </div>
     </section>

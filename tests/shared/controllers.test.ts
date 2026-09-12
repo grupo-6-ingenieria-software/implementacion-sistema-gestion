@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(36);
-    expect(new Set(ids)).toHaveProperty("size", 36);
+    expect(controllers).toHaveLength(34);
+    expect(new Set(ids)).toHaveProperty("size", 34);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -35,6 +35,7 @@ describe("controller registry", () => {
       "ean-reader",
       "user-management",
       "product-delete",
+      "sale-annulment",
       "product-detail",
       "stock-adjustment",
       "movement-history",
@@ -55,7 +56,7 @@ describe("controller registry", () => {
   });
 
   it("assigns at least one IPC channel to every controller", () => {
-    expect(ipcChannels.length).toBeGreaterThanOrEqual(36);
+    expect(ipcChannels.length).toBeGreaterThanOrEqual(33);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
@@ -114,6 +115,17 @@ describe("controller registry", () => {
       controllers.find((controller) => controller.id === "product-delete")
         ?.channels,
     ).toEqual(["producto:eliminar"]);
+  });
+
+  it("keeps the shared CU38/CU41 query channels and CU38 annulment channel", () => {
+    expect(
+      controllers.find((controller) => controller.id === "sales-history")
+        ?.channels,
+    ).toEqual(["venta:historial-dia", "venta:buscar", "venta:detalle"]);
+    expect(
+      controllers.find((controller) => controller.id === "sale-annulment")
+        ?.channels,
+    ).toEqual(["venta:anular"]);
   });
 
   it("keeps the worker operations provided by the current main scope", () => {

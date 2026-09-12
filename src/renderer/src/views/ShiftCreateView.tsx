@@ -1,13 +1,23 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import type { AttendanceWorkerOption } from "../../../shared/attendance";
 import {
   displayDateToIso,
   normalizeShiftCreatePayload,
+  normalizeShiftEditPayload,
+  validateShiftEditPayload,
+  getWeekStartForDateKey,
+  type ShiftCalendarItem,
+  type ShiftLookupResponse,
   type ShiftFieldErrors,
   type ShiftMutationResponse,
 } from "../../../shared/shifts";
 
+import type { Role } from "../../../shared/navigation";
+import { buildShiftCalendarPath, getShiftCalendarContext, getShiftEditId } from "./shift-navigation";
+
 type ShiftCreateViewProps = {
+  role?: Role;
+  onEditSaved?: (path: string) => void;
   currentPath: string;
   onNavigate: (path: string) => void;
   usuarioId: string;
@@ -59,101 +69,121 @@ export function getActivePreselectedWorkerId(
 }
 
 export function ShiftCreateView({
-  currentPath,
-  onNavigate,
-  usuarioId,
+  currentPath, onNavigate, usuarioId, role, onEditSaved,
 }: ShiftCreateViewProps): ReactElement {
-  const initialContext = useMemo(
-    () => getShiftCreateContext(currentPath),
-    [currentPath],
-  );
-  const [form, setForm] = useState<FormState>(() => ({
-    ...emptyForm,
-    fecha: initialContext.fecha,
-  }));
+  const initialContext = useMemo(() => getShiftCreateContext(currentPath), [currentPath]);
+  const returnContext = useMemo(() => getShiftCalendarContext(currentPath), [currentPath]);
+  const turnoId = getShiftEditId(currentPath);
+  const editing = turnoId !== undefined;
+  const [form, setForm] = useState<FormState>({ ...emptyForm });
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
+  const [shift, setShift] = useState<ShiftCalendarItem | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ShiftFieldErrors>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const requestIdRef = useRef(0);
+  const savingRef = useRef(false);
+  const returnTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const blocked = editing && (role !== "dueno" || !shift?.puedeModificar);
+  const returnPath = editing ? buildShiftCalendarPath(returnContext) : "/app/personal/turnos";
 
-  useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      fecha: initialContext.fecha,
-    }));
-  }, [initialContext.fecha]);
-
-  async function loadWorkers(): Promise<void> {
+  const loadForm = useCallback(async (): Promise<void> => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setLoadError(null);
-
+    setMessage(null);
+    setFieldErrors({});
+    setShift(null);
+    setCompleted(false);
+    setSaving(false);
+    savingRef.current = false;
+    setForm({ ...emptyForm, fecha: initialContext.fecha });
     try {
-      const response = await window.appApi.invoke<AttendanceWorkerOption[]>(
-        "trabajador:listar-activos",
-        { usuarioId },
-      );
-
-      if (!response.ok) {
-        setLoadError(response.error.message);
-        setWorkers([]);
-        return;
+      if (editing) {
+        if (role !== "dueno") throw new Error("No tiene permiso para editar turnos.");
+        if (!turnoId) throw new Error("No se pudo identificar el turno.");
+        const response = await window.appApi.invoke<ShiftLookupResponse>("turno:listar", {
+          consulta: "turno", turnoId, usuarioId,
+        });
+        if (requestId !== requestIdRef.current) return;
+        if (!response.ok) throw new Error(response.error.message);
+        const current = response.data.turno;
+        setShift(current);
+        setForm({
+          trabajadorId: String(current.trabajadorId), fecha: current.fecha,
+          horaInicio: current.horaInicio, horaTermino: current.horaTermino,
+        });
+      } else {
+        const response = await window.appApi.invoke<AttendanceWorkerOption[]>(
+          "trabajador:listar-activos", { usuarioId, contexto: "calendario" },
+        );
+        if (requestId !== requestIdRef.current) return;
+        if (!response.ok) throw new Error(response.error.message);
+        setWorkers(response.data);
+        setForm({
+          ...emptyForm, fecha: initialContext.fecha,
+          trabajadorId: getActivePreselectedWorkerId(response.data, initialContext.trabajadorId),
+        });
       }
-
-      setWorkers(response.data);
-      setForm((current) => ({
-        ...current,
-        trabajadorId: getActivePreselectedWorkerId(
-          response.data,
-          initialContext.trabajadorId,
-        ),
-      }));
-    } catch {
-      setLoadError("No fue posible comunicarse con el proceso principal.");
-      setWorkers([]);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      setLoadError(error instanceof Error ? error.message : "No fue posible comunicarse con el proceso principal.");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }
+  }, [editing, turnoId, role, usuarioId, initialContext]);
 
   useEffect(() => {
-    void loadWorkers();
-  }, [initialContext.trabajadorId, usuarioId]);
-
-  const payload = useMemo(
-    () =>
-      normalizeShiftCreatePayload({
-        ...form,
-        usuarioId,
-      }),
-    [form, usuarioId],
-  );
+    void loadForm();
+    return () => {
+      requestIdRef.current += 1;
+      clearTimeout(returnTimerRef.current);
+    };
+  }, [loadForm]);
 
   async function submit(): Promise<void> {
-    setFieldErrors({});
+    if (savingRef.current || loading || loadError || blocked || completed) return;
+    const payload = editing
+      ? normalizeShiftEditPayload({ ...form, turnoId, usuarioId })
+      : normalizeShiftCreatePayload({ ...form, usuarioId });
+    const errors = editing ? validateShiftEditPayload(normalizeShiftEditPayload(payload)) : {};
+    setFieldErrors(errors);
     setMessage(null);
-
+    if (Object.keys(errors).length > 0) return;
+    savingRef.current = true;
     setSaving(true);
-
+    const requestId = requestIdRef.current;
     try {
       const response = await window.appApi.invoke<ShiftMutationResponse>(
-        "turno:crear",
-        payload,
+        editing ? "turno:editar" : "turno:crear", payload,
       );
-
+      if (requestId !== requestIdRef.current) return;
       if (!response.ok) {
         setFieldErrors(response.error.fieldErrors ?? {});
         setMessage(response.error.message);
         return;
       }
-
-      setMessage("Turno creado correctamente.");
-      window.setTimeout(() => onNavigate("/app/personal/turnos"), 700);
+      setCompleted(true);
+      if (editing) {
+        const path = buildShiftCalendarPath({
+          ...returnContext, inicioSemana: getWeekStartForDateKey(displayDateToIso(form.fecha)!),
+        });
+        if (onEditSaved) onEditSaved(path);
+        else onNavigate(path);
+      } else {
+        setMessage("Turno creado correctamente.");
+        returnTimerRef.current = setTimeout(() => onNavigate("/app/personal/turnos"), 700);
+      }
     } catch {
-      setMessage("No fue posible comunicarse con el proceso principal.");
+      if (requestId === requestIdRef.current) setMessage("No fue posible comunicarse con el proceso principal.");
     } finally {
-      setSaving(false);
+      if (requestId === requestIdRef.current) {
+        savingRef.current = false;
+        setSaving(false);
+      }
     }
   }
 
@@ -163,16 +193,17 @@ export function ShiftCreateView({
         <div>
           <p className="text-sm font-semibold text-[#2d6a4f]">Personal</p>
           <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-            Crear turno
+            {editing ? "Editar turno" : "Crear turno"}
           </h3>
           <p className="mt-2 text-sm text-[#61717f]">
-            Desde Turnos: accion Crear turno.
+            {editing ? "Modifique la fecha y el horario del turno seleccionado." : "Desde Turnos: accion Crear turno."}
           </p>
         </div>
         <button
           className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate("/app/personal/turnos")}
+          disabled={saving || completed}
+          onClick={() => onNavigate(returnPath)}
         >
           Volver a turnos
         </button>
@@ -181,17 +212,17 @@ export function ShiftCreateView({
       <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
         {loading ? (
           <p className="font-semibold text-[#244d61]">
-            Cargando trabajadores activos...
+            {editing ? "Cargando turno..." : "Cargando trabajadores activos..."}
           </p>
         ) : null}
 
         {!loading && loadError ? (
           <div className="grid gap-4" aria-live="assertive">
-            <p className="text-sm font-semibold text-[#8f2727]">{loadError}</p>
+            <p className="text-sm font-semibold text-[#8f2727]" role="alert">{loadError}</p>
             <button
               className="w-fit rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => void loadWorkers()}
+              onClick={() => void loadForm()}
             >
               Reintentar
             </button>
@@ -207,7 +238,15 @@ export function ShiftCreateView({
               void submit();
             }}
           >
-            <Field label="Trabajador activo" error={fieldErrors.trabajadorId}>
+            {blocked ? (
+              <p role="alert" className="rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4 text-sm text-[#6b4a24]">
+                Este turno ya inicio o tiene asistencia registrada. No puede modificarse.
+              </p>
+            ) : null}
+            <fieldset className="grid gap-5" disabled={saving || completed || blocked}>
+            {editing ? (
+              <p className="font-semibold text-[#24313d]">Trabajador: {shift?.trabajadorNombre}</p>
+            ) : <Field label="Trabajador activo" error={fieldErrors.trabajadorId}>
               <select
                 className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
                 value={form.trabajadorId}
@@ -225,7 +264,7 @@ export function ShiftCreateView({
                   </option>
                 ))}
               </select>
-            </Field>
+            </Field>}
 
             <div className="grid gap-5 md:grid-cols-3">
               <Field label="Fecha (DD/MM/AAAA)" error={fieldErrors.fecha}>
@@ -272,6 +311,7 @@ export function ShiftCreateView({
                 />
               </Field>
             </div>
+            </fieldset>
 
             <p className="rounded-md bg-[#f6f7f9] px-4 py-3 text-sm text-[#61717f]">
               El turno debe comenzar y terminar el mismo dia. Para una jornada
@@ -290,16 +330,16 @@ export function ShiftCreateView({
             <div className="flex flex-wrap gap-3 border-t border-[#e3e8ee] pt-5">
               <button
                 className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                disabled={saving || workers.length === 0}
+                disabled={saving || completed || blocked || (!editing && workers.length === 0)}
                 type="submit"
               >
-                {saving ? "Guardando..." : "Guardar turno"}
+                {saving ? "Guardando..." : editing ? "Guardar cambios" : "Guardar turno"}
               </button>
               <button
                 className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-                disabled={saving}
+                disabled={saving || completed}
                 type="button"
-                onClick={() => onNavigate("/app/personal/turnos")}
+                onClick={() => onNavigate(returnPath)}
               >
                 Cancelar
               </button>

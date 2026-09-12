@@ -226,6 +226,7 @@ export async function authenticateWithExecutor(
       sesionUsuarioId: sesionId,
       sesionFechaHoraInicio: nowIso,
       sesionFechaHoraUltimoAcceso: nowIso,
+      sesionRolEfectivo: role,
       usuarioId: user.usuarioId,
     })
     .returning({ sesionId: schema.sesionUsuario.sesionUsuarioId });
