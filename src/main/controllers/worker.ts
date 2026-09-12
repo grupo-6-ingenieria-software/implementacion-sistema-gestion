@@ -81,11 +81,27 @@ export function createWorkerController(
           "trabajador",
         ]);
 
+        const listContext = payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>).contexto
+          : undefined;
+        if (listContext !== undefined && listContext !== "calendario") {
+          return {
+            ok: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              controllerId: "worker",
+              message: "Contexto de consulta de trabajadores no valido.",
+            },
+          };
+        }
+
         const activeWorkers = await dependencies.listActiveWorkers();
 
         return {
           ok: true,
-          data: scopeActiveWorkersToUser(activeWorkers, user),
+          data: listContext === "calendario"
+            ? activeWorkers
+            : scopeActiveWorkersToUser(activeWorkers, user),
         };
       }
 
@@ -485,12 +501,14 @@ function mapWorkerRows(
 }
 
 /**
- * Limita la lista de trabajadores activos segun el rol del solicitante.
+ * Conserva el alcance heredado de asistencia cuando no se indica contexto.
  *
  * El dueno necesita la lista completa (p.ej. para asignar turnos), pero un
  * trabajador solo debe ver su propio registro: exponerle la lista completa
  * filtra RUT y nombres del resto del personal (issue #33). El propio registro
  * se identifica por RUT (usuarioId == RUT de la sesion), nunca por posicion.
+ * CU28 permite consultar todos los activos mediante contexto: "calendario";
+ * ese caso no utiliza este filtro ni cambia los permisos de asistencia.
  */
 function scopeActiveWorkersToUser(
   activeWorkers: AttendanceWorkerOption[],

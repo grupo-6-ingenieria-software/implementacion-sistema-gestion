@@ -750,9 +750,10 @@ function ViewRenderer({
     return <DailySalesView usuarioId={session.usuarioId} />;
   }
 
-  if (node.id === "shift-calendar" && session.usuarioId) {
+  if (node.id === "shift-calendar" && session.usuarioId && session.role) {
     return (
       <ShiftCalendarView
+        role={session.role}
         onNavigate={onNavigate}
         usuarioId={session.usuarioId}
       />

@@ -105,15 +105,20 @@ export function normalizeShiftDeletePayload(
 
 export function normalizeShiftListPayload(payload: unknown): ShiftListPayload {
   const record = isRecord(payload) ? payload : {};
-  const trabajadorId = normalizeInteger(record.trabajadorId);
+  const value = record.trabajadorId;
+  // An invalid filter must never become an unfiltered calendar.
+  const trabajadorId = value === undefined
+    ? undefined
+    : typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+$/.test(value.trim())
+        ? Number(value.trim())
+        : Number.NaN;
 
   return {
     usuarioId: normalizeText(record.usuarioId),
     inicioSemana: normalizeText(record.inicioSemana),
-    trabajadorId:
-      Number.isInteger(trabajadorId) && trabajadorId > 0
-        ? trabajadorId
-        : undefined,
+    trabajadorId,
   };
 }
 
@@ -164,6 +169,11 @@ export function validateShiftListPayload(
 
   if (!isIsoDate(values.inicioSemana)) {
     errors.fecha = "Ingrese un inicio de semana valido.";
+  }
+
+  if (values.trabajadorId !== undefined &&
+      (!Number.isSafeInteger(values.trabajadorId) || values.trabajadorId <= 0)) {
+    errors.trabajadorId = "Seleccione un trabajador valido.";
   }
 
   return errors;

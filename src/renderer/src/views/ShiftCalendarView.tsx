@@ -7,6 +7,8 @@ import {
   type ReactElement,
 } from "react";
 import type { AttendanceWorkerOption } from "../../../shared/attendance";
+import type { Role } from "../../../shared/navigation";
+import type { ActiveWorkerListPayload } from "../../../shared/workers";
 import {
   addDaysToDateKey,
   getWeekStartDateKey,
@@ -20,6 +22,7 @@ import {
 } from "../../../shared/shifts";
 
 type ShiftCalendarViewProps = {
+  role: Role;
   onNavigate: (path: string) => void;
   usuarioId: string;
 };
@@ -51,7 +54,8 @@ export async function loadShiftCalendarData(
   const [workersResponse, shiftsResponse] = await Promise.all([
     invoke<AttendanceWorkerOption[]>("trabajador:listar-activos", {
       usuarioId: input.usuarioId,
-    }),
+      contexto: "calendario",
+    } satisfies ActiveWorkerListPayload),
     invoke<ShiftListResponse>("turno:listar", {
       usuarioId: input.usuarioId,
       inicioSemana: input.inicioSemana,
@@ -121,11 +125,13 @@ const dayNames = [
 ];
 
 export function ShiftCalendarView({
+  role,
   onNavigate,
   usuarioId,
 }: ShiftCalendarViewProps): ReactElement {
   const [weekStart, setWeekStart] = useState(getWeekStartDateKey);
   const [workerFilter, setWorkerFilter] = useState("");
+  const [workerFilterName, setWorkerFilterName] = useState("");
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
   const [state, setState] = useState<PageState>({ status: "loading" });
@@ -137,11 +143,20 @@ export function ShiftCalendarView({
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const requestIdRef = useRef(0);
+  const canManage = role === "dueno";
+  const workerUnavailable = Boolean(workerFilter) &&
+    !workers.some((worker) => String(worker.trabajadorId) === workerFilter);
 
   const loadCalendar = useCallback(
     async (preserveData = false): Promise<void> => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
+      setSelected(null);
+      setSelectedDateKey(null);
+      setEditForm(null);
+      setDeleting(false);
+      setActionMessage(null);
+      setFieldErrors({});
       setState((current) =>
         preserveData && current.status === "ready"
           ? { ...current, refreshing: true }
@@ -160,7 +175,14 @@ export function ShiftCalendarView({
         }
 
         setWorkers(data.workers);
-        setState({ status: "ready", data: data.shifts, refreshing: false });
+        const unavailable = Boolean(workerFilter) && !data.workers.some(
+          (worker) => String(worker.trabajadorId) === workerFilter,
+        );
+        setState({
+          status: "ready",
+          data: unavailable ? { ...data.shifts, turnos: [] } : data.shifts,
+          refreshing: false,
+        });
       } catch (error) {
         if (!isLatestShiftCalendarRequest(requestId, requestIdRef.current)) {
           return;
@@ -179,11 +201,8 @@ export function ShiftCalendarView({
   );
 
   useEffect(() => {
-    setSelected(null);
-    setSelectedDateKey(null);
-    setEditForm(null);
-    setActionMessage(null);
     void loadCalendar();
+    return () => { requestIdRef.current += 1; };
   }, [loadCalendar]);
 
   const weekDays = useMemo(
@@ -199,7 +218,7 @@ export function ShiftCalendarView({
     setSelectedDateKey(turno.fechaIso);
     setSelected(turno);
     setEditForm(
-      turno.puedeModificar
+      canManage && turno.puedeModificar
         ? {
             fecha: turno.fecha,
             horaInicio: turno.horaInicio,
@@ -214,7 +233,7 @@ export function ShiftCalendarView({
   }
 
   async function saveEdit(): Promise<void> {
-    if (!selected || !editForm) {
+    if (!canManage || !selected || !editForm) {
       return;
     }
 
@@ -258,7 +277,7 @@ export function ShiftCalendarView({
   }
 
   async function confirmDelete(): Promise<void> {
-    if (!selected) {
+    if (!canManage || !selected) {
       return;
     }
 
@@ -339,10 +358,10 @@ export function ShiftCalendarView({
             {isoDateToDisplay(state.data.finSemana)}.
           </p>
         </div>
-        <div className="grid justify-items-end gap-2">
+        {canManage ? <div className="grid justify-items-end gap-2">
           <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-            disabled={!selectedDateKey}
+            disabled={!selectedDateKey || saving || state.refreshing || workerUnavailable}
             type="button"
             onClick={() => {
               if (!selectedDateKey) {
@@ -364,7 +383,7 @@ export function ShiftCalendarView({
               ? `Fecha seleccionada: ${isoDateToDisplay(selectedDateKey)}`
               : "Seleccione un dia del calendario."}
           </p>
-        </div>
+        </div> : null}
       </div>
 
       <article className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
@@ -374,6 +393,7 @@ export function ShiftCalendarView({
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
               onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}
+              disabled={saving}
             >
               Semana anterior
             </button>
@@ -381,8 +401,17 @@ export function ShiftCalendarView({
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
               onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}
+              disabled={saving}
             >
               Semana siguiente
+            </button>
+            <button
+              className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+              type="button"
+              disabled={saving || state.refreshing}
+              onClick={() => void loadCalendar(true)}
+            >
+              Actualizar
             </button>
           </div>
           <label className="grid min-w-64 gap-2 text-sm font-semibold text-[#24313d]">
@@ -390,9 +419,18 @@ export function ShiftCalendarView({
             <select
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={workerFilter}
-              onChange={(event) => setWorkerFilter(event.target.value)}
+              disabled={saving}
+              onChange={(event) => {
+                setWorkerFilter(event.target.value);
+                setWorkerFilterName(event.target.selectedOptions[0]?.text ?? "");
+              }}
             >
               <option value="">Todos los trabajadores activos</option>
+              {workerUnavailable ? (
+                <option value={workerFilter} disabled>
+                  {workerFilterName} (no disponible)
+                </option>
+              ) : null}
               {workers.map((worker) => (
                 <option key={worker.trabajadorId} value={worker.trabajadorId}>
                   {worker.nombreCompleto}
@@ -402,6 +440,13 @@ export function ShiftCalendarView({
           </label>
         </div>
       </article>
+
+      {workerUnavailable ? (
+        <p className="rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4 text-sm text-[#6b4a24]" role="status">
+          {workerFilterName} ya no está disponible entre los trabajadores activos.
+          Seleccione otro trabajador o Todos los trabajadores activos.
+        </p>
+      ) : null}
 
       {state.refreshing ? (
         <p className="text-sm font-semibold text-[#61717f]" role="status">
@@ -437,6 +482,7 @@ export function ShiftCalendarView({
                 className="w-full rounded-md px-1 py-1 text-left transition hover:bg-[#eef4f1]"
                 type="button"
                 onClick={() => setSelectedDateKey(day.dateKey)}
+                disabled={saving || state.refreshing}
               >
                 <span className="block font-semibold text-[#17202a]">
                   {day.name}
@@ -456,6 +502,7 @@ export function ShiftCalendarView({
                     key={turno.turnoId}
                     type="button"
                     onClick={() => selectShift(turno)}
+                    disabled={saving || state.refreshing}
                   >
                     <span className="block text-sm font-semibold text-[#17202a]">
                       {turno.trabajadorNombre}
@@ -478,6 +525,7 @@ export function ShiftCalendarView({
 
       {selected ? (
         <ShiftDetail
+          canManage={canManage}
           deleting={deleting}
           editForm={editForm}
           fieldErrors={fieldErrors}
@@ -504,6 +552,7 @@ export function ShiftCalendarView({
 }
 
 function ShiftDetail({
+  canManage,
   deleting,
   editForm,
   fieldErrors,
@@ -516,6 +565,7 @@ function ShiftDetail({
   onEditChange,
   onSave,
 }: {
+  canManage: boolean;
   deleting: boolean;
   editForm: EditForm | null;
   fieldErrors: ShiftFieldErrors;
@@ -535,6 +585,9 @@ function ShiftDetail({
           <h4 className="text-lg font-semibold text-[#17202a]">
             {shift.trabajadorNombre}
           </h4>
+          <p className="mt-2 text-sm text-[#61717f]">
+            {shift.fecha}, de {shift.horaInicio} a {shift.horaTermino}.
+          </p>
         </div>
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
@@ -545,7 +598,7 @@ function ShiftDetail({
         </button>
       </div>
 
-      {!shift.puedeModificar || !editForm ? (
+      {!canManage ? null : !shift.puedeModificar || !editForm ? (
         <div className="mt-5 rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4 text-sm text-[#6b4a24]">
           Este turno ya inicio o tiene asistencia registrada. No puede
           modificarse ni eliminarse.

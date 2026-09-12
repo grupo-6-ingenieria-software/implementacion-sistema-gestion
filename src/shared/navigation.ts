@@ -359,7 +359,7 @@ export const navigationTree = [
     viewName: "ShiftCalendarView",
     label: "Turnos",
     path: "/app/personal/turnos",
-    roles: ["dueno"],
+    roles: ["dueno", "trabajador"],
     group: "personal",
     showInMenu: true,
     entryFrom: "Menu Personal > Turnos.",
