@@ -1,12 +1,14 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { controllers, type ControllerResponse } from "../../shared/controllers";
 import { INACTIVITY_MS } from "../../shared/auth";
+import type { Role } from "../../shared/navigation";
 import { db, schema as appSchema } from "../../db/client";
 import {
   controllerSuccess,
   type ControllerContext,
   type RegisteredController,
 } from "./base";
+import { mapDatabaseRoleToTechnicalRole } from "./auth-context";
 
 type SchemaLike = typeof import("../../db/schema");
 type SessionExecutor = Pick<typeof db, "select" | "update">;
@@ -33,6 +35,7 @@ export type SessionInactiveReason =
 export type VerifySessionData = {
   active: boolean;
   reason?: SessionInactiveReason;
+  rolEfectivo?: Role;
 };
 
 export type SessionDeps = {
@@ -131,10 +134,21 @@ export async function validateAndRefreshActiveSession(
           sql`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) > julianday(${inactivityBoundary})`,
         ),
       )
-      .returning({ id: schema.sesionUsuario.sesionUsuarioId });
+      .returning({
+        id: schema.sesionUsuario.sesionUsuarioId,
+        rolEfectivo: schema.sesionUsuario.sesionRolEfectivo,
+      });
 
     if (renewed.length > 0) {
-      return { active: true };
+      return {
+        active: true,
+        rolEfectivo: await resolveSessionRolEfectivo(
+          tx,
+          schema,
+          usuarioId,
+          renewed[0].rolEfectivo,
+        ),
+      };
     }
 
     // Cero filas puede significar propietario distinto, sesión cerrada,
@@ -161,6 +175,7 @@ async function inspectSessionState(
       cierre: schema.sesionUsuario.sesionFechaHoraCierre,
       motivoCierre: schema.sesionUsuario.sesionMotivoCierre,
       ultimoAcceso: schema.sesionUsuario.sesionFechaHoraUltimoAcceso,
+      rolEfectivo: schema.sesionUsuario.sesionRolEfectivo,
       timestampValido: sql<number>`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) IS NOT NULL`,
       dentroVentana: sql<number>`julianday(${schema.sesionUsuario.sesionFechaHoraUltimoAcceso}) > julianday(${inactivityBoundary})`,
     })
@@ -185,7 +200,15 @@ async function inspectSessionState(
   }
 
   if (session.dentroVentana) {
-    return { active: true };
+    return {
+      active: true,
+      rolEfectivo: await resolveSessionRolEfectivo(
+        database,
+        schema,
+        usuarioId,
+        session.rolEfectivo,
+      ),
+    };
   }
 
   const closed = await database
@@ -291,6 +314,29 @@ export async function closeSessionWithExecutor(
     .returning({ id: schema.sesionUsuario.sesionUsuarioId });
 
   return controllerSuccess<LogoutData>({ closed: updated.length > 0 });
+}
+
+async function resolveSessionRolEfectivo(
+  database: SessionExecutor,
+  schema: SchemaLike,
+  usuarioId: string,
+  stored: string | null,
+): Promise<Role | undefined> {
+  if (stored === "dueno" || stored === "trabajador") {
+    return stored;
+  }
+
+  const [account] = await database
+    .select({ usuarioRol: schema.usuario.usuarioRol })
+    .from(schema.usuario)
+    .where(eq(schema.usuario.usuarioId, usuarioId))
+    .limit(1);
+
+  if (!account) {
+    return undefined;
+  }
+
+  return mapDatabaseRoleToTechnicalRole(account.usuarioRol) ?? undefined;
 }
 
 function normalizeReason(motivo: string | null): SessionInactiveReason {

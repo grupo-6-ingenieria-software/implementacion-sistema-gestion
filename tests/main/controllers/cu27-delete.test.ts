@@ -38,6 +38,7 @@ beforeEach(async () => {
     });
     await fixture.db.insert(schema.sesionUsuario).values({
       sesionUsuarioId: sessions[i], usuarioId: users[i],
+      sesionRolEfectivo: i === 0 ? "dueno" : "trabajador",
       sesionFechaHoraInicio: new Date().toISOString(),
       sesionFechaHoraUltimoAcceso: new Date().toISOString(),
     });

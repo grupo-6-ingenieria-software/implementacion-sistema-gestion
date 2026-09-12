@@ -19,6 +19,11 @@ export const SESSION_EXPIRED_MESSAGE = "Su sesión ha expirado por inactividad";
 
 export const SESSION_EXPIRED_EVENT = "session:expirada";
 
+export const SESSION_INVALIDATED_EVENT = "session:invalidada";
+
+export const SESSION_INVALIDATED_MESSAGE =
+  "Su sesión fue cerrada porque su cuenta fue desactivada.";
+
 export type PasswordComplexityResult = {
   valid: boolean;
   message?: string;
