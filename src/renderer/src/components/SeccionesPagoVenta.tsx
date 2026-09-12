@@ -3,7 +3,7 @@ import type { PaymentMethod } from "../../../shared/sales";
 
 type SeccionesPagoVentaProps = {
   metodo: PaymentMethod;
-  total: number;
+  total: number | null;
   montoRecibido: string;
   onMetodoChange: (metodo: PaymentMethod) => void;
   onMontoRecibidoChange: (value: string) => void;
@@ -17,7 +17,7 @@ export function SeccionesPagoVenta({
   onMontoRecibidoChange,
 }: SeccionesPagoVentaProps): ReactElement {
   const received = Number(montoRecibido || 0);
-  const vuelto = Math.max(0, received - total);
+  const vuelto = total === null ? null : Math.max(0, received - total);
 
   return (
     <div className="rounded-md border border-[#cbd5df] bg-white p-4">
@@ -56,7 +56,9 @@ export function SeccionesPagoVenta({
               Vuelto
             </p>
             <p className="mt-1 text-lg font-semibold text-[#17202a]">
-              {formatCurrency(vuelto)}
+              {vuelto === null
+                ? "Pendiente de corrección"
+                : formatCurrency(vuelto)}
             </p>
           </div>
         </div>

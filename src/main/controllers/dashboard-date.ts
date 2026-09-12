@@ -1,3 +1,5 @@
+import { getChileDateKey } from "../../shared/sales";
+
 const DASHBOARD_TIME_ZONE = "America/Santiago";
 
 export type DashboardDay = {
@@ -6,14 +8,30 @@ export type DashboardDay = {
   endUtc: string;
 };
 
+export type ChileDateRange = {
+  startUtc: string;
+  endUtc: string;
+};
+
 export function getDashboardDay(now = new Date()): DashboardDay {
-  const dateKey = formatDateKey(now);
+  const dateKey = getChileDateKey(now);
   const nextDateKey = addCalendarDays(dateKey, 1);
 
   return {
     dateKey,
     startUtc: zonedMidnightToSqlUtc(dateKey),
     endUtc: zonedMidnightToSqlUtc(nextDateKey),
+  };
+}
+
+/** Convierte un rango inclusivo de fechas civiles chilenas a límites UTC. */
+export function getChileDateRange(
+  startDateKey: string,
+  endDateKey: string,
+): ChileDateRange {
+  return {
+    startUtc: zonedMidnightToSqlUtc(startDateKey),
+    endUtc: zonedMidnightToSqlUtc(addCalendarDays(endDateKey, 1)),
   };
 }
 
@@ -26,15 +44,6 @@ export function differenceInCalendarDays(
       Date.parse(`${referenceDateKey}T00:00:00Z`)) /
       86_400_000,
   );
-}
-
-function formatDateKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: DASHBOARD_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 }
 
 function addCalendarDays(dateKey: string, days: number): string {

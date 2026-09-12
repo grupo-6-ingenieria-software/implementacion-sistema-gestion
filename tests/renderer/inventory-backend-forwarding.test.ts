@@ -36,7 +36,7 @@ beforeEach(async () => {
 afterEach(async () => {
   if (!testDb) return;
   testDb.client.close();
-  await rm(testDb.dir, { recursive: true, force: true });
+  await removeTempDir(testDb.dir);
   testDb = undefined;
 });
 
@@ -223,4 +223,16 @@ async function seedFixture(db: TestDatabase["db"]): Promise<void> {
   await db.run(sql`INSERT INTO lote_perecible
     (lote_id, lote_perecible_fecha_vencimiento)
     VALUES ('00000000-0000-4000-8000-000000000101', '2027-01-01')`);
+}
+
+async function removeTempDir(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      if (attempt === 4) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
 }

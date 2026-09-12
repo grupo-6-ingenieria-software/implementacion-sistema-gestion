@@ -3,6 +3,8 @@ import { sql, type SQL } from "drizzle-orm";
 import {
   calculateCashChange,
   calculateSaleTotals,
+  validateSaleDiscount,
+  type SaleDiscountInput,
   type PaymentMethod,
   type SaleCartItemInput,
   type SaleCartValidationRequest,
@@ -26,10 +28,7 @@ export type SaleRegisterPayload = {
   items: SaleRegisterItemInput[];
   metodoPago: PaymentMethod;
   montoRecibido?: number;
-  descuento?: {
-    monto: number;
-    razon: string;
-  };
+  descuento?: SaleDiscountInput;
 };
 
 export type SaleProductSnapshot = {
@@ -138,6 +137,17 @@ export async function registerSale(
     });
 
     const requestedDiscount = normalized.descuento?.monto ?? 0;
+    const subtotal = calculateSaleTotals(receiptLines).subtotal;
+    const discountErrors = validateSaleDiscount(
+      requestedDiscount,
+      normalized.descuento?.razon,
+      subtotal,
+    );
+    if (discountErrors.monto || discountErrors.razon) {
+      throw new SaleValidationError(
+        discountErrors.monto ?? discountErrors.razon,
+      );
+    }
     const totals = calculateSaleTotals(receiptLines, requestedDiscount);
 
     await validateCalculatedSaleRules(
@@ -401,6 +411,7 @@ async function validateSalePayloadRules(
         AND typeof(${discountAmount}) IN ('integer', 'real')
         AND CAST(${discountAmount} AS INTEGER) = ${discountAmount}
         AND ${discountAmount} >= 0
+        AND ${discountAmount} <= ${Number.MAX_SAFE_INTEGER}
         AND (${discountAmount} = 0 OR length(trim(${discountReason})) > 0)
         THEN 1 ELSE 0 END AS discountValid,
       CASE WHEN ${method} <> 'efectivo' OR (
