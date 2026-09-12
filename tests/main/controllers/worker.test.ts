@@ -106,14 +106,17 @@ describe("worker controller", () => {
     );
 
     expect(response.ok).toBe(true);
-    expect(createWorker).toHaveBeenCalledWith({
-      correoElectronico: "ana@huascar.cl",
-      nombreCompleto: "Ana Soto",
-      rol: "trabajador",
-      rut: "12345678-5",
-      telefono: "987654321",
-      usuarioId: "dueno",
-    });
+    expect(createWorker).toHaveBeenCalledWith(
+      {
+        correoElectronico: "ana@huascar.cl",
+        nombreCompleto: "Ana Soto",
+        rol: "trabajador",
+        rut: "12345678-5",
+        telefono: "987654321",
+        usuarioId: "dueno",
+      },
+      undefined,
+    );
   });
 
   it("returns field errors for invalid worker creation payloads", async () => {
@@ -173,11 +176,14 @@ describe("worker controller", () => {
     );
 
     expect(response.ok).toBe(true);
-    expect(changeStatus).toHaveBeenCalledWith({
-      estado: "inactivo",
-      usuarioId: "dueno",
-      usuarioObjetivoId: "23456789-0",
-    });
+    expect(changeStatus).toHaveBeenCalledWith(
+      {
+        estado: "inactivo",
+        usuarioId: "dueno",
+        usuarioObjetivoId: "23456789-0",
+      },
+      undefined,
+    );
   });
 
   describe("trabajador:listar-activos", () => {
