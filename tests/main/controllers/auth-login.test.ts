@@ -265,6 +265,12 @@ describe("authenticateWithExecutor (CU56)", () => {
       exitosos: 1,
       auditorias: 1,
     });
+
+    // CU57 (D1): la sesión nace con el rol efectivo congelado.
+    const [sesion] = await testDb!.db
+      .select({ rol: schema.sesionUsuario.sesionRolEfectivo })
+      .from(schema.sesionUsuario);
+    expect(sesion?.rol).toBe("dueno");
   });
 
   it("returns the generic error and records a failed attempt on wrong password (e1)", async () => {

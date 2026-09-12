@@ -365,7 +365,7 @@ export const navigationTree = [
     viewName: "WorkerListView",
     label: "Trabajadores",
     path: "/app/personal/trabajadores",
-    roles: ["dueno"],
+    roles: ["dueno", "trabajador"],
     group: "personal",
     showInMenu: true,
     entryFrom: "Menu Personal > Trabajadores.",
