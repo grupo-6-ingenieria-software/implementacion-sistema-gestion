@@ -47,7 +47,9 @@ export type ControllerId =
   | "supplier-order-reception"
   | "supplier-create"
   | "supplier-query"
-  | "supplier-edit";
+  | "supplier-edit"
+  | "restock-list"
+  | "restock-report-export";
 
 export type NavNode = {
   id: string;
@@ -262,6 +264,21 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
     controllerIds: ["access-control", "movement-history"],
+  },
+  {
+    id: "restock-list",
+    viewName: "RestockListView",
+    label: "Lista de reabastecimiento",
+    path: "/app/inventario/reabastecimiento",
+    roles: ["dueno", "trabajador"],
+    group: "inventario",
+    showInMenu: true,
+    entryFrom: "Menu Inventario > Lista de reabastecimiento.",
+    controllerIds: [
+      "access-control",
+      "restock-list",
+      "restock-report-export",
+    ],
   },
   {
     id: "supplier-list",
@@ -552,6 +569,12 @@ export const internalComponents = [
     usedIn: ["sale-register"],
     controllerIds: ["sale"],
   },
+  {
+    id: "restock-print-view",
+    name: "ListaReabastecimientoPrintView",
+    usedIn: ["restock-list"],
+    controllerIds: ["restock-report-export"],
+  },
 ] as const;
 
 export const appMenuGroups: readonly NavGroup[] = [
@@ -687,6 +710,7 @@ export function validateNavigationTree(): string[] {
     "product-detail",
     "stock-adjustment",
     "movement-history",
+    "restock-list",
     "supplier-list",
     "supplier-create",
     "supplier-edit",

@@ -60,6 +60,7 @@ import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
+import { RestockListView } from "./views/RestockListView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -996,6 +997,15 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "restock-list" && session.usuarioId) {
+    return (
+      <RestockListView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1147,6 +1157,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-detail",
     "stock-adjustment",
     "movement-history",
+    "restock-list",
   ].includes(nodeId);
 }
 
