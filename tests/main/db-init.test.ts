@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "@libsql/client";
@@ -86,6 +86,86 @@ describe("initializeDatabase", () => {
     ).resolves.toBeUndefined();
 
     expect(await tableExists(testDb!.client, "producto")).toBe(true);
+  });
+
+  it("reconcilia drizzle-kit y recupera una CU43 interrumpida", async () => {
+    const paths = resolveDatabaseInitPaths({ isPackaged: false });
+
+    for (const file of [
+      "0000_brave_proteus.sql",
+      "0001_user_roles_dueno_trabajador.sql",
+      "0002_supplier_orders.sql",
+      "0003_sesion_rol_efectivo.sql",
+    ]) {
+      await testDb!.client.executeMultiple(
+        await readFile(join(paths.migrationsFolder, file), "utf8"),
+      );
+    }
+
+    const journal = JSON.parse(
+      await readFile(
+        join(paths.migrationsFolder, "meta", "_journal.json"),
+        "utf8",
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const appliedAt = journal.entries.find(
+      (entry) => entry.tag === "0003_sesion_rol_efectivo",
+    )!.when;
+
+    await testDb!.client.execute(`
+      CREATE TABLE "__drizzle_migrations" (
+        id INTEGER PRIMARY KEY,
+        hash TEXT NOT NULL,
+        created_at NUMERIC
+      )
+    `);
+    await testDb!.client.execute({
+      sql: `INSERT INTO "__drizzle_migrations" (hash, created_at)
+            VALUES (?, ?)`,
+      args: ["applied-by-drizzle-kit", appliedAt],
+    });
+    await testDb!.client.executeMultiple(
+      await readFile(paths.triggersPath, "utf8"),
+    );
+
+    const cu43 = await readFile(
+      join(
+        paths.migrationsFolder,
+        "0004_cu43_sale_responsible_snapshot.sql",
+      ),
+      "utf8",
+    );
+    const renameStatement =
+      "ALTER TABLE `__new_venta` RENAME TO `venta`;";
+    await testDb!.client.executeMultiple(
+      cu43.slice(0, cu43.indexOf(renameStatement)),
+    );
+    await testDb!.client.execute("PRAGMA foreign_keys = ON");
+
+    expect(await tableExists(testDb!.client, "venta")).toBe(false);
+    expect(await tableExists(testDb!.client, "__new_venta")).toBe(true);
+
+    await expect(
+      initializeDatabase(testDb!.db, testDb!.client, paths),
+    ).resolves.toBeUndefined();
+
+    const ventaColumns = await testDb!.client.execute("PRAGMA table_info(venta)");
+    expect(ventaColumns.rows.map((row) => row.name)).toEqual(
+      expect.arrayContaining([
+        "venta_responsable_nombre",
+        "venta_responsable_rol",
+      ]),
+    );
+    expect(await tableExists(testDb!.client, "__new_venta")).toBe(false);
+    expect(
+      Number(
+        (
+          await testDb!.client.execute(
+            'SELECT COUNT(*) AS count FROM "__migrations"',
+          )
+        ).rows[0]?.count,
+      ),
+    ).toBe(5);
   });
 });
 

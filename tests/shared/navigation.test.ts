@@ -26,6 +26,8 @@ describe("navigation tree", () => {
         "product-delete",
         "lot-create",
         "waste-create",
+        "supplier-order-create",
+        "supplier-order-receptions",
         "sale-register",
         "daily-sales",
         "sales-query",
@@ -36,8 +38,13 @@ describe("navigation tree", () => {
         "shift-calendar",
         "shift-create",
         "attendance",
+        "remuneracion-create",
+        "configuracion-previsional",
         "user-management",
         "audit-log",
+        "product-detail",
+        "stock-adjustment",
+        "movement-history",
       ]),
     );
   });
@@ -60,6 +67,7 @@ describe("navigation tree", () => {
     expect(getVisibleGroups("dueno")).toEqual([
       "inicio",
       "inventario",
+      "proveedores",
       "ventas",
       "caja",
       "personal",
@@ -69,6 +77,7 @@ describe("navigation tree", () => {
     expect(getVisibleGroups("trabajador")).toEqual([
       "inicio",
       "inventario",
+      "proveedores",
       "ventas",
       "caja",
       "personal",
@@ -200,6 +209,29 @@ describe("navigation tree", () => {
 
   it("allows only the owner to access V16 and V17", () => {
     for (const path of ["/app/personal/turnos", "/app/personal/turnos/nuevo"]) {
+      expect(
+        evaluateRouteAccess(path, {
+          isAuthenticated: true,
+          role: "dueno",
+        }),
+      ).toEqual({ status: "allow" });
+      expect(
+        evaluateRouteAccess(path, {
+          isAuthenticated: true,
+          role: "trabajador",
+        }),
+      ).toMatchObject({
+        status: "deny",
+        to: APP_HOME_PATH,
+      });
+    }
+  });
+
+  it("allows only the owner to access V30 and V31", () => {
+    for (const path of [
+      "/app/personal/remuneraciones/nueva",
+      "/app/personal/configuracion-previsional",
+    ]) {
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,

@@ -8,6 +8,7 @@ import { auditController } from "./audit";
 import { authLoginController } from "./auth-login";
 import { cashCheckController } from "./cash-check";
 import { cashClosingController } from "./cash-closing";
+import { configPrevisionalController } from "./configuracion-previsional";
 import { dailySalesTotalController } from "./daily-sales-total";
 import { dashboardController } from "./dashboard";
 import { eanReaderController } from "./ean-reader";
@@ -19,6 +20,7 @@ import { productDeleteController } from "./product-delete";
 import { productEditController } from "./product-edit";
 import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
+import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
 import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
@@ -26,7 +28,12 @@ import { sessionController } from "./session";
 import { shiftController } from "./shift";
 import { stockAlertController } from "./stock-alert";
 import { stockDiscountController } from "./stock-discount";
+import { supplierOrderController } from "./supplier-order";
+import { supplierOrderReceptionController } from "./supplier-order-reception";
 import { userManagementController } from "./user-management";
+import { movementHistoryController } from "./movement-history";
+import { productDetailController } from "./product-detail";
+import { stockAdjustmentController } from "./stock-adjustment";
 import { wasteController } from "./waste";
 import { workerController } from "./worker";
 import type { RegisteredController } from "./base";
@@ -60,6 +67,13 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     userManagementController,
     productDeleteController,
     saleAnnulmentController,
+    productDetailController,
+    stockAdjustmentController,
+    movementHistoryController,
+    remuneracionController,
+    configPrevisionalController,
+    supplierOrderController,
+    supplierOrderReceptionController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {
