@@ -7,6 +7,7 @@ import {
   createWorkerController,
   createWorkerWithExecutor,
   listWorkersWithExecutor,
+  updateWorkerWithExecutor,
 } from '../../src/main/controllers/worker';
 import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/shift';
 import { normalizeShiftCreatePayload } from '../../src/shared/shifts';
@@ -33,7 +34,8 @@ const controller = createWorkerController({
   createWorker: (payload) => createWorkerWithExecutor(fixture.db, schema, payload),
   listWorkers: (filters) => listWorkersWithExecutor(fixture.db, schema, filters),
   listActiveWorkers: async () => [],
-  updateWorker: async () => { throw new Error('unexpected updateWorker'); },
+  updateWorker: (payload, sesionRol) =>
+    updateWorkerWithExecutor(fixture.db, schema, payload, sesionRol),
 });
 
 const server = await createServer({
@@ -172,6 +174,30 @@ try {
   assert.equal(lastListar?.payload.rol, 'todos');
   assert.equal(lastListar?.payload.estado, 'todos');
   console.log('PASS CU24 filtro reinvoca trabajador:listar y muestra lista vacia');
+
+
+  await page.goto(`${baseUrl}?view=list`);
+  await page.getByRole('button', { name: 'Editar' }).click();
+  await page.getByText('Modificar trabajador').waitFor();
+  const rutInput = page.getByLabel('RUT', { exact: true });
+  assert.equal(await rutInput.isDisabled(), true, 'el RUT debe quedar bloqueado en edicion');
+
+  await page.getByLabel('Nombre completo').fill('');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await page.getByText('Ingrese el nombre completo.').waitFor();
+  let editCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string }> }).calls);
+  assert.equal(editCalls.filter((call) => call.channel === 'trabajador:actualizar').length, 0, 'el error preventivo no debe invocar IPC');
+
+  await page.getByLabel('Nombre completo').fill('María González Huáscar');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await page.getByText('Trabajador actualizado correctamente.').waitFor();
+  editCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string }> }).calls);
+  assert.equal(editCalls.filter((call) => call.channel === 'trabajador:actualizar').length, 1);
+  console.log('PASS CU22 edicion en modal: RUT bloqueado, error preventivo sin IPC y guardado exitoso');
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('99999999-9');
+  await page.getByText('Trabajador no encontrado').waitFor();
+  console.log('PASS CU22-E1 RUT exacto inexistente muestra Trabajador no encontrado');
 
 } finally {
   await browser.close();

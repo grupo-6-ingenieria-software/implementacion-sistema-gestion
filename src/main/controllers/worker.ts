@@ -145,6 +145,13 @@ export function createWorkerController(
 
       if (context.channel === "trabajador:actualizar") {
         const normalizedPayload = normalizeUserFormPayload(payload);
+
+        await dependencies.authorize(
+          normalizedPayload.usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
+
         const fieldErrors = validateUserFormValues(normalizedPayload, {
           validateRutFormat: false,
         });
@@ -152,12 +159,6 @@ export function createWorkerController(
         if (hasUserFieldErrors(fieldErrors)) {
           return validationError(fieldErrors);
         }
-
-        await dependencies.authorize(
-          normalizedPayload.usuarioId,
-          ["dueno"],
-          normalizeSesionRol(payload),
-        );
 
         return {
           ok: true,
@@ -466,13 +467,13 @@ export async function createWorkerWithExecutor(
   return { usuarioId: payload.rut, contrasenaTemporal };
 }
 
-async function updateWorker(
+export async function updateWorkerWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
   payload: UserFormValues,
   sesionRol?: Role,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import("../../db/client");
-
-  await db.transaction(async (tx) => {
+  await database.transaction(async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -489,8 +490,8 @@ async function updateWorker(
       );
     }
 
-    const nameChanged = existing.nombreCompleto !== payload.nombreCompleto;
     const roleChanged = existing.rol !== payload.rol;
+    const camposCambiados = camposEditados(existing, payload);
 
     await tx
       .update(schema.trabajador)
@@ -502,12 +503,12 @@ async function updateWorker(
       })
       .where(eq(schema.trabajador.trabajadorId, existing.trabajadorId));
 
-    await tx
-      .update(schema.usuario)
-      .set({ usuarioRol: payload.rol })
-      .where(eq(schema.usuario.usuarioId, existing.usuarioId));
+    if (roleChanged) {
+      await tx
+        .update(schema.usuario)
+        .set({ usuarioRol: payload.rol })
+        .where(eq(schema.usuario.usuarioId, existing.usuarioId));
 
-    if (nameChanged || roleChanged) {
       await tx
         .update(schema.usuarioVersion)
         .set({ usuarioVersionFechaHoraVigenciaHasta: new Date().toISOString() })
@@ -528,12 +529,48 @@ async function updateWorker(
     await registerAuditLog(tx, schema, {
       tipoAccion: "edicion",
       modulo: "trabajadores",
-      descripcion: `Trabajador actualizado: ${payload.rut}`,
+      descripcion: `Trabajador actualizado: ${payload.rut}${camposCambiados.length > 0 ? `; campos: ${camposCambiados.join(", ")}` : ""}`,
       usuarioId: owner.usuarioId,
     });
   });
 
   return { usuarioId: payload.rut };
+}
+
+function camposEditados(
+  existing: {
+    nombreCompleto: string;
+    rol: Role;
+    telefono: string;
+    correoElectronico: string | null;
+  },
+  payload: UserFormValues,
+): string[] {
+  const campos: string[] = [];
+
+  if (existing.nombreCompleto !== payload.nombreCompleto) {
+    campos.push("nombre");
+  }
+  if (existing.rol !== payload.rol) {
+    campos.push("rol");
+  }
+  if (existing.telefono !== payload.telefono) {
+    campos.push("telefono");
+  }
+  if ((existing.correoElectronico ?? "") !== (payload.correoElectronico ?? "")) {
+    campos.push("correo");
+  }
+
+  return campos;
+}
+
+async function updateWorker(
+  payload: UserFormValues,
+  sesionRol?: Role,
+): Promise<UserMutationResponse> {
+  const { db, schema } = await import("../../db/client");
+
+  return updateWorkerWithExecutor(db, schema, payload, sesionRol);
 }
 
 async function changeStatus(
@@ -590,6 +627,8 @@ async function findWorkerByRut(
       rut: schema.trabajador.trabajadorRut,
       nombre: schema.trabajador.trabajadorNombre,
       apellido: schema.trabajador.trabajadorApellido,
+      telefono: schema.trabajador.trabajadorTelefono,
+      correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
       usuarioId: schema.usuario.usuarioId,
       rol: schema.usuario.usuarioRol,
     })
@@ -609,6 +648,8 @@ async function findWorkerByRut(
     trabajadorId: row.trabajadorId,
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
+    telefono: row.telefono,
+    correoElectronico: row.correoElectronico,
     usuarioId: row.usuarioId,
     rol: normalizeUserRole(row.rol) ?? "trabajador",
   };
