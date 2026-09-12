@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import type { AnyColumn } from "drizzle-orm";
 import { controllers, type ControllerResponse } from "../../shared/controllers";
 import {
   normalizeRut,
@@ -6,16 +7,18 @@ import {
 } from "../../shared/attendance";
 import type { Role } from "../../shared/navigation";
 import {
-  filterAndSortUserList,
   hasUserFieldErrors,
+  normalizeSearchTerm,
   normalizeUserFormPayload,
   normalizeUserListPayload,
   normalizeUserRole,
   normalizeUserStatusChangePayload,
+  sortUserList,
   validateUserFormValues,
   type UserFieldErrors,
   type UserFormValues,
   type UserListItem,
+  type UserListFilters,
   type UserListResponse,
   type UserMutationResponse,
   type UserStatus,
@@ -48,7 +51,7 @@ type WorkerDependencies = {
     payload: UserFormValues,
     sesionRol?: Role,
   ) => Promise<UserMutationResponse>;
-  listWorkers: () => Promise<UserListItem[]>;
+  listWorkers: (filters: UserListFilters) => Promise<UserListItem[]>;
   listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
   updateWorker: (
     payload: UserFormValues,
@@ -71,17 +74,17 @@ export function createWorkerController(
         const usuarioId = normalizeUsuarioId(payload);
         await dependencies.authorize(
           usuarioId,
-          ["dueno"],
+          ["dueno", "trabajador"],
           normalizeSesionRol(payload),
         );
 
         const filters = normalizeUserListPayload(payload);
-        const workers = await dependencies.listWorkers();
+        const workers = await dependencies.listWorkers(filters);
 
         return {
           ok: true,
           data: {
-            users: filterAndSortUserList(workers, filters),
+            users: sortUserList(workers, filters),
           },
         };
       }
@@ -255,33 +258,102 @@ function normalizeSesionRol(payload: unknown): Role | undefined {
   return undefined;
 }
 
-async function listWorkers(): Promise<UserListItem[]> {
+async function listWorkers(
+  filters: UserListFilters,
+): Promise<UserListItem[]> {
   const { db, schema } = await import("../../db/client");
 
-  return mapWorkerRows(
-    await db
-      .select({
-        usuarioId: schema.usuario.usuarioId,
-        rol: schema.usuario.usuarioRol,
-        ultimoLoginFechaHora: schema.usuario.usuarioUltimoLoginFechaHora,
-        rut: schema.trabajador.trabajadorRut,
-        nombre: schema.trabajador.trabajadorNombre,
-        apellido: schema.trabajador.trabajadorApellido,
-        telefono: schema.trabajador.trabajadorTelefono,
-        correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
-        fechaIngreso: schema.trabajador.trabajadorFechaIngreso,
-        estado: schema.trabajador.trabajadorEstado,
-      })
-      .from(schema.trabajador)
-      .innerJoin(
-        schema.usuario,
-        eq(schema.usuario.trabajadorId, schema.trabajador.trabajadorId),
-      )
-      .orderBy(
-        asc(schema.trabajador.trabajadorNombre),
-        asc(schema.trabajador.trabajadorApellido),
+  return listWorkersWithExecutor(db, schema, filters);
+}
+
+export async function listWorkersWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
+  filters: UserListFilters,
+): Promise<UserListItem[]> {
+  const termino = filters.search ? normalizeSearchTerm(filters.search) : "";
+
+  const condiciones = [];
+  if (filters.estado !== undefined && filters.estado !== "todos") {
+    condiciones.push(eq(schema.trabajador.trabajadorEstado, filters.estado));
+  }
+  if (termino) {
+    const patron = `%${termino}%`;
+    condiciones.push(
+      or(
+        sql`lower(${schema.trabajador.trabajadorRut}) LIKE ${patron}`,
+        sql`${sinTildes(schema.trabajador.trabajadorNombre)} LIKE ${patron}`,
+        sql`${sinTildes(schema.trabajador.trabajadorApellido)} LIKE ${patron}`,
       ),
+    );
+  }
+
+  const laborales = await database
+    .select({
+      trabajadorId: schema.trabajador.trabajadorId,
+      rut: schema.trabajador.trabajadorRut,
+      nombre: schema.trabajador.trabajadorNombre,
+      apellido: schema.trabajador.trabajadorApellido,
+      telefono: schema.trabajador.trabajadorTelefono,
+      correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
+      fechaIngreso: schema.trabajador.trabajadorFechaIngreso,
+      estado: schema.trabajador.trabajadorEstado,
+    })
+    .from(schema.trabajador)
+    .where(condiciones.length > 0 ? and(...condiciones) : undefined)
+    .orderBy(
+      asc(schema.trabajador.trabajadorNombre),
+      asc(schema.trabajador.trabajadorApellido),
+    );
+
+  const cuentas = await database
+    .select({
+      trabajadorId: schema.usuario.trabajadorId,
+      usuarioId: schema.usuario.usuarioId,
+      rol: schema.usuario.usuarioRol,
+      ultimoLoginFechaHora: schema.usuario.usuarioUltimoLoginFechaHora,
+    })
+    .from(schema.usuario)
+    .where(
+      and(
+        laborales.length > 0
+          ? inArray(schema.usuario.trabajadorId, laborales.map((fila) => fila.trabajadorId))
+          : sql`0 = 1`,
+        filters.rol !== undefined && filters.rol !== "todos"
+          ? eq(schema.usuario.usuarioRol, filters.rol)
+          : undefined,
+      ),
+    );
+
+  const cuentaPorTrabajador = new Map(
+    cuentas.map((cuenta) => [cuenta.trabajadorId, cuenta]),
   );
+
+  return laborales.flatMap((fila) => {
+    const cuenta = cuentaPorTrabajador.get(fila.trabajadorId);
+
+    if (!cuenta) {
+      return [];
+    }
+
+    return [
+      {
+        usuarioId: cuenta.usuarioId,
+        rut: fila.rut,
+        nombreCompleto: `${fila.nombre} ${fila.apellido}`.trim(),
+        rol: normalizeUserRole(cuenta.rol) ?? "trabajador",
+        telefono: fila.telefono,
+        correoElectronico: fila.correoElectronico ?? undefined,
+        fechaIngreso: fila.fechaIngreso,
+        estado: fila.estado as UserStatus,
+        ultimoLoginFechaHora: cuenta.ultimoLoginFechaHora ?? undefined,
+      },
+    ];
+  });
+}
+
+function sinTildes(columna: AnyColumn) {
+  return sql`replace(replace(replace(replace(replace(replace(lower(${columna}), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ñ', 'n')`;
 }
 
 async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
@@ -542,33 +614,6 @@ async function findWorkerByRut(
   };
 }
 
-function mapWorkerRows(
-  rows: Array<{
-    correoElectronico: string | null;
-    estado: string;
-    fechaIngreso: string;
-    nombre: string;
-    apellido: string;
-    rol: string;
-    rut: string;
-    telefono: string;
-    ultimoLoginFechaHora: string | null;
-    usuarioId: string;
-  }>,
-): UserListItem[] {
-  return rows.map((row) => ({
-    usuarioId: row.usuarioId,
-    rut: row.rut,
-    nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
-    rol: normalizeUserRole(row.rol) ?? "trabajador",
-    telefono: row.telefono,
-    correoElectronico: row.correoElectronico ?? undefined,
-    fechaIngreso: row.fechaIngreso,
-    estado: row.estado as UserStatus,
-    ultimoLoginFechaHora: row.ultimoLoginFechaHora ?? undefined,
-  }));
-}
-
 /**
  * Conserva el alcance heredado de asistencia cuando no se indica contexto.
  *
@@ -671,7 +716,10 @@ class WorkerError extends Error {
 }
 
 type SchemaLike = typeof import("../../db/schema");
-type DatabaseLike = Pick<typeof import("../../db/client").db, "transaction">;
+type DatabaseLike = Pick<
+  typeof import("../../db/client").db,
+  "select" | "transaction"
+>;
 type TransactionLike = {
   insert: typeof import("../../db/client").db.insert;
   select: typeof import("../../db/client").db.select;

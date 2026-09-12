@@ -1048,9 +1048,13 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === "worker-list" && session.usuarioId) {
+  if (node.id === "worker-list" && session.usuarioId && session.role) {
     return (
-      <WorkerListView usuarioId={session.usuarioId} onNavigate={onNavigate} />
+      <WorkerListView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
     );
   }
 
