@@ -32,6 +32,11 @@ import {
 import { formatRutInput, rutToBackend } from "../../shared/users";
 import { AuditLogView } from "./views/AuditLogView";
 import { ConfigurarPorcentajesPrevisionalesView } from "./views/ConfigurarPorcentajesPrevisionalesView";
+import { AnularVentaView } from "./views/AnularVentaView";
+import {
+  ConsultaVentasView,
+  getSafeSalesQueryReturnPath,
+} from "./views/ConsultaVentasView";
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
@@ -766,7 +771,33 @@ function ViewRenderer({
   }
 
   if (node.id === "daily-sales" && session.usuarioId) {
-    return <DailySalesView usuarioId={session.usuarioId} />;
+    return (
+      <DailySalesView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "sales-query" && session.usuarioId) {
+    return (
+      <ConsultaVentasView
+        currentPath={currentPath}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "sale-annulment" && session.usuarioId) {
+    return (
+      <AnularVentaView
+        initialVentaId={getSaleAnnulmentVentaId(currentPath)}
+        returnPath={getSafeSalesQueryReturnPath(currentPath)}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   if (node.id === "shift-calendar" && session.usuarioId && session.role) {
@@ -999,6 +1030,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "attendance",
     "cash-closing",
     "daily-sales",
+    "sales-query",
+    "sale-annulment",
     "lot-create",
     "product-create",
     "product-edit",
@@ -1033,6 +1066,13 @@ export function getLotCreateEan13(path: string): string | undefined {
   const ean13 = new URLSearchParams(query).get("ean13");
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getSaleAnnulmentVentaId(path: string): string | undefined {
+  const [, query = ""] = path.split("?");
+  const ventaId = new URLSearchParams(query).get("ventaId");
+
+  return ventaId ? decodeURIComponent(ventaId) : undefined;
 }
 
 export function getWasteCreateEan13(path: string): string | undefined {

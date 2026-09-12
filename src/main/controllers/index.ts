@@ -22,6 +22,7 @@ import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
 import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
+import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
 import { shiftController } from "./shift";
@@ -65,6 +66,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     eanReaderController,
     userManagementController,
     productDeleteController,
+    saleAnnulmentController,
     productDetailController,
     stockAdjustmentController,
     movementHistoryController,
