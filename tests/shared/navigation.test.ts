@@ -26,6 +26,9 @@ describe("navigation tree", () => {
         "product-delete",
         "lot-create",
         "waste-create",
+        "supplier-list",
+        "supplier-create",
+        "supplier-edit",
         "supplier-order-create",
         "supplier-order-receptions",
         "sale-register",
@@ -45,6 +48,40 @@ describe("navigation tree", () => {
         "movement-history",
       ]),
     );
+  });
+
+  it("adds V23 to both menus and keeps V24 as an internal navigation target", () => {
+    for (const role of ["dueno", "trabajador"] as const) {
+      const menuPaths = getVisibleMenu(role).map((node) => node.path);
+      expect(menuPaths).toContain("/app/proveedores/listado");
+      expect(menuPaths).not.toContain("/app/proveedores/nuevo");
+      expect(
+        evaluateRouteAccess("/app/proveedores/nuevo", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+    }
+  });
+
+  it("allows both roles to edit suppliers through the internal dynamic route", () => {
+    const editNode = navigationTree.find((node) => node.id === "supplier-edit");
+    expect(editNode).toMatchObject({
+      path: "/app/proveedores/:rut/editar",
+      showInMenu: false,
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess("/app/proveedores/12.345.678-5/editar", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+      expect(getVisibleMenu(role).map((node) => node.id)).not.toContain(
+        "supplier-edit",
+      );
+    }
   });
 
   it("keeps internal UI components outside routes and menus", () => {
