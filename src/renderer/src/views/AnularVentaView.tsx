@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   formatChileanPeso,
+  formatSaleResponsibleRole,
   isValidSaleId,
   type PaymentMethod,
   type SaleAnnulmentResult,
@@ -354,7 +355,10 @@ function SaleDetailPanel({
       </div>
 
       <dl className="grid gap-4 rounded-md bg-[#f8fafb] p-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-        <Info label="Responsable" value={detail.responsable.nombre} />
+        <Info
+          label="Responsable"
+          value={`${detail.responsable.nombre} · ${formatSaleResponsibleRole(detail.responsable.rol)}`}
+        />
         <Info label="Fecha y hora" value={formatDateTime(detail.fechaHora)} />
         <Info label="Método de pago" value={paymentLabels[detail.pago.metodo]} />
         <Info
