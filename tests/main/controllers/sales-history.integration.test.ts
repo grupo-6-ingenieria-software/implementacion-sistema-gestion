@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import {
+  loadDailySalesHistory,
   loadSaleDetail,
   searchSalesHistory,
 } from "../../../src/main/controllers/sales-history";
@@ -125,6 +126,37 @@ describe("CU41 sales history integration", () => {
     expect(electronic.descuento).toEqual({ tipo: "ninguno", valor: 0 });
   });
 
+  it("keeps V13, V32 and V33 on the sale snapshot after current identity changes", async () => {
+    await testDb!.db.run(sql`
+      UPDATE trabajador
+      SET trabajador_nombre = 'Nombre', trabajador_apellido = 'Actualizado'
+      WHERE trabajador_id = 1
+    `);
+    await testDb!.db.run(sql`
+      UPDATE usuario SET usuario_rol = 'dueno'
+      WHERE usuario_id = '12345678-9'
+    `);
+
+    const expectedResponsible = {
+      usuarioId: "12345678-9",
+      nombre: "Ana Histórica",
+      rol: "trabajador",
+    };
+    const [daily, history, detail] = await Promise.all([
+      loadDailySalesHistory(testDb!.db, now),
+      searchSalesHistory(
+        testDb!.db,
+        { criterio: "numero", ventaId: currentOpenId },
+        now,
+      ),
+      loadSaleDetail(testDb!.db, { ventaId: currentOpenId }),
+    ]);
+
+    expect(daily.ventas[0].responsable).toEqual(expectedResponsible);
+    expect(history.ventas[0].responsable).toEqual(expectedResponsible);
+    expect(detail.responsable).toEqual(expectedResponsible);
+  });
+
   it("returns a successful empty response", async () => {
     await expect(
       searchSalesHistory(
@@ -202,16 +234,18 @@ async function seedFixture(database: DbExecutor): Promise<void> {
     INSERT INTO venta (
       venta_id, venta_fecha_hora, venta_descuento_tipo, venta_descuento_valor,
       venta_descuento_razon, venta_metodo_pago, venta_estado,
-      es_venta_efectivo, es_venta_electronica, usuario_cajero_id, cierre_caja_id
+      es_venta_efectivo, es_venta_electronica, usuario_cajero_id,
+      venta_responsable_nombre, venta_responsable_rol, cierre_caja_id
     ) VALUES
       (${currentOpenId}, '2026-06-12T17:00:00.000Z', 'monto', 500, 'Promoción',
-       'efectivo', 'completada', 1, 0, '12345678-9',
+       'efectivo', 'completada', 1, 0, '12345678-9', 'Ana Histórica', 'trabajador',
        '00000000-0000-4000-8000-000000000201'),
       (${currentClosedId}, '2026-06-12T16:00:00.000Z', 'ninguno', NULL, NULL,
-       'debito', 'completada', 0, 1, '12345678-9',
+       'debito', 'completada', 0, 1, '12345678-9', 'Ana Histórica', 'trabajador',
        '00000000-0000-4000-8000-000000000202'),
       (${previousAnnulledId}, '2026-06-11T15:00:00.000Z', 'porcentaje', 10,
        'Cliente frecuente', 'efectivo', 'completada', 1, 0, '12345678-9',
+       'Ana Histórica', 'trabajador',
        '00000000-0000-4000-8000-000000000202')
   `);
   await database.run(sql`

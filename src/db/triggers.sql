@@ -75,6 +75,26 @@ BEGIN
   SELECT RAISE(ABORT, 'No se puede registrar una venta en una caja cerrada (RF41)');
 END;
 
+CREATE TRIGGER IF NOT EXISTS trg_venta_responsable_requerido
+BEFORE INSERT ON venta
+FOR EACH ROW
+WHEN NEW.usuario_cajero_id IS NULL
+  OR COALESCE(length(trim(NEW.venta_responsable_nombre)), 0) = 0
+  OR NEW.venta_responsable_rol NOT IN ('dueno', 'trabajador')
+BEGIN
+  SELECT RAISE(ABORT, 'La venta debe conservar un responsable válido (RF43)');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_venta_responsable_inmutable
+BEFORE UPDATE ON venta
+FOR EACH ROW
+WHEN NEW.usuario_cajero_id IS NOT OLD.usuario_cajero_id
+  OR NEW.venta_responsable_nombre IS NOT OLD.venta_responsable_nombre
+  OR NEW.venta_responsable_rol IS NOT OLD.venta_responsable_rol
+BEGIN
+  SELECT RAISE(ABORT, 'El responsable histórico de la venta es inmutable (RF43)');
+END;
+
 CREATE TRIGGER IF NOT EXISTS trg_log_auditoria_no_update
 BEFORE UPDATE ON log_auditoria
 FOR EACH ROW

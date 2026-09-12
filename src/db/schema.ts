@@ -833,6 +833,10 @@ export const venta = sqliteTable(
     usuarioCajeroId: text("usuario_cajero_id")
       .notNull()
       .references(() => usuario.usuarioId, { onDelete: "restrict" }),
+    ventaResponsableNombre: text("venta_responsable_nombre").notNull(),
+    ventaResponsableRol: text("venta_responsable_rol", {
+      enum: ["dueno", "trabajador"],
+    }).notNull(),
     cierreCajaId: text("cierre_caja_id")
       .notNull()
       .references(() => cierreCaja.cierreCajaId, { onDelete: "restrict" }),
@@ -850,6 +854,14 @@ export const venta = sqliteTable(
     check(
       "venta_estado_enum",
       sql`${t.ventaEstado} IN ('completada','anulada')`,
+    ),
+    check(
+      "venta_responsable_nombre_no_vacio",
+      sql`length(trim(${t.ventaResponsableNombre})) > 0`,
+    ),
+    check(
+      "venta_responsable_rol_enum",
+      sql`${t.ventaResponsableRol} IN ('dueno','trabajador')`,
     ),
     check(
       "venta_descuento_coherente",
