@@ -189,6 +189,24 @@ export function createWorkerController(
           normalizeSesionRol(payload),
         );
 
+        const estadoValido =
+          payload !== null &&
+          typeof payload === "object" &&
+          ((payload as Record<string, unknown>).estado === "activo" ||
+            (payload as Record<string, unknown>).estado === "inactivo");
+
+        if (!estadoValido || normalizedPayload.confirmacion !== true) {
+          return {
+            ok: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              controllerId: "worker",
+              message:
+                "Confirme el cambio de estado con un estado valido (activo o inactivo).",
+            },
+          };
+        }
+
         return {
           ok: true,
           data: await dependencies.changeStatus(
@@ -230,13 +248,17 @@ export function createWorkerController(
   };
 }
 
-const workerDependencies: WorkerDependencies = {
+export const workerDependencies: WorkerDependencies = {
   authorize: async (usuarioId, allowedRoles, sesionRol) => {
     const { db, schema } = await import("../../db/client");
 
     return authorizeUser(db, schema, usuarioId, allowedRoles, sesionRol);
   },
-  changeStatus,
+  changeStatus: async (payload, sesionRol) => {
+    const { db, schema } = await import("../../db/client");
+
+    return changeStatusWithExecutor(db, schema, payload, sesionRol);
+  },
   createWorker,
   listActiveWorkers,
   listWorkers,
@@ -280,9 +302,11 @@ export async function listWorkersWithExecutor(
   }
   if (termino) {
     const patron = `%${termino}%`;
+    const patronRut = `%${termino.replace(/[.\-\s]/g, "")}%`;
+    const rutPlano = sql`replace(replace(lower(${schema.trabajador.trabajadorRut}), '-', ''), '.', '')`;
     condiciones.push(
       or(
-        sql`lower(${schema.trabajador.trabajadorRut}) LIKE ${patron}`,
+        sql`${rutPlano} LIKE ${patronRut}`,
         sql`${sinTildes(schema.trabajador.trabajadorNombre)} LIKE ${patron}`,
         sql`${sinTildes(schema.trabajador.trabajadorApellido)} LIKE ${patron}`,
       ),
@@ -573,13 +597,14 @@ async function updateWorker(
   return updateWorkerWithExecutor(db, schema, payload, sesionRol);
 }
 
-async function changeStatus(
+export async function changeStatusWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
   payload: UserStatusChangePayload,
   sesionRol?: Role,
+  notificarSesionInvalidada?: (usuarioId: string) => void,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import("../../db/client");
-
-  await db.transaction(async (tx) => {
+  const resultado = await database.transaction(async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -605,13 +630,34 @@ async function changeStatus(
       .set({ trabajadorEstado: payload.estado })
       .where(eq(schema.trabajador.trabajadorId, existing.trabajadorId));
 
+    if (payload.estado === "inactivo") {
+      await tx
+        .update(schema.sesionUsuario)
+        .set({
+          sesionFechaHoraCierre: new Date().toISOString(),
+          sesionMotivoCierre: "sistema",
+        })
+        .where(
+          and(
+            eq(schema.sesionUsuario.usuarioId, existing.usuarioId),
+            isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+          ),
+        );
+    }
+
     await registerAuditLog(tx, schema, {
       tipoAccion: "edicion",
       modulo: "trabajadores",
-      descripcion: `Estado de trabajador ${existing.rut} cambiado a ${payload.estado}`,
+      descripcion: `Estado de trabajador ${existing.rut} cambiado de ${existing.estado} a ${payload.estado}`,
       usuarioId: owner.usuarioId,
     });
+
+    return { usuarioId: existing.usuarioId, desactivo: payload.estado === "inactivo" };
   });
+
+  if (resultado.desactivo) {
+    notificarSesionInvalidada?.(resultado.usuarioId);
+  }
 
   return { usuarioId: payload.usuarioObjetivoId };
 }
@@ -627,6 +673,7 @@ async function findWorkerByRut(
       rut: schema.trabajador.trabajadorRut,
       nombre: schema.trabajador.trabajadorNombre,
       apellido: schema.trabajador.trabajadorApellido,
+      estado: schema.trabajador.trabajadorEstado,
       telefono: schema.trabajador.trabajadorTelefono,
       correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
       usuarioId: schema.usuario.usuarioId,
@@ -648,6 +695,7 @@ async function findWorkerByRut(
     trabajadorId: row.trabajadorId,
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
+    estado: row.estado,
     telefono: row.telefono,
     correoElectronico: row.correoElectronico,
     usuarioId: row.usuarioId,

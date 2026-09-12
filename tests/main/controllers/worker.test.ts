@@ -7,6 +7,7 @@ import {
   defaultUserListFilters,
   filterAndSortUserList,
   normalizeUserListPayload,
+  normalizeUserStatusChangePayload,
   type UserFormValues,
   type UserListItem,
   type UserListResponse,
@@ -20,11 +21,12 @@ import {
   authorizeRequest,
   guardChannel,
 } from "../../../src/main/controllers/auth-guard";
-import { verifySessionToken } from "../../../src/main/controllers/auth-jwt";
+import { validateAndRefreshActiveSession } from "../../../src/main/controllers/session";
 import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/auth-jwt";
 import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
 import {
+  changeStatusWithExecutor,
   createWorkerController,
   listWorkersWithExecutor,
   updateWorkerWithExecutor,
@@ -257,6 +259,7 @@ describe("worker controller", () => {
     }));
     const response = await createController({ changeStatus }).handle(
       {
+        confirmacion: true,
         estado: "inactivo",
         usuarioId: "dueno",
         usuarioObjetivoId: "23456789-0",
@@ -267,6 +270,7 @@ describe("worker controller", () => {
     expect(response.ok).toBe(true);
     expect(changeStatus).toHaveBeenCalledWith(
       {
+        confirmacion: true,
         estado: "inactivo",
         usuarioId: "dueno",
         usuarioObjetivoId: "23456789-0",
@@ -426,7 +430,16 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
   });
 
   it("filters by a partial RUT in SQL", async () => {
-    await expect(ruts({ search: "789-0" })).resolves.toEqual(["23456789-0"]);
+    await expect(ruts({ search: "890-1" })).resolves.toEqual(["34567890-1"]);
+  });
+
+  it("matches RUTs typed with dashes or dots", async () => {
+    await expect(ruts({ search: "23456789-0" })).resolves.toEqual([
+      "23456789-0",
+    ]);
+    await expect(ruts({ search: "23.456.789-0" })).resolves.toEqual([
+      "23456789-0",
+    ]);
   });
 
   it("matches names ignoring accents and case", async () => {
@@ -705,5 +718,213 @@ describe("updateWorkerWithExecutor (CU22, D6)", () => {
       expect(sinPermiso.error.code).toBe("FORBIDDEN");
     }
     expect(updateWorker).not.toHaveBeenCalled();
+  });
+});
+
+describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
+  let testDb: AuthTestDatabase | undefined;
+  const OWNER = "12345678-9";
+  const TARGET = "23456789-0";
+  const OTHER = "34567890-1";
+  const SESION_ABIERTA = "00000000-0000-4000-8000-000000000001";
+  const SESION_CERRADA = "00000000-0000-4000-8000-000000000002";
+  const SESION_OTRO = "00000000-0000-4000-8000-000000000003";
+
+  beforeEach(async () => {
+    testDb = await createAuthTestDatabase();
+    await seedUser(testDb.db, {
+      usuarioId: OWNER, trabajadorId: 1, rut: OWNER, rolBd: "dueno",
+    });
+    await seedUser(testDb.db, {
+      usuarioId: TARGET, trabajadorId: 2, rut: TARGET, rolBd: "trabajador",
+    });
+    await seedUser(testDb.db, {
+      usuarioId: OTHER, trabajadorId: 3, rut: OTHER, rolBd: "trabajador",
+    });
+    for (const [id, usuario, cerrada] of [
+      [SESION_ABIERTA, TARGET, false],
+      [SESION_CERRADA, TARGET, true],
+      [SESION_OTRO, OTHER, false],
+    ] as const) {
+      await testDb.db.insert(schema.sesionUsuario).values({
+        sesionUsuarioId: id,
+        usuarioId: usuario,
+        sesionRolEfectivo: "trabajador",
+        sesionFechaHoraInicio: "2026-06-13T12:00:00.000Z",
+        sesionFechaHoraUltimoAcceso: "2026-06-13T12:00:00.000Z",
+        sesionFechaHoraCierre: cerrada ? "2026-06-13T13:00:00.000Z" : null,
+        sesionMotivoCierre: cerrada ? "manual" : null,
+      });
+    }
+  });
+
+  afterEach(async () => {
+    if (!testDb) {
+      return;
+    }
+    testDb.client.close();
+    await removeAuthTempDir(testDb.dir);
+    testDb = undefined;
+  });
+
+  function payload(
+    overrides: Partial<{
+      confirmacion: boolean;
+      estado: "activo" | "inactivo";
+      usuarioId: string;
+      usuarioObjetivoId: string;
+    }> = {},
+  ) {
+    return normalizeUserStatusChangePayload({
+      confirmacion: true,
+      estado: "inactivo",
+      usuarioId: OWNER,
+      usuarioObjetivoId: TARGET,
+      ...overrides,
+    });
+  }
+
+  it("closes only the target's open sessions with motivo sistema and notifies once", async () => {
+    const notificar = vi.fn();
+
+    const response = await changeStatusWithExecutor(
+      testDb!.db,
+      schema,
+      payload(),
+      "dueno",
+      notificar,
+    );
+
+    expect(response.usuarioId).toBe(TARGET);
+
+    const sesiones = await testDb!.db
+      .select()
+      .from(schema.sesionUsuario)
+      .orderBy(schema.sesionUsuario.sesionUsuarioId);
+    const abierta = sesiones.find((s) => s.sesionUsuarioId === SESION_ABIERTA);
+    const cerrada = sesiones.find((s) => s.sesionUsuarioId === SESION_CERRADA);
+    const otro = sesiones.find((s) => s.sesionUsuarioId === SESION_OTRO);
+
+    expect(abierta?.sesionMotivoCierre).toBe("sistema");
+    expect(abierta?.sesionFechaHoraCierre ?? null).not.toBeNull();
+    expect(cerrada?.sesionMotivoCierre).toBe("manual");
+    expect(cerrada?.sesionFechaHoraCierre).toBe("2026-06-13T13:00:00.000Z");
+    expect(otro?.sesionMotivoCierre ?? null).toBeNull();
+    expect(otro?.sesionFechaHoraCierre ?? null).toBeNull();
+
+    const [trabajador] = await testDb!.db
+      .select()
+      .from(schema.trabajador)
+      .where(eq(schema.trabajador.trabajadorRut, TARGET));
+    expect(trabajador.trabajadorEstado).toBe("inactivo");
+
+    const [auditoria] = await testDb!.db
+      .select({ descripcion: schema.logAuditoria.logDescripcion })
+      .from(schema.logAuditoria);
+    expect(auditoria.descripcion).toContain("de activo a inactivo");
+
+    expect(notificar).toHaveBeenCalledTimes(1);
+    expect(notificar).toHaveBeenCalledWith(TARGET);
+  });
+
+  it("reactivating does not notify and does not reopen sessions", async () => {
+    await changeStatusWithExecutor(testDb!.db, schema, payload(), "dueno", vi.fn());
+
+    const notificar = vi.fn();
+    await changeStatusWithExecutor(
+      testDb!.db,
+      schema,
+      payload({ estado: "activo" }),
+      "dueno",
+      notificar,
+    );
+
+    expect(notificar).not.toHaveBeenCalled();
+
+    const [trabajador] = await testDb!.db
+      .select()
+      .from(schema.trabajador)
+      .where(eq(schema.trabajador.trabajadorRut, TARGET));
+    expect(trabajador.trabajadorEstado).toBe("activo");
+
+    const sesiones = await testDb!.db
+      .select()
+      .from(schema.sesionUsuario)
+      .where(eq(schema.sesionUsuario.usuarioId, TARGET));
+    expect(
+      sesiones.every((s) => s.sesionFechaHoraCierre !== null),
+    ).toBe(true);
+  });
+
+  it("rejects an unregistered RUT without auditing or notifying (E1)", async () => {
+    const notificar = vi.fn();
+
+    await expect(
+      changeStatusWithExecutor(
+        testDb!.db,
+        schema,
+        payload({ usuarioObjetivoId: "99999999-9" }),
+        "dueno",
+        notificar,
+      ),
+    ).rejects.toThrow("No se encontro el trabajador solicitado.");
+
+    expect(notificar).not.toHaveBeenCalled();
+    const auditorias = await testDb!.db.select().from(schema.logAuditoria);
+    expect(auditorias).toHaveLength(0);
+  });
+
+  it("requires explicit confirmation and a valid estado after authorization", async () => {
+    const changeStatus = vi.fn(async (p: UserStatusChangePayload) => ({
+      usuarioId: p.usuarioObjetivoId,
+    }));
+    const controller = createController({ changeStatus });
+
+    const sinConfirmacion = await controller.handle(
+      { estado: "inactivo", usuarioId: "dueno", usuarioObjetivoId: TARGET },
+      { channel: "trabajador:cambiar-estado" },
+    );
+    expect(sinConfirmacion.ok).toBe(false);
+    if (!sinConfirmacion.ok) {
+      expect(sinConfirmacion.error.code).toBe("VALIDATION_ERROR");
+    }
+
+    const estadoInvalido = await controller.handle(
+      { estado: "suspendido", confirmacion: true, usuarioId: "dueno", usuarioObjetivoId: TARGET },
+      { channel: "trabajador:cambiar-estado" },
+    );
+    expect(estadoInvalido.ok).toBe(false);
+    if (!estadoInvalido.ok) {
+      expect(estadoInvalido.error.code).toBe("VALIDATION_ERROR");
+    }
+    expect(changeStatus).not.toHaveBeenCalled();
+  });
+
+  it("a request with the revoked worker's old token is forbidden", async () => {
+    await changeStatusWithExecutor(testDb!.db, schema, payload(), "dueno", vi.fn());
+
+    const [sesion] = await testDb!.db
+      .select({ motivo: schema.sesionUsuario.sesionMotivoCierre })
+      .from(schema.sesionUsuario)
+      .where(eq(schema.sesionUsuario.sesionUsuarioId, SESION_ABIERTA));
+    expect(sesion?.motivo).toBe("sistema");
+
+    const token = signSessionToken({
+      usuarioId: TARGET,
+      rol: "trabajador",
+      usuarioRol: "trabajador",
+      passwordTemporal: false,
+      sesionId: SESION_ABIERTA,
+    });
+
+    const verificacion = await validateAndRefreshActiveSession(
+      testDb!.db,
+      schema,
+      SESION_ABIERTA,
+      TARGET,
+      true,
+    );
+    expect(verificacion).toEqual({ active: false, reason: "sistema" });
+    expect(token.split(".")).toHaveLength(3);
   });
 });
