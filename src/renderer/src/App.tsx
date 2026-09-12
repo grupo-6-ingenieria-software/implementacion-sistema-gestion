@@ -26,6 +26,7 @@ import {
 import {
   SESSION_EXPIRED_MESSAGE,
   SESSION_HEARTBEAT_MS,
+  SESSION_INVALIDATED_MESSAGE,
   validatePasswordComplexity,
 } from "../../shared/auth";
 import { formatRutInput, rutToBackend } from "../../shared/users";
@@ -130,6 +131,19 @@ export function App(): ReactElement {
     [expireSession],
   );
 
+  useEffect(
+    () =>
+      window.appApi.onSessionInvalidated((payload) => {
+        if (
+          isAuthenticatedRef.current &&
+          payload.usuarioId === session.usuarioId
+        ) {
+          expireSession(SESSION_INVALIDATED_MESSAGE);
+        }
+      }),
+    [expireSession, session.usuarioId],
+  );
+
   useEffect(() => {
     const handleHashChange = (): void => setPath(getHashPath());
     window.addEventListener("hashchange", handleHashChange);
@@ -213,7 +227,11 @@ export function App(): ReactElement {
             return;
           }
 
-          if (!response.ok || !response.data.active) {
+          if (!response.ok) {
+            // La sesión pudo ser revocada (motivo "sistema"); el mensaje del
+            // guard distingue ese caso de la inactividad.
+            expireSession(response.error.message);
+          } else if (!response.data.active) {
             expireSession();
           }
         })
@@ -1058,9 +1076,13 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === "worker-list" && session.usuarioId) {
+  if (node.id === "worker-list" && session.usuarioId && session.role) {
     return (
-      <WorkerListView usuarioId={session.usuarioId} onNavigate={onNavigate} />
+      <WorkerListView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
     );
   }
 
