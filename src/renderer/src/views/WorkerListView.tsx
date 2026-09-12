@@ -14,6 +14,7 @@ import {
 type WorkerListViewProps = {
   usuarioId: string;
   onNavigate: (path: string) => void;
+  role: UserRole;
 };
 
 type EditState = UserFormValues & {
@@ -26,6 +27,7 @@ function roleLabel(role: UserRole): string {
 
 export function WorkerListView({
   onNavigate,
+  role,
   usuarioId,
 }: WorkerListViewProps): ReactElement {
   const [workers, setWorkers] = useState<UserListItem[]>([]);
@@ -196,13 +198,15 @@ export function WorkerListView({
           >
             Turnos
           </button>
-          <button
-            className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
-            type="button"
-            onClick={() => onNavigate("/app/personal/trabajadores/nuevo")}
-          >
-            Registrar trabajador
-          </button>
+          {role === "dueno" ? (
+            <button
+              className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"
+              type="button"
+              onClick={() => onNavigate("/app/personal/trabajadores/nuevo")}
+            >
+              Registrar trabajador
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -338,24 +342,26 @@ export function WorkerListView({
                       <StatusBadge status={worker.estado} />
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-                          disabled={saving}
-                          type="button"
-                          onClick={() => startEdit(worker)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-                          disabled={saving}
-                          type="button"
-                          onClick={() => void changeStatus(worker)}
-                        >
-                          {worker.estado === "activo" ? "Inactivar" : "Activar"}
-                        </button>
-                      </div>
+                      {role === "dueno" ? (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+                            disabled={saving}
+                            type="button"
+                            onClick={() => startEdit(worker)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+                            disabled={saving}
+                            type="button"
+                            onClick={() => void changeStatus(worker)}
+                          >
+                            {worker.estado === "activo" ? "Inactivar" : "Activar"}
+                          </button>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
