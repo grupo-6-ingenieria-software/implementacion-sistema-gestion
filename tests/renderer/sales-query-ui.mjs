@@ -76,7 +76,7 @@ async function installBridge(page) {
         {
           ventaId: currentId,
           fechaHora: "2026-09-11T16:00:00.000Z",
-          responsable: { usuarioId: "u-1", nombre: "Ana Prueba" },
+          responsable: { usuarioId: "u-1", nombre: "Ana Prueba", rol: "dueno" },
           total: 2700,
           metodoPago: "efectivo",
           estado: "confirmada",
@@ -85,7 +85,7 @@ async function installBridge(page) {
         {
           ventaId: closedId,
           fechaHora: "2026-09-11T15:00:00.000Z",
-          responsable: { usuarioId: "u-2", nombre: "Luis Cerrado" },
+          responsable: { usuarioId: "u-2", nombre: "Luis Cerrado", rol: "trabajador" },
           total: 2000,
           metodoPago: "debito",
           estado: "confirmada",
@@ -94,7 +94,7 @@ async function installBridge(page) {
         {
           ventaId: annulledId,
           fechaHora: "2026-09-10T14:00:00.000Z",
-          responsable: { usuarioId: "u-1", nombre: "Ana Prueba" },
+          responsable: { usuarioId: "u-1", nombre: "Ana Prueba", rol: "dueno" },
           total: 1000,
           metodoPago: "transferencia",
           estado: "anulada",
@@ -141,7 +141,7 @@ async function installBridge(page) {
                 ventaId: payload.ventaId,
                 fechaHora: "2026-09-11T16:00:00.000Z",
                 estado: payload.ventaId === annulledId ? "anulada" : "confirmada",
-                responsable: { usuarioId: "u-1", nombre: "Ana Prueba" },
+                responsable: { usuarioId: "u-1", nombre: "Ana Prueba", rol: "dueno" },
                 productos: [
                   {
                     productoId: 1,

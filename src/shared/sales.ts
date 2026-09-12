@@ -1,4 +1,12 @@
+import type { Role } from "./navigation";
+
 export type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
+
+export type SaleResponsibleSnapshot = {
+  usuarioId: string;
+  nombre: string;
+  rol: Role;
+};
 
 export type DailyCashState =
   | { status: "sin_registro" }
@@ -26,6 +34,7 @@ export type SaleCartValidationLine = {
   productoId: number;
   ean13: string;
   nombre: string;
+  categoria: string;
   cantidad: number;
   precioUnitario: number;
   stockDisponible: number;
@@ -35,6 +44,51 @@ export type SaleCartValidationLine = {
 export type SaleCartValidationResult = {
   lines: SaleCartValidationLine[];
   subtotal: number;
+};
+
+export type SaleDiscountInput = { monto: number; razon: string };
+
+export type SaleRegisterRequest = {
+  items: SaleCartItemInput[];
+  metodoPago: PaymentMethod;
+  montoRecibido?: number;
+  descuento?: SaleDiscountInput;
+};
+
+export type SaleConsumedLot = {
+  loteId: string;
+  cantidad: number;
+};
+
+export type SaleReceiptLine = {
+  productoId: number;
+  ean13: string;
+  nombre: string;
+  categoria: string;
+  precioUnitario: number;
+  historialPrecioProductoId: string;
+  stockDisponible: number;
+  exigeVencimiento: boolean;
+  cantidad: number;
+  subtotal: number;
+  lotesConsumidos: SaleConsumedLot[];
+};
+
+export type SaleReceipt = {
+  ventaId: string;
+  fechaHora: string;
+  responsable: SaleResponsibleSnapshot;
+  metodoPago: PaymentMethod;
+  subtotal: number;
+  descuento: {
+    tipo: "ninguno" | "monto";
+    valor: number;
+    razon?: string;
+  };
+  total: number;
+  montoRecibido?: number;
+  vuelto?: number;
+  detalle: SaleReceiptLine[];
 };
 
 export type SaleState = "confirmada" | "anulada";
@@ -64,10 +118,7 @@ export type SaleHistorySearchRequest =
 export type SaleHistoryListItem = {
   ventaId: string;
   fechaHora: string;
-  responsable: {
-    usuarioId: string;
-    nombre: string;
-  };
+  responsable: SaleResponsibleSnapshot;
   total: number;
   metodoPago: PaymentMethod;
   estado: SaleState;
@@ -98,10 +149,7 @@ export type SaleDetail = {
   ventaId: string;
   fechaHora: string;
   estado: SaleState;
-  responsable: {
-    usuarioId: string;
-    nombre: string;
-  };
+  responsable: SaleResponsibleSnapshot;
   productos: SaleDetailLine[];
   descuento: {
     tipo: "ninguno" | "porcentaje" | "monto";
@@ -180,7 +228,6 @@ export type SaleTotals = {
   total: number;
 };
 
-export type SaleDiscountInput = { monto: number; razon: string };
 export type SaleDiscountErrors = { monto?: string; razon?: string };
 
 /** CU37: CLP enteros, con o sin agrupación chilena de miles. */
@@ -232,7 +279,7 @@ export type RecordedSaleTotalsInput = {
 export type DailySale = {
   ventaId: string;
   fechaHora: string;
-  trabajadorResponsable: string;
+  responsable: SaleResponsibleSnapshot;
   cantidadProductos: number;
   total: number;
   metodoPago: PaymentMethod;
@@ -263,6 +310,10 @@ const chileanPesoFormatter = new Intl.NumberFormat("es-CL", {
 
 export function formatChileanPeso(value: number): string {
   return `$ ${chileanPesoFormatter.format(value)}`;
+}
+
+export function formatSaleResponsibleRole(role: Role): string {
+  return role === "dueno" ? "Dueño" : "Trabajador";
 }
 
 export function calculateSaleTotals(

@@ -1,6 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSaleController } from "../../../src/main/controllers/sale";
-import { SaleValidationError } from "../../../src/main/controllers/sale-service";
+import {
+  SaleBusinessError,
+  SaleValidationError,
+} from "../../../src/main/controllers/sale-service";
+
+const saleContext = {
+  channel: "venta:registrar",
+  claims: {
+    usuarioId: "12345678-9",
+    sesionId: "00000000-0000-4000-8000-000000000091",
+    rol: "trabajador" as const,
+    usuarioRol: "trabajador",
+    passwordTemporal: false,
+  },
+};
 
 function dependencies(state: "sin_registro" | "abierta" | "cerrada") {
   const inspectCash = vi.fn().mockResolvedValue(
@@ -38,7 +52,7 @@ describe("saleController contracts", () => {
     );
     const response = await createSaleController(deps as never).handle(
       { descuento: { monto: 5000, razon: "Promoción" } },
-      { channel: "venta:registrar" },
+      saleContext,
     );
     expect(response).toMatchObject({
       ok: false,
@@ -61,7 +75,7 @@ describe("saleController contracts", () => {
     );
     const request = createSaleController(deps as never).handle(
       { descuento: { monto: 500, razon: "Promoción" } },
-      { channel: "venta:registrar" },
+      saleContext,
     );
     await vi.waitFor(() => expect(deps.register).toHaveBeenCalledOnce());
     expect(deps.notify).not.toHaveBeenCalled();
@@ -83,19 +97,24 @@ describe("saleController contracts", () => {
     },
   );
 
-  it("gives a closed cash register priority over a malformed cart", async () => {
+  it("maps a transactional closed-cash rejection without using the preflight read", async () => {
     const deps = dependencies("cerrada");
+    deps.register.mockRejectedValueOnce(
+      new SaleBusinessError(
+        "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
+      ),
+    );
     const controller = createSaleController(deps as never);
     const response = await controller.handle(
       { items: "malformado", metodoPago: "cheque" },
-      { channel: "venta:registrar" },
+      saleContext,
     );
     expect(response).toMatchObject({
       ok: false,
       error: { code: "BUSINESS_RULE" },
     });
-    expect(deps.register).not.toHaveBeenCalled();
-    expect(deps.inspectCash).toHaveBeenCalledOnce();
+    expect(deps.register).toHaveBeenCalledOnce();
+    expect(deps.inspectCash).not.toHaveBeenCalled();
   });
 
   it("exposes the read-only cart validation result through its own channel", async () => {
@@ -112,5 +131,49 @@ describe("saleController contracts", () => {
     expect(response).toMatchObject({ ok: true, data: { subtotal: 2000 } });
     expect(deps.validateCart).toHaveBeenCalledWith(expect.anything(), payload);
     expect(deps.inspectCash).not.toHaveBeenCalled();
+  });
+
+  it("CU43 strips spoofed identity and builds the actor from trusted claims", async () => {
+    const deps = dependencies("abierta");
+    await createSaleController(deps as never).handle(
+      {
+        usuarioId: "atacante",
+        nombre: "Nombre falso",
+        rol: "dueno",
+        items: [{ productoId: 1, cantidad: 1 }],
+        metodoPago: "debito",
+      },
+      saleContext,
+    );
+
+    expect(deps.register).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        items: [{ productoId: 1, cantidad: 1 }],
+        metodoPago: "debito",
+        montoRecibido: undefined,
+        descuento: undefined,
+      },
+      {
+        usuarioId: "12345678-9",
+        sesionId: "00000000-0000-4000-8000-000000000091",
+        rol: "trabajador",
+      },
+    );
+  });
+
+  it("CU43 rejects registration when trusted claims are absent", async () => {
+    const deps = dependencies("abierta");
+    const response = await createSaleController(deps as never).handle(
+      { items: [{ productoId: 1, cantidad: 1 }], metodoPago: "debito" },
+      { channel: "venta:registrar" },
+    );
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "FORBIDDEN" },
+    });
+    expect(deps.register).not.toHaveBeenCalled();
+    expect(deps.notify).not.toHaveBeenCalled();
   });
 });

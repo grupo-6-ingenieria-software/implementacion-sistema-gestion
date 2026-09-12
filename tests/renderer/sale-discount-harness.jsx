@@ -8,7 +8,7 @@ createRoot(document.getElementById("root")).render(
     session={{
       usuarioId: "12345678-9",
       trabajadorNombre: "Ana Prueba",
-      usuarioRol:
+      role:
         new URLSearchParams(location.search).get("rol") ?? "trabajador",
     }}
   />,

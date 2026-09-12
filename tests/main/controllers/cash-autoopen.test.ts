@@ -10,10 +10,27 @@ import * as schema from "../../../src/db/schema";
 import { closeCashRegister } from "../../../src/main/controllers/cash-closing-service";
 import {
   getOpenCashRegister,
-  registerSale,
+  registerSale as registerSaleWithActor,
   SaleBusinessError,
   type DbExecutor,
 } from "../../../src/main/controllers/sale-service";
+import type { SaleRegisterRequest } from "../../../src/shared/sales";
+
+const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
+
+function registerSale(
+  database: DbExecutor,
+  payload: SaleRegisterRequest & { usuarioId?: string },
+  now?: Date,
+) {
+  const { usuarioId = "12345678-9", ...request } = payload;
+  return registerSaleWithActor(
+    database,
+    request,
+    { usuarioId, sesionId: TEST_SESSION_ID, rol: "dueno" },
+    now,
+  );
+}
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -82,9 +99,10 @@ describe("caja autoabrir (#29)", () => {
         entry.includes("SUM(lote_cantidad_actual)") &&
         entry.includes("sufficient"),
     );
-    const user = trace.findIndex((entry) => entry.includes("FROM usuario"));
-    const worker = trace.findIndex((entry) =>
-      entry.includes("FROM trabajador"),
+    const responsible = trace.findIndex(
+      (entry) =>
+        entry.includes("FROM sesion_usuario") &&
+        entry.includes("JOIN trabajador"),
     );
     const product = trace.findIndex((entry) => entry.includes("FROM producto"));
     const category = trace.findIndex((entry) =>
@@ -109,7 +127,8 @@ describe("caja autoabrir (#29)", () => {
     );
 
     expect(stockPlan).toBeGreaterThanOrEqual(0);
-    expect(worker).toBeGreaterThan(user);
+    expect(responsible).toBeGreaterThanOrEqual(0);
+    expect(product).toBeGreaterThan(responsible);
     expect(category).toBeGreaterThan(product);
     expect(price).toBeGreaterThan(category);
     expect(stockSnapshot).toBeGreaterThan(price);
@@ -299,6 +318,21 @@ async function seedWithoutCashRegister(db: DbExecutor): Promise<void> {
       trabajador_id
     )
     VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1)
+  `);
+
+  await db.run(sql`
+    INSERT INTO sesion_usuario (
+      sesion_usuario_id,
+      sesion_fecha_hora_inicio,
+      sesion_fecha_hora_ultimo_acceso,
+      usuario_id
+    )
+    VALUES (
+      ${TEST_SESSION_ID},
+      '2026-01-01T00:00:00.000Z',
+      '2099-01-01T00:00:00.000Z',
+      '12345678-9'
+    )
   `);
 
   await db.run(sql`

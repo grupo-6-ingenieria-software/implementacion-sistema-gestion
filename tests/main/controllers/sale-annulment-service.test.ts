@@ -50,7 +50,11 @@ describe("CU38 sale annulment service", () => {
     expect(detail).toMatchObject({
       ventaId: saleId,
       estado: "confirmada",
-      responsable: { usuarioId: "12345678-9", nombre: "Maria Huascar" },
+      responsable: {
+        usuarioId: "12345678-9",
+        nombre: "Maria Huascar",
+        rol: "dueno",
+      },
       productos: [
         {
           nombre: "Pan",
@@ -449,11 +453,13 @@ async function seedFixture(db: DbExecutor): Promise<void> {
       venta_id, venta_fecha_hora, venta_descuento_tipo,
       venta_descuento_valor, venta_descuento_razon, venta_metodo_pago,
       venta_estado, es_venta_efectivo, es_venta_electronica,
-      usuario_cajero_id, cierre_caja_id
+      usuario_cajero_id, venta_responsable_nombre, venta_responsable_rol,
+      cierre_caja_id
     ) VALUES (
       ${saleId}, '2026-06-12T12:00:00.000Z', 'monto', 500,
       'Promoción', 'efectivo', 'completada', 1, 0,
-      '12345678-9', '00000000-0000-4000-8000-000000000201'
+      '12345678-9', 'Maria Huascar', 'dueno',
+      '00000000-0000-4000-8000-000000000201'
     )
   `);
   await db.run(sql`
