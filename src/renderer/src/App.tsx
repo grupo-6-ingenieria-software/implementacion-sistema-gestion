@@ -30,6 +30,7 @@ import {
 } from "../../shared/auth";
 import { formatRutInput, rutToBackend } from "../../shared/users";
 import { AuditLogView } from "./views/AuditLogView";
+import { ConfigurarPorcentajesPrevisionalesView } from "./views/ConfigurarPorcentajesPrevisionalesView";
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
@@ -42,9 +43,12 @@ import { ProductFormView } from "./views/ProductFormView";
 import { ProductDeleteView } from "./views/ProductDeleteView";
 import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
+import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
 import { ShiftCalendarView } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
+import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
+import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
 import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
@@ -697,6 +701,24 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "supplier-order-create" && session.usuarioId) {
+    return (
+      <SupplierOrderCreateView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "supplier-order-receptions" && session.usuarioId) {
+    return (
+      <SupplierOrderReceptionView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "sale-register") {
     return <SaleRegisterView session={session} />;
   }
@@ -846,6 +868,21 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "remuneracion-create" && session.usuarioId) {
+    return (
+      <RegistrarRemuneracionView
+        onNavigate={onNavigate}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === "configuracion-previsional" && session.usuarioId) {
+    return (
+      <ConfigurarPorcentajesPrevisionalesView usuarioId={session.usuarioId} />
+    );
+  }
+
   return <ViewUnavailable />;
 }
 
@@ -942,7 +979,11 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "supplier-order-create",
+    "supplier-order-receptions",
     "audit-log",
+    "remuneracion-create",
+    "configuracion-previsional",
     "shift-calendar",
     "shift-create",
     "waste-create",
