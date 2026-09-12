@@ -15,6 +15,13 @@
       "when": 1781318400000,
       "tag": "0001_user_roles_dueno_trabajador",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789157293843,
+      "tag": "0002_supplier_orders",
+      "breakpoints": true
     }
   ]
 }

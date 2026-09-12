@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(29);
-    expect(new Set(ids)).toHaveProperty("size", 29);
+    expect(controllers).toHaveLength(33);
+    expect(new Set(ids)).toHaveProperty("size", 33);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -38,6 +38,10 @@ describe("controller registry", () => {
       "product-detail",
       "stock-adjustment",
       "movement-history",
+      "remuneracion",
+      "configuracion-previsional",
+      "supplier-order",
+      "supplier-order-reception",
     ]);
   });
 
@@ -48,10 +52,28 @@ describe("controller registry", () => {
   });
 
   it("assigns at least one IPC channel to every controller", () => {
-    expect(ipcChannels.length).toBeGreaterThanOrEqual(29);
+    expect(ipcChannels.length).toBeGreaterThanOrEqual(33);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+  });
+
+  it("keeps remuneracion scoped to its documented channels", () => {
+    expect(
+      controllers.find((controller) => controller.id === "remuneracion")
+        ?.channels,
+    ).toEqual(["remuneracion:registrar", "remuneracion:trabajadores-elegibles"]);
+  });
+
+  it("keeps configuracion previsional scoped to its documented channels", () => {
+    expect(
+      controllers.find(
+        (controller) => controller.id === "configuracion-previsional",
+      )?.channels,
+    ).toEqual([
+      "configuracion:previsional-obtener",
+      "configuracion:previsional-actualizar",
+    ]);
   });
 
   it("keeps the lot controller scoped to lot registration support channels", () => {

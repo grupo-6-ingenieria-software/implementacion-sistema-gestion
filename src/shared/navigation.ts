@@ -4,6 +4,7 @@ export type NavGroup =
   | "publico"
   | "inicio"
   | "inventario"
+  | "proveedores"
   | "ventas"
   | "caja"
   | "personal"
@@ -38,7 +39,11 @@ export type ControllerId =
   | "ean-reader"
   | "product-detail"
   | "stock-adjustment"
-  | "movement-history";
+  | "movement-history"
+  | "remuneracion"
+  | "configuracion-previsional"
+  | "supplier-order"
+  | "supplier-order-reception";
 
 export type NavNode = {
   id: string;
@@ -255,6 +260,39 @@ export const navigationTree = [
     controllerIds: ["access-control", "movement-history"],
   },
   {
+    id: "supplier-order-create",
+    viewName: "RegistrarPedidoProveedorView",
+    label: "Registrar pedido",
+    path: "/app/proveedores/pedidos/nuevo",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: true,
+    entryFrom: "Menu Proveedores > Registrar pedido.",
+    controllerIds: [
+      "access-control",
+      "supplier-order",
+      "lot",
+      "product-query",
+      "audit",
+      "ean-reader",
+    ],
+  },
+  {
+    id: "supplier-order-receptions",
+    viewName: "ConfirmarRecepcionPedidoView",
+    label: "Recepciones e historial de pedidos",
+    path: "/app/proveedores/pedidos",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: true,
+    entryFrom: "Menu Proveedores > Recepciones e historial de pedidos.",
+    controllerIds: [
+      "access-control",
+      "supplier-order-reception",
+      "audit",
+    ],
+  },
+  {
     id: "sale-register",
     viewName: "SaleRegisterView",
     label: "Registrar venta",
@@ -350,6 +388,33 @@ export const navigationTree = [
     controllerIds: ["access-control", "attendance", "audit"],
   },
   {
+    id: "remuneracion-create",
+    viewName: "RegistrarRemuneracionView",
+    label: "Remuneraciones",
+    path: "/app/personal/remuneraciones/nueva",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Menu Personal > Remuneraciones > Registrar.",
+    controllerIds: [
+      "access-control",
+      "remuneracion",
+      "configuracion-previsional",
+      "audit",
+    ],
+  },
+  {
+    id: "configuracion-previsional",
+    viewName: "ConfigurarPorcentajesPrevisionalesView",
+    label: "Configuracion previsional",
+    path: "/app/personal/configuracion-previsional",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Menu Personal > Configuracion previsional.",
+    controllerIds: ["access-control", "configuracion-previsional", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -384,6 +449,7 @@ export const internalComponents = [
       "lot-create",
       "waste-create",
       "sale-register",
+      "supplier-order-create",
     ],
     controllerIds: ["ean-reader"],
   },
@@ -404,6 +470,7 @@ export const internalComponents = [
 export const appMenuGroups: readonly NavGroup[] = [
   "inicio",
   "inventario",
+  "proveedores",
   "ventas",
   "caja",
   "personal",
@@ -414,6 +481,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   publico: "Publico",
   inicio: "Inicio",
   inventario: "Inventario",
+  proveedores: "Proveedores",
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
@@ -532,6 +600,8 @@ export function validateNavigationTree(): string[] {
     "product-detail",
     "stock-adjustment",
     "movement-history",
+    "supplier-order-create",
+    "supplier-order-receptions",
     "sale-register",
     "daily-sales",
     "cash-closing",
@@ -540,6 +610,8 @@ export function validateNavigationTree(): string[] {
     "shift-calendar",
     "shift-create",
     "attendance",
+    "remuneracion-create",
+    "configuracion-previsional",
     "user-management",
     "audit-log",
   ]);

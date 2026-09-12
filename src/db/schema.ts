@@ -356,14 +356,15 @@ export const pedidoProveedor = sqliteTable(
       .default(nowDefault),
     pedidoProveedorEstado: text("pedido_proveedor_estado", {
       enum: [
-        "borrador",
-        "emitido",
-        "enviado",
+        "pendiente",
         "parcial",
         "recibido",
         "cancelado",
+        "parcial_cerrado",
       ],
-    }).notNull(),
+    })
+      .notNull()
+      .default("pendiente"),
     pedidoProveedorFechaHoraRecepcion: text(
       "pedido_proveedor_fecha_hora_recepcion",
     ),
@@ -383,7 +384,7 @@ export const pedidoProveedor = sqliteTable(
     check("pedido_proveedor_uuid", uuidCheck("pedido_proveedor_id")),
     check(
       "pedido_proveedor_estado_enum",
-      sql`${t.pedidoProveedorEstado} IN ('borrador','emitido','enviado','parcial','recibido','cancelado')`,
+      sql`${t.pedidoProveedorEstado} IN ('pendiente','parcial','recibido','cancelado','parcial_cerrado')`,
     ),
     index("idx_pedido_proveedor_proveedor").on(t.proveedorId),
     index("idx_pedido_proveedor_estado").on(t.pedidoProveedorEstado),
@@ -404,17 +405,86 @@ export const detallePedido = sqliteTable(
       .notNull()
       .references(() => producto.productoId, { onDelete: "restrict" }),
     cantidadSolicitada: integer("cantidad_solicitada").notNull(),
-    cantidadRecibida: integer("cantidad_recibida"),
+    cantidadRecibida: integer("cantidad_recibida").notNull().default(0),
   },
   (t) => [
     check("detalle_pedido_uuid", uuidCheck("detalle_pedido_id")),
     check("detalle_pedido_solicitada_min", sql`${t.cantidadSolicitada} > 0`),
     check(
       "detalle_pedido_recibida_range",
-      sql`${t.cantidadRecibida} IS NULL OR ${t.cantidadRecibida} >= 0`,
+      sql`${t.cantidadRecibida} >= 0 AND ${t.cantidadRecibida} <= ${t.cantidadSolicitada}`,
     ),
     uniqueIndex("uq_detalle_pedido").on(t.pedidoProveedorId, t.productoId),
     index("idx_detalle_pedido_pedido").on(t.pedidoProveedorId),
+  ],
+);
+
+export const recepcionPedido = sqliteTable(
+  "recepcion_pedido",
+  {
+    recepcionPedidoId: text("recepcion_pedido_id").primaryKey().$defaultFn(uuid),
+    recepcionOperacionId: text("recepcion_operacion_id").notNull().unique(),
+    recepcionFechaHora: text("recepcion_fecha_hora").notNull().default(nowDefault),
+    recepcionEstadoResultante: text("recepcion_estado_resultante", {
+      enum: ["parcial", "recibido"],
+    }).notNull(),
+    pedidoProveedorId: text("pedido_proveedor_id")
+      .notNull()
+      .references(() => pedidoProveedor.pedidoProveedorId, {
+        onDelete: "restrict",
+      }),
+    usuarioId: text("usuario_id")
+      .notNull()
+      .references(() => usuario.usuarioId, { onDelete: "restrict" }),
+  },
+  (t) => [
+    check("recepcion_pedido_uuid", uuidCheck("recepcion_pedido_id")),
+    check(
+      "recepcion_operacion_uuid",
+      uuidCheck("recepcion_operacion_id"),
+    ),
+    check(
+      "recepcion_estado_resultante_enum",
+      sql`${t.recepcionEstadoResultante} IN ('parcial','recibido')`,
+    ),
+    index("idx_recepcion_pedido").on(
+      t.pedidoProveedorId,
+      t.recepcionFechaHora,
+    ),
+  ],
+);
+
+export const detalleRecepcion = sqliteTable(
+  "detalle_recepcion",
+  {
+    detalleRecepcionId: text("detalle_recepcion_id").primaryKey().$defaultFn(uuid),
+    recepcionPedidoId: text("recepcion_pedido_id")
+      .notNull()
+      .references(() => recepcionPedido.recepcionPedidoId, {
+        onDelete: "cascade",
+      }),
+    detallePedidoId: text("detalle_pedido_id")
+      .notNull()
+      .references(() => detallePedido.detallePedidoId, {
+        onDelete: "restrict",
+      }),
+    loteId: text("lote_id")
+      .notNull()
+      .unique()
+      .references(() => lote.loteId, { onDelete: "restrict" }),
+    detalleRecepcionCantidad: integer("detalle_recepcion_cantidad").notNull(),
+  },
+  (t) => [
+    check("detalle_recepcion_uuid", uuidCheck("detalle_recepcion_id")),
+    check(
+      "detalle_recepcion_cantidad_min",
+      sql`${t.detalleRecepcionCantidad} > 0`,
+    ),
+    uniqueIndex("uq_detalle_recepcion_linea").on(
+      t.recepcionPedidoId,
+      t.detallePedidoId,
+    ),
+    index("idx_detalle_recepcion_recepcion").on(t.recepcionPedidoId),
   ],
 );
 
@@ -1025,6 +1095,10 @@ export type Proveedor = typeof proveedor.$inferSelect;
 export type NewProveedor = typeof proveedor.$inferInsert;
 export type Lote = typeof lote.$inferSelect;
 export type NewLote = typeof lote.$inferInsert;
+export type PedidoProveedor = typeof pedidoProveedor.$inferSelect;
+export type NewPedidoProveedor = typeof pedidoProveedor.$inferInsert;
+export type RecepcionPedido = typeof recepcionPedido.$inferSelect;
+export type NewRecepcionPedido = typeof recepcionPedido.$inferInsert;
 export type Venta = typeof venta.$inferSelect;
 export type NewVenta = typeof venta.$inferInsert;
 export type DetalleVenta = typeof detalleVenta.$inferSelect;

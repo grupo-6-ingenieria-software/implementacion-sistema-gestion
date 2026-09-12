@@ -29,6 +29,7 @@ export type LotRegisterResponse = {
 export type LotProviderOption = {
   id: number;
   nombre: string;
+  rut?: string;
 };
 
 export const invalidLotEanMessage =
