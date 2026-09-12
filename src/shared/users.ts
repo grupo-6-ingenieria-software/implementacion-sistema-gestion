@@ -45,6 +45,7 @@ export type UserMutationResponse = {
 };
 
 export type UserStatusChangePayload = {
+  confirmacion: boolean;
   estado: UserStatus;
   usuarioId?: string;
   usuarioObjetivoId: string;
@@ -123,6 +124,7 @@ export function normalizeUserStatusChangePayload(
       : {};
 
   return {
+    confirmacion: record.confirmacion === true,
     estado: record.estado === "inactivo" ? "inactivo" : "activo",
     usuarioId:
       typeof record.usuarioId === "string"

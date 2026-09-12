@@ -11,7 +11,7 @@ import {
   validateAndRefreshActiveSession,
   type VerifySessionData,
 } from "./session";
-import { SESSION_EXPIRED_MESSAGE } from "../../shared/auth";
+import { SESSION_EXPIRED_MESSAGE, SESSION_INVALIDATED_MESSAGE } from "../../shared/auth";
 
 export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(["auth:login"]);
 
@@ -151,7 +151,9 @@ export async function authorizeRequest(
           "FORBIDDEN",
           session.reason === "inactividad"
             ? SESSION_EXPIRED_MESSAGE
-            : "No hay una sesión válida para realizar esta acción.",
+            : session.reason === "sistema"
+              ? SESSION_INVALIDATED_MESSAGE
+              : "No hay una sesión válida para realizar esta acción.",
         ),
       };
     }

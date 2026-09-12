@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
+  formatRutInput,
   type UserListItem,
   type UserListResponse,
   type UserMutationResponse,
@@ -7,6 +8,7 @@ import {
   type UserStatus,
 } from "../../../shared/users";
 import { WorkerFormView } from "./WorkerFormView";
+import { WorkerStatusView } from "./WorkerStatusView";
 
 type WorkerListViewProps = {
   usuarioId: string;
@@ -20,6 +22,21 @@ function roleLabel(role: UserRole): string {
 
 function esRutExacto(busqueda: string): boolean {
   return /^\d{7,8}-[\dKk]$/.test(busqueda.trim());
+}
+
+/**
+ * Aplica el formato de RUT del login solo cuando la búsqueda parece un RUT
+ * (dígitos, K, puntos, guion o espacios); el texto de búsqueda por nombre
+ * pasa intacto.
+ */
+function formatearBusqueda(value: string): string {
+  const limpio = value.trim();
+
+  if (limpio !== "" && /\d/.test(limpio) && /^[\dkK.\-\s]+$/.test(limpio)) {
+    return formatRutInput(limpio);
+  }
+
+  return value;
 }
 
 export function WorkerListView({
@@ -36,6 +53,9 @@ export function WorkerListView({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserListItem | null>(null);
+  const [cambiandoEstado, setCambiandoEstado] = useState<UserListItem | null>(
+    null,
+  );
   const [reloadKey, setReloadKey] = useState(0);
 
   const payload = useMemo(
@@ -104,36 +124,18 @@ export function WorkerListView({
     setReloadKey((current) => current + 1);
   }
 
-  async function changeStatus(worker: UserListItem): Promise<void> {
-    const nextStatus = worker.estado === "activo" ? "inactivo" : "activo";
-    const confirmed = window.confirm(
-      `Confirmar cambio de estado de ${worker.nombreCompleto} a ${nextStatus}.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setSaving(true);
+  function startStatusChange(worker: UserListItem): void {
     setMessage(null);
+    setCambiandoEstado(worker);
+  }
 
-    const response = await window.appApi.invoke<UserMutationResponse>(
-      "trabajador:cambiar-estado",
-      {
-        estado: nextStatus,
-        usuarioId,
-        usuarioObjetivoId: worker.usuarioId,
-      },
-    );
+  function closeStatusChange(): void {
+    setCambiandoEstado(null);
+  }
 
-    setSaving(false);
-
-    if (!response.ok) {
-      setMessage(response.error.message);
-      return;
-    }
-
-    setMessage(`Trabajador ${nextStatus}.`);
+  function finishStatusChange(estado: UserStatus): void {
+    setCambiandoEstado(null);
+    setMessage(`Trabajador ${estado}.`);
     setReloadKey((current) => current + 1);
   }
 
@@ -178,7 +180,7 @@ export function WorkerListView({
               className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               placeholder="Nombre o RUT"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => setSearch(formatearBusqueda(event.target.value))}
             />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
@@ -243,6 +245,19 @@ export function WorkerListView({
               onClose={closeEdit}
               onNavigate={onNavigate}
               onSaved={finishEdit}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {cambiandoEstado ? (
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-[#17202a]/50 p-6">
+          <div className="mx-auto max-w-xl">
+            <WorkerStatusView
+              usuarioId={usuarioId}
+              worker={cambiandoEstado}
+              onClose={closeStatusChange}
+              onSaved={finishStatusChange}
             />
           </div>
         </div>
@@ -329,7 +344,7 @@ export function WorkerListView({
                             className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                             disabled={saving}
                             type="button"
-                            onClick={() => void changeStatus(worker)}
+                            onClick={() => startStatusChange(worker)}
                           >
                             {worker.estado === "activo" ? "Inactivar" : "Activar"}
                           </button>
