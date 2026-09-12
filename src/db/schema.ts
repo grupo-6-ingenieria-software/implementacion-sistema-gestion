@@ -623,6 +623,9 @@ export const sesionUsuario = sqliteTable(
     sesionMotivoCierre: text("sesion_motivo_cierre", {
       enum: ["manual", "inactividad", "sistema"],
     }),
+    sesionRolEfectivo: text("sesion_rol_efectivo", {
+      enum: ["dueno", "trabajador"],
+    }),
     usuarioId: text("usuario_id")
       .notNull()
       .references(() => usuario.usuarioId, { onDelete: "restrict" }),
