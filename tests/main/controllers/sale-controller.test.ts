@@ -1,25 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSaleController } from "../../../src/main/controllers/sale";
+import { SaleValidationError } from "../../../src/main/controllers/sale-service";
 
 function dependencies(state: "sin_registro" | "abierta" | "cerrada") {
-  const inspectCash = vi
-    .fn()
-    .mockResolvedValue(
-      state === "sin_registro"
-        ? { status: "sin_registro" }
-        : state === "abierta"
-          ? {
-              status: "abierta",
-              cierreCajaId: "caja-1",
-              openedAt: "2026-06-12T08:00:00.000Z",
-            }
-          : {
-              status: "cerrada",
-              cierreCajaId: "caja-1",
-              openedAt: "2026-06-12T08:00:00.000Z",
-              closedAt: "2026-06-12T20:00:00.000Z",
-            },
-    );
+  const inspectCash = vi.fn().mockResolvedValue(
+    state === "sin_registro"
+      ? { status: "sin_registro" }
+      : state === "abierta"
+        ? {
+            status: "abierta",
+            cierreCajaId: "caja-1",
+            openedAt: "2026-06-12T08:00:00.000Z",
+          }
+        : {
+            status: "cerrada",
+            cierreCajaId: "caja-1",
+            openedAt: "2026-06-12T08:00:00.000Z",
+            closedAt: "2026-06-12T20:00:00.000Z",
+          },
+  );
   return {
     inspectCash,
     register: vi.fn().mockResolvedValue({ ventaId: "venta-1" }),
@@ -30,6 +29,46 @@ function dependencies(state: "sin_registro" | "abierta" | "cerrada") {
 }
 
 describe("saleController contracts", () => {
+  it("CU37 maps a rejected discount to validation error without notifying", async () => {
+    const deps = dependencies("abierta");
+    deps.register.mockRejectedValueOnce(
+      new SaleValidationError(
+        "El descuento no puede ser mayor al subtotal de la venta.",
+      ),
+    );
+    const response = await createSaleController(deps as never).handle(
+      { descuento: { monto: 5000, razon: "Promoción" } },
+      { channel: "venta:registrar" },
+    );
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("mayor al subtotal"),
+      },
+    });
+    expect(deps.notify).not.toHaveBeenCalled();
+  });
+
+  it("CU37 notifies only after the discounted sale resolves", async () => {
+    const deps = dependencies("abierta");
+    let finish!: (value: { ventaId: string }) => void;
+    deps.register.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const request = createSaleController(deps as never).handle(
+      { descuento: { monto: 500, razon: "Promoción" } },
+      { channel: "venta:registrar" },
+    );
+    await vi.waitFor(() => expect(deps.register).toHaveBeenCalledOnce());
+    expect(deps.notify).not.toHaveBeenCalled();
+    finish({ ventaId: "venta-cu37" });
+    expect(await request).toMatchObject({ ok: true });
+    expect(deps.notify).toHaveBeenCalledOnce();
+  });
   it.each(["sin_registro", "abierta", "cerrada"] as const)(
     "returns the discriminated daily cash state %s without opening cash",
     async (status) => {

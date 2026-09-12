@@ -28,8 +28,10 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 export function DailySalesView({
   usuarioId,
+  onNavigate,
 }: {
   usuarioId: string;
+  onNavigate: (path: string) => void;
 }): ReactElement {
   const [state, setState] = useState<DailySalesState>({ status: "loading" });
 
@@ -124,6 +126,9 @@ export function DailySalesView({
                   <th className="px-4 py-3 text-right font-semibold">Total</th>
                   <th className="px-4 py-3 font-semibold">Metodo de pago</th>
                   <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 text-right font-semibold">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -149,6 +154,25 @@ export function DailySalesView({
                     </td>
                     <td className="px-4 py-4">
                       <SaleStatus status={venta.estado} />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {venta.estado === "confirmada" ? (
+                        <button
+                          className="rounded-md border border-[#9f2d20] px-3 py-2 text-xs font-semibold text-[#9f2d20] transition hover:bg-[#fff3f1]"
+                          type="button"
+                          onClick={() =>
+                            onNavigate(
+                              `/app/ventas/anular?ventaId=${encodeURIComponent(
+                                venta.ventaId,
+                              )}`,
+                            )
+                          }
+                        >
+                          Anular
+                        </button>
+                      ) : (
+                        <span className="text-xs text-[#7b8995]">No disponible</span>
+                      )}
                     </td>
                   </tr>
                 ))}
