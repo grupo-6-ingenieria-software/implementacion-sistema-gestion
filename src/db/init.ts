@@ -10,6 +10,20 @@ export interface DatabaseInitPaths {
   triggersPath: string;
 }
 
+const CU43_MIGRATION_FILE = "0004_cu43_sale_responsible_snapshot.sql";
+
+// Estos triggers viven fuera de `venta`, pero consultan o actualizan esa tabla.
+// SQLite no los elimina al reemplazar `venta`, por lo que deben retirarse antes
+// del DROP/RENAME y se vuelven a crear con applyTriggers al terminar.
+const SALE_TABLE_DEPENDENT_TRIGGERS = [
+  "trg_venta_efectivo_flag_coherente",
+  "trg_anulacion_venta_solo_completada",
+  "trg_anulacion_venta_marca_estado",
+  "trg_venta_cierre_abierto",
+  "trg_venta_responsable_requerido",
+  "trg_venta_responsable_inmutable",
+] as const;
+
 export function resolveDatabaseInitPaths(options?: {
   isPackaged?: boolean;
   resourcesPath?: string;
@@ -84,6 +98,9 @@ async function applyMigrations(
       migrationTimestamp <= lastDrizzleMigration;
 
     if (!wasAppliedByDrizzle) {
+      if (file === CU43_MIGRATION_FILE) {
+        await dropSaleTableDependentTriggers(client);
+      }
       await client.executeMultiple(migration);
     }
 
@@ -97,7 +114,7 @@ async function recoverInterruptedCu43Migration(
   migrationFiles: string[],
 ): Promise<void> {
   const cu43File = migrationFiles.find(
-    (file) => file === "0004_cu43_sale_responsible_snapshot.sql",
+    (file) => file === CU43_MIGRATION_FILE,
   );
 
   if (!cu43File) {
@@ -127,15 +144,7 @@ async function recoverInterruptedCu43Migration(
     );
   }
 
-  for (const triggerName of [
-    "trg_anulacion_venta_marca_estado",
-    "trg_anulacion_venta_solo_completada",
-    "trg_detalle_venta_producto_activo",
-    "trg_venta_efectivo_flag_coherente",
-    "trg_venta_lote_stock_suficiente",
-  ]) {
-    await client.execute(`DROP TRIGGER IF EXISTS "${triggerName}"`);
-  }
+  await dropSaleTableDependentTriggers(client);
 
   await client.executeMultiple(`
     ALTER TABLE "__new_venta" RENAME TO "venta";
@@ -148,6 +157,12 @@ async function recoverInterruptedCu43Migration(
   const migration = await readFile(join(migrationsFolder, cu43File), "utf8");
   const hash = createHash("sha256").update(migration).digest("hex");
   await recordMigrationHash(client, hash);
+}
+
+async function dropSaleTableDependentTriggers(client: Client): Promise<void> {
+  for (const triggerName of SALE_TABLE_DEPENDENT_TRIGGERS) {
+    await client.execute(`DROP TRIGGER IF EXISTS "${triggerName}"`);
+  }
 }
 
 async function tableExists(client: Client, tableName: string): Promise<boolean> {

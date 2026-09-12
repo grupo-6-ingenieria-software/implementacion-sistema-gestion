@@ -157,6 +157,20 @@ describe("initializeDatabase", () => {
       ]),
     );
     expect(await tableExists(testDb!.client, "__new_venta")).toBe(false);
+    const restoredTriggers = await testDb!.client.execute(`
+      SELECT name FROM sqlite_master
+      WHERE type = 'trigger' AND name IN (
+        'trg_venta_efectivo_flag_coherente',
+        'trg_anulacion_venta_solo_completada',
+        'trg_anulacion_venta_marca_estado'
+      )
+      ORDER BY name
+    `);
+    expect(restoredTriggers.rows.map((row) => row.name)).toEqual([
+      "trg_anulacion_venta_marca_estado",
+      "trg_anulacion_venta_solo_completada",
+      "trg_venta_efectivo_flag_coherente",
+    ]);
     expect(
       Number(
         (
