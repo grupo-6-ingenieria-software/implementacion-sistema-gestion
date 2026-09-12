@@ -35,18 +35,25 @@ import {
   ConsultaVentasView,
   getSafeSalesQueryReturnPath,
 } from "./views/ConsultaVentasView";
+import { ConfigurarPorcentajesPrevisionalesView } from "./views/ConfigurarPorcentajesPrevisionalesView";
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
 import { CashClosingView } from "./views/CashClosingView";
 import { LotCreateView } from "./views/LotCreateView";
+import { MovementHistoryView } from "./views/MovementHistoryView";
+import { ProductDetailView } from "./views/ProductDetailView";
+import { StockAdjustmentView } from "./views/StockAdjustmentView";
 import { ProductFormView } from "./views/ProductFormView";
 import { ProductDeleteView } from "./views/ProductDeleteView";
 import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
+import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
 import { ShiftCalendarView } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
+import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
+import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
 import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
@@ -774,6 +781,24 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "supplier-order-create" && session.usuarioId) {
+    return (
+      <SupplierOrderCreateView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "supplier-order-receptions" && session.usuarioId) {
+    return (
+      <SupplierOrderReceptionView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "sale-register") {
     return (
       <SaleRegisterView
@@ -855,6 +880,41 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "product-detail" && session.role && session.usuarioId) {
+    const detailEan13 = getProductDetailEan13(currentPath);
+    if (detailEan13) {
+      return (
+        <ProductDetailView
+          ean13={detailEan13}
+          role={session.role}
+          usuarioId={session.usuarioId}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+  }
+
+  if (node.id === "stock-adjustment" && session.role && session.usuarioId) {
+    return (
+      <StockAdjustmentView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "movement-history" && session.role && session.usuarioId) {
+    return (
+      <MovementHistoryView
+        role={session.role}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+        initialEan13={getMovementHistoryEan13(currentPath)}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -916,6 +976,21 @@ function ViewRenderer({
   if (node.id === "worker-create" && session.usuarioId) {
     return (
       <WorkerFormView usuarioId={session.usuarioId} onNavigate={onNavigate} />
+    );
+  }
+
+  if (node.id === "remuneracion-create" && session.usuarioId) {
+    return (
+      <RegistrarRemuneracionView
+        onNavigate={onNavigate}
+        usuarioId={session.usuarioId}
+      />
+    );
+  }
+
+  if (node.id === "configuracion-previsional" && session.usuarioId) {
+    return (
+      <ConfigurarPorcentajesPrevisionalesView usuarioId={session.usuarioId} />
     );
   }
 
@@ -1017,12 +1092,19 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "supplier-order-create",
+    "supplier-order-receptions",
     "audit-log",
+    "remuneracion-create",
+    "configuracion-previsional",
     "shift-calendar",
     "shift-create",
     "waste-create",
     "worker-create",
     "worker-list",
+    "product-detail",
+    "stock-adjustment",
+    "movement-history",
   ].includes(nodeId);
 }
 
@@ -1053,6 +1135,18 @@ export function getWasteCreateEan13(path: string): string | undefined {
 }
 
 export function getProductDeleteEan13(path: string): string | undefined {
+  const [, query = ""] = path.split("?");
+  const ean13 = new URLSearchParams(query).get("ean13");
+
+  return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getProductDetailEan13(path: string): string | undefined {
+  const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/detalle$/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function getMovementHistoryEan13(path: string): string | undefined {
   const [, query = ""] = path.split("?");
   const ean13 = new URLSearchParams(query).get("ean13");
 

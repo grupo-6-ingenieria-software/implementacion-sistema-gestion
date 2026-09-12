@@ -30,6 +30,7 @@ describe("ProductListView actions", () => {
     expect(
       getProductActionsForRole("dueno", product).map((action) => action.label),
     ).toEqual([
+      "Ver detalle",
       "Editar",
       "Cambiar estado",
       "Eliminar",
@@ -43,7 +44,7 @@ describe("ProductListView actions", () => {
       getProductActionsForRole("trabajador", product).map(
         (action) => action.label,
       ),
-    ).toEqual(["Cambiar estado", "Eliminar", "Registrar merma"]);
+    ).toEqual(["Ver detalle", "Cambiar estado", "Eliminar", "Registrar merma"]);
   });
 
   it("hides active-product operations for inactive products", () => {
@@ -51,12 +52,12 @@ describe("ProductListView actions", () => {
       getProductActionsForRole("dueno", inactiveProduct).map(
         (action) => action.label,
       ),
-    ).toEqual(["Editar", "Cambiar estado", "Eliminar"]);
+    ).toEqual(["Ver detalle", "Editar", "Cambiar estado", "Eliminar"]);
     expect(
       getProductActionsForRole("trabajador", inactiveProduct).map(
         (action) => action.label,
       ),
-    ).toEqual(["Cambiar estado", "Eliminar"]);
+    ).toEqual(["Ver detalle", "Cambiar estado", "Eliminar"]);
   });
 
   it("keeps inactive products at the end of the list", () => {

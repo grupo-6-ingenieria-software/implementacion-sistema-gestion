@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4b9f7bcf-91a8-4834-a438-802dc460b08a",
-  "prevId": "00402a19-e617-4bef-842d-b05af76bfa14",
+  "id": "77be115a-a8a3-49eb-bcdd-4b4074c0828d",
+  "prevId": "022a9bf4-c248-4afc-8fa3-7657d5e86d0f",
   "tables": {
     "ajuste_inventario": {
       "name": "ajuste_inventario",
@@ -2572,6 +2572,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "sesion_rol_efectivo": {
+          "name": "sesion_rol_efectivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
@@ -3092,6 +3099,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "venta_responsable_nombre": {
+          "name": "venta_responsable_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "venta_responsable_rol": {
+          "name": "venta_responsable_rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "cierre_caja_id": {
           "name": "cierre_caja_id",
           "type": "text",
@@ -3177,6 +3198,14 @@
         "venta_estado_enum": {
           "name": "venta_estado_enum",
           "value": "\"venta\".\"venta_estado\" IN ('completada','anulada')"
+        },
+        "venta_responsable_nombre_no_vacio": {
+          "name": "venta_responsable_nombre_no_vacio",
+          "value": "length(trim(\"venta\".\"venta_responsable_nombre\")) > 0"
+        },
+        "venta_responsable_rol_enum": {
+          "name": "venta_responsable_rol_enum",
+          "value": "\"venta\".\"venta_responsable_rol\" IN ('dueno','trabajador')"
         },
         "venta_descuento_coherente": {
           "name": "venta_descuento_coherente",

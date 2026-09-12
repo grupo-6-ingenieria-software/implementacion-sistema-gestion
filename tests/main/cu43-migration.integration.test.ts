@@ -207,7 +207,7 @@ async function applyCu43Migration(
     await readFile(
       join(
         process.cwd(),
-        "drizzle/migrations/0002_cu43_sale_responsible_snapshot.sql",
+        "drizzle/migrations/0004_cu43_sale_responsible_snapshot.sql",
       ),
       "utf8",
     ),

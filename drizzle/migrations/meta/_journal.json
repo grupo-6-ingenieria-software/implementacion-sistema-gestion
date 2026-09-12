@@ -19,8 +19,22 @@
     {
       "idx": 2,
       "version": "6",
-      "when": 1789174020082,
-      "tag": "0002_cu43_sale_responsible_snapshot",
+      "when": 1789157293843,
+      "tag": "0002_supplier_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789173220718,
+      "tag": "0003_sesion_rol_efectivo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789179781555,
+      "tag": "0004_cu43_sale_responsible_snapshot",
       "breakpoints": true
     }
   ]

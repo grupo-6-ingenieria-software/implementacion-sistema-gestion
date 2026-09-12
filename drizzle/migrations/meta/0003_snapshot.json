@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4b9f7bcf-91a8-4834-a438-802dc460b08a",
-  "prevId": "00402a19-e617-4bef-842d-b05af76bfa14",
+  "id": "022a9bf4-c248-4afc-8fa3-7657d5e86d0f",
+  "prevId": "4b9f7bcf-91a8-4834-a438-802dc460b08a",
   "tables": {
     "ajuste_inventario": {
       "name": "ajuste_inventario",
@@ -2567,6 +2567,13 @@
         },
         "sesion_motivo_cierre": {
           "name": "sesion_motivo_cierre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sesion_rol_efectivo": {
+          "name": "sesion_rol_efectivo",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
