@@ -35,7 +35,8 @@ export type ControllerId =
   | "worker"
   | "shift"
   | "attendance"
-  | "ean-reader";
+  | "ean-reader"
+  | "sale-annulment";
 
 export type NavNode = {
   id: string;
@@ -248,6 +249,33 @@ export const navigationTree = [
     controllerIds: ["access-control", "sales-history"],
   },
   {
+    id: "sales-query",
+    viewName: "ConsultaVentasView",
+    label: "Consulta de ventas",
+    path: "/app/ventas/consulta",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas > Consulta de ventas.",
+    controllerIds: ["access-control", "sales-history"],
+  },
+  {
+    id: "sale-annulment",
+    viewName: "AnularVentaView",
+    label: "Anular venta",
+    path: "/app/ventas/anular",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas, Ventas del dia o Consulta de ventas.",
+    controllerIds: [
+      "access-control",
+      "sales-history",
+      "sale-annulment",
+      "audit",
+    ],
+  },
+  {
     id: "cash-closing",
     viewName: "CashClosingView",
     label: "Cierre de caja",
@@ -338,6 +366,12 @@ export const navigationTree = [
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
+  {
+    id: "sale-discount-modal",
+    name: "DescuentoVentaModal",
+    usedIn: ["sale-register"],
+    controllerIds: ["sale"],
+  },
   {
     id: "ean-input",
     name: "CampoEAN13Input",
@@ -495,6 +529,8 @@ export function validateNavigationTree(): string[] {
     "waste-create",
     "sale-register",
     "daily-sales",
+    "sales-query",
+    "sale-annulment",
     "cash-closing",
     "worker-list",
     "worker-create",

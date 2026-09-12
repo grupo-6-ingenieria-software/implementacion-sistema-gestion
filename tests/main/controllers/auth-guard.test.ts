@@ -115,6 +115,25 @@ describe("guardChannel (RF56/CU57)", () => {
     );
   });
 
+  it("allows both roles on every CU38/CU41 channel and trusts only JWT identity", async () => {
+    for (const channel of ["venta:buscar", "venta:detalle", "venta:anular"]) {
+      expect(CHANNEL_ROLES.get(channel)).toEqual(
+        new Set(["dueno", "trabajador"]),
+      );
+      const result = await guardChannel(
+        channel,
+        { usuarioId: "spoofed", __authToken: "t" },
+        deps({ verifyToken: () => claimsFor("trabajador") }),
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect((result.payload as { usuarioId: string }).usuarioId).toBe(
+          "trusted-id",
+        );
+      }
+    }
+  });
+
   it("lets trabajador list active workers for Asistencia (cross-module override)", async () => {
     expect(CHANNEL_ROLES.get("trabajador:listar-activos")).toEqual(
       new Set(["dueno", "trabajador"]),
