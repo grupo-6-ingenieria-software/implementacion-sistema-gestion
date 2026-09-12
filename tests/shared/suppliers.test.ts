@@ -101,9 +101,17 @@ describe("CU14 supplier edit and query contracts", () => {
     expect(
       normalizeSupplierListRequest({
         busqueda: "  Distribuidora   SUR ",
+        categoriaId: 2,
         usuarioId: " user ",
       }),
-    ).toEqual({ busqueda: "Distribuidora SUR", usuarioId: "user" });
+    ).toEqual({
+      busqueda: "Distribuidora SUR",
+      categoriaId: 2,
+      usuarioId: "user",
+    });
+    expect(
+      normalizeSupplierListRequest({ categoriaId: 0, usuarioId: " user " }),
+    ).toEqual({ usuarioId: "user" });
     expect(normalizeSupplierLookupRequest({ rut: "12.345.678-9" })).toEqual({
       rut: "",
     });

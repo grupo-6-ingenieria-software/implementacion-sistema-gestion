@@ -32,6 +32,7 @@ export interface SupplierEditResponse {
 
 export interface SupplierListRequest {
   busqueda?: string;
+  categoriaId?: number;
   usuarioId?: string;
 }
 
@@ -44,6 +45,15 @@ export interface SupplierListItem {
   proveedorId: number;
   rut: string;
   nombreRazonSocial: string;
+  nombreContacto: string;
+  telefono: string;
+  correoElectronico: string;
+  categorias: SupplierCategoryOption[];
+}
+
+export interface SupplierListResponse {
+  suppliers: SupplierListItem[];
+  categories: SupplierCategoryOption[];
 }
 
 export interface SupplierDetail extends SupplierEditPayload {
@@ -112,10 +122,12 @@ export function normalizeSupplierListRequest(
 ): SupplierListRequest {
   const record = isRecord(payload) ? payload : {};
   const busqueda = normalizeText(record.busqueda);
+  const categoriaId = normalizePositiveInteger(record.categoriaId);
   const usuarioId = normalizeOptionalUserId(record.usuarioId);
 
   return {
     ...(busqueda ? { busqueda } : {}),
+    ...(categoriaId ? { categoriaId } : {}),
     ...(usuarioId ? { usuarioId } : {}),
   };
 }
@@ -212,6 +224,12 @@ function normalizeText(value: unknown): string {
 
 function normalizeOptionalUserId(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizePositiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

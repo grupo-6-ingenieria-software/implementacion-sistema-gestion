@@ -49,8 +49,45 @@ describe("navigation tree", () => {
         "product-detail",
         "stock-adjustment",
         "movement-history",
+        "restock-list",
       ]),
     );
+  });
+
+  it("exposes V25 once under Inventario for both roles and keeps UI05 internal", () => {
+    const route = navigationTree.find((node) => node.id === "restock-list");
+    expect(route).toMatchObject({
+      path: "/app/inventario/reabastecimiento",
+      roles: ["dueno", "trabajador"],
+      group: "inventario",
+      showInMenu: true,
+      controllerIds: [
+        "access-control",
+        "restock-list",
+        "restock-report-export",
+      ],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        getVisibleMenu(role).filter(
+          (node) => node.path === "/app/inventario/reabastecimiento",
+        ),
+      ).toHaveLength(1);
+      expect(
+        evaluateRouteAccess("/app/inventario/reabastecimiento", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+    }
+
+    expect(internalComponents).toContainEqual({
+      id: "restock-print-view",
+      name: "ListaReabastecimientoPrintView",
+      usedIn: ["restock-list"],
+      controllerIds: ["restock-report-export"],
+    });
   });
 
   it("adds V23 to both menus and keeps V24 as an internal navigation target", () => {

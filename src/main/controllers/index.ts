@@ -39,6 +39,8 @@ import { productDetailController } from "./product-detail";
 import { stockAdjustmentController } from "./stock-adjustment";
 import { wasteController } from "./waste";
 import { workerController } from "./worker";
+import { restockListController } from "./restock-list";
+import { restockReportExportController } from "./restock-report-export";
 import type { RegisteredController } from "./base";
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
@@ -80,6 +82,8 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     supplierCreateController,
     supplierQueryController,
     supplierEditController,
+    restockListController,
+    restockReportExportController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {

@@ -1,6 +1,14 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import type { ControllerResponse } from "../../../shared/controllers";
-import type { SupplierListItem } from "../../../shared/suppliers";
+import {
+  normalizeSupplierListRequest,
+  type SupplierCategoryOption,
+  type SupplierListItem,
+  type SupplierListRequest,
+  type SupplierListResponse,
+} from "../../../shared/suppliers";
+
+export const SUPPLIER_SEARCH_DEBOUNCE_MS = 250;
 
 export function SupplierListView({
   onNavigate,
@@ -10,20 +18,41 @@ export function SupplierListView({
   usuarioId: string;
 }): ReactElement {
   const [search, setSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [suppliers, setSuppliers] = useState<SupplierListItem[]>([]);
+  const [categories, setCategories] = useState<SupplierCategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setDebouncedSearch(search),
+      SUPPLIER_SEARCH_DEBOUNCE_MS,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const filters = useMemo(
+    () => ({
+      busqueda: debouncedSearch,
+      categoriaId: categoryId ? Number(categoryId) : undefined,
+    }),
+    [categoryId, debouncedSearch],
+  );
 
   useEffect(() => {
     let current = true;
     setLoading(true);
     setLoadError(null);
 
-    void loadSupplierList(window.appApi.invoke, usuarioId, appliedSearch)
-      .then((items) => {
-        if (current) setSuppliers(items);
+    void loadSupplierList(window.appApi.invoke, usuarioId, filters)
+      .then((data) => {
+        if (!current) return;
+        setSuppliers(data.suppliers);
+        setCategories(data.categories);
       })
       .catch((error: unknown) => {
         if (!current) return;
@@ -41,7 +70,7 @@ export function SupplierListView({
     return () => {
       current = false;
     };
-  }, [appliedSearch, retryToken, usuarioId]);
+  }, [filters, retryToken, usuarioId]);
 
   return (
     <section className="px-8 py-8">
@@ -62,13 +91,7 @@ export function SupplierListView({
           </button>
         </div>
 
-        <form
-          className="mt-6 flex flex-wrap gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setAppliedSearch(search.trim());
-          }}
-        >
+        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(260px,1fr)_260px]">
           <label className="min-w-[260px] flex-1 text-sm font-semibold text-[#24313d]">
             Buscar por nombre o RUT
             <input
@@ -78,14 +101,22 @@ export function SupplierListView({
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <button
-            className="self-end rounded-md border border-[#2d6a4f] px-4 py-2 text-sm font-semibold text-[#2d6a4f] hover:bg-[#edf7f1]"
-            disabled={loading}
-            type="submit"
-          >
-            Buscar
-          </button>
-        </form>
+          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+            Categoría
+            <select
+              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+            >
+              <option value="">Todas las categorías</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         {loading ? (
           <p className="mt-6 text-sm text-[#61717f]">Cargando proveedores...</p>
@@ -106,7 +137,7 @@ export function SupplierListView({
 
         {!loading && !loadError && suppliers.length === 0 ? (
           <p className="mt-6 rounded-md border border-dashed border-[#cbd5df] bg-[#f8fafb] px-4 py-6 text-sm text-[#61717f]">
-            No se encontraron proveedores.
+            No existen proveedores coincidentes
           </p>
         ) : null}
 
@@ -115,18 +146,40 @@ export function SupplierListView({
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[#edf1f5] text-[#24313d]">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Razón social</th>
                   <th className="px-4 py-3 font-semibold">RUT</th>
+                  <th className="px-4 py-3 font-semibold">Razón social</th>
+                  <th className="px-4 py-3 font-semibold">Contacto</th>
+                  <th className="px-4 py-3 font-semibold">Teléfono</th>
+                  <th className="px-4 py-3 font-semibold">Correo</th>
+                  <th className="px-4 py-3 font-semibold">Categorías</th>
                   <th className="px-4 py-3 text-right font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {suppliers.map((supplier) => (
                   <tr className="border-t border-[#d7dee6]" key={supplier.proveedorId}>
+                    <td className="whitespace-nowrap px-4 py-3 text-[#61717f]">
+                      {supplier.rut}
+                    </td>
                     <td className="px-4 py-3 text-[#17202a]">
                       {supplier.nombreRazonSocial}
                     </td>
-                    <td className="px-4 py-3 text-[#61717f]">{supplier.rut}</td>
+                    <td className="px-4 py-3 text-[#61717f]">
+                      {supplier.nombreContacto}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[#61717f]">
+                      {supplier.telefono}
+                    </td>
+                    <td className="px-4 py-3 text-[#61717f]">
+                      {supplier.correoElectronico}
+                    </td>
+                    <td className="px-4 py-3 text-[#61717f]">
+                      {supplier.categorias.length > 0
+                        ? supplier.categorias
+                            .map((category) => category.nombre)
+                            .join(", ")
+                        : "Sin categorías"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         className="font-semibold text-[#2d6a4f] hover:underline"
@@ -150,15 +203,22 @@ export function SupplierListView({
 export async function loadSupplierList(
   invoke: typeof window.appApi.invoke,
   usuarioId: string,
-  busqueda = "",
-): Promise<SupplierListItem[]> {
-  const response = (await invoke<SupplierListItem[]>("proveedor:listar", {
-    ...(busqueda.trim() ? { busqueda: busqueda.trim() } : {}),
-    usuarioId,
-  })) as ControllerResponse<SupplierListItem[]>;
+  filters: Pick<SupplierListRequest, "busqueda" | "categoriaId"> = {},
+): Promise<SupplierListResponse> {
+  const response = (await invoke<SupplierListResponse>(
+    "proveedor:listar",
+    buildSupplierListPayload(usuarioId, filters),
+  )) as ControllerResponse<SupplierListResponse>;
 
   if (!response.ok) throw new Error(response.error.message);
   return response.data;
+}
+
+export function buildSupplierListPayload(
+  usuarioId: string,
+  filters: Pick<SupplierListRequest, "busqueda" | "categoriaId"> = {},
+): SupplierListRequest {
+  return normalizeSupplierListRequest({ ...filters, usuarioId });
 }
 
 export function buildSupplierEditPath(rut: string): string {

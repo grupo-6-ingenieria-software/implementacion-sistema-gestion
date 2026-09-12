@@ -4,9 +4,11 @@ import { rutComparisonKey } from "../../shared/rut";
 import {
   normalizeSupplierListRequest,
   normalizeSupplierLookupRequest,
+  type SupplierCategoryOption,
   type SupplierDetail,
   type SupplierListItem,
   type SupplierListRequest,
+  type SupplierListResponse,
 } from "../../shared/suppliers";
 import type { RegisteredController } from "./base";
 import { AccessDeniedError, authorizeUser } from "./auth-context";
@@ -17,10 +19,10 @@ type SupplierQueryExecutor = Pick<
   "insert" | "select"
 >;
 
-type SupplierQueryData = SupplierListItem[] | SupplierDetail;
+type SupplierQueryData = SupplierListResponse | SupplierDetail;
 
 type SupplierQueryDependencies = {
-  listSuppliers: (request: SupplierListRequest) => Promise<SupplierListItem[]>;
+  listSuppliers: (request: SupplierListRequest) => Promise<SupplierListResponse>;
   findSupplier: (
     request: { rut: string; usuarioId?: string },
   ) => Promise<SupplierDetail | null>;
@@ -119,8 +121,10 @@ export async function listSuppliersWithExecutor(
   executor: SupplierQueryExecutor,
   schema: SchemaLike,
   request: SupplierListRequest,
-): Promise<SupplierListItem[]> {
-  await authorizeUser(executor, schema, request.usuarioId, [
+): Promise<SupplierListResponse> {
+  const input = normalizeSupplierListRequest(request);
+
+  await authorizeUser(executor, schema, input.usuarioId, [
     "dueno",
     "trabajador",
   ]);
@@ -130,21 +134,100 @@ export async function listSuppliersWithExecutor(
       proveedorId: schema.proveedor.proveedorId,
       rut: schema.proveedor.proveedorRut,
       nombreRazonSocial: schema.proveedor.proveedorNombreRazonSocial,
+      nombreContacto: schema.proveedor.proveedorNombreContacto,
+      telefono: schema.proveedor.proveedorTelefono,
+      correoElectronico: schema.proveedor.proveedorCorreoElectronico,
     })
-    .from(schema.proveedor)
-    .orderBy(asc(schema.proveedor.proveedorNombreRazonSocial));
+    .from(schema.proveedor);
 
-  if (!request.busqueda) {
-    return suppliers;
+  const categories = await executor
+    .select({
+      id: schema.categoria.categoriaId,
+      nombre: schema.categoria.categoriaNombre,
+    })
+    .from(schema.categoria);
+
+  const associations = await executor
+    .select({
+      proveedorId: schema.proveedorCategoria.proveedorId,
+      id: schema.categoria.categoriaId,
+      nombre: schema.categoria.categoriaNombre,
+    })
+    .from(schema.proveedorCategoria)
+    .innerJoin(
+      schema.categoria,
+      eq(schema.proveedorCategoria.categoriaId, schema.categoria.categoriaId),
+    );
+
+  const categoriesBySupplier = new Map<number, SupplierCategoryOption[]>();
+
+  for (const association of associations) {
+    const supplierCategories =
+      categoriesBySupplier.get(association.proveedorId) ?? [];
+    supplierCategories.push({ id: association.id, nombre: association.nombre });
+    categoriesBySupplier.set(association.proveedorId, supplierCategories);
   }
 
-  const textKey = request.busqueda.toLocaleLowerCase("es");
-  const rutKey = rutComparisonKey(request.busqueda);
+  const items: SupplierListItem[] = suppliers.map((supplier) => ({
+    ...supplier,
+    categorias: [...(categoriesBySupplier.get(supplier.proveedorId) ?? [])].sort(
+      compareCategoryOptions,
+    ),
+  }));
 
-  return suppliers.filter(
-    (supplier) =>
-      supplier.nombreRazonSocial.toLocaleLowerCase("es").includes(textKey) ||
-      rutComparisonKey(supplier.rut).includes(rutKey),
+  const textKey = normalizeSearchText(input.busqueda ?? "");
+  const rutKey = rutComparisonKey(input.busqueda ?? "");
+
+  const filteredSuppliers = items
+    .filter((supplier) => {
+      const matchesSearch =
+        !textKey ||
+        normalizeSearchText(supplier.nombreRazonSocial).includes(textKey) ||
+        rutComparisonKey(supplier.rut).includes(rutKey);
+      const matchesCategory =
+        !input.categoriaId ||
+        supplier.categorias.some(
+          (category) => category.id === input.categoriaId,
+        );
+
+      return matchesSearch && matchesCategory;
+    })
+    .sort(compareSuppliers);
+
+  return {
+    suppliers: filteredSuppliers,
+    categories: [...categories].sort(compareCategoryOptions),
+  };
+}
+
+const spanishCollator = new Intl.Collator("es", { sensitivity: "base" });
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es");
+}
+
+function compareCategoryOptions(
+  left: SupplierCategoryOption,
+  right: SupplierCategoryOption,
+): number {
+  return (
+    spanishCollator.compare(left.nombre, right.nombre) ||
+    left.nombre.localeCompare(right.nombre, "es") ||
+    left.id - right.id
+  );
+}
+
+function compareSuppliers(
+  left: SupplierListItem,
+  right: SupplierListItem,
+): number {
+  return (
+    spanishCollator.compare(left.nombreRazonSocial, right.nombreRazonSocial) ||
+    left.nombreRazonSocial.localeCompare(right.nombreRazonSocial, "es") ||
+    left.proveedorId - right.proveedorId
   );
 }
 

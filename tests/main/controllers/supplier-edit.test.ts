@@ -34,9 +34,20 @@ const validEdit: SupplierEditPayload = {
 
 describe("CU14 supplier controllers", () => {
   it("serves list, detail and edit through their documented channels", async () => {
-    const listSuppliers = vi.fn(async () => [
-      { proveedorId: 1, rut: "12345678-5", nombreRazonSocial: "Sur" },
-    ]);
+    const listSuppliers = vi.fn(async () => ({
+      suppliers: [
+        {
+          proveedorId: 1,
+          rut: "12345678-5",
+          nombreRazonSocial: "Sur",
+          nombreContacto: "Ana",
+          telefono: "912345678",
+          correoElectronico: "ana@sur.cl",
+          categorias: [{ id: 1, nombre: "Abarrotes" }],
+        },
+      ],
+      categories: [{ id: 1, nombre: "Abarrotes" }],
+    }));
     const detail = {
       proveedorId: 1,
       rut: "12345678-5",
@@ -232,10 +243,10 @@ describe("CU14 transactional persistence", () => {
       categoriaIds: [1],
     });
 
-    const byName = await list({ busqueda: "distribuidora ÁLAMO" });
+    const byName = await list({ busqueda: "distribuidora ALAMO" });
     const byRut = await list({ busqueda: "12 345 678 5" });
-    expect(byName.map(({ proveedorId }) => proveedorId)).toEqual([1]);
-    expect(byRut.map(({ proveedorId }) => proveedorId)).toEqual([1]);
+    expect(byName.suppliers.map(({ proveedorId }) => proveedorId)).toEqual([1]);
+    expect(byRut.suppliers.map(({ proveedorId }) => proveedorId)).toEqual([1]);
   });
 
   it("updates every editable field, replaces categories and preserves stored RUT", async () => {
