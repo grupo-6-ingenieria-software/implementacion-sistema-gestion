@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
-  normalizeUserFormPayload,
-  validateUserFormValues,
-  type UserFieldErrors,
-  type UserFormValues,
   type UserListItem,
   type UserListResponse,
   type UserMutationResponse,
   type UserRole,
   type UserStatus,
 } from "../../../shared/users";
+import { WorkerFormView } from "./WorkerFormView";
 
 type WorkerListViewProps = {
   usuarioId: string;
@@ -17,12 +14,12 @@ type WorkerListViewProps = {
   role: UserRole;
 };
 
-type EditState = UserFormValues & {
-  originalRut: string;
-};
-
 function roleLabel(role: UserRole): string {
   return role === "dueno" ? "Dueño" : "Trabajador";
+}
+
+function esRutExacto(busqueda: string): boolean {
+  return /^\d{7,8}-[\dKk]$/.test(busqueda.trim());
 }
 
 export function WorkerListView({
@@ -38,8 +35,7 @@ export function WorkerListView({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [editing, setEditing] = useState<EditState | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<UserFieldErrors>({});
+  const [editing, setEditing] = useState<UserListItem | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   const payload = useMemo(
@@ -95,50 +91,14 @@ export function WorkerListView({
 
   function startEdit(worker: UserListItem): void {
     setMessage(null);
-    setFieldErrors({});
-    setEditing({
-      originalRut: worker.rut,
-      rut: worker.rut,
-      nombreCompleto: worker.nombreCompleto,
-      rol: worker.rol,
-      telefono: worker.telefono,
-      correoElectronico: worker.correoElectronico ?? "",
-    });
+    setEditing(worker);
   }
 
-  async function saveEdit(): Promise<void> {
-    if (!editing) {
-      return;
-    }
+  function closeEdit(): void {
+    setEditing(null);
+  }
 
-    const parsed = normalizeUserFormPayload(editing);
-    const errors = validateUserFormValues(parsed, { validateRutFormat: false });
-    setFieldErrors(errors);
-    setMessage(null);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    setSaving(true);
-
-    const response = await window.appApi.invoke<UserMutationResponse>(
-      "trabajador:actualizar",
-      {
-        ...parsed,
-        rut: editing.originalRut,
-        usuarioId,
-      },
-    );
-
-    setSaving(false);
-
-    if (!response.ok) {
-      setFieldErrors(response.error.fieldErrors ?? {});
-      setMessage(response.error.message);
-      return;
-    }
-
+  function finishEdit(): void {
     setEditing(null);
     setMessage("Trabajador actualizado correctamente.");
     setReloadKey((current) => current + 1);
@@ -268,17 +228,24 @@ export function WorkerListView({
       ) : null}
 
       {editing ? (
-        <EditPanel
-          editing={editing}
-          errors={fieldErrors}
-          saving={saving}
-          onCancel={() => {
-            setEditing(null);
-            setFieldErrors({});
-          }}
-          onChange={setEditing}
-          onSave={() => void saveEdit()}
-        />
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-[#17202a]/50 p-6">
+          <div className="mx-auto max-w-3xl rounded-md bg-white shadow-lg">
+            <WorkerFormView
+              mode="edit"
+              initialValues={{
+                correoElectronico: editing.correoElectronico ?? "",
+                nombreCompleto: editing.nombreCompleto,
+                rol: editing.rol,
+                rut: editing.rut,
+                telefono: editing.telefono,
+              }}
+              usuarioId={usuarioId}
+              onClose={closeEdit}
+              onNavigate={onNavigate}
+              onSaved={finishEdit}
+            />
+          </div>
+        </div>
       ) : null}
 
       <section className="mt-6 overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
@@ -303,7 +270,13 @@ export function WorkerListView({
         ) : null}
 
         {!error && !loading && workers.length === 0 ? (
-          <ListMessage message="No se encontraron trabajadores" />
+          <ListMessage
+            message={
+              esRutExacto(search)
+                ? "Trabajador no encontrado"
+                : "No se encontraron trabajadores"
+            }
+          />
         ) : null}
 
         {!error && !loading && workers.length > 0 ? (
@@ -371,139 +344,6 @@ export function WorkerListView({
         ) : null}
       </section>
     </section>
-  );
-}
-
-function EditPanel({
-  editing,
-  errors,
-  onCancel,
-  onChange,
-  onSave,
-  saving,
-}: {
-  editing: EditState;
-  errors: UserFieldErrors;
-  onCancel: () => void;
-  onChange: (state: EditState) => void;
-  onSave: () => void;
-  saving: boolean;
-}): ReactElement {
-  return (
-    <section className="mt-6 rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[#24313d]">
-            Modificar trabajador
-          </p>
-          <p className="mt-1 text-sm text-[#61717f]">
-            El RUT identifica al trabajador y no se modifica.
-          </p>
-        </div>
-        <button
-          className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-          type="button"
-          onClick={onCancel}
-        >
-          Cerrar
-        </button>
-      </div>
-
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <Field label="RUT" error={errors.rut}>
-          <input
-            className="w-full rounded-md border border-[#cbd5df] bg-[#f6f7f9] px-3 py-2"
-            disabled
-            value={editing.originalRut}
-          />
-        </Field>
-        <Field label="Nombre completo" error={errors.nombreCompleto}>
-          <input
-            className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
-            value={editing.nombreCompleto}
-            onChange={(event) =>
-              onChange({ ...editing, nombreCompleto: event.target.value })
-            }
-          />
-        </Field>
-        <Field label="Rol de sistema" error={errors.rol}>
-          <select
-            className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
-            value={editing.rol}
-            onChange={(event) =>
-              onChange({
-                ...editing,
-                rol: event.target.value === "dueno" ? "dueno" : "trabajador",
-              })
-            }
-          >
-            <option value="trabajador">{roleLabel("trabajador")}</option>
-            <option value="dueno">{roleLabel("dueno")}</option>
-          </select>
-        </Field>
-        <Field label="Telefono" error={errors.telefono}>
-          <input
-            className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
-            inputMode="numeric"
-            maxLength={9}
-            value={editing.telefono}
-            onChange={(event) =>
-              onChange({
-                ...editing,
-                telefono: event.target.value.replace(/\D/g, ""),
-              })
-            }
-          />
-        </Field>
-        <Field label="Correo opcional" error={errors.correoElectronico}>
-          <input
-            className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
-            maxLength={50}
-            type="email"
-            value={editing.correoElectronico ?? ""}
-            onChange={(event) =>
-              onChange({ ...editing, correoElectronico: event.target.value })
-            }
-          />
-        </Field>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-3 border-t border-[#e3e8ee] pt-5">
-        <button
-          className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-          disabled={saving}
-          type="button"
-          onClick={onSave}
-        >
-          {saving ? "Guardando..." : "Guardar cambios"}
-        </button>
-        <button
-          className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
-          type="button"
-          onClick={onCancel}
-        >
-          Cancelar
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function Field({
-  children,
-  error,
-  label,
-}: {
-  children: ReactElement;
-  error?: string;
-  label: string;
-}): ReactElement {
-  return (
-    <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-      {label}
-      {children}
-      {error ? <span className="text-xs text-[#b42318]">{error}</span> : null}
-    </label>
   );
 }
 
