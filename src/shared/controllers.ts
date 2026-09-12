@@ -274,6 +274,24 @@ export const controllers = [
       "pedido:cerrar-saldo",
     ],
   },
+  {
+    id: "supplier-create",
+    name: "RegistrarProveedorHandler",
+    module: "proveedores",
+    channels: ["proveedor:categorias", "proveedor:registrar"],
+  },
+  {
+    id: "supplier-query",
+    name: "ConsultaProveedorHandler",
+    module: "proveedores",
+    channels: ["proveedor:listar", "proveedor:buscar-existente"],
+  },
+  {
+    id: "supplier-edit",
+    name: "EditarProveedorHandler",
+    module: "proveedores",
+    channels: ["proveedor:editar"],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);

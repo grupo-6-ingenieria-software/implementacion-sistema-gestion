@@ -5,6 +5,7 @@ import {
   getLotCreateEan13,
   getProductDeleteEan13,
   getProductStatusEan13,
+  getSupplierEditRut,
   getWasteCreateEan13,
   isImplementedViewNodeId,
 } from "../../../src/renderer/src/App";
@@ -44,6 +45,19 @@ describe("App inventory route helpers", () => {
   it("treats both shift routes as implemented views", () => {
     expect(isImplementedViewNodeId("shift-calendar")).toBe(true);
     expect(isImplementedViewNodeId("shift-create")).toBe(true);
+  });
+
+  it("treats the CU13 supplier routes as implemented views", () => {
+    expect(isImplementedViewNodeId("supplier-list")).toBe(true);
+    expect(isImplementedViewNodeId("supplier-create")).toBe(true);
+  });
+
+  it("implements CU14 and decodes the supplier RUT route parameter", () => {
+    expect(isImplementedViewNodeId("supplier-edit")).toBe(true);
+    expect(
+      getSupplierEditRut("/app/proveedores/12.345.678-5/editar"),
+    ).toBe("12.345.678-5");
+    expect(getSupplierEditRut("/app/proveedores/%E0%A4%A/editar")).toBeUndefined();
   });
 
   it("provides and clears documented shift success messages", () => {

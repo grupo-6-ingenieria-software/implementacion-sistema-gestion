@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(33);
-    expect(new Set(ids)).toHaveProperty("size", 33);
+    expect(controllers).toHaveLength(36);
+    expect(new Set(ids)).toHaveProperty("size", 36);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -42,6 +42,9 @@ describe("controller registry", () => {
       "configuracion-previsional",
       "supplier-order",
       "supplier-order-reception",
+      "supplier-create",
+      "supplier-query",
+      "supplier-edit",
     ]);
   });
 
@@ -52,10 +55,28 @@ describe("controller registry", () => {
   });
 
   it("assigns at least one IPC channel to every controller", () => {
-    expect(ipcChannels.length).toBeGreaterThanOrEqual(33);
+    expect(ipcChannels.length).toBeGreaterThanOrEqual(36);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+  });
+
+  it("appends the CU13 supplier controller without changing prior indices", () => {
+    expect(controllers.at(-3)).toMatchObject({
+      id: "supplier-create",
+      name: "RegistrarProveedorHandler",
+      channels: ["proveedor:categorias", "proveedor:registrar"],
+    });
+  });
+
+  it("registers the CU14 query and edit channels", () => {
+    expect(controllers.slice(-2)).toMatchObject([
+      {
+        id: "supplier-query",
+        channels: ["proveedor:listar", "proveedor:buscar-existente"],
+      },
+      { id: "supplier-edit", channels: ["proveedor:editar"] },
+    ]);
   });
 
   it("keeps remuneracion scoped to its documented channels", () => {
