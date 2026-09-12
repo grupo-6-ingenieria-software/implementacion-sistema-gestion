@@ -44,7 +44,10 @@ export type ControllerId =
   | "remuneracion"
   | "configuracion-previsional"
   | "supplier-order"
-  | "supplier-order-reception";
+  | "supplier-order-reception"
+  | "supplier-create"
+  | "supplier-query"
+  | "supplier-edit";
 
 export type NavNode = {
   id: string;
@@ -259,6 +262,45 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
     controllerIds: ["access-control", "movement-history"],
+  },
+  {
+    id: "supplier-list",
+    viewName: "SupplierListView",
+    label: "Listado de proveedores",
+    path: "/app/proveedores/listado",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: true,
+    entryFrom: "Menu Proveedores > Listado de proveedores.",
+    controllerIds: ["access-control", "supplier-query"],
+  },
+  {
+    id: "supplier-create",
+    viewName: "SupplierFormView",
+    label: "Registrar proveedor",
+    path: "/app/proveedores/nuevo",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: false,
+    entryFrom: "Accion Registrar proveedor desde Listado de proveedores.",
+    controllerIds: ["access-control", "supplier-create", "audit"],
+  },
+  {
+    id: "supplier-edit",
+    viewName: "SupplierFormView",
+    label: "Editar proveedor",
+    path: "/app/proveedores/:rut/editar",
+    roles: ["dueno", "trabajador"],
+    group: "proveedores",
+    showInMenu: false,
+    entryFrom: "Accion Editar desde Listado de proveedores.",
+    controllerIds: [
+      "access-control",
+      "supplier-create",
+      "supplier-query",
+      "supplier-edit",
+      "audit",
+    ],
   },
   {
     id: "supplier-order-create",
@@ -645,6 +687,9 @@ export function validateNavigationTree(): string[] {
     "product-detail",
     "stock-adjustment",
     "movement-history",
+    "supplier-list",
+    "supplier-create",
+    "supplier-edit",
     "supplier-order-create",
     "supplier-order-receptions",
     "sale-register",

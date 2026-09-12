@@ -30,6 +30,9 @@ import { stockAlertController } from "./stock-alert";
 import { stockDiscountController } from "./stock-discount";
 import { supplierOrderController } from "./supplier-order";
 import { supplierOrderReceptionController } from "./supplier-order-reception";
+import { supplierCreateController } from "./supplier-create";
+import { supplierEditController } from "./supplier-edit";
+import { supplierQueryController } from "./supplier-query";
 import { userManagementController } from "./user-management";
 import { movementHistoryController } from "./movement-history";
 import { productDetailController } from "./product-detail";
@@ -74,6 +77,9 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     configPrevisionalController,
     supplierOrderController,
     supplierOrderReceptionController,
+    supplierCreateController,
+    supplierQueryController,
+    supplierEditController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {

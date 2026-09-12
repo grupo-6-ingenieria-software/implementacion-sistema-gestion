@@ -1,3 +1,12 @@
+import {
+  formatRutInput,
+  isValidRut,
+  normalizeRut,
+  rutToBackend,
+} from "./rut";
+
+export { formatRutInput, normalizeRut, rutToBackend } from "./rut";
+
 export type UserRole = "dueno" | "trabajador";
 export type UserStatus = "activo" | "inactivo";
 
@@ -272,31 +281,6 @@ export function normalizeUserRole(value: unknown): UserRole | null {
   return null;
 }
 
-export function normalizeRut(value: string): string {
-  return value.replace(/\./g, "").replace(/\s/g, "").toUpperCase();
-}
-
-export function formatRutInput(value: string): string {
-  const clean = rutToBackend(value);
-
-  if (clean.length <= 1) {
-    return clean;
-  }
-
-  return `${clean.slice(0, -1)}-${clean.slice(-1)}`;
-}
-
-/**
- * Valor de RUT para el backend: solo dígitos y dígito verificador (sin guion,
- * sin puntos). Es la contraparte de formatRutInput, que es puramente visual.
- */
-export function rutToBackend(value: string): string {
-  return value
-    .toUpperCase()
-    .replace(/[^0-9K]/g, "")
-    .slice(0, 9);
-}
-
 export function formatRoleLabel(role: UserRole): string {
   return role === "dueno" ? "Dueño" : "Trabajador";
 }
@@ -353,28 +337,4 @@ function normalizeSearch(value: string | undefined): string {
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
-}
-
-function isValidRut(value: string): boolean {
-  const normalized = normalizeRut(value);
-  const match = /^(\d{7,8})-([\dK])$/.exec(normalized);
-
-  if (!match) {
-    return false;
-  }
-
-  const [, body, checkDigit] = match;
-  let multiplier = 2;
-  let sum = 0;
-
-  for (let index = body.length - 1; index >= 0; index -= 1) {
-    sum += Number(body[index]) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-
-  const remainder = 11 - (sum % 11);
-  const expected =
-    remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
-
-  return expected === checkDigit;
 }

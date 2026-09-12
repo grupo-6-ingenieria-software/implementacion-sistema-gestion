@@ -54,6 +54,8 @@ import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarV
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
 import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
+import { SupplierFormView } from "./views/SupplierFormView";
+import { SupplierListView } from "./views/SupplierListView";
 import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
@@ -829,6 +831,38 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "supplier-list" && session.usuarioId) {
+    return (
+      <SupplierListView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "supplier-create" && session.usuarioId) {
+    return (
+      <SupplierFormView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "supplier-edit" && session.usuarioId) {
+    const supplierRut = getSupplierEditRut(currentPath);
+
+    if (supplierRut) {
+      return (
+        <SupplierFormView
+          rut={supplierRut}
+          usuarioId={session.usuarioId}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+  }
+
   if (node.id === "supplier-order-receptions" && session.usuarioId) {
     return (
       <SupplierOrderReceptionView
@@ -1098,6 +1132,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "sale-register",
     "supplier-order-create",
     "supplier-order-receptions",
+    "supplier-list",
+    "supplier-create",
+    "supplier-edit",
     "audit-log",
     "remuneracion-create",
     "configuracion-previsional",
@@ -1116,6 +1153,18 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
 export function getProductStatusEan13(path: string): string | undefined {
   const match = path.match(/^\/app\/inventario\/productos\/([^/]+)\/estado$/);
   return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function getSupplierEditRut(path: string): string | undefined {
+  const match = path.match(/^\/app\/proveedores\/([^/]+)\/editar$/);
+
+  if (!match) return undefined;
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return undefined;
+  }
 }
 
 export function getLotCreateEan13(path: string): string | undefined {
