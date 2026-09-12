@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import type { AttendanceWorkerOption } from "../../../src/shared/attendance";
@@ -27,6 +27,7 @@ import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt"
 import {
   createWorkerController,
   listWorkersWithExecutor,
+  updateWorkerWithExecutor,
 } from "../../../src/main/controllers/worker";
 import {
   createAuthTestDatabase,
@@ -517,5 +518,192 @@ describe("listar no concede editar (CU24)", () => {
       sql`SELECT COUNT(*) AS total FROM log_auditoria WHERE log_tipo_accion = 'acceso_denegado'`,
     );
     expect(Number(rows[0]?.total)).toBe(1);
+  });
+});
+
+describe("updateWorkerWithExecutor (CU22, D6)", () => {
+  let testDb: AuthTestDatabase | undefined;
+  const OWNER = "12345678-9";
+  const TARGET = "23456789-0";
+
+  beforeEach(async () => {
+    testDb = await createAuthTestDatabase();
+    await seedUser(testDb.db, {
+      usuarioId: OWNER,
+      trabajadorId: 1,
+      rut: OWNER,
+      rolBd: "dueno",
+      nombre: "María",
+      apellido: "González",
+    });
+    await seedUser(testDb.db, {
+      usuarioId: TARGET,
+      trabajadorId: 2,
+      rut: TARGET,
+      rolBd: "trabajador",
+      nombre: "Camila",
+      apellido: "Rojas",
+    });
+    await testDb.db.insert(schema.usuarioVersion).values({
+      usuarioVersionNombre: "Camila Rojas",
+      usuarioVersionRol: "trabajador",
+      usuarioId: TARGET,
+    });
+    await testDb.db.insert(schema.sesionUsuario).values({
+      sesionUsuarioId: "00000000-0000-4000-8000-000000000777",
+      usuarioId: TARGET,
+      sesionRolEfectivo: "trabajador",
+      sesionFechaHoraInicio: "2026-06-13T12:00:00.000Z",
+      sesionFechaHoraUltimoAcceso: "2026-06-13T12:00:00.000Z",
+    });
+  });
+
+  afterEach(async () => {
+    if (!testDb) {
+      return;
+    }
+    testDb.client.close();
+    await removeAuthTempDir(testDb.dir);
+    testDb = undefined;
+  });
+
+  function basePayload(overrides: Partial<UserFormValues> = {}): UserFormValues {
+    return {
+      correoElectronico: "",
+      nombreCompleto: "Camila Rojas",
+      rol: "trabajador",
+      rut: TARGET,
+      telefono: "987654321",
+      usuarioId: OWNER,
+      ...overrides,
+    };
+  }
+
+  it("updates worker data without touching usuario or usuario_version when the role stays", async () => {
+    const response = await updateWorkerWithExecutor(
+      testDb!.db,
+      schema,
+      basePayload({ nombreCompleto: "Camila Rojas Vargas", telefono: "912345678" }),
+    );
+
+    expect(response.usuarioId).toBe(TARGET);
+
+    const [trabajador] = await testDb!.db
+      .select()
+      .from(schema.trabajador)
+      .where(eq(schema.trabajador.trabajadorRut, TARGET));
+    expect(trabajador.trabajadorNombre).toBe("Camila Rojas Vargas");
+    expect(trabajador.trabajadorTelefono).toBe("912345678");
+
+    const [cuenta] = await testDb!.db
+      .select()
+      .from(schema.usuario)
+      .where(eq(schema.usuario.usuarioId, TARGET));
+    expect(cuenta.usuarioRol).toBe("trabajador");
+
+    const versiones = await testDb!.db
+      .select()
+      .from(schema.usuarioVersion)
+      .where(eq(schema.usuarioVersion.usuarioId, TARGET));
+    expect(versiones).toHaveLength(1);
+    expect(versiones[0]?.usuarioVersionFechaHoraVigenciaHasta ?? null).toBeNull();
+
+    const [sesion] = await testDb!.db
+      .select()
+      .from(schema.sesionUsuario)
+      .where(eq(schema.sesionUsuario.usuarioId, TARGET));
+    expect(sesion.sesionRolEfectivo).toBe("trabajador");
+
+    const [auditoria] = await testDb!.db
+      .select({ descripcion: schema.logAuditoria.logDescripcion })
+      .from(schema.logAuditoria)
+      .where(sql`log_descripcion LIKE '%23456789-0%'`);
+    expect(auditoria.descripcion).toContain("campos: nombre, telefono");
+  });
+
+  it("updates the account and rotates the version only when the role changes", async () => {
+    const response = await updateWorkerWithExecutor(
+      testDb!.db,
+      schema,
+      basePayload({ rol: "dueno" }),
+    );
+
+    expect(response.usuarioId).toBe(TARGET);
+
+    const [cuenta] = await testDb!.db
+      .select()
+      .from(schema.usuario)
+      .where(eq(schema.usuario.usuarioId, TARGET));
+    expect(cuenta.usuarioRol).toBe("dueno");
+
+    const versiones = await testDb!.db
+      .select()
+      .from(schema.usuarioVersion)
+      .where(eq(schema.usuarioVersion.usuarioId, TARGET));
+    expect(versiones).toHaveLength(2);
+    const cerrada = versiones.find((v) => v.usuarioVersionRol === "trabajador");
+    const nueva = versiones.find((v) => v.usuarioVersionRol === "dueno");
+    expect(cerrada?.usuarioVersionFechaHoraVigenciaHasta ?? null).not.toBeNull();
+    expect(nueva?.usuarioVersionFechaHoraVigenciaHasta ?? null).toBeNull();
+
+    const [sesion] = await testDb!.db
+      .select()
+      .from(schema.sesionUsuario)
+      .where(eq(schema.sesionUsuario.usuarioId, TARGET));
+    expect(sesion.sesionRolEfectivo).toBe("trabajador");
+
+    const [auditoria] = await testDb!.db
+      .select({ descripcion: schema.logAuditoria.logDescripcion })
+      .from(schema.logAuditoria)
+      .where(sql`log_descripcion LIKE '%23456789-0%'`);
+    expect(auditoria.descripcion).toContain("rol");
+  });
+
+  it("rejects an unregistered RUT without writing anything (E1)", async () => {
+    await expect(
+      updateWorkerWithExecutor(
+        testDb!.db,
+        schema,
+        basePayload({ rut: "99999999-9" }),
+      ),
+    ).rejects.toThrow("No se encontro el trabajador solicitado.");
+
+    const auditorias = await testDb!.db.select().from(schema.logAuditoria);
+    expect(auditorias).toHaveLength(0);
+  });
+
+  it("authorizes before validating fields, as the diagram orders (CU22-E2)", async () => {
+    const updateWorker = vi.fn(async (payload: UserFormValues) => ({
+      usuarioId: payload.rut,
+    }));
+    const invalido = {
+      nombreCompleto: "",
+      rol: "trabajador" as const,
+      rut: TARGET,
+      telefono: "123",
+      usuarioId: "dueno",
+    };
+
+    const response = await createController({ updateWorker }).handle(
+      invalido,
+      { channel: "trabajador:actualizar" },
+    );
+
+    expect(response.ok).toBe(false);
+    if (!response.ok) {
+      expect(response.error.code).toBe("VALIDATION_ERROR");
+      expect(response.error.fieldErrors?.nombreCompleto).toBeDefined();
+    }
+    expect(updateWorker).not.toHaveBeenCalled();
+
+    const sinPermiso = await createController({ updateWorker }).handle(
+      { ...invalido, usuarioId: "trabajador" },
+      { channel: "trabajador:actualizar" },
+    );
+    expect(sinPermiso.ok).toBe(false);
+    if (!sinPermiso.ok) {
+      expect(sinPermiso.error.code).toBe("FORBIDDEN");
+    }
+    expect(updateWorker).not.toHaveBeenCalled();
   });
 });
