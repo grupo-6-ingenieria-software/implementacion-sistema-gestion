@@ -19,7 +19,7 @@ import { db, schema } from "../../db/client";
 import { authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 
-const metadata = controllers[27];
+const metadata = controllers[30];
 
 export type PrevisionalActor = {
   role: "dueno";
