@@ -37,6 +37,9 @@ export type ControllerId =
   | "shift"
   | "attendance"
   | "ean-reader"
+  | "product-detail"
+  | "stock-adjustment"
+  | "movement-history"
   | "remuneracion"
   | "configuracion-previsional"
   | "supplier-order"
@@ -189,6 +192,17 @@ export const navigationTree = [
     ],
   },
   {
+    id: "product-detail",
+    viewName: "ProductDetailView",
+    label: "Detalle de producto",
+    path: "/app/inventario/productos/:ean13/detalle",
+    roles: ["dueno", "trabajador"],
+    group: "inventario",
+    showInMenu: false,
+    entryFrom: "Accion Ver detalle desde Productos.",
+    controllerIds: ["access-control", "product-detail", "product-query"],
+  },
+  {
     id: "lot-create",
     viewName: "LotCreateView",
     label: "Registrar lote",
@@ -222,6 +236,28 @@ export const navigationTree = [
       "audit",
       "ean-reader",
     ],
+  },
+  {
+    id: "stock-adjustment",
+    viewName: "StockAdjustmentView",
+    label: "Ajuste de inventario",
+    path: "/app/inventario/ajustes",
+    roles: ["dueno", "trabajador"],
+    group: "inventario",
+    showInMenu: true,
+    entryFrom: "Menu Inventario > Ajuste de inventario.",
+    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit"],
+  },
+  {
+    id: "movement-history",
+    viewName: "MovementHistoryView",
+    label: "Movimientos",
+    path: "/app/inventario/movimientos",
+    roles: ["dueno", "trabajador"],
+    group: "inventario",
+    showInMenu: true,
+    entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
+    controllerIds: ["access-control", "movement-history"],
   },
   {
     id: "supplier-order-create",
@@ -561,6 +597,9 @@ export function validateNavigationTree(): string[] {
     "product-delete",
     "lot-create",
     "waste-create",
+    "product-detail",
+    "stock-adjustment",
+    "movement-history",
     "supplier-order-create",
     "supplier-order-receptions",
     "sale-register",

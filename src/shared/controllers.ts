@@ -224,6 +224,24 @@ export const controllers = [
     channels: ["producto:eliminar"],
   },
   {
+    id: "product-detail",
+    name: "DetalleProductoHandler",
+    module: "inventario",
+    channels: ["producto:detalle-lotes"],
+  },
+  {
+    id: "stock-adjustment",
+    name: "AjusteStockHandler",
+    module: "inventario",
+    channels: ["ajuste:registrar", "ajuste:disponibilidad"],
+  },
+  {
+    id: "movement-history",
+    name: "HistorialMovimientosHandler",
+    module: "inventario",
+    channels: ["movimiento:historial"],
+  },
+  {
     id: "remuneracion",
     name: "RemuneracionHandler",
     module: "personal",

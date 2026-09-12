@@ -40,6 +40,9 @@ describe("navigation tree", () => {
         "configuracion-previsional",
         "user-management",
         "audit-log",
+        "product-detail",
+        "stock-adjustment",
+        "movement-history",
       ]),
     );
   });
