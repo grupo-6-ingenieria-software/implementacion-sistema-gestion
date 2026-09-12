@@ -33,11 +33,14 @@ describe("navigation tree", () => {
         "supplier-order-receptions",
         "sale-register",
         "daily-sales",
+        "sales-query",
+        "sale-annulment",
         "cash-closing",
         "worker-list",
         "worker-create",
         "shift-calendar",
         "shift-create",
+        "shift-edit",
         "attendance",
         "remuneracion-create",
         "configuracion-previsional",
@@ -179,6 +182,82 @@ describe("navigation tree", () => {
     ).toEqual({ status: "allow" });
   });
 
+  it("opens the worker list to both roles while the create form stays dueno-only (CU24)", () => {
+    const listNode = navigationTree.find((item) => item.id === "worker-list");
+    expect(listNode).toMatchObject({
+      path: "/app/personal/trabajadores",
+      roles: ["dueno", "trabajador"],
+    });
+    const createNode = navigationTree.find(
+      (item) => item.id === "worker-create",
+    );
+    expect(createNode).toMatchObject({
+      path: "/app/personal/trabajadores/nuevo",
+      roles: ["dueno"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess("/app/personal/trabajadores", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+    }
+
+    expect(
+      evaluateRouteAccess("/app/personal/trabajadores/nuevo", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toEqual({
+      status: "deny",
+      to: APP_HOME_PATH,
+      reason: "role-denied",
+      auditControllerId: "audit",
+    });
+    expect(
+      getVisibleMenu("trabajador").map((node) => node.path),
+    ).toContain("/app/personal/trabajadores");
+  });
+
+  it("exposes CU38 to both roles from the sales menu", () => {
+    const node = navigationTree.find((item) => item.id === "sale-annulment");
+    expect(node).toMatchObject({
+      path: "/app/ventas/anular",
+      showInMenu: true,
+      roles: ["dueno", "trabajador"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess(
+          "/app/ventas/anular?ventaId=00000000-0000-4000-8000-000000000401",
+          { isAuthenticated: true, role },
+        ),
+      ).toEqual({ status: "allow" });
+    }
+  });
+
+  it("exposes CU41 to both roles from the sales menu", () => {
+    const node = navigationTree.find((item) => item.id === "sales-query");
+    expect(node).toMatchObject({
+      path: "/app/ventas/consulta",
+      showInMenu: true,
+      roles: ["dueno", "trabajador"],
+      controllerIds: ["access-control", "sales-history"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess(
+          "/app/ventas/consulta?criterio=rango&fechaInicio=2026-09-11&fechaTermino=2026-09-11",
+          { isAuthenticated: true, role },
+        ),
+      ).toEqual({ status: "allow" });
+    }
+  });
+
   it("allows both roles to access product deletion outside the menu", () => {
     const productDeleteNode = navigationTree.find(
       (node) => node.id === "product-delete",
@@ -206,7 +285,7 @@ describe("navigation tree", () => {
   });
 
   it("keeps shift creation exclusive to the owner (CU28 calendar is shared)", () => {
-    for (const path of ["/app/personal/turnos/nuevo"]) {
+    for (const path of ["/app/personal/turnos/nuevo", "/app/personal/turnos/turno-id/editar"]) {
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,

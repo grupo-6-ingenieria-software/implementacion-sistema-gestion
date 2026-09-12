@@ -28,7 +28,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   testDb?.client.close();
-  if (testDb) await rm(testDb.dir, { recursive: true, force: true });
+  if (testDb) await removeTempDir(testDb.dir);
   testDb = undefined;
 });
 
@@ -459,4 +459,16 @@ async function seedFixture(db: TestDatabase["db"]): Promise<void> {
     INSERT INTO categoria (categoria_id, categoria_nombre, categoria_exige_vencimiento)
     VALUES (1, 'Lacteos', 1)
   `);
+}
+
+async function removeTempDir(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      if (attempt === 4) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
 }

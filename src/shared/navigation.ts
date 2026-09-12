@@ -37,6 +37,7 @@ export type ControllerId =
   | "shift"
   | "attendance"
   | "ean-reader"
+  | "sale-annulment"
   | "product-detail"
   | "stock-adjustment"
   | "movement-history"
@@ -364,6 +365,33 @@ export const navigationTree = [
     controllerIds: ["access-control", "sales-history"],
   },
   {
+    id: "sales-query",
+    viewName: "ConsultaVentasView",
+    label: "Consulta de ventas",
+    path: "/app/ventas/consulta",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas > Consulta de ventas.",
+    controllerIds: ["access-control", "sales-history"],
+  },
+  {
+    id: "sale-annulment",
+    viewName: "AnularVentaView",
+    label: "Anular venta",
+    path: "/app/ventas/anular",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas, Ventas del dia o Consulta de ventas.",
+    controllerIds: [
+      "access-control",
+      "sales-history",
+      "sale-annulment",
+      "audit",
+    ],
+  },
+  {
     id: "cash-closing",
     viewName: "CashClosingView",
     label: "Cierre de caja",
@@ -379,7 +407,7 @@ export const navigationTree = [
     viewName: "WorkerListView",
     label: "Trabajadores",
     path: "/app/personal/trabajadores",
-    roles: ["dueno"],
+    roles: ["dueno", "trabajador"],
     group: "personal",
     showInMenu: true,
     entryFrom: "Menu Personal > Trabajadores.",
@@ -416,6 +444,17 @@ export const navigationTree = [
     group: "personal",
     showInMenu: false,
     entryFrom: "Accion Crear turno desde Turnos.",
+    controllerIds: ["access-control", "shift", "audit"],
+  },
+  {
+    id: "shift-edit",
+    viewName: "ShiftCreateView",
+    label: "Editar turno",
+    path: "/app/personal/turnos/:id/editar",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: false,
+    entryFrom: "Accion Editar turno desde Turnos (V18).",
     controllerIds: ["access-control", "shift", "audit"],
   },
   {
@@ -481,6 +520,12 @@ export const navigationTree = [
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
+  {
+    id: "sale-discount-modal",
+    name: "DescuentoVentaModal",
+    usedIn: ["sale-register"],
+    controllerIds: ["sale"],
+  },
   {
     id: "ean-input",
     name: "CampoEAN13Input",
@@ -649,11 +694,14 @@ export function validateNavigationTree(): string[] {
     "supplier-order-receptions",
     "sale-register",
     "daily-sales",
+    "sales-query",
+    "sale-annulment",
     "cash-closing",
     "worker-list",
     "worker-create",
     "shift-calendar",
     "shift-create",
+    "shift-edit",
     "attendance",
     "remuneracion-create",
     "configuracion-previsional",

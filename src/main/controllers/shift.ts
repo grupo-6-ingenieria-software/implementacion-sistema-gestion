@@ -9,11 +9,13 @@ import {
   normalizeShiftDeletePayload,
   normalizeShiftEditPayload,
   normalizeShiftListPayload,
+  normalizeShiftLookupPayload,
   PENDING_SHIFT_DB_STATE,
   parseShiftRange,
   validateShiftDeletePayload,
   validateShiftEditPayload,
   validateShiftListPayload,
+  validateShiftLookupPayload,
   type ShiftCalendarItem,
   type ShiftCreatePayload,
   type ShiftDeletePayload,
@@ -28,6 +30,7 @@ import {
   controllerSuccess,
   type RegisteredController,
 } from "./base";
+import type { SessionTokenClaims } from "./auth-jwt";
 import { db, schema } from "../../db/client";
 import { AccessDeniedError, authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
@@ -51,6 +54,7 @@ type ShiftRow = {
   trabajadorId: number;
   trabajadorNombre: string;
   asistenciaCount: number;
+  trabajadorEstado: string;
 };
 
 export class ShiftValidationError extends Error {
@@ -70,6 +74,22 @@ export const shiftController: RegisteredController = {
   handle: async (payload, context) => {
     try {
       if (context.channel === "turno:listar") {
+        if (payload && typeof payload === "object" && "consulta" in payload) {
+          if (payload.consulta !== "turno") {
+            throw new ShiftValidationError("La consulta de turno no es valida.");
+          }
+          const input = normalizeShiftLookupPayload(payload);
+          assertValid(validateShiftLookupPayload(input));
+          const actor = await requireReader(context.claims?.usuarioId, context.claims?.rol);
+          const row = await findShift(db as unknown as DbExecutor, input.turnoId);
+          if (!row || row.trabajadorEstado !== "activo") {
+            throw new ShiftBusinessError("El turno solicitado no esta disponible.");
+          }
+          const item = mapShiftRow(row, new Date());
+          return controllerSuccess({
+            turno: { ...item, puedeModificar: actor.role === "dueno" && item.puedeModificar },
+          });
+        }
         const input = normalizeShiftListPayload(payload);
         assertValid(validateShiftListPayload(input));
         const actor = await requireReader(input.usuarioId, context.claims?.rol);
@@ -80,7 +100,7 @@ export const shiftController: RegisteredController = {
 
       if (context.channel === "turno:crear") {
         const input = normalizeShiftCreatePayload(payload);
-        const actor = await requireOwner(input.usuarioId);
+        const actor = await requireOwner(context.claims);
         return controllerSuccess(
           await createShift(db as unknown as DbExecutor, input, actor),
         );
@@ -89,7 +109,7 @@ export const shiftController: RegisteredController = {
       if (context.channel === "turno:editar") {
         const input = normalizeShiftEditPayload(payload);
         assertValid(validateShiftEditPayload(input));
-        const actor = await requireOwner(input.usuarioId);
+        const actor = await requireOwner(context.claims);
         return controllerSuccess(
           await editShift(db as unknown as DbExecutor, input, actor),
         );
@@ -98,7 +118,7 @@ export const shiftController: RegisteredController = {
       if (context.channel === "turno:eliminar") {
         const input = normalizeShiftDeletePayload(payload);
         assertValid(validateShiftDeletePayload(input));
-        const actor = await requireOwner(input.usuarioId);
+        const actor = await requireOwner(context.claims);
         return controllerSuccess(
           await deleteShift(db as unknown as DbExecutor, input, actor),
         );
@@ -382,16 +402,23 @@ async function requireReader(
 }
 
 async function requireOwner(
-  usuarioId: string | undefined,
+  claims: SessionTokenClaims | undefined,
 ): Promise<ShiftActor> {
+  if (!claims || claims.rol !== "dueno") {
+    throw new ShiftAccessError("No tiene permiso para gestionar turnos.");
+  }
   try {
-    const user = await authorizeUser(db, schema, usuarioId, ["dueno"]);
+    // The guard owns the session role. The database still validates account activity.
+    const user = await authorizeUser(db, schema, claims.usuarioId, ["dueno", "trabajador"]);
     return {
       role: "dueno",
       usuarioId: user.usuarioId,
     };
-  } catch {
-    throw new ShiftAccessError("No tiene permiso para gestionar turnos.");
+  } catch (error) {
+    if (error instanceof AccessDeniedError) {
+      throw new ShiftAccessError("No tiene permiso para gestionar turnos.");
+    }
+    throw error;
   }
 }
 
@@ -426,6 +453,7 @@ async function findShift(
       tu.turno_fecha_hora_inicio AS inicioAt,
       tu.turno_fecha_hora_fin AS terminoAt,
       t.trabajador_id AS trabajadorId,
+      t.trabajador_estado AS trabajadorEstado,
       trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS trabajadorNombre,
       (SELECT COUNT(*) FROM asistencia a WHERE a.turno_id = tu.turno_id) AS asistenciaCount
     FROM turno tu

@@ -6,19 +6,36 @@ import {
   type ChangeEvent,
   type ReactElement,
 } from "react";
-import { CampoEAN13Input, SeccionesPagoVenta } from "../components";
+import {
+  CampoEAN13Input,
+  DescuentoVentaModal,
+  SeccionesPagoVenta,
+} from "../components";
 import { isValidEan13 } from "../../../shared/ean13";
 import {
   calculateSaleTotals,
+  formatSaleResponsibleRole,
+  validateSaleDiscount,
+  type SaleDiscountInput,
   type DailyCashState,
   type PaymentMethod,
   type SaleCartValidationResult,
+  type SaleReceipt,
+  type SaleRegisterRequest,
 } from "../../../shared/sales";
+import type { Role } from "../../../shared/navigation";
+import {
+  SALE_DRAFT_VERSION,
+  clearSaleDraft,
+  markSaleDraftForResume,
+  readSaleDraft,
+  writeSaleDraft,
+} from "../sale-draft";
 
 type SessionForSale = {
   usuarioId?: string;
   trabajadorNombre?: string;
-  usuarioRol?: string;
+  role?: Role;
 };
 
 type ActiveProduct = {
@@ -34,41 +51,14 @@ type CartItem = ActiveProduct & {
   cantidad: number;
 };
 
-type SaleReceipt = {
-  ventaId: string;
-  fechaHora: string;
-  responsable: {
-    usuarioId: string;
-    nombre: string;
-    rol: string;
-  };
-  metodoPago: PaymentMethod;
-  subtotal: number;
-  descuento: {
-    tipo: "ninguno" | "monto";
-    valor: number;
-    razon?: string;
-  };
-  total: number;
-  montoRecibido?: number;
-  vuelto?: number;
-  detalle: Array<{
-    productoId: number;
-    ean13: string;
-    nombre: string;
-    categoria: string;
-    precioUnitario: number;
-    cantidad: number;
-    subtotal: number;
-  }>;
-};
-
 type SaleRegisterViewProps = {
   session: SessionForSale;
+  onAuthenticationRequired?: (message: string) => void;
 };
 
 export function SaleRegisterView({
   session,
+  onAuthenticationRequired,
 }: SaleRegisterViewProps): ReactElement {
   const [ean13, setEan13] = useState("");
   const [query, setQuery] = useState("");
@@ -76,8 +66,8 @@ export function SaleRegisterView({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [metodoPago, setMetodoPago] = useState<PaymentMethod>("efectivo");
   const [montoRecibido, setMontoRecibido] = useState("");
-  const [descuentoMonto, setDescuentoMonto] = useState("");
-  const [descuentoRazon, setDescuentoRazon] = useState("");
+  const [discount, setDiscount] = useState<SaleDiscountInput | null>(null);
+  const [discountOpen, setDiscountOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,22 +76,76 @@ export function SaleRegisterView({
   const [isValidatingCart, setIsValidatingCart] = useState(false);
   const [cartRevision, setCartRevision] = useState(0);
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const cartRef = useRef<CartItem[]>([]);
   const pendingCartRef = useRef<CartItem[] | null>(null);
   const productRequestRef = useRef(0);
   const cartValidationRequestRef = useRef(0);
+  const savingRef = useRef(false);
+  const cartValidatedRef = useRef(false);
 
-  const totals = useMemo(
+  const baseTotals = useMemo(
     () =>
       calculateSaleTotals(
         cart.map((item) => ({
           cantidad: item.cantidad,
           precioUnitario: item.precioVenta,
         })),
-        Number(descuentoMonto || 0),
       ),
-    [cart, descuentoMonto],
+    [cart],
   );
+  const discountErrors = validateSaleDiscount(
+    discount?.monto ?? 0,
+    discount?.razon,
+    baseTotals.subtotal,
+  );
+  const discountError = discountErrors.monto ?? discountErrors.razon;
+  const totals = {
+    subtotal: baseTotals.subtotal,
+    descuento: discount?.monto ?? 0,
+    total: discountError ? null : baseTotals.subtotal - (discount?.monto ?? 0),
+  };
+
+  useEffect(() => {
+    setDraftReady(false);
+    const draft = readSaleDraft();
+    if (!session.usuarioId || !draft) {
+      setDraftReady(true);
+      return;
+    }
+    if (draft.usuarioId !== session.usuarioId) {
+      clearSaleDraft();
+      setDraftReady(true);
+      return;
+    }
+
+    cartValidatedRef.current = false;
+    pendingCartRef.current = null;
+    cartRef.current = draft.cart;
+    setCart(draft.cart);
+    setMetodoPago(draft.metodoPago);
+    setMontoRecibido(draft.montoRecibido);
+    setDiscount(draft.descuento);
+    setIsCartValid(false);
+    setDraftReady(true);
+    void validateCart(draft.cart, true);
+  }, [session.usuarioId]);
+
+  useEffect(() => {
+    if (!draftReady || !session.usuarioId) return;
+    if (cart.length === 0) {
+      clearSaleDraft();
+      return;
+    }
+    writeSaleDraft({
+      version: SALE_DRAFT_VERSION,
+      usuarioId: session.usuarioId,
+      cart,
+      metodoPago,
+      montoRecibido,
+      descuento: discount,
+    });
+  }, [cart, discount, draftReady, metodoPago, montoRecibido, session.usuarioId]);
 
   useEffect(() => {
     void checkCash();
@@ -212,15 +256,20 @@ export function SaleRegisterView({
   }
 
   function commitCart(next: CartItem[]): void {
+    if (savingRef.current) return;
     pendingCartRef.current = next;
     void validateCart(next);
   }
 
-  async function validateCart(next: CartItem[]): Promise<void> {
+  async function validateCart(
+    next: CartItem[],
+    preserveUnvalidatedDraft = false,
+  ): Promise<void> {
     const requestId = ++cartValidationRequestRef.current;
     if (next.length === 0) {
       pendingCartRef.current = null;
       cartRef.current = [];
+      cartValidatedRef.current = false;
       setCart([]);
       setCartRevision((revision) => revision + 1);
       setIsCartValid(false);
@@ -245,7 +294,14 @@ export function SaleRegisterView({
     if (!response.ok) {
       setError(response.error.message);
       pendingCartRef.current = null;
-      setIsCartValid(cartRef.current.length > 0);
+      if (preserveUnvalidatedDraft) {
+        cartRef.current = next;
+        setCart(next);
+        cartValidatedRef.current = false;
+      }
+      setIsCartValid(
+        cartValidatedRef.current && cartRef.current.length > 0,
+      );
       setCartRevision((revision) => revision + 1);
       return;
     }
@@ -256,14 +312,19 @@ export function SaleRegisterView({
       const line = byId.get(item.productoId);
       return line
         ? {
-            ...item,
+            productoId: line.productoId,
+            ean13: line.ean13,
+            nombre: line.nombre,
+            categoria: line.categoria,
             precioVenta: line.precioUnitario,
             stockDisponible: line.stockDisponible,
+            cantidad: line.cantidad,
           }
         : item;
     });
     pendingCartRef.current = null;
     cartRef.current = refreshed;
+    cartValidatedRef.current = true;
     setCart(refreshed);
     setCartRevision((revision) => revision + 1);
     setError(null);
@@ -271,6 +332,8 @@ export function SaleRegisterView({
   }
 
   async function confirmSale(): Promise<void> {
+    if (savingRef.current || isValidatingCart || !isCartValid || discountOpen)
+      return;
     setError(null);
     setMessage(null);
 
@@ -288,13 +351,23 @@ export function SaleRegisterView({
       setError("Agregue al menos un producto al carrito.");
       return;
     }
+    if (discountError) {
+      setError(discountError);
+      return;
+    }
 
+    savingRef.current = true;
     setIsSaving(true);
-
-    const response = await window.appApi.invoke<SaleReceipt>(
-      "venta:registrar",
-      {
+    try {
+      writeSaleDraft({
+        version: SALE_DRAFT_VERSION,
         usuarioId: session.usuarioId,
+        cart,
+        metodoPago,
+        montoRecibido,
+        descuento: discount,
+      });
+      const request: SaleRegisterRequest = {
         items: cart.map((item) => ({
           productoId: item.productoId,
           ean13: item.ean13,
@@ -307,244 +380,301 @@ export function SaleRegisterView({
               ? (null as never)
               : Number(montoRecibido)
             : undefined,
-        descuento:
-          descuentoMonto !== ""
-            ? {
-                monto: Number(descuentoMonto),
-                razon: descuentoRazon,
-              }
-            : undefined,
-      },
-    );
+        descuento: discount ?? undefined,
+      };
+      const response = await window.appApi.invoke<SaleReceipt>(
+        "venta:registrar",
+        request,
+      );
 
-    setIsSaving(false);
+      if (!response.ok) {
+        if (response.error.code === "FORBIDDEN" && onAuthenticationRequired) {
+          markSaleDraftForResume(session.usuarioId);
+          onAuthenticationRequired(response.error.message);
+          return;
+        }
+        setError(response.error.message);
+        return;
+      }
 
-    if (!response.ok) {
-      setError(response.error.message);
-      return;
+      clearSaleDraft();
+      setReceipt(response.data);
+      setMessage(
+        `Venta registrada por ${formatCurrency(response.data.total)}.`,
+      );
+      pendingCartRef.current = null;
+      cartRef.current = [];
+      setCart([]);
+      setIsCartValid(false);
+      setMontoRecibido("");
+      setDiscount(null);
+      await loadProducts(query).catch(() =>
+        setError(
+          "La venta fue registrada, pero no fue posible actualizar los productos.",
+        ),
+      );
+    } catch {
+      setError(
+        "No fue posible completar la solicitud de registro. Revise la conexión e intente nuevamente.",
+      );
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
     }
-
-    setReceipt(response.data);
-    setMessage(`Venta registrada por ${formatCurrency(response.data.total)}.`);
-    pendingCartRef.current = null;
-    cartRef.current = [];
-    setCart([]);
-    setIsCartValid(false);
-    setMontoRecibido("");
-    setDescuentoMonto("");
-    setDescuentoRazon("");
-    await loadProducts(query);
   }
 
   return (
     <section className="px-8 py-8">
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
-        <div className="grid auto-rows-max content-start gap-6">
-          <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-            <div className="grid gap-4 lg:grid-cols-[280px_1fr_auto]">
-              <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-                Código EAN-13
-                <CampoEAN13Input
-                  value={ean13}
-                  onChange={setEan13}
-                  onValidSubmit={addByEan13}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-                Buscar producto
-                <input
-                  className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                  value={query}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setQuery(value);
-                    void loadProducts(value);
-                  }}
-                />
-              </label>
-              <button
-                className="self-end rounded-md bg-[#244d61] px-4 py-2 font-semibold text-white transition hover:bg-[#1f4354]"
-                type="button"
-                onClick={() => void addByEan13(ean13)}
-              >
-                Agregar
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-            <h3 className="text-lg font-semibold text-[#17202a]">
-              Productos activos
-            </h3>
-            <div className="mt-4 overflow-hidden rounded-md border border-[#d7dee6]">
-              <table className="w-full border-collapse text-sm">
-                <thead className="bg-[#f0f3f6] text-left text-[#61717f]">
-                  <tr>
-                    <th className="px-3 py-2 font-semibold">Producto</th>
-                    <th className="px-3 py-2 font-semibold">Stock</th>
-                    <th className="px-3 py-2 font-semibold">Precio</th>
-                    <th className="px-3 py-2 font-semibold"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr
-                      className="border-t border-[#e1e7ee]"
-                      key={product.productoId}
-                    >
-                      <td className="px-3 py-3">
-                        <p className="font-semibold text-[#17202a]">
-                          {product.nombre}
-                        </p>
-                        <p className="text-xs text-[#61717f]">
-                          {product.ean13} · {product.categoria}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3">{product.stockDisponible}</td>
-                      <td className="px-3 py-3">
-                        {formatCurrency(product.precioVenta)}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          className="rounded-md border border-[#9ba9b5] px-3 py-2 font-semibold text-[#24313d] transition hover:bg-[#f0f3f6] disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={product.stockDisponible <= 0}
-                          type="button"
-                          onClick={() => addToCart(product)}
-                        >
-                          Sumar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {products.length === 0 ? (
-                    <tr>
-                      <td
-                        className="px-3 py-6 text-center text-[#61717f]"
-                        colSpan={4}
-                      >
-                        No hay productos activos para mostrar.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-            <h3 className="text-lg font-semibold text-[#17202a]">Carrito</h3>
-            <div className="mt-4 grid gap-3">
-              {cart.map((item) => (
-                <div
-                  className="grid gap-3 rounded-md border border-[#d7dee6] p-3 md:grid-cols-[1fr_110px_120px_90px]"
-                  key={item.productoId}
-                >
-                  <div>
-                    <p className="font-semibold text-[#17202a]">
-                      {item.nombre}
-                    </p>
-                    <p className="text-xs text-[#61717f]">
-                      {formatCurrency(item.precioVenta)} · Stock{" "}
-                      {item.stockDisponible}
-                    </p>
-                  </div>
-                  <CartQuantityInput
-                    key={`${item.productoId}:${cartRevision}`}
-                    value={item.cantidad}
-                    onCommit={(quantity) =>
-                      updateQuantity(item.productoId, quantity)
-                    }
-                  />
-                  <p className="self-center font-semibold text-[#17202a]">
-                    {formatCurrency(item.cantidad * item.precioVenta)}
-                  </p>
-                  <button
-                    className="rounded-md border border-[#b42318] px-3 py-2 font-semibold text-[#b42318] transition hover:bg-[#fff3f1]"
-                    type="button"
-                    onClick={() => removeFromCart(item.productoId)}
-                  >
-                    Quitar
-                  </button>
-                </div>
-              ))}
-              {cart.length === 0 ? (
-                <p className="rounded-md border border-dashed border-[#cbd5df] px-4 py-8 text-center text-[#61717f]">
-                  Agregue productos para iniciar una venta.
-                </p>
-              ) : null}
-            </div>
-          </section>
-        </div>
-
-        <aside className="grid content-start gap-6">
-          <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-            <h3 className="text-lg font-semibold text-[#17202a]">Pago</h3>
-            <div className="mt-4 grid gap-4">
-              <div className="grid gap-3">
-                <label className="grid gap-1 text-sm font-semibold text-[#24313d]">
-                  Descuento
-                  <input
-                    className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                    inputMode="numeric"
-                    value={descuentoMonto}
-                    onChange={(event) => setDescuentoMonto(event.target.value)}
+      <fieldset disabled={isSaving} className="min-w-0">
+        <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
+          <div className="grid auto-rows-max content-start gap-6">
+            <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
+              <div className="grid gap-4 lg:grid-cols-[280px_1fr_auto]">
+                <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+                  Código EAN-13
+                  <CampoEAN13Input
+                    value={ean13}
+                    onChange={setEan13}
+                    onValidSubmit={addByEan13}
                   />
                 </label>
-                {Number(descuentoMonto || 0) > 0 ? (
-                  <label className="grid gap-1 text-sm font-semibold text-[#24313d]">
-                    Razón
-                    <input
-                      className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                      value={descuentoRazon}
-                      onChange={(event) =>
-                        setDescuentoRazon(event.target.value)
+                <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+                  Buscar producto
+                  <input
+                    className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+                    value={query}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setQuery(value);
+                      void loadProducts(value);
+                    }}
+                  />
+                </label>
+                <button
+                  className="self-end rounded-md bg-[#244d61] px-4 py-2 font-semibold text-white transition hover:bg-[#1f4354]"
+                  type="button"
+                  onClick={() => void addByEan13(ean13)}
+                >
+                  Agregar
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[#17202a]">
+                Productos activos
+              </h3>
+              <div className="mt-4 overflow-hidden rounded-md border border-[#d7dee6]">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="bg-[#f0f3f6] text-left text-[#61717f]">
+                    <tr>
+                      <th className="px-3 py-2 font-semibold">Producto</th>
+                      <th className="px-3 py-2 font-semibold">Stock</th>
+                      <th className="px-3 py-2 font-semibold">Precio</th>
+                      <th className="px-3 py-2 font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((product) => (
+                      <tr
+                        className="border-t border-[#e1e7ee]"
+                        key={product.productoId}
+                      >
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-[#17202a]">
+                            {product.nombre}
+                          </p>
+                          <p className="text-xs text-[#61717f]">
+                            {product.ean13} · {product.categoria}
+                          </p>
+                        </td>
+                        <td className="px-3 py-3">{product.stockDisponible}</td>
+                        <td className="px-3 py-3">
+                          {formatCurrency(product.precioVenta)}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            className="rounded-md border border-[#9ba9b5] px-3 py-2 font-semibold text-[#24313d] transition hover:bg-[#f0f3f6] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={product.stockDisponible <= 0}
+                            type="button"
+                            onClick={() => addToCart(product)}
+                          >
+                            Sumar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {products.length === 0 ? (
+                      <tr>
+                        <td
+                          className="px-3 py-6 text-center text-[#61717f]"
+                          colSpan={4}
+                        >
+                          No hay productos activos para mostrar.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[#17202a]">Carrito</h3>
+              <div className="mt-4 grid gap-3">
+                {cart.map((item) => (
+                  <div
+                    className="grid gap-3 rounded-md border border-[#d7dee6] p-3 md:grid-cols-[1fr_110px_120px_90px]"
+                    key={item.productoId}
+                  >
+                    <div>
+                      <p className="font-semibold text-[#17202a]">
+                        {item.nombre}
+                      </p>
+                      <p className="text-xs text-[#61717f]">
+                        {formatCurrency(item.precioVenta)} · Stock{" "}
+                        {item.stockDisponible}
+                      </p>
+                    </div>
+                    <CartQuantityInput
+                      key={`${item.productoId}:${cartRevision}`}
+                      value={item.cantidad}
+                      onCommit={(quantity) =>
+                        updateQuantity(item.productoId, quantity)
                       }
                     />
-                  </label>
+                    <p className="self-center font-semibold text-[#17202a]">
+                      {formatCurrency(item.cantidad * item.precioVenta)}
+                    </p>
+                    <button
+                      className="rounded-md border border-[#b42318] px-3 py-2 font-semibold text-[#b42318] transition hover:bg-[#fff3f1]"
+                      type="button"
+                      onClick={() => removeFromCart(item.productoId)}
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ))}
+                {cart.length === 0 ? (
+                  <p className="rounded-md border border-dashed border-[#cbd5df] px-4 py-8 text-center text-[#61717f]">
+                    Agregue productos para iniciar una venta.
+                  </p>
                 ) : null}
               </div>
+            </section>
+          </div>
 
-              <SeccionesPagoVenta
-                metodo={metodoPago}
-                total={totals.total}
-                montoRecibido={montoRecibido}
-                onMetodoChange={setMetodoPago}
-                onMontoRecibidoChange={setMontoRecibido}
-              />
+          <aside className="grid content-start gap-6">
+            <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[#17202a]">Pago</h3>
+              <div className="mt-4 grid gap-4">
+                <dl className="grid gap-2 rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4 text-sm">
+                  <Info
+                    label="Responsable asignado"
+                    value={session.trabajadorNombre ?? "Sesión autenticada"}
+                  />
+                  <Info
+                    label="Rol"
+                    value={
+                      session.role
+                        ? formatSaleResponsibleRole(session.role)
+                        : "No disponible"
+                    }
+                  />
+                </dl>
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    disabled={
+                      isSaving ||
+                      isValidatingCart ||
+                      !isCartValid ||
+                      !cashAvailable
+                    }
+                    onClick={() => setDiscountOpen(true)}
+                    className="rounded-md border border-[#9ba9b5] px-3 py-2 font-semibold disabled:opacity-50"
+                  >
+                    {discount ? "Editar descuento" : "Aplicar descuento"}
+                  </button>
+                  {discount ? (
+                    <>
+                      <p className="break-words text-sm text-[#61717f]">
+                        Razón del descuento: {discount.razon}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDiscount(null)}
+                        className="rounded-md border border-[#b42318] px-3 py-2 text-sm font-semibold text-[#b42318]"
+                      >
+                        Quitar descuento
+                      </button>
+                    </>
+                  ) : null}
+                  {discountError ? (
+                    <p role="alert" className="text-sm text-[#b42318]">
+                      {discountError} Edite o quite el descuento para continuar.
+                    </p>
+                  ) : null}
+                </div>
 
-              <dl className="grid gap-2 rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4">
-                <SummaryLine label="Subtotal" value={totals.subtotal} />
-                <SummaryLine label="Descuento" value={totals.descuento} />
-                <SummaryLine label="Total" value={totals.total} strong />
-              </dl>
+                <SeccionesPagoVenta
+                  metodo={metodoPago}
+                  total={totals.total}
+                  montoRecibido={montoRecibido}
+                  onMetodoChange={setMetodoPago}
+                  onMontoRecibidoChange={setMontoRecibido}
+                />
 
-              {error ? (
-                <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
-                  {error}
-                </p>
-              ) : null}
-              {message ? (
-                <p className="rounded-md border border-[#b8e6cc] bg-[#effaf3] px-3 py-2 text-sm font-medium text-[#255a43]">
-                  {message}
-                </p>
-              ) : null}
+                <dl className="grid gap-2 rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4">
+                  <SummaryLine label="Subtotal" value={totals.subtotal} />
+                  <SummaryLine label="Descuento" value={totals.descuento} />
+                  <SummaryLine label="Total" value={totals.total} strong />
+                </dl>
 
-              <button
-                className="rounded-md bg-[#2d6a4f] px-4 py-3 font-semibold text-white transition hover:bg-[#255a43] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={
-                  isSaving || isValidatingCart || !isCartValid || !cashAvailable
-                }
-                type="button"
-                onClick={() => void confirmSale()}
-              >
-                {isSaving ? "Registrando..." : "Confirmar venta"}
-              </button>
-            </div>
-          </section>
+                {error ? (
+                  <p className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]">
+                    {error}
+                  </p>
+                ) : null}
+                {message ? (
+                  <p className="rounded-md border border-[#b8e6cc] bg-[#effaf3] px-3 py-2 text-sm font-medium text-[#255a43]">
+                    {message}
+                  </p>
+                ) : null}
 
-          {receipt ? <ReceiptPanel receipt={receipt} /> : null}
-        </aside>
-      </div>
+                <button
+                  className="rounded-md bg-[#2d6a4f] px-4 py-3 font-semibold text-white transition hover:bg-[#255a43] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={
+                    isSaving ||
+                    isValidatingCart ||
+                    !isCartValid ||
+                    !cashAvailable ||
+                    Boolean(discountError) ||
+                    discountOpen
+                  }
+                  type="button"
+                  onClick={() => void confirmSale()}
+                >
+                  {isSaving ? "Registrando..." : "Confirmar venta"}
+                </button>
+              </div>
+            </section>
+
+            {receipt ? <ReceiptPanel receipt={receipt} /> : null}
+          </aside>
+        </div>
+      </fieldset>
+      {discountOpen ? (
+        <DescuentoVentaModal
+          subtotal={totals.subtotal}
+          descuento={discount}
+          onApply={(next) => {
+            setDiscount(next);
+            setDiscountOpen(false);
+          }}
+          onClose={() => setDiscountOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -595,7 +725,7 @@ function SummaryLine({
   strong = false,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   strong?: boolean;
 }): ReactElement {
   return (
@@ -610,7 +740,7 @@ function SummaryLine({
           strong ? "text-xl font-semibold text-[#17202a]" : "font-semibold"
         }
       >
-        {formatCurrency(value)}
+        {value === null ? "Pendiente de corrección" : formatCurrency(value)}
       </dd>
     </div>
   );
@@ -627,6 +757,10 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
           value={new Date(receipt.fechaHora).toLocaleString("es-CL")}
         />
         <Info label="Responsable" value={receipt.responsable.nombre} />
+        <Info
+          label="Rol"
+          value={formatSaleResponsibleRole(receipt.responsable.rol)}
+        />
         <Info label="Método" value={receipt.metodoPago} />
       </dl>
       <div className="mt-4 grid gap-2">
@@ -646,6 +780,9 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
       <dl className="mt-4 grid gap-2 rounded-md bg-[#f8fafb] p-3 text-sm">
         <SummaryLine label="Subtotal" value={receipt.subtotal} />
         <SummaryLine label="Descuento" value={receipt.descuento.valor} />
+        {receipt.descuento.valor > 0 && receipt.descuento.razon ? (
+          <Info label="Razón del descuento" value={receipt.descuento.razon} />
+        ) : null}
         <SummaryLine label="Total" value={receipt.total} strong />
         {receipt.montoRecibido !== undefined ? (
           <SummaryLine label="Monto recibido" value={receipt.montoRecibido} />

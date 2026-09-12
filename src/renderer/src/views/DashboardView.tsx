@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import type {
   AttendanceSummary,
   DashboardAttendance,
@@ -19,7 +25,7 @@ type DashboardViewProps = {
   onNavigate: (path: string) => void;
 };
 
-type DashboardState =
+export type DashboardState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | {
@@ -35,26 +41,35 @@ export function DashboardView({
   onNavigate,
 }: DashboardViewProps): ReactElement {
   const [state, setState] = useState<DashboardState>({ status: "loading" });
+  const latestRequestId = useRef(0);
+
+  const setDashboardError = useCallback(
+    (requestId: number, message: string, preserveData?: boolean): void => {
+      if (!isLatestDashboardRequest(requestId, latestRequestId.current)) {
+        return;
+      }
+
+      setState((current) =>
+        getDashboardFailureState(current, message, preserveData),
+      );
+    },
+    [],
+  );
 
   const loadDashboard = useCallback(
     async (options: { preserveData?: boolean } = {}): Promise<void> => {
-      setState((current) => {
-        if (options.preserveData && current.status === "ready") {
-          return {
-            ...current,
-            isRefreshing: true,
-            refreshError: undefined,
-          };
-        }
-
-        return { status: "loading" };
-      });
+      const requestId = latestRequestId.current + 1;
+      latestRequestId.current = requestId;
+      setState((current) =>
+        getDashboardLoadingState(current, options.preserveData),
+      );
 
       try {
         const request = createDashboardRequest(role, usuarioId);
 
         if (!request) {
           setDashboardError(
+            requestId,
             "Se requiere una sesion valida para cargar el dashboard.",
             options.preserveData,
           );
@@ -67,7 +82,15 @@ export function DashboardView({
         );
 
         if (!response.ok) {
-          setDashboardError(response.error.message, options.preserveData);
+          setDashboardError(
+            requestId,
+            response.error.message,
+            options.preserveData,
+          );
+          return;
+        }
+
+        if (!isLatestDashboardRequest(requestId, latestRequestId.current)) {
           return;
         }
 
@@ -78,34 +101,26 @@ export function DashboardView({
         });
       } catch {
         setDashboardError(
+          requestId,
           "No fue posible comunicarse con el proceso principal.",
           options.preserveData,
         );
       }
     },
-    [role, usuarioId],
+    [role, setDashboardError, usuarioId],
   );
 
   useEffect(() => {
     void loadDashboard();
-    return window.appApi.onDashboardUpdated(() => {
+    const unsubscribe = window.appApi.onDashboardUpdated(() => {
       void loadDashboard({ preserveData: true });
     });
+
+    return () => {
+      unsubscribe();
+      latestRequestId.current += 1;
+    };
   }, [loadDashboard]);
-
-  function setDashboardError(message: string, preserveData?: boolean): void {
-    setState((current) => {
-      if (preserveData && current.status === "ready") {
-        return {
-          ...current,
-          isRefreshing: false,
-          refreshError: message,
-        };
-      }
-
-      return { status: "error", message };
-    });
-  }
 
   if (state.status === "loading") {
     return (
@@ -163,12 +178,10 @@ export function DashboardView({
       </div>
 
       {state.refreshError ? (
-        <p
-          className="rounded-md border border-[#dba7a7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-[#8f2727]"
-          role="status"
-        >
-          {state.refreshError}
-        </p>
+        <DashboardRefreshError
+          message={state.refreshError}
+          onRetry={() => void loadDashboard({ preserveData: true })}
+        />
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-3">
@@ -248,6 +261,74 @@ export function DashboardView({
         </IndicatorSection>
       ) : null}
     </section>
+  );
+}
+
+export function getDashboardLoadingState(
+  current: DashboardState,
+  preserveData?: boolean,
+): DashboardState {
+  if (preserveData && current.status === "ready") {
+    return {
+      ...current,
+      isRefreshing: true,
+      refreshError: undefined,
+    };
+  }
+
+  return { status: "loading" };
+}
+
+export function getDashboardFailureState(
+  current: DashboardState,
+  message: string,
+  preserveData?: boolean,
+): DashboardState {
+  if (preserveData && current.status === "ready") {
+    return {
+      ...current,
+      isRefreshing: false,
+      refreshError: message,
+    };
+  }
+
+  return { status: "error", message };
+}
+
+export function isLatestDashboardRequest(
+  requestId: number,
+  latestRequestId: number,
+): boolean {
+  return requestId === latestRequestId;
+}
+
+export function DashboardRefreshError({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}): ReactElement {
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#dba7a7] bg-[#fff7f7] px-4 py-3 text-sm text-[#8f2727]"
+      role="status"
+      aria-live="assertive"
+    >
+      <div>
+        <p className="font-semibold">{message}</p>
+        <p className="mt-1 text-[#6f3333]">
+          Se mantienen los últimos valores válidos.
+        </p>
+      </div>
+      <button
+        className="rounded-md bg-[#244d61] px-4 py-2 font-semibold text-white transition hover:bg-[#1f4354]"
+        type="button"
+        onClick={onRetry}
+      >
+        Reintentar
+      </button>
+    </div>
   );
 }
 

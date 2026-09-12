@@ -3,11 +3,16 @@ import { sql, type SQL } from "drizzle-orm";
 import {
   calculateCashChange,
   calculateSaleTotals,
-  type PaymentMethod,
+  validateSaleDiscount,
   type SaleCartItemInput,
   type SaleCartValidationRequest,
   type SaleCartValidationResult,
+  type SaleReceipt,
+  type SaleReceiptLine,
+  type SaleRegisterRequest,
 } from "../../shared/sales";
+import type { Role } from "../../shared/navigation";
+import { INACTIVITY_MS } from "../../shared/auth";
 import { getAuditTimestamp } from "../../shared/audit";
 import {
   ensureDailyCashRegisterForSale,
@@ -18,18 +23,14 @@ import {
   planStockDiscount,
   StockDiscountBusinessError,
 } from "./stock-discount";
+import { AccessDeniedError } from "./auth-context";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
-export type SaleRegisterPayload = {
+export type SaleActor = {
   usuarioId: string;
-  items: SaleRegisterItemInput[];
-  metodoPago: PaymentMethod;
-  montoRecibido?: number;
-  descuento?: {
-    monto: number;
-    razon: string;
-  };
+  sesionId: string;
+  rol: Role;
 };
 
 export type SaleProductSnapshot = {
@@ -41,38 +42,6 @@ export type SaleProductSnapshot = {
   historialPrecioProductoId: string;
   stockDisponible: number;
   exigeVencimiento: boolean;
-};
-
-export type ConsumedLot = {
-  loteId: string;
-  cantidad: number;
-};
-
-export type SaleReceiptLine = SaleProductSnapshot & {
-  cantidad: number;
-  subtotal: number;
-  lotesConsumidos: ConsumedLot[];
-};
-
-export type SaleReceipt = {
-  ventaId: string;
-  fechaHora: string;
-  responsable: {
-    usuarioId: string;
-    nombre: string;
-    rol: string;
-  };
-  metodoPago: PaymentMethod;
-  subtotal: number;
-  descuento: {
-    tipo: "ninguno" | "monto";
-    valor: number;
-    razon?: string;
-  };
-  total: number;
-  montoRecibido?: number;
-  vuelto?: number;
-  detalle: SaleReceiptLine[];
 };
 
 type DbRunResult = {
@@ -100,10 +69,12 @@ export async function getOpenCashRegister(
 
 export async function registerSale(
   database: DbExecutor,
-  payload: SaleRegisterPayload,
+  payload: SaleRegisterRequest,
+  actor: SaleActor,
   now = new Date(),
 ): Promise<SaleReceipt> {
   return database.transaction(async (tx) => {
+    const responsable = await getResponsibleUser(tx, actor, now);
     const transactionCashState = await inspectDailyCashRegister(tx, now);
     if (transactionCashState.status === "cerrada") {
       throw new SaleBusinessError(
@@ -112,7 +83,6 @@ export async function registerSale(
     }
     await validateSalePayloadRules(tx, payload);
     const normalized = normalizeSalePayload(payload);
-    const responsable = await getResponsibleUser(tx, normalized.usuarioId);
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
       const item = normalized.items.find(
@@ -138,6 +108,17 @@ export async function registerSale(
     });
 
     const requestedDiscount = normalized.descuento?.monto ?? 0;
+    const subtotal = calculateSaleTotals(receiptLines).subtotal;
+    const discountErrors = validateSaleDiscount(
+      requestedDiscount,
+      normalized.descuento?.razon,
+      subtotal,
+    );
+    if (discountErrors.monto || discountErrors.razon) {
+      throw new SaleValidationError(
+        discountErrors.monto ?? discountErrors.razon,
+      );
+    }
     const totals = calculateSaleTotals(receiptLines, requestedDiscount);
 
     await validateCalculatedSaleRules(
@@ -198,6 +179,8 @@ export async function registerSale(
         es_venta_efectivo,
         es_venta_electronica,
         usuario_cajero_id,
+        venta_responsable_nombre,
+        venta_responsable_rol,
         cierre_caja_id
       )
       VALUES (
@@ -210,7 +193,9 @@ export async function registerSale(
         'completada',
         ${esEfectivo ? 1 : 0},
         ${esEfectivo ? 0 : 1},
-        ${normalized.usuarioId},
+        ${responsable.usuarioId},
+        ${responsable.nombre},
+        ${responsable.rol},
         ${cashState.cierreCajaId}
       )
     `);
@@ -258,7 +243,7 @@ export async function registerSale(
     }
 
     await registerAuditLog(tx, {
-      usuarioId: normalized.usuarioId,
+      usuarioId: responsable.usuarioId,
       tipoAccion: "registrar_venta",
       modulo: "ventas",
       descripcion: `Venta ${ventaId} registrada por ${responsable.nombre} por $${totals.total}.`,
@@ -326,6 +311,7 @@ export async function validateSaleCart(
       productoId: product.productoId,
       ean13: product.ean13,
       nombre: product.nombre,
+      categoria: product.categoria,
       cantidad: item.cantidad,
       precioUnitario: product.precioUnitario,
       stockDisponible: product.stockDisponible,
@@ -340,30 +326,23 @@ export async function validateSaleCart(
 
 async function validateSalePayloadRules(
   database: Pick<DbExecutor, "all">,
-  payload: SaleRegisterPayload,
+  payload: SaleRegisterRequest,
 ): Promise<void> {
   const record =
     payload && typeof payload === "object"
       ? (payload as unknown as Record<string, unknown>)
       : {};
-  const usuarioId =
-    typeof record.usuarioId === "string" ? record.usuarioId : null;
   const method =
     typeof record.metodoPago === "string" ? record.metodoPago : null;
   const itemsJson = safeJson(record.items);
   const rows = await database.all<{ accepted: number }>(sql`
     SELECT 1 AS accepted
-    WHERE length(trim(${usuarioId})) > 0
-      AND ${method} IN ('efectivo', 'debito', 'credito', 'transferencia')
+    WHERE ${method} IN ('efectivo', 'debito', 'credito', 'transferencia')
       AND json_valid(${itemsJson})
       AND json_type(${itemsJson}) = 'array'
       AND json_array_length(${itemsJson}) > 0
   `);
   if (!rows[0]) {
-    if (!usuarioId)
-      throw new SaleValidationError(
-        "No hay un usuario responsable para la venta.",
-      );
     if (
       !method ||
       !["efectivo", "debito", "credito", "transferencia"].includes(method)
@@ -401,6 +380,7 @@ async function validateSalePayloadRules(
         AND typeof(${discountAmount}) IN ('integer', 'real')
         AND CAST(${discountAmount} AS INTEGER) = ${discountAmount}
         AND ${discountAmount} >= 0
+        AND ${discountAmount} <= ${Number.MAX_SAFE_INTEGER}
         AND (${discountAmount} = 0 OR length(trim(${discountReason})) > 0)
         THEN 1 ELSE 0 END AS discountValid,
       CASE WHEN ${method} <> 'efectivo' OR (
@@ -477,7 +457,7 @@ async function validateCartItemRules(
 
 async function validateCalculatedSaleRules(
   database: Pick<DbExecutor, "all">,
-  payload: SaleRegisterPayload,
+  payload: SaleRegisterRequest,
   subtotal: number,
   total: number,
 ): Promise<void> {
@@ -552,44 +532,64 @@ export async function registerAuditLog(
 
 async function getResponsibleUser(
   database: DbExecutor,
-  usuarioId: string,
+  actor: SaleActor,
+  now: Date,
 ): Promise<SaleReceipt["responsable"]> {
+  if (
+    !actor.usuarioId?.trim() ||
+    !actor.sesionId?.trim() ||
+    (actor.rol !== "dueno" && actor.rol !== "trabajador")
+  ) {
+    throw new AccessDeniedError(
+      "No hay una sesión válida para registrar la venta.",
+    );
+  }
+
+  const inactivityBoundary = new Date(
+    now.getTime() - INACTIVITY_MS,
+  ).toISOString();
   const users = await database.all<{
     usuarioId: string;
-    rol: string;
-    trabajadorId: number;
+    sesionFechaHoraCierre: string | null;
+    sesionVigente: number;
+    trabajadorEstado: string;
+    nombre: string;
   }>(sql`
     SELECT
-      usuario_id AS usuarioId,
-      usuario_rol AS rol,
-      trabajador_id AS trabajadorId
-    FROM usuario
-    WHERE usuario_id = ${usuarioId}
+      s.usuario_id AS usuarioId,
+      s.sesion_fecha_hora_cierre AS sesionFechaHoraCierre,
+      CASE
+        WHEN julianday(s.sesion_fecha_hora_ultimo_acceso) IS NOT NULL
+          AND julianday(s.sesion_fecha_hora_ultimo_acceso) > julianday(${inactivityBoundary})
+        THEN 1 ELSE 0
+      END AS sesionVigente,
+      t.trabajador_estado AS trabajadorEstado,
+      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombre
+    FROM sesion_usuario s
+    JOIN usuario u ON u.usuario_id = s.usuario_id
+    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
+    WHERE s.sesion_usuario_id = ${actor.sesionId}
     LIMIT 1
   `);
   const user = users[0];
 
-  if (!user) {
-    throw new SaleValidationError(
-      "No fue posible identificar al trabajador responsable de la venta.",
+  if (
+    !user ||
+    user.usuarioId !== actor.usuarioId.trim() ||
+    user.sesionFechaHoraCierre !== null ||
+    Number(user.sesionVigente) !== 1 ||
+    user.trabajadorEstado !== "activo" ||
+    !user.nombre.trim()
+  ) {
+    throw new AccessDeniedError(
+      "El usuario autenticado no está activo o la sesión ya no es válida.",
     );
   }
-  const workers = await database.all<{ nombre: string }>(sql`
-    SELECT trabajador_nombre || ' ' || trabajador_apellido AS nombre
-    FROM trabajador
-    WHERE trabajador_id = ${user.trabajadorId}
-      AND trabajador_estado = 'activo'
-    LIMIT 1
-  `);
-  if (!workers[0]) {
-    throw new SaleValidationError(
-      "No fue posible identificar al trabajador responsable de la venta.",
-    );
-  }
+
   return {
     usuarioId: user.usuarioId,
-    rol: user.rol,
-    nombre: workers[0].nombre,
+    rol: actor.rol,
+    nombre: user.nombre,
   };
 }
 
@@ -610,7 +610,30 @@ async function getOrCreateCurrentUserVersion(
     return existing[0].usuarioVersionId;
   }
 
-  const user = await getResponsibleUser(database, usuarioId);
+  const users = await database.all<{
+    nombre: string;
+    rol: string;
+  }>(sql`
+    SELECT
+      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombre,
+      u.usuario_rol AS rol
+    FROM usuario u
+    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
+    WHERE u.usuario_id = ${usuarioId}
+      AND t.trabajador_estado = 'activo'
+    LIMIT 1
+  `);
+  const user = users[0];
+  if (
+    !user ||
+    !user.nombre.trim() ||
+    typeof user.rol !== "string" ||
+    !user.rol.trim()
+  ) {
+    throw new AccessDeniedError(
+      "No fue posible identificar al usuario responsable de la venta.",
+    );
+  }
   const usuarioVersionId = randomUUID();
 
   await database.run(sql`
@@ -636,15 +659,14 @@ async function getOrCreateCurrentUserVersion(
 }
 
 function normalizeSalePayload(
-  payload: SaleRegisterPayload,
-): SaleRegisterPayload {
+  payload: SaleRegisterRequest,
+): SaleRegisterRequest {
   const items = normalizeCartItems(payload.items);
 
   const descuentoMonto = payload.descuento?.monto ?? 0;
 
   return {
     ...payload,
-    usuarioId: payload.usuarioId.trim(),
     items,
     descuento:
       descuentoMonto > 0
