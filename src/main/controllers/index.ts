@@ -1,7 +1,9 @@
 import type { IpcMain } from "electron";
 import { findControllerByChannel } from "../../shared/controllers";
+import { db, schema as appSchema } from "../../db/client";
 import { authorizeRequest } from "./auth-guard";
 import { SESSION_EXPIRED_EVENT } from "../../shared/auth";
+import { notifySessionInvalidated } from "./session-events";
 import { accessControlController } from "./access-control";
 import { attendanceController } from "./attendance";
 import { auditController } from "./audit";
@@ -38,8 +40,24 @@ import { movementHistoryController } from "./movement-history";
 import { productDetailController } from "./product-detail";
 import { stockAdjustmentController } from "./stock-adjustment";
 import { wasteController } from "./waste";
-import { workerController } from "./worker";
+import {
+  changeStatusWithExecutor,
+  createWorkerController,
+  workerDependencies,
+} from "./worker";
 import type { RegisteredController } from "./base";
+
+const workerController = createWorkerController({
+  ...workerDependencies,
+  changeStatus: (payload, sesionRol) =>
+    changeStatusWithExecutor(
+      db,
+      appSchema,
+      payload,
+      sesionRol,
+      notifySessionInvalidated,
+    ),
+});
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
   [

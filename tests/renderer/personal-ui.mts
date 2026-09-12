@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { sql } from 'drizzle-orm';
 import {
+  changeStatusWithExecutor,
   createWorkerController,
   createWorkerWithExecutor,
   listWorkersWithExecutor,
@@ -30,7 +31,8 @@ const controller = createWorkerController({
   authorize: async () => ({
     role: 'dueno', usuarioId: '11111111-1', usuarioRol: 'dueno', trabajadorNombre: 'Dueño',
   }),
-  changeStatus: async () => { throw new Error('unexpected changeStatus'); },
+  changeStatus: (payload, sesionRol) =>
+    changeStatusWithExecutor(fixture.db, schema, payload, sesionRol),
   createWorker: (payload) => createWorkerWithExecutor(fixture.db, schema, payload),
   listWorkers: (filters) => listWorkersWithExecutor(fixture.db, schema, filters),
   listActiveWorkers: async () => [],
@@ -195,9 +197,31 @@ try {
   assert.equal(editCalls.filter((call) => call.channel === 'trabajador:actualizar').length, 1);
   console.log('PASS CU22 edicion en modal: RUT bloqueado, error preventivo sin IPC y guardado exitoso');
 
-  await page.getByLabel('Buscar por nombre o RUT').fill('99999999-9');
+  await page.getByLabel('Buscar por nombre o RUT').fill('99999999');
+  assert.equal(await page.getByLabel('Buscar por nombre o RUT').inputValue(), '9999999-9', 'el RUT se formatea con guion al escribir');
   await page.getByText('Trabajador no encontrado').waitFor();
   console.log('PASS CU22-E1 RUT exacto inexistente muestra Trabajador no encontrado');
+
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('');
+  await page.getByRole('button', { name: 'Inactivar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor();
+  await page.getByText('se cerraran sus sesiones abiertas').waitFor();
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor({ state: 'detached' });
+  let statusCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  assert.equal(statusCalls.filter((call) => call.channel === 'trabajador:cambiar-estado').length, 0, 'cancelar no debe invocar IPC');
+
+  await page.getByRole('button', { name: 'Inactivar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByText('Trabajador inactivo.').waitFor();
+  statusCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  const ultimoEstado = [...statusCalls].reverse().find((call) => call.channel === 'trabajador:cambiar-estado');
+  assert.equal(ultimoEstado?.payload.confirmacion, true);
+  assert.equal(ultimoEstado?.payload.estado, 'inactivo');
+  assert.equal(ultimoEstado?.payload.usuarioObjetivoId, '11111111-1');
+  console.log('PASS CU23-E2/CU23 confirmacion de estado: cancelar sin IPC y confirmar con payload completo');
 
 } finally {
   await browser.close();
