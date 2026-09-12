@@ -44,6 +44,7 @@ describe("App inventory route helpers", () => {
   it("treats both shift routes as implemented views", () => {
     expect(isImplementedViewNodeId("shift-calendar")).toBe(true);
     expect(isImplementedViewNodeId("shift-create")).toBe(true);
+    expect(isImplementedViewNodeId("shift-edit")).toBe(true);
   });
 
   it("provides and clears documented shift success messages", () => {

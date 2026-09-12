@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -45,7 +46,7 @@ import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
 import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
-import { ShiftCalendarView } from "./views/ShiftCalendarView";
+import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
 import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
@@ -541,7 +542,7 @@ function PasswordChangeView({
   );
 }
 
-function AppShell({
+export function AppShell({
   currentPath,
   session,
   onNavigate,
@@ -552,6 +553,15 @@ function AppShell({
   onNavigate: (path: string) => void;
   onLogout: () => void;
 }): ReactElement {
+  const [shiftNotice, setShiftNotice] = useState<{ path: string; message: string } | null>(null);
+  const consumeShiftNotice = useCallback(() => setShiftNotice(null), []);
+  useEffect(() => {
+    if (!currentPath.startsWith("/app/personal/turnos")) setShiftNotice(null);
+  }, [currentPath]);
+  const onShiftEditSaved = (path: string): void => {
+    setShiftNotice({ path, message: getShiftResultMessage("edit-success")! });
+    onNavigate(path);
+  };
   const visibleMenu = useMemo(
     () => (session.role ? getVisibleMenu(session.role) : []),
     [session.role],
@@ -630,6 +640,9 @@ function AppShell({
           session={session}
           onNavigate={onNavigate}
           currentPath={currentPath}
+          shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
+          onShiftNoticeConsumed={consumeShiftNotice}
+          onShiftEditSaved={onShiftEditSaved}
         />
       </main>
     </div>
@@ -675,11 +688,17 @@ function ViewRenderer({
   node,
   onNavigate,
   session,
+  shiftSuccessMessage,
+  onShiftNoticeConsumed,
+  onShiftEditSaved,
 }: {
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
   session: AppSession;
+  shiftSuccessMessage: string | null;
+  onShiftNoticeConsumed: () => void;
+  onShiftEditSaved: (path: string) => void;
 }): ReactElement {
   if (node.id === "dashboard" && session.role) {
     return (
@@ -753,6 +772,10 @@ function ViewRenderer({
   if (node.id === "shift-calendar" && session.usuarioId && session.role) {
     return (
       <ShiftCalendarView
+        key={currentPath}
+        currentPath={currentPath}
+        successMessage={shiftSuccessMessage}
+        onSuccessConsumed={onShiftNoticeConsumed}
         role={session.role}
         onNavigate={onNavigate}
         usuarioId={session.usuarioId}
@@ -760,9 +783,12 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === "shift-create" && session.usuarioId) {
+  if ((node.id === "shift-create" || node.id === "shift-edit") && session.usuarioId && session.role === "dueno") {
     return (
       <ShiftCreateView
+        key={currentPath}
+        role={session.role}
+        onEditSaved={onShiftEditSaved}
         currentPath={currentPath}
         onNavigate={onNavigate}
         usuarioId={session.usuarioId}
@@ -987,6 +1013,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "configuracion-previsional",
     "shift-calendar",
     "shift-create",
+    "shift-edit",
     "waste-create",
     "worker-create",
     "worker-list",
