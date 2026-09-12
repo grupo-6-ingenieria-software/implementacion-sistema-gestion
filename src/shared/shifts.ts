@@ -61,6 +61,28 @@ export type ShiftListResponse = {
   turnos: ShiftCalendarItem[];
 };
 
+// CU26 loads V18 by identity through the existing turno:listar channel.
+export type ShiftLookupPayload = {
+  consulta: "turno";
+  turnoId: string;
+  usuarioId?: string;
+};
+
+export type ShiftLookupResponse = { turno: ShiftCalendarItem };
+
+export function normalizeShiftLookupPayload(payload: unknown): ShiftLookupPayload {
+  const record = isRecord(payload) ? payload : {};
+  return {
+    consulta: "turno",
+    turnoId: normalizeText(record.turnoId),
+    usuarioId: normalizeText(record.usuarioId),
+  };
+}
+
+export function validateShiftLookupPayload(values: ShiftLookupPayload): ShiftFieldErrors {
+  return values.turnoId ? {} : { turnoId: "No se pudo identificar el turno." };
+}
+
 export type ShiftMutationResponse = {
   turnoId: string;
 };

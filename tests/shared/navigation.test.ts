@@ -35,6 +35,7 @@ describe("navigation tree", () => {
         "worker-create",
         "shift-calendar",
         "shift-create",
+        "shift-edit",
         "attendance",
         "remuneracion-create",
         "configuracion-previsional",
@@ -169,7 +170,7 @@ describe("navigation tree", () => {
   });
 
   it("keeps shift creation exclusive to the owner (CU28 calendar is shared)", () => {
-    for (const path of ["/app/personal/turnos/nuevo"]) {
+    for (const path of ["/app/personal/turnos/nuevo", "/app/personal/turnos/turno-id/editar"]) {
       expect(
         evaluateRouteAccess(path, {
           isAuthenticated: true,
