@@ -5,7 +5,10 @@ import type {
   PaymentMethod,
   SaleState,
 } from "../../../shared/sales";
-import { formatChileanPeso } from "../../../shared/sales";
+import {
+  formatChileanPeso,
+  formatSaleResponsibleRole,
+} from "../../../shared/sales";
 
 type DailySalesState =
   | { status: "loading" }
@@ -141,7 +144,7 @@ export function DailySalesView({
                       {formatTime(venta.fechaHora)}
                     </td>
                     <td className="px-4 py-4 text-[#24313d]">
-                      {venta.trabajadorResponsable}
+                      {venta.responsable.nombre} · {formatSaleResponsibleRole(venta.responsable.rol)}
                     </td>
                     <td className="px-4 py-4 text-right text-[#24313d]">
                       {venta.cantidadProductos}

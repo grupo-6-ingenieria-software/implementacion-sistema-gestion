@@ -59,6 +59,15 @@ import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
+import {
+  clearPendingSaleResume,
+  clearSaleDraft,
+  markSaleDraftForResume,
+  readPendingSaleUserId,
+  readSaleDraft,
+} from "./sale-draft";
+
+const SALE_REGISTER_PATH = "/app/ventas/registrar";
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -87,15 +96,25 @@ export function App(): ReactElement {
   const [notice, setNotice] = useState<string | null>(null);
   const lastRouteAuditKey = useRef<string | null>(null);
   const isAuthenticatedRef = useRef(session.isAuthenticated);
+  const currentPathRef = useRef(path);
+  const postLoginRouteRef = useRef<string | null>(null);
+  const postPasswordRouteRef = useRef<string | null>(null);
 
   isAuthenticatedRef.current = session.isAuthenticated;
+  currentPathRef.current = path;
 
-  const expireSession = useRef((): void => {
-    window.appApi.setSessionToken(null);
-    setSession(defaultSession);
-    setNotice(SESSION_EXPIRED_MESSAGE);
-    navigate(PUBLIC_LOGIN_PATH);
-  }).current;
+  const expireSession = useRef(
+    (message = SESSION_EXPIRED_MESSAGE, resumeSale = false): void => {
+      const draft = readSaleDraft();
+      if (!resumeSale && currentPathRef.current === SALE_REGISTER_PATH && draft) {
+        markSaleDraftForResume(draft.usuarioId);
+      }
+      window.appApi.setSessionToken(null);
+      setSession(defaultSession);
+      setNotice(message);
+      navigate(PUBLIC_LOGIN_PATH);
+    },
+  ).current;
 
   useEffect(
     () =>
@@ -112,6 +131,30 @@ export function App(): ReactElement {
   }, []);
 
   useEffect(() => {
+    if (
+      path === PUBLIC_LOGIN_PATH &&
+      session.isAuthenticated &&
+      !session.passwordChangeRequired &&
+      postLoginRouteRef.current
+    ) {
+      const target = postLoginRouteRef.current;
+      postLoginRouteRef.current = null;
+      navigate(target);
+      return;
+    }
+
+    if (
+      path === PASSWORD_CHANGE_PATH &&
+      session.isAuthenticated &&
+      !session.passwordChangeRequired &&
+      postPasswordRouteRef.current
+    ) {
+      const target = postPasswordRouteRef.current;
+      postPasswordRouteRef.current = null;
+      navigate(target);
+      return;
+    }
+
     const decision = evaluateRouteAccess(path, session);
 
     auditRouteAccess(path, session, decision, lastRouteAuditKey);
@@ -189,13 +232,32 @@ export function App(): ReactElement {
     window.appApi.setSessionToken(data.token);
     setNotice(null);
     setSession(nextSession);
-    navigate(resolveInitialRoute(nextSession));
+    const draft = readSaleDraft();
+    if (draft && draft.usuarioId !== data.usuarioId) {
+      clearSaleDraft();
+      clearPendingSaleResume();
+    }
+    const shouldResumeSale =
+      readPendingSaleUserId() === data.usuarioId &&
+      draft?.usuarioId === data.usuarioId;
+    if (!shouldResumeSale) clearPendingSaleResume();
+
+    if (data.passwordChangeRequired) {
+      navigate(resolveInitialRoute(nextSession));
+      return;
+    }
+
+    postLoginRouteRef.current = shouldResumeSale
+      ? SALE_REGISTER_PATH
+      : APP_HOME_PATH;
+    clearPendingSaleResume();
   };
 
   const logout = (): void => {
     void window.appApi.invoke("auth:logout", {}).catch(() => undefined);
     window.appApi.setSessionToken(null);
     setSession(defaultSession);
+    clearPendingSaleResume();
     navigate(PUBLIC_LOGIN_PATH);
   };
 
@@ -205,7 +267,14 @@ export function App(): ReactElement {
       passwordChangeRequired: false,
     };
     setSession(nextSession);
-    navigate(APP_HOME_PATH);
+    const draft = readSaleDraft();
+    const pendingUserId = readPendingSaleUserId();
+    const shouldResumeSale =
+      pendingUserId !== null && draft?.usuarioId === pendingUserId;
+    postPasswordRouteRef.current = shouldResumeSale
+      ? SALE_REGISTER_PATH
+      : APP_HOME_PATH;
+    clearPendingSaleResume();
   };
 
   if (path === PUBLIC_LOGIN_PATH) {
@@ -228,6 +297,7 @@ export function App(): ReactElement {
       session={session}
       onNavigate={navigate}
       onLogout={logout}
+      onAuthenticationRequired={(message) => expireSession(message, true)}
     />
   );
 }
@@ -552,11 +622,13 @@ export function AppShell({
   session,
   onNavigate,
   onLogout,
+  onAuthenticationRequired,
 }: {
   currentPath: string;
   session: AppSession;
   onNavigate: (path: string) => void;
   onLogout: () => void;
+  onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
   const [shiftNotice, setShiftNotice] = useState<{ path: string; message: string } | null>(null);
   const consumeShiftNotice = useCallback(() => setShiftNotice(null), []);
@@ -648,6 +720,7 @@ export function AppShell({
           shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
           onShiftNoticeConsumed={consumeShiftNotice}
           onShiftEditSaved={onShiftEditSaved}
+          onAuthenticationRequired={onAuthenticationRequired}
         />
       </main>
     </div>
@@ -696,6 +769,7 @@ function ViewRenderer({
   shiftSuccessMessage,
   onShiftNoticeConsumed,
   onShiftEditSaved,
+  onAuthenticationRequired,
 }: {
   currentPath: string;
   node: NavNode;
@@ -704,6 +778,7 @@ function ViewRenderer({
   shiftSuccessMessage: string | null;
   onShiftNoticeConsumed: () => void;
   onShiftEditSaved: (path: string) => void;
+  onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
   if (node.id === "dashboard" && session.role) {
     return (
@@ -744,7 +819,12 @@ function ViewRenderer({
   }
 
   if (node.id === "sale-register") {
-    return <SaleRegisterView session={session} />;
+    return (
+      <SaleRegisterView
+        session={session}
+        onAuthenticationRequired={onAuthenticationRequired}
+      />
+    );
   }
 
   if (node.id === "waste-create" && session.usuarioId) {
