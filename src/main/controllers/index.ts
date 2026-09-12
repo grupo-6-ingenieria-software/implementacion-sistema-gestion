@@ -30,6 +30,9 @@ import { stockDiscountController } from "./stock-discount";
 import { supplierOrderController } from "./supplier-order";
 import { supplierOrderReceptionController } from "./supplier-order-reception";
 import { userManagementController } from "./user-management";
+import { movementHistoryController } from "./movement-history";
+import { productDetailController } from "./product-detail";
+import { stockAdjustmentController } from "./stock-adjustment";
 import { wasteController } from "./waste";
 import { workerController } from "./worker";
 import type { RegisteredController } from "./base";
@@ -62,6 +65,9 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     eanReaderController,
     userManagementController,
     productDeleteController,
+    productDetailController,
+    stockAdjustmentController,
+    movementHistoryController,
     remuneracionController,
     configPrevisionalController,
     supplierOrderController,

@@ -24,7 +24,7 @@ import { authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 import { ensureVigentTasas } from "./configuracion-previsional";
 
-const metadata = controllers[26];
+const metadata = controllers[29];
 
 export type RemuneracionActor = {
   role: "dueno";
