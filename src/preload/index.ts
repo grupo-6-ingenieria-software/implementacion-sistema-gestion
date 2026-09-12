@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ControllerResponse } from "../shared/controllers";
 import { DASHBOARD_UPDATED_EVENT } from "../shared/dashboard";
-import { SESSION_EXPIRED_EVENT } from "../shared/auth";
+import { SESSION_EXPIRED_EVENT, SESSION_INVALIDATED_EVENT } from "../shared/auth";
 import { SUPPLIER_ORDERS_UPDATED_EVENT } from "../shared/supplier-orders";
 
 export type AppApi = {
@@ -14,6 +14,9 @@ export type AppApi = {
   setSessionToken: (token: string | null) => void;
   onDashboardUpdated: (listener: () => void) => () => void;
   onSessionExpired: (listener: () => void) => () => void;
+  onSessionInvalidated: (
+    listener: (payload: { usuarioId: string }) => void,
+  ) => () => void;
   onSupplierOrdersUpdated: (listener: () => void) => () => void;
 };
 
@@ -52,6 +55,17 @@ const api: AppApi = {
 
     return () => {
       ipcRenderer.removeListener(SESSION_EXPIRED_EVENT, handleExpired);
+    };
+  },
+  onSessionInvalidated: (listener) => {
+    const handleInvalidated = (
+      _event: Electron.IpcRendererEvent,
+      payload: { usuarioId: string },
+    ): void => listener(payload);
+    ipcRenderer.on(SESSION_INVALIDATED_EVENT, handleInvalidated);
+
+    return () => {
+      ipcRenderer.removeListener(SESSION_INVALIDATED_EVENT, handleInvalidated);
     };
   },
   onSupplierOrdersUpdated: (listener) => {

@@ -3,7 +3,13 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { sql } from 'drizzle-orm';
-import { createWorkerController, createWorkerWithExecutor } from '../../src/main/controllers/worker';
+import {
+  changeStatusWithExecutor,
+  createWorkerController,
+  createWorkerWithExecutor,
+  listWorkersWithExecutor,
+  updateWorkerWithExecutor,
+} from '../../src/main/controllers/worker';
 import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/shift';
 import { normalizeShiftCreatePayload } from '../../src/shared/shifts';
 import * as schema from '../../src/db/schema';
@@ -25,11 +31,13 @@ const controller = createWorkerController({
   authorize: async () => ({
     role: 'dueno', usuarioId: '11111111-1', usuarioRol: 'dueno', trabajadorNombre: 'Dueño',
   }),
-  changeStatus: async () => { throw new Error('unexpected changeStatus'); },
+  changeStatus: (payload, sesionRol) =>
+    changeStatusWithExecutor(fixture.db, schema, payload, sesionRol),
   createWorker: (payload) => createWorkerWithExecutor(fixture.db, schema, payload),
-  listWorkers: async () => [],
+  listWorkers: (filters) => listWorkersWithExecutor(fixture.db, schema, filters),
   listActiveWorkers: async () => [],
-  updateWorker: async () => { throw new Error('unexpected updateWorker'); },
+  updateWorker: (payload, sesionRol) =>
+    updateWorkerWithExecutor(fixture.db, schema, payload, sesionRol),
 });
 
 const server = await createServer({
@@ -142,6 +150,79 @@ try {
   const shiftRows = await fixture.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM turno`);
   assert.equal(Number(shiftRows[0]?.total), 0);
   console.log('PASS RF25 E1/E3 vista → IPC → validación SQL real');
+
+  await page.goto(`${baseUrl}?view=list`);
+  await page.getByText('11111111-1').waitFor();
+  await page.getByRole('button', { name: 'Registrar trabajador' }).waitFor();
+  await page.getByRole('button', { name: 'Editar' }).waitFor();
+  await page.getByRole('button', { name: 'Inactivar' }).waitFor();
+  console.log('PASS CU24 dueno ve tabla y acciones administrativas');
+
+  await page.goto(`${baseUrl}?view=list&role=trabajador`);
+  await page.getByText('11111111-1').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Registrar trabajador' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Editar' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Inactivar' }).count(), 0);
+  await page.getByRole('button', { name: 'Turnos' }).waitFor();
+  const listarCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  assert.ok(listarCalls.some((call) => call.channel === 'trabajador:listar' && call.payload.usuarioId === '11111111-1'));
+  console.log('PASS CU24 trabajador consulta sin acciones administrativas');
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('zzz');
+  await page.getByText('No se encontraron trabajadores').waitFor();
+  const filterCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  const lastListar = [...filterCalls].reverse().find((call) => call.channel === 'trabajador:listar');
+  assert.equal(lastListar?.payload.search, 'zzz');
+  assert.equal(lastListar?.payload.rol, 'todos');
+  assert.equal(lastListar?.payload.estado, 'todos');
+  console.log('PASS CU24 filtro reinvoca trabajador:listar y muestra lista vacia');
+
+
+  await page.goto(`${baseUrl}?view=list`);
+  await page.getByRole('button', { name: 'Editar' }).click();
+  await page.getByText('Modificar trabajador').waitFor();
+  const rutInput = page.getByLabel('RUT', { exact: true });
+  assert.equal(await rutInput.isDisabled(), true, 'el RUT debe quedar bloqueado en edicion');
+
+  await page.getByLabel('Nombre completo').fill('');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await page.getByText('Ingrese el nombre completo.').waitFor();
+  let editCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string }> }).calls);
+  assert.equal(editCalls.filter((call) => call.channel === 'trabajador:actualizar').length, 0, 'el error preventivo no debe invocar IPC');
+
+  await page.getByLabel('Nombre completo').fill('María González Huáscar');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await page.getByText('Trabajador actualizado correctamente.').waitFor();
+  editCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string }> }).calls);
+  assert.equal(editCalls.filter((call) => call.channel === 'trabajador:actualizar').length, 1);
+  console.log('PASS CU22 edicion en modal: RUT bloqueado, error preventivo sin IPC y guardado exitoso');
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('99999999');
+  assert.equal(await page.getByLabel('Buscar por nombre o RUT').inputValue(), '9999999-9', 'el RUT se formatea con guion al escribir');
+  await page.getByText('Trabajador no encontrado').waitFor();
+  console.log('PASS CU22-E1 RUT exacto inexistente muestra Trabajador no encontrado');
+
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('');
+  await page.getByRole('button', { name: 'Inactivar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor();
+  await page.getByText('se cerraran sus sesiones abiertas').waitFor();
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor({ state: 'detached' });
+  let statusCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  assert.equal(statusCalls.filter((call) => call.channel === 'trabajador:cambiar-estado').length, 0, 'cancelar no debe invocar IPC');
+
+  await page.getByRole('button', { name: 'Inactivar' }).click();
+  await page.getByText('Cambiar estado del trabajador').waitFor();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByText('Trabajador inactivo.').waitFor();
+  statusCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  const ultimoEstado = [...statusCalls].reverse().find((call) => call.channel === 'trabajador:cambiar-estado');
+  assert.equal(ultimoEstado?.payload.confirmacion, true);
+  assert.equal(ultimoEstado?.payload.estado, 'inactivo');
+  assert.equal(ultimoEstado?.payload.usuarioObjetivoId, '11111111-1');
+  console.log('PASS CU23-E2/CU23 confirmacion de estado: cancelar sin IPC y confirmar con payload completo');
+
 } finally {
   await browser.close();
   await server.close();

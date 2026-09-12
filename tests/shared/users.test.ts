@@ -8,6 +8,7 @@ import {
   normalizeUserFormPayload,
   normalizeUserListPayload,
   normalizeUserRole,
+  normalizeUserStatusChangePayload,
   validateUserFormValues,
   type UserListItem,
 } from "../../src/shared/users";
@@ -149,5 +150,29 @@ describe("user list helpers", () => {
     );
 
     expect(hasUserFieldErrors(errors)).toBe(false);
+  });
+});
+
+describe("normalizeUserStatusChangePayload", () => {
+  it("keeps an explicit confirmation and defaults it to false", () => {
+    expect(
+      normalizeUserStatusChangePayload({
+        confirmacion: true,
+        estado: "inactivo",
+        usuarioObjetivoId: "23456789-0",
+      }),
+    ).toEqual({
+      confirmacion: true,
+      estado: "inactivo",
+      usuarioId: undefined,
+      usuarioObjetivoId: "23456789-0",
+    });
+
+    expect(
+      normalizeUserStatusChangePayload({
+        estado: "activo",
+        usuarioObjetivoId: "23456789-0",
+      }).confirmacion,
+    ).toBe(false);
   });
 });

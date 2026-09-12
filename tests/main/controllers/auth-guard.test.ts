@@ -11,6 +11,7 @@ import {
 } from "../../../src/main/controllers/auth-guard";
 import { registerAuditLog } from "../../../src/main/controllers/auth-context";
 import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+import { SESSION_INVALIDATED_MESSAGE } from "../../../src/shared/auth";
 import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
 import {
   createAuthTestDatabase,
@@ -367,5 +368,27 @@ describe("guardChannel audit persistence", () => {
       sql`SELECT COUNT(*) AS total FROM log_auditoria WHERE log_tipo_accion = 'acceso_denegado'`,
     );
     expect(Number(rows[0]?.total)).toBe(1);
+  });
+});
+
+describe("authorizeRequest con sesion revocada (CU23/D10)", () => {
+  it("reports the revocation message when the session was closed by the system", async () => {
+    const token = signSessionToken(claimsFor("dueno"));
+
+    const result = await authorizeRequest(
+      "producto:listar",
+      { __authToken: token },
+      undefined,
+      {
+        identity: guardChannel,
+        session: async () => ({ active: false, reason: "sistema" }),
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && !result.response.ok) {
+      expect(result.response.error.code).toBe("FORBIDDEN");
+      expect(result.response.error.message).toBe(SESSION_INVALIDATED_MESSAGE);
+    }
   });
 });

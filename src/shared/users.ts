@@ -45,6 +45,7 @@ export type UserMutationResponse = {
 };
 
 export type UserStatusChangePayload = {
+  confirmacion: boolean;
   estado: UserStatus;
   usuarioId?: string;
   usuarioObjetivoId: string;
@@ -123,6 +124,7 @@ export function normalizeUserStatusChangePayload(
       : {};
 
   return {
+    confirmacion: record.confirmacion === true,
     estado: record.estado === "inactivo" ? "inactivo" : "activo",
     usuarioId:
       typeof record.usuarioId === "string"
@@ -250,13 +252,29 @@ export function filterAndSortUserList(
     ].some((value) => normalizeSearch(value).includes(search));
   });
 
-  return filtered.sort((left, right) => {
+  return sortUserList(filtered, filters);
+}
+
+/** Ordena solo por la columna y dirección elegidas; sin filtrar (CU24, D4). */
+export function sortUserList(
+  users: readonly UserListItem[],
+  filters: Pick<UserListFilters, "sortBy" | "sortDirection">,
+): UserListItem[] {
+  return [...users].sort((left, right) => {
     const direction = filters.sortDirection === "desc" ? -1 : 1;
     const leftValue = getSortValue(left, filters.sortBy);
     const rightValue = getSortValue(right, filters.sortBy);
 
     return leftValue.localeCompare(rightValue, "es") * direction;
   });
+}
+
+/**
+ * Término de búsqueda en minúsculas y sin tildes, para comparar contra la
+ * columna normalizada en SQL (CU24/D4).
+ */
+export function normalizeSearchTerm(value: string): string {
+  return normalizeSearch(value);
 }
 
 export function normalizeUserRole(value: unknown): UserRole | null {

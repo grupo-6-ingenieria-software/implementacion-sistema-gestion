@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactElement } from "react";
 import {
   normalizeUserFormPayload,
+  validateUserFormValues,
   type UserFieldErrors,
   type UserFormValues,
   type UserMutationResponse,
@@ -22,13 +23,24 @@ function roleLabel(role: UserRole): string {
 type WorkerFormViewProps = {
   usuarioId: string;
   onNavigate: (path: string) => void;
+  mode?: "create" | "edit";
+  initialValues?: UserFormValues;
+  onClose?: () => void;
+  onSaved?: () => void;
 };
 
 export function WorkerFormView({
+  initialValues,
+  mode = "create",
+  onClose,
   onNavigate,
+  onSaved,
   usuarioId,
 }: WorkerFormViewProps): ReactElement {
-  const [form, setForm] = useState<UserFormValues>(emptyWorkerForm);
+  const isEdit = mode === "edit";
+  const [form, setForm] = useState<UserFormValues>(
+    initialValues ?? emptyWorkerForm,
+  );
   const [fieldErrors, setFieldErrors] = useState<UserFieldErrors>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,12 +53,27 @@ export function WorkerFormView({
     setMessage(null);
     setCreated(null);
 
+    const values = isEdit
+      ? { ...parsedValues, rut: initialValues?.rut ?? parsedValues.rut }
+      : parsedValues;
+
+    if (isEdit) {
+      const errors = validateUserFormValues(values, {
+        validateRutFormat: false,
+      });
+      setFieldErrors(errors);
+
+      if (Object.keys(errors).length > 0) {
+        return;
+      }
+    }
+
     setSaving(true);
 
     const response = await window.appApi.invoke<UserMutationResponse>(
-      "trabajador:registrar",
+      isEdit ? "trabajador:actualizar" : "trabajador:registrar",
       {
-        ...parsedValues,
+        ...values,
         usuarioId,
       },
     );
@@ -56,6 +83,11 @@ export function WorkerFormView({
     if (!response.ok) {
       setFieldErrors(response.error.fieldErrors ?? {});
       setMessage(response.error.message);
+      return;
+    }
+
+    if (isEdit) {
+      onSaved?.();
       return;
     }
 
@@ -71,19 +103,20 @@ export function WorkerFormView({
         <div>
           <p className="text-sm font-semibold text-[#2d6a4f]">Personal</p>
           <h3 className="mt-2 text-2xl font-semibold text-[#17202a]">
-            Registrar trabajador
+            {isEdit ? "Modificar trabajador" : "Registrar trabajador"}
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-[#61717f]">
-            Ingresa los datos del trabajador. La cuenta de acceso se crea con el
-            RUT y una contrasena temporal.
+            {isEdit
+              ? "Edita los datos permitidos del trabajador. El RUT identifica la cuenta y no se modifica."
+              : "Ingresa los datos del trabajador. La cuenta de acceso se crea con el RUT y una contrasena temporal."}
           </p>
         </div>
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
-          onClick={() => onNavigate("/app/personal/trabajadores")}
+          onClick={() => (isEdit ? onClose?.() : onNavigate("/app/personal/trabajadores"))}
         >
-          Volver a trabajadores
+          {isEdit ? "Cerrar" : "Volver a trabajadores"}
         </button>
       </div>
 
@@ -99,7 +132,8 @@ export function WorkerFormView({
           <div className="grid gap-5 md:grid-cols-2">
             <Field label="RUT" error={fieldErrors.rut}>
               <input
-                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
+                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 disabled:cursor-not-allowed disabled:bg-[#f6f7f9]"
+                disabled={isEdit}
                 placeholder="12345678-9"
                 value={form.rut}
                 onChange={(event) =>
@@ -215,12 +249,18 @@ export function WorkerFormView({
               disabled={saving}
               type="submit"
             >
-              {saving ? "Guardando..." : "Guardar trabajador"}
+              {saving
+                ? "Guardando..."
+                : isEdit
+                  ? "Guardar cambios"
+                  : "Guardar trabajador"}
             </button>
             <button
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => onNavigate("/app/personal/trabajadores")}
+              onClick={() =>
+                isEdit ? onClose?.() : onNavigate("/app/personal/trabajadores")
+              }
             >
               Cancelar
             </button>
