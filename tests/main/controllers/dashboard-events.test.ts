@@ -74,11 +74,22 @@ import { notifyDashboardUpdated } from "../../../src/main/controllers/dashboard-
 import { notifySaleAnnulled } from "../../../src/main/controllers/sale-annulment-events";
 import {
   SaleBusinessError,
-  type SaleReceipt,
 } from "../../../src/main/controllers/sale-service";
+import type { SaleReceipt } from "../../../src/shared/sales";
 import { saleController } from "../../../src/main/controllers/sale";
 import { cashClosingController } from "../../../src/main/controllers/cash-closing";
 import type { CashCloseResult } from "../../../src/shared/cash";
+
+const saleContext = {
+  channel: "venta:registrar",
+  claims: {
+    usuarioId: "usuario-1",
+    sesionId: "00000000-0000-4000-8000-000000000091",
+    rol: "trabajador" as const,
+    usuarioRol: "trabajador",
+    passwordTemporal: false,
+  },
+};
 
 beforeEach(() => {
   send.mockClear();
@@ -161,7 +172,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response.ok).toBe(true);
@@ -181,7 +192,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response).toEqual({
@@ -205,7 +216,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response.ok).toBe(false);

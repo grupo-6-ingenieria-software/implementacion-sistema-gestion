@@ -77,7 +77,7 @@ async function installBridge(page) {
       ventaId: id,
       fechaHora: "2026-09-11T16:00:00.000Z",
       estado: window.detailState === "annulled" ? "anulada" : "confirmada",
-      responsable: { usuarioId: "12345678-9", nombre: "Ana Prueba" },
+      responsable: { usuarioId: "12345678-9", nombre: "Ana Prueba", rol: "dueno" },
       productos: [
         {
           productoId: 1,
@@ -113,7 +113,7 @@ async function installBridge(page) {
                 {
                   ventaId: id,
                   fechaHora: "2026-09-11T16:00:00.000Z",
-                  trabajadorResponsable: "Ana Prueba",
+                  responsable: { usuarioId: "12345678-9", nombre: "Ana Prueba", rol: "dueno" },
                   cantidadProductos: 3,
                   total: 2500,
                   metodoPago: "efectivo",
@@ -122,7 +122,7 @@ async function installBridge(page) {
                 {
                   ventaId: "00000000-0000-4000-8000-000000000402",
                   fechaHora: "2026-09-11T15:00:00.000Z",
-                  trabajadorResponsable: "Ana Prueba",
+                  responsable: { usuarioId: "12345678-9", nombre: "Ana Prueba", rol: "dueno" },
                   cantidadProductos: 1,
                   total: 1000,
                   metodoPago: "debito",
@@ -185,7 +185,7 @@ async function installBridge(page) {
 }
 
 async function assertDetail(page) {
-  await page.getByText("Ana Prueba", { exact: true }).waitFor();
+  await page.getByText("Ana Prueba · Dueño", { exact: true }).waitFor();
   await page.getByText("Leche", { exact: true }).waitFor();
   await page.getByText("7802920000015", { exact: true }).waitFor();
   await page.getByText("$ 2.500", { exact: true }).waitFor();

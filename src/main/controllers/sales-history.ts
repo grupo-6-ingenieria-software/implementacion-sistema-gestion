@@ -16,6 +16,7 @@ import {
   type SaleHistoryListItem,
   type SaleHistorySearchRequest,
   type SaleHistorySearchResult,
+  type SaleResponsibleSnapshot,
   type SaleSearchRequest,
   type SaleSearchResult,
 } from "../../shared/sales";
@@ -45,6 +46,8 @@ type DailySaleHeaderRow = {
   discountType: "ninguno" | "porcentaje" | "monto";
   discountValue: number | null;
   usuarioId: string;
+  responsable: string;
+  responsableRol: SaleResponsibleSnapshot["rol"];
 };
 
 type SaleDetailHeaderRow = {
@@ -58,6 +61,7 @@ type SaleDetailHeaderRow = {
   montoRecibido: number | null;
   usuarioId: string;
   responsable: string;
+  responsableRol: SaleResponsibleSnapshot["rol"];
   cierreCajaId: string;
   cajaEstado: "abierto" | "cerrado";
   fechaApertura: string;
@@ -74,6 +78,7 @@ type SaleHistoryHeaderRow = {
   discountValue: number | null;
   usuarioId: string;
   responsable: string;
+  responsableRol: SaleResponsibleSnapshot["rol"];
   cajaEstado: "abierto" | "cerrado";
   anulacionVentaId: string | null;
   subtotal: number;
@@ -140,15 +145,14 @@ export async function loadSaleDetail(
       v.venta_metodo_pago AS metodoPago,
       ve.venta_efectivo_monto_recibido AS montoRecibido,
       v.usuario_cajero_id AS usuarioId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS responsable,
+      v.venta_responsable_nombre AS responsable,
+      v.venta_responsable_rol AS responsableRol,
       c.cierre_caja_id AS cierreCajaId,
       c.cierre_estado AS cajaEstado,
       c.cierre_fecha_hora_inicio AS fechaApertura,
       c.cierre_fecha_hora_fin AS fechaCierre,
       av.anulacion_venta_id AS anulacionVentaId
     FROM venta v
-    JOIN usuario u ON u.usuario_id = v.usuario_cajero_id
-    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
     JOIN cierre_caja c ON c.cierre_caja_id = v.cierre_caja_id
     LEFT JOIN venta_efectivo ve ON ve.venta_id = v.venta_id
     LEFT JOIN anulacion_venta av ON av.venta_id = v.venta_id
@@ -210,6 +214,7 @@ export async function loadSaleDetail(
     responsable: {
       usuarioId: header.usuarioId,
       nombre: header.responsable,
+      rol: header.responsableRol,
     },
     productos,
     descuento: {
@@ -279,7 +284,8 @@ export async function searchSalesHistory(
       v.venta_descuento_tipo AS discountType,
       v.venta_descuento_valor AS discountValue,
       v.usuario_cajero_id AS usuarioId,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS responsable,
+      v.venta_responsable_nombre AS responsable,
+      v.venta_responsable_rol AS responsableRol,
       c.cierre_estado AS cajaEstado,
       av.anulacion_venta_id AS anulacionVentaId,
       COALESCE(SUM(
@@ -291,8 +297,6 @@ export async function searchSalesHistory(
         THEN 1 ELSE 0
       END AS esDelDia
     FROM venta v
-    JOIN usuario u ON u.usuario_id = v.usuario_cajero_id
-    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
     JOIN cierre_caja c ON c.cierre_caja_id = v.cierre_caja_id
     LEFT JOIN anulacion_venta av ON av.venta_id = v.venta_id
     LEFT JOIN detalle_venta dv ON dv.venta_id = v.venta_id
@@ -307,8 +311,8 @@ export async function searchSalesHistory(
       v.venta_descuento_tipo,
       v.venta_descuento_valor,
       v.usuario_cajero_id,
-      t.trabajador_nombre,
-      t.trabajador_apellido,
+      v.venta_responsable_nombre,
+      v.venta_responsable_rol,
       c.cierre_estado,
       av.anulacion_venta_id
     ORDER BY datetime(v.venta_fecha_hora) DESC, v.venta_id DESC
@@ -331,6 +335,7 @@ export async function searchSalesHistory(
       responsable: {
         usuarioId: row.usuarioId,
         nombre: row.responsable,
+        rol: row.responsableRol,
       },
       total,
       metodoPago: row.metodoPago,
@@ -438,8 +443,10 @@ export async function loadDailySalesHistory(
       v.venta_metodo_pago AS metodoPago,
       v.venta_estado AS estado,
       v.venta_descuento_tipo AS discountType,
-      v.venta_descuento_valor AS discountValue
-      , v.usuario_cajero_id AS usuarioId
+      v.venta_descuento_valor AS discountValue,
+      v.usuario_cajero_id AS usuarioId,
+      v.venta_responsable_nombre AS responsable,
+      v.venta_responsable_rol AS responsableRol
     FROM venta v
     WHERE
       datetime(v.venta_fecha_hora) >= datetime(${startUtc})
@@ -484,32 +491,6 @@ export async function loadDailySalesHistory(
       sql`, `,
     )})
   `);
-  const userIds = [...new Set(saleRows.map((row) => row.usuarioId))];
-  const userRows = await database.all<{
-    usuarioId: string;
-    trabajadorId: number;
-  }>(sql`
-    SELECT usuario_id AS usuarioId, trabajador_id AS trabajadorId
-    FROM usuario
-    WHERE usuario_id IN (${sql.join(
-      userIds.map((id) => sql`${id}`),
-      sql`, `,
-    )})
-  `);
-  const workerIds = [...new Set(userRows.map((row) => row.trabajadorId))];
-  const workerRows =
-    workerIds.length === 0
-      ? []
-      : await database.all<{ trabajadorId: number; nombre: string }>(sql`
-    SELECT trabajador_id AS trabajadorId,
-      trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
-    FROM trabajador
-    WHERE trabajador_id IN (${sql.join(
-      workerIds.map((id) => sql`${id}`),
-      sql`, `,
-    )})
-  `);
-
   const annulmentRows = await database.all<{ ventaId: string }>(sql`
     SELECT venta_id AS ventaId
     FROM anulacion_venta
@@ -533,22 +514,18 @@ export async function loadDailySalesHistory(
       (prices.get(detail.historialPrecioProductoId) ?? 0);
     details.set(detail.ventaId, current);
   }
-  const users = new Map(
-    userRows.map((row) => [row.usuarioId, row.trabajadorId]),
-  );
-  const workers = new Map(
-    workerRows.map((row) => [row.trabajadorId, row.nombre]),
-  );
   const annulled = new Set(annulmentRows.map((row) => row.ventaId));
 
   const ventas = saleRows.map<DailySale>((row) => {
     const detail = details.get(row.ventaId);
-    const workerId = users.get(row.usuarioId);
     return {
       ventaId: row.ventaId,
       fechaHora: row.fechaHora,
-      trabajadorResponsable:
-        workerId === undefined ? "" : (workers.get(workerId) ?? ""),
+      responsable: {
+        usuarioId: row.usuarioId,
+        nombre: row.responsable,
+        rol: row.responsableRol,
+      },
       cantidadProductos: Number(detail?.cantidadProductos ?? 0),
       total: calculateRecordedSaleTotal({
         subtotal: Number(detail?.subtotal ?? 0),

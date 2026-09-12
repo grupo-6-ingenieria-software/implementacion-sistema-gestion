@@ -14,17 +14,28 @@ import {
 import { isValidEan13 } from "../../../shared/ean13";
 import {
   calculateSaleTotals,
+  formatSaleResponsibleRole,
   validateSaleDiscount,
   type SaleDiscountInput,
   type DailyCashState,
   type PaymentMethod,
   type SaleCartValidationResult,
+  type SaleReceipt,
+  type SaleRegisterRequest,
 } from "../../../shared/sales";
+import type { Role } from "../../../shared/navigation";
+import {
+  SALE_DRAFT_VERSION,
+  clearSaleDraft,
+  markSaleDraftForResume,
+  readSaleDraft,
+  writeSaleDraft,
+} from "../sale-draft";
 
 type SessionForSale = {
   usuarioId?: string;
   trabajadorNombre?: string;
-  usuarioRol?: string;
+  role?: Role;
 };
 
 type ActiveProduct = {
@@ -40,41 +51,14 @@ type CartItem = ActiveProduct & {
   cantidad: number;
 };
 
-type SaleReceipt = {
-  ventaId: string;
-  fechaHora: string;
-  responsable: {
-    usuarioId: string;
-    nombre: string;
-    rol: string;
-  };
-  metodoPago: PaymentMethod;
-  subtotal: number;
-  descuento: {
-    tipo: "ninguno" | "monto";
-    valor: number;
-    razon?: string;
-  };
-  total: number;
-  montoRecibido?: number;
-  vuelto?: number;
-  detalle: Array<{
-    productoId: number;
-    ean13: string;
-    nombre: string;
-    categoria: string;
-    precioUnitario: number;
-    cantidad: number;
-    subtotal: number;
-  }>;
-};
-
 type SaleRegisterViewProps = {
   session: SessionForSale;
+  onAuthenticationRequired?: (message: string) => void;
 };
 
 export function SaleRegisterView({
   session,
+  onAuthenticationRequired,
 }: SaleRegisterViewProps): ReactElement {
   const [ean13, setEan13] = useState("");
   const [query, setQuery] = useState("");
@@ -92,11 +76,13 @@ export function SaleRegisterView({
   const [isValidatingCart, setIsValidatingCart] = useState(false);
   const [cartRevision, setCartRevision] = useState(0);
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const cartRef = useRef<CartItem[]>([]);
   const pendingCartRef = useRef<CartItem[] | null>(null);
   const productRequestRef = useRef(0);
   const cartValidationRequestRef = useRef(0);
   const savingRef = useRef(false);
+  const cartValidatedRef = useRef(false);
 
   const baseTotals = useMemo(
     () =>
@@ -119,6 +105,47 @@ export function SaleRegisterView({
     descuento: discount?.monto ?? 0,
     total: discountError ? null : baseTotals.subtotal - (discount?.monto ?? 0),
   };
+
+  useEffect(() => {
+    setDraftReady(false);
+    const draft = readSaleDraft();
+    if (!session.usuarioId || !draft) {
+      setDraftReady(true);
+      return;
+    }
+    if (draft.usuarioId !== session.usuarioId) {
+      clearSaleDraft();
+      setDraftReady(true);
+      return;
+    }
+
+    cartValidatedRef.current = false;
+    pendingCartRef.current = null;
+    cartRef.current = draft.cart;
+    setCart(draft.cart);
+    setMetodoPago(draft.metodoPago);
+    setMontoRecibido(draft.montoRecibido);
+    setDiscount(draft.descuento);
+    setIsCartValid(false);
+    setDraftReady(true);
+    void validateCart(draft.cart, true);
+  }, [session.usuarioId]);
+
+  useEffect(() => {
+    if (!draftReady || !session.usuarioId) return;
+    if (cart.length === 0) {
+      clearSaleDraft();
+      return;
+    }
+    writeSaleDraft({
+      version: SALE_DRAFT_VERSION,
+      usuarioId: session.usuarioId,
+      cart,
+      metodoPago,
+      montoRecibido,
+      descuento: discount,
+    });
+  }, [cart, discount, draftReady, metodoPago, montoRecibido, session.usuarioId]);
 
   useEffect(() => {
     void checkCash();
@@ -234,11 +261,15 @@ export function SaleRegisterView({
     void validateCart(next);
   }
 
-  async function validateCart(next: CartItem[]): Promise<void> {
+  async function validateCart(
+    next: CartItem[],
+    preserveUnvalidatedDraft = false,
+  ): Promise<void> {
     const requestId = ++cartValidationRequestRef.current;
     if (next.length === 0) {
       pendingCartRef.current = null;
       cartRef.current = [];
+      cartValidatedRef.current = false;
       setCart([]);
       setCartRevision((revision) => revision + 1);
       setIsCartValid(false);
@@ -263,7 +294,14 @@ export function SaleRegisterView({
     if (!response.ok) {
       setError(response.error.message);
       pendingCartRef.current = null;
-      setIsCartValid(cartRef.current.length > 0);
+      if (preserveUnvalidatedDraft) {
+        cartRef.current = next;
+        setCart(next);
+        cartValidatedRef.current = false;
+      }
+      setIsCartValid(
+        cartValidatedRef.current && cartRef.current.length > 0,
+      );
       setCartRevision((revision) => revision + 1);
       return;
     }
@@ -274,14 +312,19 @@ export function SaleRegisterView({
       const line = byId.get(item.productoId);
       return line
         ? {
-            ...item,
+            productoId: line.productoId,
+            ean13: line.ean13,
+            nombre: line.nombre,
+            categoria: line.categoria,
             precioVenta: line.precioUnitario,
             stockDisponible: line.stockDisponible,
+            cantidad: line.cantidad,
           }
         : item;
     });
     pendingCartRef.current = null;
     cartRef.current = refreshed;
+    cartValidatedRef.current = true;
     setCart(refreshed);
     setCartRevision((revision) => revision + 1);
     setError(null);
@@ -316,31 +359,45 @@ export function SaleRegisterView({
     savingRef.current = true;
     setIsSaving(true);
     try {
+      writeSaleDraft({
+        version: SALE_DRAFT_VERSION,
+        usuarioId: session.usuarioId,
+        cart,
+        metodoPago,
+        montoRecibido,
+        descuento: discount,
+      });
+      const request: SaleRegisterRequest = {
+        items: cart.map((item) => ({
+          productoId: item.productoId,
+          ean13: item.ean13,
+          cantidad: item.cantidad,
+        })),
+        metodoPago,
+        montoRecibido:
+          metodoPago === "efectivo"
+            ? montoRecibido === ""
+              ? (null as never)
+              : Number(montoRecibido)
+            : undefined,
+        descuento: discount ?? undefined,
+      };
       const response = await window.appApi.invoke<SaleReceipt>(
         "venta:registrar",
-        {
-          usuarioId: session.usuarioId,
-          items: cart.map((item) => ({
-            productoId: item.productoId,
-            ean13: item.ean13,
-            cantidad: item.cantidad,
-          })),
-          metodoPago,
-          montoRecibido:
-            metodoPago === "efectivo"
-              ? montoRecibido === ""
-                ? (null as never)
-                : Number(montoRecibido)
-              : undefined,
-          descuento: discount ?? undefined,
-        },
+        request,
       );
 
       if (!response.ok) {
+        if (response.error.code === "FORBIDDEN" && onAuthenticationRequired) {
+          markSaleDraftForResume(session.usuarioId);
+          onAuthenticationRequired(response.error.message);
+          return;
+        }
         setError(response.error.message);
         return;
       }
 
+      clearSaleDraft();
       setReceipt(response.data);
       setMessage(
         `Venta registrada por ${formatCurrency(response.data.total)}.`,
@@ -511,6 +568,20 @@ export function SaleRegisterView({
             <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
               <h3 className="text-lg font-semibold text-[#17202a]">Pago</h3>
               <div className="mt-4 grid gap-4">
+                <dl className="grid gap-2 rounded-md border border-[#d7dee6] bg-[#f8fafb] p-4 text-sm">
+                  <Info
+                    label="Responsable asignado"
+                    value={session.trabajadorNombre ?? "Sesión autenticada"}
+                  />
+                  <Info
+                    label="Rol"
+                    value={
+                      session.role
+                        ? formatSaleResponsibleRole(session.role)
+                        : "No disponible"
+                    }
+                  />
+                </dl>
                 <div className="grid gap-3">
                   <button
                     type="button"
@@ -686,6 +757,10 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
           value={new Date(receipt.fechaHora).toLocaleString("es-CL")}
         />
         <Info label="Responsable" value={receipt.responsable.nombre} />
+        <Info
+          label="Rol"
+          value={formatSaleResponsibleRole(receipt.responsable.rol)}
+        />
         <Info label="Método" value={receipt.metodoPago} />
       </dl>
       <div className="mt-4 grid gap-2">
