@@ -3,7 +3,11 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { sql } from 'drizzle-orm';
-import { createWorkerController, createWorkerWithExecutor } from '../../src/main/controllers/worker';
+import {
+  createWorkerController,
+  createWorkerWithExecutor,
+  listWorkersWithExecutor,
+} from '../../src/main/controllers/worker';
 import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/shift';
 import { normalizeShiftCreatePayload } from '../../src/shared/shifts';
 import * as schema from '../../src/db/schema';
@@ -27,7 +31,7 @@ const controller = createWorkerController({
   }),
   changeStatus: async () => { throw new Error('unexpected changeStatus'); },
   createWorker: (payload) => createWorkerWithExecutor(fixture.db, schema, payload),
-  listWorkers: async () => [],
+  listWorkers: (filters) => listWorkersWithExecutor(fixture.db, schema, filters),
   listActiveWorkers: async () => [],
   updateWorker: async () => { throw new Error('unexpected updateWorker'); },
 });
@@ -142,6 +146,33 @@ try {
   const shiftRows = await fixture.db.all<{ total: number }>(sql`SELECT COUNT(*) AS total FROM turno`);
   assert.equal(Number(shiftRows[0]?.total), 0);
   console.log('PASS RF25 E1/E3 vista → IPC → validación SQL real');
+
+  await page.goto(`${baseUrl}?view=list`);
+  await page.getByText('11111111-1').waitFor();
+  await page.getByRole('button', { name: 'Registrar trabajador' }).waitFor();
+  await page.getByRole('button', { name: 'Editar' }).waitFor();
+  await page.getByRole('button', { name: 'Inactivar' }).waitFor();
+  console.log('PASS CU24 dueno ve tabla y acciones administrativas');
+
+  await page.goto(`${baseUrl}?view=list&role=trabajador`);
+  await page.getByText('11111111-1').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Registrar trabajador' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Editar' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Inactivar' }).count(), 0);
+  await page.getByRole('button', { name: 'Turnos' }).waitFor();
+  const listarCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  assert.ok(listarCalls.some((call) => call.channel === 'trabajador:listar' && call.payload.usuarioId === '11111111-1'));
+  console.log('PASS CU24 trabajador consulta sin acciones administrativas');
+
+  await page.getByLabel('Buscar por nombre o RUT').fill('zzz');
+  await page.getByText('No se encontraron trabajadores').waitFor();
+  const filterCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);
+  const lastListar = [...filterCalls].reverse().find((call) => call.channel === 'trabajador:listar');
+  assert.equal(lastListar?.payload.search, 'zzz');
+  assert.equal(lastListar?.payload.rol, 'todos');
+  assert.equal(lastListar?.payload.estado, 'todos');
+  console.log('PASS CU24 filtro reinvoca trabajador:listar y muestra lista vacia');
+
 } finally {
   await browser.close();
   await server.close();
