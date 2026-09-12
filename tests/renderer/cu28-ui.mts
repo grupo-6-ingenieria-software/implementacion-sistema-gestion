@@ -114,7 +114,107 @@ try {
   assert.ok(calls.some((c: any) => c.channel === "turno:editar"));
   assert.ok(calls.some((c: any) => c.channel === "turno:eliminar"));
   assert.ok(calls.filter((c: any) => c.channel === "trabajador:listar-activos").every((c: any) => c.payload.contexto === "calendario"));
+
+  // CU26: selection must load current data before enabling the existing editor.
+  const openOwner = async () => { await page.goto(`${url}?role=dueno`); await ready(); };
+  const settle = () => page.evaluate(() => new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const saveButton = () => page.getByRole("button", { name: "Guardar cambios" });
+  await openOwner();
+  await page.evaluate(() => {
+    const s = (window as any).cu28;
+    s.hold = true;
+    s.shiftOverrides["turno-1"] = { horaInicio: "09:00", horaTermino: "17:00" };
+  });
+  await card("Ana Soto").click();
+  await page.getByText("Comprobando si el turno puede modificarse...").waitFor();
+  assert.equal(await saveButton().count(), 0);
+  assert.equal(await page.locator("input").count(), 0);
+  await page.evaluate(() => { const s = (window as any).cu28; s.hold = false; s.pending.shift()(); });
+  await saveButton().waitFor();
+  assert.equal(await page.getByLabel("Hora inicio (HH:MM)").inputValue(), "09:00");
+  assert.equal(await page.getByLabel("Hora termino (HH:MM)").inputValue(), "17:00");
+
+  // State changed after the initial calendar load; stale editable data is rejected.
+  await page.evaluate(() => { (window as any).cu28.shiftOverrides["turno-1"] = { puedeModificar: false }; });
+  await card("Ana Soto").click();
+  await page.getByText("Este turno ya inicio", { exact: false }).waitFor();
+  assert.equal(await saveButton().count(), 0);
+  await page.evaluate(() => { (window as any).cu28.missingShiftIds = ["turno-1"]; });
+  await card("Ana Soto").click();
+  await page.getByText("El turno ya no esta disponible", { exact: false }).waitFor();
+  assert.equal(await saveButton().count(), 0);
+
+  // A failed precheck can be retried by selecting the same card again.
+  await openOwner();
+  await page.evaluate(() => { (window as any).cu28.fail = true; });
+  await card("Ana Soto").click();
+  await page.getByRole("alert").filter({ hasText: "Error de prueba CU28" }).waitFor();
+  assert.equal(await saveButton().count(), 0);
+  await page.evaluate(() => { (window as any).cu28.fail = false; });
+  await card("Ana Soto").click();
+  await saveButton().waitFor();
+
+  // Closing discards a pending selection response.
+  await page.evaluate(() => { (window as any).cu28.hold = true; });
+  await card("Ana Soto").click();
+  await page.getByText("Comprobando si el turno puede modificarse...").waitFor();
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.evaluate(() => { const s = (window as any).cu28; s.hold = false; s.pending.shift()(); });
+  await settle();
+  assert.equal(await saveButton().count(), 0);
+  assert.equal(await page.getByRole("button", { name: "Cerrar", exact: true }).count(), 0);
+
+  // A newer selection wins even when the previous response arrives last.
+  await page.evaluate(() => { (window as any).cu28.hold = true; });
+  await card("Ana Soto").click();
+  await card("Luis Rojas").click();
+  await page.waitForFunction(() => (window as any).cu28.pending.length === 2);
+  await page.evaluate(() => { (window as any).cu28.pending[1](); });
+  await saveButton().waitFor();
+  await page.evaluate(() => { const s = (window as any).cu28; s.pending[0](); s.pending = []; s.hold = false; });
+  await settle();
+  assert.equal(await page.getByRole("heading", { name: "Luis Rojas", exact: true }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Ana Soto", exact: true }).count(), 0);
+
+  // Navigation, day selection, filtering and refresh invalidate an in-flight selection.
+  for (const action of ["week", "day", "filter", "refresh"]) {
+    await openOwner();
+    await page.evaluate(() => { (window as any).cu28.hold = true; });
+    await card("Ana Soto").click();
+    await page.waitForFunction(() => (window as any).cu28.pending.length === 1);
+    await page.evaluate(() => { (window as any).cu28.hold = false; });
+    if (action === "week") await page.getByRole("button", { name: "Semana siguiente" }).click();
+    if (action === "day") await page.getByRole("button", { name: /^Martes/ }).click();
+    if (action === "filter") await page.getByRole("combobox").selectOption("2");
+    if (action === "refresh") await page.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await ready();
+    await page.evaluate(() => { (window as any).cu28.pending.shift()(); });
+    await settle();
+    assert.equal(await saveButton().count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Cerrar", exact: true }).count(), 0);
+    if (action === "day") {
+      assert.ok(await page.getByText(`Fecha seleccionada: ${isoDateToDisplay(addDaysToDateKey(getWeekStartDateKey(), 1))}`, { exact: true }).isVisible());
+    }
+  }
+
+  // A successful edit remains confirmed when the subsequent calendar reload fails.
+  await openOwner();
+  await card("Ana Soto").click();
+  await saveButton().waitFor();
+  await page.evaluate(() => { (window as any).cu28.failAfterEdit = true; });
+  await saveButton().click();
+  await page.getByRole("heading", { name: "No se pudo cargar el calendario" }).waitFor();
+  assert.ok(await page.getByText("Turno actualizado correctamente.", { exact: true }).isVisible());
+  await page.evaluate(() => { (window as any).cu28.fail = false; });
+  await page.getByRole("button", { name: "Reintentar", exact: true }).click();
+  await ready();
+  assert.ok(await page.getByText("Turno actualizado correctamente.", { exact: true }).isVisible());
+  assert.equal(await page.evaluate(() => (window as any).cu28.calls
+    .filter((call: any) => call.channel === "turno:editar").length), 1);
+
   assert.deepEqual(errors, []);
+  console.log("CU26 UI: datos actuales, bloqueos, error/reintento, respuestas tardias y confirmacion tras fallo de recarga OK.");
   console.log("CU28 UI: consulta por rol, filtros, detalle, refresco, vacío, error/reintento, concurrencia y acciones del dueño OK.");
   console.log(`Capturas: ${output}`);
 } finally {

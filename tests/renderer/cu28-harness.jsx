@@ -12,6 +12,7 @@ const workers = [
 ];
 const state = window.cu28 = {
   workers, fail: false, hold: false, pending: [], calls: [], navigated: null,
+  shiftOverrides: {}, missingShiftIds: [], failAfterEdit: false,
 };
 window.appApi = {
   invoke: (channel, payload) => {
@@ -36,11 +37,14 @@ window.appApi = {
               inicioAt: `${week}T11:00:00Z`, terminoAt: `${week}T19:00:00Z`,
               // Deliberately true even for workers: UI must also enforce the role.
               puedeModificar: true,
-            })) : [],
+            }))
+            .filter((shift) => !state.missingShiftIds.includes(shift.turnoId))
+            .map((shift) => ({ ...shift, ...state.shiftOverrides[shift.turnoId] })) : [],
         },
       };
     } else if (channel === "turno:editar" || channel === "turno:eliminar") {
       response = { ok: true, data: { turnoId: payload.turnoId } };
+      if (channel === "turno:editar" && state.failAfterEdit) state.fail = true;
     } else {
       throw new Error(`Unexpected channel: ${channel}`);
     }

@@ -143,20 +143,30 @@ export function ShiftCalendarView({
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const requestIdRef = useRef(0);
+  const selectionRequestIdRef = useRef(0);
+  const [checkingSelection, setCheckingSelection] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const canManage = role === "dueno";
   const workerUnavailable = Boolean(workerFilter) &&
     !workers.some((worker) => String(worker.trabajadorId) === workerFilter);
+
+  const closeSelection = useCallback(() => {
+    selectionRequestIdRef.current += 1;
+    setSelected(null);
+    setEditForm(null);
+    setCheckingSelection(false);
+    setSelectionError(null);
+    setDeleting(false);
+    setActionMessage(null);
+    setFieldErrors({});
+  }, []);
 
   const loadCalendar = useCallback(
     async (preserveData = false): Promise<void> => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
-      setSelected(null);
+      closeSelection();
       setSelectedDateKey(null);
-      setEditForm(null);
-      setDeleting(false);
-      setActionMessage(null);
-      setFieldErrors({});
       setState((current) =>
         preserveData && current.status === "ready"
           ? { ...current, refreshing: true }
@@ -197,13 +207,16 @@ export function ShiftCalendarView({
         });
       }
     },
-    [usuarioId, weekStart, workerFilter],
+    [usuarioId, weekStart, workerFilter, closeSelection],
   );
 
   useEffect(() => {
     void loadCalendar();
-    return () => { requestIdRef.current += 1; };
-  }, [loadCalendar]);
+    return () => {
+      requestIdRef.current += 1;
+      selectionRequestIdRef.current += 1;
+    };
+  }, [loadCalendar, role]);
 
   const weekDays = useMemo(
     () =>
@@ -214,22 +227,46 @@ export function ShiftCalendarView({
     [weekStart],
   );
 
-  function selectShift(turno: ShiftCalendarItem): void {
+  async function selectShift(turno: ShiftCalendarItem): Promise<void> {
+    closeSelection();
+    const requestId = selectionRequestIdRef.current;
     setSelectedDateKey(turno.fechaIso);
     setSelected(turno);
-    setEditForm(
-      canManage && turno.puedeModificar
-        ? {
-            fecha: turno.fecha,
-            horaInicio: turno.horaInicio,
-            horaTermino: turno.horaTermino,
-          }
-        : null,
-    );
-    setFieldErrors({});
-    setActionMessage(null);
     setResultMessage(getShiftResultMessage("start-operation"));
-    setDeleting(false);
+    if (!canManage) return;
+
+    setCheckingSelection(true);
+    try {
+      const response = await window.appApi.invoke<ShiftListResponse>("turno:listar", {
+        usuarioId,
+        inicioSemana: weekStart,
+        trabajadorId: workerFilter ? Number(workerFilter) : undefined,
+      });
+      if (requestId !== selectionRequestIdRef.current) return;
+      if (!response.ok) throw new Error(response.error.message);
+
+      const current = response.data.turnos.find((item) => item.turnoId === turno.turnoId);
+      if (!current) {
+        setSelectionError("El turno ya no esta disponible en esta seleccion. Actualice el calendario.");
+        return;
+      }
+      setSelected(current);
+      setSelectedDateKey(current.fechaIso);
+      if (current.puedeModificar) {
+        setEditForm({
+          fecha: current.fecha,
+          horaInicio: current.horaInicio,
+          horaTermino: current.horaTermino,
+        });
+      }
+    } catch (error) {
+      if (requestId !== selectionRequestIdRef.current) return;
+      setSelectionError(error instanceof Error
+        ? error.message
+        : "No fue posible comunicarse con el proceso principal.");
+    } finally {
+      if (requestId === selectionRequestIdRef.current) setCheckingSelection(false);
+    }
   }
 
   async function saveEdit(): Promise<void> {
@@ -328,6 +365,11 @@ export function ShiftCalendarView({
   if (state.status === "error") {
     return (
       <section className="px-8 py-8" aria-live="assertive">
+        {resultMessage ? (
+          <p className="mb-4 rounded-md border border-[#9bc6ad] bg-[#eef8f1] px-4 py-3 text-sm font-semibold text-[#255a43]" role="status">
+            {resultMessage}
+          </p>
+        ) : null}
         <div className="rounded-md border border-[#dba7a7] bg-[#fff7f7] p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-[#8f2727]">
             No se pudo cargar el calendario
@@ -392,7 +434,10 @@ export function ShiftCalendarView({
             <button
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}
+              onClick={() => {
+                closeSelection();
+                setWeekStart(addDaysToDateKey(weekStart, -7));
+              }}
               disabled={saving}
             >
               Semana anterior
@@ -400,7 +445,10 @@ export function ShiftCalendarView({
             <button
               className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
               type="button"
-              onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}
+              onClick={() => {
+                closeSelection();
+                setWeekStart(addDaysToDateKey(weekStart, 7));
+              }}
               disabled={saving}
             >
               Semana siguiente
@@ -421,6 +469,7 @@ export function ShiftCalendarView({
               value={workerFilter}
               disabled={saving}
               onChange={(event) => {
+                closeSelection();
                 setWorkerFilter(event.target.value);
                 setWorkerFilterName(event.target.selectedOptions[0]?.text ?? "");
               }}
@@ -481,7 +530,10 @@ export function ShiftCalendarView({
               <button
                 className="w-full rounded-md px-1 py-1 text-left transition hover:bg-[#eef4f1]"
                 type="button"
-                onClick={() => setSelectedDateKey(day.dateKey)}
+                onClick={() => {
+                  if (checkingSelection) closeSelection();
+                  setSelectedDateKey(day.dateKey);
+                }}
                 disabled={saving || state.refreshing}
               >
                 <span className="block font-semibold text-[#17202a]">
@@ -501,7 +553,7 @@ export function ShiftCalendarView({
                     }`}
                     key={turno.turnoId}
                     type="button"
-                    onClick={() => selectShift(turno)}
+                    onClick={() => void selectShift(turno)}
                     disabled={saving || state.refreshing}
                   >
                     <span className="block text-sm font-semibold text-[#17202a]">
@@ -526,18 +578,15 @@ export function ShiftCalendarView({
       {selected ? (
         <ShiftDetail
           canManage={canManage}
+          checkingSelection={checkingSelection}
+          selectionError={selectionError}
           deleting={deleting}
           editForm={editForm}
           fieldErrors={fieldErrors}
           message={actionMessage}
           saving={saving}
           shift={selected}
-          onCancel={() => {
-            setSelected(null);
-            setEditForm(null);
-            setDeleting(false);
-            setActionMessage(null);
-          }}
+          onCancel={closeSelection}
           onConfirmDelete={() => void confirmDelete()}
           onDelete={() => {
             setResultMessage(getShiftResultMessage("start-operation"));
@@ -553,6 +602,8 @@ export function ShiftCalendarView({
 
 function ShiftDetail({
   canManage,
+  checkingSelection,
+  selectionError,
   deleting,
   editForm,
   fieldErrors,
@@ -566,6 +617,8 @@ function ShiftDetail({
   onSave,
 }: {
   canManage: boolean;
+  checkingSelection: boolean;
+  selectionError: string | null;
   deleting: boolean;
   editForm: EditForm | null;
   fieldErrors: ShiftFieldErrors;
@@ -598,7 +651,15 @@ function ShiftDetail({
         </button>
       </div>
 
-      {!canManage ? null : !shift.puedeModificar || !editForm ? (
+      {!canManage ? null : checkingSelection ? (
+        <p className="mt-5 text-sm font-semibold text-[#61717f]" role="status">
+          Comprobando si el turno puede modificarse...
+        </p>
+      ) : selectionError ? (
+        <p className="mt-5 text-sm font-semibold text-[#8f2727]" role="alert">
+          {selectionError} Seleccione nuevamente el turno para reintentar.
+        </p>
+      ) : !shift.puedeModificar || !editForm ? (
         <div className="mt-5 rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4 text-sm text-[#6b4a24]">
           Este turno ya inicio o tiene asistencia registrada. No puede
           modificarse ni eliminarse.
