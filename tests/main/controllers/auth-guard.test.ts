@@ -4,10 +4,13 @@ import * as schema from "../../../src/db/schema";
 import {
   CHANNEL_ROLES,
   PUBLIC_CHANNELS,
+  authorizeRequest,
   guardChannel,
   type GuardDeps,
+  type RequestAuthorizationDeps,
 } from "../../../src/main/controllers/auth-guard";
 import { registerAuditLog } from "../../../src/main/controllers/auth-context";
+import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
 import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
 import {
   createAuthTestDatabase,
@@ -174,11 +177,154 @@ describe("guardChannel (RF56/CU57)", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("still gates worker management channels to dueno only", () => {
-    expect(CHANNEL_ROLES.get("trabajador:listar")).toEqual(new Set(["dueno"]));
+  it("opens worker consultation to both roles and keeps mutations dueno-only", () => {
+    expect(CHANNEL_ROLES.get("trabajador:listar")).toEqual(
+      new Set(["dueno", "trabajador"]),
+    );
     expect(CHANNEL_ROLES.get("trabajador:registrar")).toEqual(
       new Set(["dueno"]),
     );
+    expect(CHANNEL_ROLES.get("trabajador:actualizar")).toEqual(
+      new Set(["dueno"]),
+    );
+    expect(CHANNEL_ROLES.get("trabajador:cambiar-estado")).toEqual(
+      new Set(["dueno"]),
+    );
+  });
+});
+
+describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
+  let testDb: AuthTestDatabase | undefined;
+
+  beforeEach(async () => {
+    testDb = await createAuthTestDatabase();
+  });
+
+  afterEach(async () => {
+    if (!testDb) {
+      return;
+    }
+    testDb.client.close();
+    await removeAuthTempDir(testDb.dir);
+    testDb = undefined;
+  });
+
+  function depsForSession(
+    rolEfectivo: "dueno" | "trabajador" | undefined,
+    audit: GuardDeps["audit"],
+  ): RequestAuthorizationDeps {
+    return {
+      identity: guardChannel,
+      session: async () =>
+        rolEfectivo ? { active: true, rolEfectivo } : { active: true },
+      audit,
+    };
+  }
+
+  it("prefers the session role over the JWT role and over the database role", async () => {
+    // Cuenta dueno en la BD y JWT dueno, pero la sesión quedó congelada como
+    // trabajador: el permiso se niega con el rol de la sesión.
+    await seedUser(testDb!.db, {
+      usuarioId: "trusted-id",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
+    const audit = vi.fn(async () => undefined);
+    const token = signSessionToken(claimsFor("dueno"));
+
+    const result = await authorizeRequest(
+      "trabajador:registrar",
+      { usuarioId: "trusted-id", __authToken: token },
+      undefined,
+      depsForSession("trabajador", audit),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && !result.response.ok) {
+      expect(result.response.error.code).toBe("FORBIDDEN");
+    }
+    expect(audit).toHaveBeenCalledTimes(1);
+  });
+
+  it("grants with the session role even when the account row says otherwise", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "trusted-id",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "trabajador",
+    });
+
+    const audit = vi.fn(async () => undefined);
+    const token = signSessionToken(claimsFor("dueno"));
+
+    const result = await authorizeRequest(
+      "trabajador:registrar",
+      { usuarioId: "trusted-id", __authToken: token },
+      undefined,
+      depsForSession("dueno", audit),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(audit).not.toHaveBeenCalled();
+    if (result.ok) {
+      expect(result.context.claims?.rol).toBe("dueno");
+      const payload = result.payload as { __rolSesion?: string };
+      expect(payload.__rolSesion).toBe("dueno");
+    }
+  });
+
+  it("keeps the JWT role when the session predates the migration (null rol efectivo)", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "trusted-id",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
+    const token = signSessionToken(claimsFor("dueno"));
+
+    const result = await authorizeRequest(
+      "producto:listar",
+      { __authToken: token },
+      undefined,
+      depsForSession(undefined, vi.fn(async () => undefined)),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.context.claims?.rol).toBe("dueno");
+      const payload = result.payload as { __rolSesion?: string };
+      expect(payload.__rolSesion).toBe("dueno");
+    }
+  });
+
+  it("audits a denied worker mutation exactly once", async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "trusted-id",
+      trabajadorId: 1,
+      rut: "12345678-9",
+      rolBd: "dueno",
+    });
+
+    const token = signSessionToken(claimsFor("dueno"));
+
+    const result = await authorizeRequest(
+      "trabajador:cambiar-estado",
+      { usuarioId: "trusted-id", __authToken: token },
+      undefined,
+      depsForSession("trabajador", (event) =>
+        registerAuditLog(testDb!.db, schema, event),
+      ),
+    );
+
+    expect(result.ok).toBe(false);
+
+    const rows = await testDb!.db.all<{ total: number }>(
+      sql`SELECT COUNT(*) AS total FROM log_auditoria WHERE log_tipo_accion = 'acceso_denegado'`,
+    );
+    expect(Number(rows[0]?.total)).toBe(1);
   });
 });
 

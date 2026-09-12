@@ -21,7 +21,6 @@ import {
   resolveInitialRoute,
   type NavNode,
   type Role,
-  type RouteGuardDecision,
   type SessionState,
 } from "../../shared/navigation";
 import {
@@ -69,6 +68,8 @@ import {
 
 const SALE_REGISTER_PATH = "/app/ventas/registrar";
 
+const ACCESS_DENIED_MESSAGE = "No tiene permiso para acceder a este módulo.";
+
 type AppSession = SessionState & {
   displayName?: string;
   usuarioId?: string;
@@ -94,7 +95,9 @@ export function App(): ReactElement {
   const [session, setSession] = useState<AppSession>(defaultSession);
   const [path, setPath] = useState(getHashPath);
   const [notice, setNotice] = useState<string | null>(null);
-  const lastRouteAuditKey = useRef<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const isAuthenticatedRef = useRef(session.isAuthenticated);
   const currentPathRef = useRef(path);
   const postLoginRouteRef = useRef<string | null>(null);
@@ -157,9 +160,10 @@ export function App(): ReactElement {
 
     const decision = evaluateRouteAccess(path, session);
 
-    auditRouteAccess(path, session, decision, lastRouteAuditKey);
-
     if (decision.status !== "allow") {
+      if (decision.status === "deny") {
+        setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
+      }
       navigate(decision.to);
       return;
     }
@@ -175,6 +179,7 @@ export function App(): ReactElement {
             !response.ok &&
             response.error.code === "FORBIDDEN"
           ) {
+            setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
             navigate(APP_HOME_PATH);
           }
         })
@@ -231,6 +236,7 @@ export function App(): ReactElement {
 
     window.appApi.setSessionToken(data.token);
     setNotice(null);
+    setAccessDeniedMessage(null);
     setSession(nextSession);
     const draft = readSaleDraft();
     if (draft && draft.usuarioId !== data.usuarioId) {
@@ -295,7 +301,11 @@ export function App(): ReactElement {
     <AppShell
       currentPath={path}
       session={session}
-      onNavigate={navigate}
+      bannerMessage={accessDeniedMessage}
+      onNavigate={(target) => {
+        setAccessDeniedMessage(null);
+        navigate(target);
+      }}
       onLogout={logout}
       onAuthenticationRequired={(message) => expireSession(message, true)}
     />
@@ -620,12 +630,14 @@ function PasswordChangeView({
 export function AppShell({
   currentPath,
   session,
+  bannerMessage,
   onNavigate,
   onLogout,
   onAuthenticationRequired,
 }: {
   currentPath: string;
   session: AppSession;
+  bannerMessage?: string | null;
   onNavigate: (path: string) => void;
   onLogout: () => void;
   onAuthenticationRequired: (message?: string) => void;
@@ -697,6 +709,14 @@ export function AppShell({
         className={`scroll-area min-w-0 overflow-y-auto ${mainScroll.className}`}
         onScroll={mainScroll.onScroll}
       >
+        {bannerMessage ? (
+          <p
+            className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-4 py-2 text-sm font-semibold text-[#b42318]"
+            role="alert"
+          >
+            {bannerMessage}
+          </p>
+        ) : null}
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
           <h2 className="text-2xl font-semibold">{currentNode.label}</h2>
           <div className="flex items-center gap-3">
@@ -1049,49 +1069,6 @@ function navigate(path: string): void {
   }
 
   window.location.hash = path;
-}
-
-function auditRouteAccess(
-  pathname: string,
-  session: AppSession,
-  decision: RouteGuardDecision,
-  lastRouteAuditKey: { current: string | null },
-): void {
-  if (!pathname.startsWith("/app") || !session.usuarioId) {
-    return;
-  }
-
-  if (decision.status === "redirect") {
-    return;
-  }
-
-  const node = findNavNodeByPath(pathname);
-  const result = decision.status === "allow" ? "concedido" : "denegado";
-  const key = `${session.usuarioId}:${pathname}:${result}`;
-
-  if (lastRouteAuditKey.current === key) {
-    return;
-  }
-
-  lastRouteAuditKey.current = key;
-
-  const label = node?.label ?? pathname;
-  const moduleLabel = node
-    ? navGroupLabels[node.group].toLocaleLowerCase("es")
-    : "acceso";
-
-  void window.appApi
-    .invoke("auditoria:registrar", {
-      descripcion:
-        decision.status === "allow"
-          ? `Acceso concedido a ${label}.`
-          : `Acceso denegado a ${label}.`,
-      modulo: moduleLabel,
-      tipoAccion:
-        decision.status === "allow" ? "acceso_concedido" : "acceso_denegado",
-      usuarioId: session.usuarioId,
-    })
-    .catch(() => undefined);
 }
 
 function getHashPath(): string {

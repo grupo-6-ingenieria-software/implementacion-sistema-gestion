@@ -32,6 +32,9 @@ export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   ["turno:editar", new Set<Role>(["dueno"])],
   ["turno:eliminar", new Set<Role>(["dueno"])],
   ["trabajador:listar-activos", new Set<Role>(["dueno", "trabajador"])],
+  ["trabajador:registrar", new Set<Role>(["dueno"])],
+  ["trabajador:actualizar", new Set<Role>(["dueno"])],
+  ["trabajador:cambiar-estado", new Set<Role>(["dueno"])],
 ]);
 
 export const CHANNEL_ROLES: ReadonlyMap<
@@ -102,7 +105,17 @@ export type RequestAuthorizationDeps = {
     claims: SessionTokenClaims,
     refresh: boolean,
   ) => Promise<VerifySessionData>;
+  audit?: (event: {
+    descripcion: string;
+    modulo: string;
+    tipoAccion: string;
+    usuarioId: string;
+  }) => Promise<void>;
 };
+
+const defaultAuthorizeAudit: NonNullable<
+  RequestAuthorizationDeps["audit"]
+> = (event) => registerAuditLog(db, appSchema, event);
 
 export async function authorizeRequest(
   channel: string,
@@ -123,8 +136,9 @@ export async function authorizeRequest(
   try {
     const result = await deps.identity(channel, payload);
     if (!result.ok || !result.context.claims) return result;
+    const claims = result.context.claims;
     const session = await deps.session(
-      result.context.claims,
+      claims,
       !NON_ACTIVITY_CHANNELS.has(channel),
     );
     if (!session.active) {
@@ -141,6 +155,40 @@ export async function authorizeRequest(
         ),
       };
     }
+
+    const rolEfectivo = session.rolEfectivo ?? claims.rol;
+    const requiredRoles = CHANNEL_ROLES.get(channel);
+
+    if (requiredRoles && !requiredRoles.has(rolEfectivo)) {
+      await (deps.audit ?? defaultAuthorizeAudit)({
+        descripcion: `Acceso denegado al canal ${channel} para el rol ${rolEfectivo}.`,
+        modulo: "control_acceso",
+        tipoAccion: "acceso_denegado",
+        usuarioId: claims.usuarioId,
+      }).catch(() => undefined);
+
+      return {
+        ok: false,
+        response: controllerError(
+          "FORBIDDEN",
+          "No tiene permiso para realizar esta acción.",
+        ),
+      };
+    }
+
+    claims.rol = rolEfectivo;
+
+    if (
+      result.payload &&
+      typeof result.payload === "object" &&
+      !Array.isArray(result.payload)
+    ) {
+      result.payload = {
+        ...(result.payload as Record<string, unknown>),
+        __rolSesion: rolEfectivo,
+      };
+    }
+
     return result;
   } catch (error) {
     console.error("Error al validar la sesión", error);

@@ -145,6 +145,45 @@ describe("navigation tree", () => {
     ).toEqual({ status: "allow" });
   });
 
+  it("opens the worker list to both roles while the create form stays dueno-only (CU24)", () => {
+    const listNode = navigationTree.find((item) => item.id === "worker-list");
+    expect(listNode).toMatchObject({
+      path: "/app/personal/trabajadores",
+      roles: ["dueno", "trabajador"],
+    });
+    const createNode = navigationTree.find(
+      (item) => item.id === "worker-create",
+    );
+    expect(createNode).toMatchObject({
+      path: "/app/personal/trabajadores/nuevo",
+      roles: ["dueno"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess("/app/personal/trabajadores", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+    }
+
+    expect(
+      evaluateRouteAccess("/app/personal/trabajadores/nuevo", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toEqual({
+      status: "deny",
+      to: APP_HOME_PATH,
+      reason: "role-denied",
+      auditControllerId: "audit",
+    });
+    expect(
+      getVisibleMenu("trabajador").map((node) => node.path),
+    ).toContain("/app/personal/trabajadores");
+  });
+
   it("exposes CU38 to both roles from the sales menu", () => {
     const node = navigationTree.find((item) => item.id === "sale-annulment");
     expect(node).toMatchObject({

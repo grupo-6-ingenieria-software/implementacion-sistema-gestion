@@ -1,5 +1,9 @@
 import { controllers, type ControllerResponse } from "../../shared/controllers";
-import { findNavNodeByPath, type Role } from "../../shared/navigation";
+import {
+  findNavNodeByPath,
+  navGroupLabels,
+  type Role,
+} from "../../shared/navigation";
 import { db, schema as appSchema } from "../../db/client";
 import {
   controllerError,
@@ -16,6 +20,7 @@ export type ValidateAccessPayload = {
   token?: string;
 
   __authToken?: string;
+  __rolSesion?: string;
   ruta?: string;
 };
 
@@ -69,11 +74,16 @@ export async function validateAccessWithExecutor(
     );
   }
 
-  const allowed = (node.roles as readonly Role[]).includes(claims.rol);
+  const rolSesion: Role | undefined =
+    input?.__rolSesion === "dueno" || input?.__rolSesion === "trabajador"
+      ? input.__rolSesion
+      : undefined;
+  const rolEfectivo = rolSesion ?? claims.rol;
+  const allowed = (node.roles as readonly Role[]).includes(rolEfectivo);
 
   if (!allowed) {
     await registerAuditLog(database, schema, {
-      descripcion: `Acceso denegado a ${node.label} para el rol ${claims.rol}.`,
+      descripcion: `Acceso denegado a ${node.label} para el rol ${rolEfectivo}.`,
       modulo: "control_acceso",
       tipoAccion: "acceso_denegado",
       usuarioId: claims.usuarioId,
@@ -86,9 +96,16 @@ export async function validateAccessWithExecutor(
     );
   }
 
+  await registerAuditLog(database, schema, {
+    descripcion: `Acceso concedido a ${node.label}.`,
+    modulo: navGroupLabels[node.group].toLocaleLowerCase("es"),
+    tipoAccion: "acceso_concedido",
+    usuarioId: claims.usuarioId,
+  });
+
   return controllerSuccess<ValidateAccessData>({
     allowed: true,
-    role: claims.rol,
+    role: rolEfectivo,
   });
 }
 

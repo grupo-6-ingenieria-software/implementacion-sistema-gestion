@@ -4,6 +4,7 @@ import * as schema from "../../../src/db/schema";
 import {
   closeSessionWithExecutor,
   refreshSessionActivity,
+  validateAndRefreshActiveSession,
   verifySessionWithExecutor,
   type SessionDeps,
 } from "../../../src/main/controllers/session";
@@ -41,7 +42,10 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-async function seedSession(ultimoAccesoMinutesAgo: number): Promise<void> {
+async function seedSession(
+  ultimoAccesoMinutesAgo: number,
+  rolEfectivo: "dueno" | "trabajador" | null = "dueno",
+): Promise<void> {
   const ultimoAcceso = new Date(
     NOW.getTime() - ultimoAccesoMinutesAgo * 60_000,
   ).toISOString();
@@ -50,6 +54,7 @@ async function seedSession(ultimoAccesoMinutesAgo: number): Promise<void> {
     sesionUsuarioId: SESSION_ID,
     sesionFechaHoraInicio: ultimoAcceso,
     sesionFechaHoraUltimoAcceso: ultimoAcceso,
+    sesionRolEfectivo: rolEfectivo,
     usuarioId: "12345678-9",
   });
 }
@@ -167,6 +172,65 @@ describe("verifySessionWithExecutor (RF55)", () => {
       sql`SELECT sesion_motivo_cierre AS motivo FROM sesion_usuario WHERE sesion_usuario_id = ${SESSION_ID}`,
     );
     expect(rows[0]?.motivo).toBe("inactividad");
+  });
+});
+
+describe("validateAndRefreshActiveSession (rol efectivo, CU57/D1)", () => {
+  it("returns the rol efectivo stored in the session row on renewal", async () => {
+    await seedSession(1, "trabajador");
+
+    const result = await validateAndRefreshActiveSession(
+      testDb!.db,
+      schema,
+      SESSION_ID,
+      "12345678-9",
+      true,
+      deps,
+    );
+
+    expect(result).toEqual({ active: true, rolEfectivo: "trabajador" });
+  });
+
+  it("resolves the rol efectivo from usuario when the row predates the migration", async () => {
+    await seedSession(1, null);
+
+    const renewed = await validateAndRefreshActiveSession(
+      testDb!.db,
+      schema,
+      SESSION_ID,
+      "12345678-9",
+      true,
+      deps,
+    );
+    expect(renewed).toEqual({ active: true, rolEfectivo: "dueno" });
+
+    // Camino de inspección (heartbeat, sin renovación).
+    await testDb!.db.run(sql`DELETE FROM sesion_usuario`);
+    await seedSession(1, null);
+    const inspected = await validateAndRefreshActiveSession(
+      testDb!.db,
+      schema,
+      SESSION_ID,
+      "12345678-9",
+      false,
+      deps,
+    );
+    expect(inspected).toEqual({ active: true, rolEfectivo: "dueno" });
+  });
+
+  it("reads a stored trabajador rol on the inspection path too", async () => {
+    await seedSession(1, "trabajador");
+
+    const result = await validateAndRefreshActiveSession(
+      testDb!.db,
+      schema,
+      SESSION_ID,
+      "12345678-9",
+      false,
+      deps,
+    );
+
+    expect(result).toEqual({ active: true, rolEfectivo: "trabajador" });
   });
 });
 
