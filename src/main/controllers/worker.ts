@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import type { AnyColumn } from "drizzle-orm";
 import { controllers, type ControllerResponse } from "../../shared/controllers";
 import {
   normalizeRut,
@@ -6,16 +7,18 @@ import {
 } from "../../shared/attendance";
 import type { Role } from "../../shared/navigation";
 import {
-  filterAndSortUserList,
   hasUserFieldErrors,
+  normalizeSearchTerm,
   normalizeUserFormPayload,
   normalizeUserListPayload,
   normalizeUserRole,
   normalizeUserStatusChangePayload,
+  sortUserList,
   validateUserFormValues,
   type UserFieldErrors,
   type UserFormValues,
   type UserListItem,
+  type UserListFilters,
   type UserListResponse,
   type UserMutationResponse,
   type UserStatus,
@@ -48,7 +51,7 @@ type WorkerDependencies = {
     payload: UserFormValues,
     sesionRol?: Role,
   ) => Promise<UserMutationResponse>;
-  listWorkers: () => Promise<UserListItem[]>;
+  listWorkers: (filters: UserListFilters) => Promise<UserListItem[]>;
   listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
   updateWorker: (
     payload: UserFormValues,
@@ -71,17 +74,17 @@ export function createWorkerController(
         const usuarioId = normalizeUsuarioId(payload);
         await dependencies.authorize(
           usuarioId,
-          ["dueno"],
+          ["dueno", "trabajador"],
           normalizeSesionRol(payload),
         );
 
         const filters = normalizeUserListPayload(payload);
-        const workers = await dependencies.listWorkers();
+        const workers = await dependencies.listWorkers(filters);
 
         return {
           ok: true,
           data: {
-            users: filterAndSortUserList(workers, filters),
+            users: sortUserList(workers, filters),
           },
         };
       }
@@ -142,6 +145,13 @@ export function createWorkerController(
 
       if (context.channel === "trabajador:actualizar") {
         const normalizedPayload = normalizeUserFormPayload(payload);
+
+        await dependencies.authorize(
+          normalizedPayload.usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
+
         const fieldErrors = validateUserFormValues(normalizedPayload, {
           validateRutFormat: false,
         });
@@ -149,12 +159,6 @@ export function createWorkerController(
         if (hasUserFieldErrors(fieldErrors)) {
           return validationError(fieldErrors);
         }
-
-        await dependencies.authorize(
-          normalizedPayload.usuarioId,
-          ["dueno"],
-          normalizeSesionRol(payload),
-        );
 
         return {
           ok: true,
@@ -184,6 +188,24 @@ export function createWorkerController(
           ["dueno"],
           normalizeSesionRol(payload),
         );
+
+        const estadoValido =
+          payload !== null &&
+          typeof payload === "object" &&
+          ((payload as Record<string, unknown>).estado === "activo" ||
+            (payload as Record<string, unknown>).estado === "inactivo");
+
+        if (!estadoValido || normalizedPayload.confirmacion !== true) {
+          return {
+            ok: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              controllerId: "worker",
+              message:
+                "Confirme el cambio de estado con un estado valido (activo o inactivo).",
+            },
+          };
+        }
 
         return {
           ok: true,
@@ -226,13 +248,17 @@ export function createWorkerController(
   };
 }
 
-const workerDependencies: WorkerDependencies = {
+export const workerDependencies: WorkerDependencies = {
   authorize: async (usuarioId, allowedRoles, sesionRol) => {
     const { db, schema } = await import("../../db/client");
 
     return authorizeUser(db, schema, usuarioId, allowedRoles, sesionRol);
   },
-  changeStatus,
+  changeStatus: async (payload, sesionRol) => {
+    const { db, schema } = await import("../../db/client");
+
+    return changeStatusWithExecutor(db, schema, payload, sesionRol);
+  },
   createWorker,
   listActiveWorkers,
   listWorkers,
@@ -255,33 +281,104 @@ function normalizeSesionRol(payload: unknown): Role | undefined {
   return undefined;
 }
 
-async function listWorkers(): Promise<UserListItem[]> {
+async function listWorkers(
+  filters: UserListFilters,
+): Promise<UserListItem[]> {
   const { db, schema } = await import("../../db/client");
 
-  return mapWorkerRows(
-    await db
-      .select({
-        usuarioId: schema.usuario.usuarioId,
-        rol: schema.usuario.usuarioRol,
-        ultimoLoginFechaHora: schema.usuario.usuarioUltimoLoginFechaHora,
-        rut: schema.trabajador.trabajadorRut,
-        nombre: schema.trabajador.trabajadorNombre,
-        apellido: schema.trabajador.trabajadorApellido,
-        telefono: schema.trabajador.trabajadorTelefono,
-        correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
-        fechaIngreso: schema.trabajador.trabajadorFechaIngreso,
-        estado: schema.trabajador.trabajadorEstado,
-      })
-      .from(schema.trabajador)
-      .innerJoin(
-        schema.usuario,
-        eq(schema.usuario.trabajadorId, schema.trabajador.trabajadorId),
-      )
-      .orderBy(
-        asc(schema.trabajador.trabajadorNombre),
-        asc(schema.trabajador.trabajadorApellido),
+  return listWorkersWithExecutor(db, schema, filters);
+}
+
+export async function listWorkersWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
+  filters: UserListFilters,
+): Promise<UserListItem[]> {
+  const termino = filters.search ? normalizeSearchTerm(filters.search) : "";
+
+  const condiciones = [];
+  if (filters.estado !== undefined && filters.estado !== "todos") {
+    condiciones.push(eq(schema.trabajador.trabajadorEstado, filters.estado));
+  }
+  if (termino) {
+    const patron = `%${termino}%`;
+    const patronRut = `%${termino.replace(/[.\-\s]/g, "")}%`;
+    const rutPlano = sql`replace(replace(lower(${schema.trabajador.trabajadorRut}), '-', ''), '.', '')`;
+    condiciones.push(
+      or(
+        sql`${rutPlano} LIKE ${patronRut}`,
+        sql`${sinTildes(schema.trabajador.trabajadorNombre)} LIKE ${patron}`,
+        sql`${sinTildes(schema.trabajador.trabajadorApellido)} LIKE ${patron}`,
       ),
+    );
+  }
+
+  const laborales = await database
+    .select({
+      trabajadorId: schema.trabajador.trabajadorId,
+      rut: schema.trabajador.trabajadorRut,
+      nombre: schema.trabajador.trabajadorNombre,
+      apellido: schema.trabajador.trabajadorApellido,
+      telefono: schema.trabajador.trabajadorTelefono,
+      correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
+      fechaIngreso: schema.trabajador.trabajadorFechaIngreso,
+      estado: schema.trabajador.trabajadorEstado,
+    })
+    .from(schema.trabajador)
+    .where(condiciones.length > 0 ? and(...condiciones) : undefined)
+    .orderBy(
+      asc(schema.trabajador.trabajadorNombre),
+      asc(schema.trabajador.trabajadorApellido),
+    );
+
+  const cuentas = await database
+    .select({
+      trabajadorId: schema.usuario.trabajadorId,
+      usuarioId: schema.usuario.usuarioId,
+      rol: schema.usuario.usuarioRol,
+      ultimoLoginFechaHora: schema.usuario.usuarioUltimoLoginFechaHora,
+    })
+    .from(schema.usuario)
+    .where(
+      and(
+        laborales.length > 0
+          ? inArray(schema.usuario.trabajadorId, laborales.map((fila) => fila.trabajadorId))
+          : sql`0 = 1`,
+        filters.rol !== undefined && filters.rol !== "todos"
+          ? eq(schema.usuario.usuarioRol, filters.rol)
+          : undefined,
+      ),
+    );
+
+  const cuentaPorTrabajador = new Map(
+    cuentas.map((cuenta) => [cuenta.trabajadorId, cuenta]),
   );
+
+  return laborales.flatMap((fila) => {
+    const cuenta = cuentaPorTrabajador.get(fila.trabajadorId);
+
+    if (!cuenta) {
+      return [];
+    }
+
+    return [
+      {
+        usuarioId: cuenta.usuarioId,
+        rut: fila.rut,
+        nombreCompleto: `${fila.nombre} ${fila.apellido}`.trim(),
+        rol: normalizeUserRole(cuenta.rol) ?? "trabajador",
+        telefono: fila.telefono,
+        correoElectronico: fila.correoElectronico ?? undefined,
+        fechaIngreso: fila.fechaIngreso,
+        estado: fila.estado as UserStatus,
+        ultimoLoginFechaHora: cuenta.ultimoLoginFechaHora ?? undefined,
+      },
+    ];
+  });
+}
+
+function sinTildes(columna: AnyColumn) {
+  return sql`replace(replace(replace(replace(replace(replace(lower(${columna}), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ñ', 'n')`;
 }
 
 async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
@@ -394,13 +491,13 @@ export async function createWorkerWithExecutor(
   return { usuarioId: payload.rut, contrasenaTemporal };
 }
 
-async function updateWorker(
+export async function updateWorkerWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
   payload: UserFormValues,
   sesionRol?: Role,
 ): Promise<UserMutationResponse> {
-  const { db, schema } = await import("../../db/client");
-
-  await db.transaction(async (tx) => {
+  await database.transaction(async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -417,8 +514,8 @@ async function updateWorker(
       );
     }
 
-    const nameChanged = existing.nombreCompleto !== payload.nombreCompleto;
     const roleChanged = existing.rol !== payload.rol;
+    const camposCambiados = camposEditados(existing, payload);
 
     await tx
       .update(schema.trabajador)
@@ -430,12 +527,12 @@ async function updateWorker(
       })
       .where(eq(schema.trabajador.trabajadorId, existing.trabajadorId));
 
-    await tx
-      .update(schema.usuario)
-      .set({ usuarioRol: payload.rol })
-      .where(eq(schema.usuario.usuarioId, existing.usuarioId));
+    if (roleChanged) {
+      await tx
+        .update(schema.usuario)
+        .set({ usuarioRol: payload.rol })
+        .where(eq(schema.usuario.usuarioId, existing.usuarioId));
 
-    if (nameChanged || roleChanged) {
       await tx
         .update(schema.usuarioVersion)
         .set({ usuarioVersionFechaHoraVigenciaHasta: new Date().toISOString() })
@@ -456,7 +553,7 @@ async function updateWorker(
     await registerAuditLog(tx, schema, {
       tipoAccion: "edicion",
       modulo: "trabajadores",
-      descripcion: `Trabajador actualizado: ${payload.rut}`,
+      descripcion: `Trabajador actualizado: ${payload.rut}${camposCambiados.length > 0 ? `; campos: ${camposCambiados.join(", ")}` : ""}`,
       usuarioId: owner.usuarioId,
     });
   });
@@ -464,13 +561,50 @@ async function updateWorker(
   return { usuarioId: payload.rut };
 }
 
-async function changeStatus(
-  payload: UserStatusChangePayload,
+function camposEditados(
+  existing: {
+    nombreCompleto: string;
+    rol: Role;
+    telefono: string;
+    correoElectronico: string | null;
+  },
+  payload: UserFormValues,
+): string[] {
+  const campos: string[] = [];
+
+  if (existing.nombreCompleto !== payload.nombreCompleto) {
+    campos.push("nombre");
+  }
+  if (existing.rol !== payload.rol) {
+    campos.push("rol");
+  }
+  if (existing.telefono !== payload.telefono) {
+    campos.push("telefono");
+  }
+  if ((existing.correoElectronico ?? "") !== (payload.correoElectronico ?? "")) {
+    campos.push("correo");
+  }
+
+  return campos;
+}
+
+async function updateWorker(
+  payload: UserFormValues,
   sesionRol?: Role,
 ): Promise<UserMutationResponse> {
   const { db, schema } = await import("../../db/client");
 
-  await db.transaction(async (tx) => {
+  return updateWorkerWithExecutor(db, schema, payload, sesionRol);
+}
+
+export async function changeStatusWithExecutor(
+  database: DatabaseLike,
+  schema: SchemaLike,
+  payload: UserStatusChangePayload,
+  sesionRol?: Role,
+  notificarSesionInvalidada?: (usuarioId: string) => void,
+): Promise<UserMutationResponse> {
+  const resultado = await database.transaction(async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -496,13 +630,34 @@ async function changeStatus(
       .set({ trabajadorEstado: payload.estado })
       .where(eq(schema.trabajador.trabajadorId, existing.trabajadorId));
 
+    if (payload.estado === "inactivo") {
+      await tx
+        .update(schema.sesionUsuario)
+        .set({
+          sesionFechaHoraCierre: new Date().toISOString(),
+          sesionMotivoCierre: "sistema",
+        })
+        .where(
+          and(
+            eq(schema.sesionUsuario.usuarioId, existing.usuarioId),
+            isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+          ),
+        );
+    }
+
     await registerAuditLog(tx, schema, {
       tipoAccion: "edicion",
       modulo: "trabajadores",
-      descripcion: `Estado de trabajador ${existing.rut} cambiado a ${payload.estado}`,
+      descripcion: `Estado de trabajador ${existing.rut} cambiado de ${existing.estado} a ${payload.estado}`,
       usuarioId: owner.usuarioId,
     });
+
+    return { usuarioId: existing.usuarioId, desactivo: payload.estado === "inactivo" };
   });
+
+  if (resultado.desactivo) {
+    notificarSesionInvalidada?.(resultado.usuarioId);
+  }
 
   return { usuarioId: payload.usuarioObjetivoId };
 }
@@ -518,6 +673,9 @@ async function findWorkerByRut(
       rut: schema.trabajador.trabajadorRut,
       nombre: schema.trabajador.trabajadorNombre,
       apellido: schema.trabajador.trabajadorApellido,
+      estado: schema.trabajador.trabajadorEstado,
+      telefono: schema.trabajador.trabajadorTelefono,
+      correoElectronico: schema.trabajador.trabajadorCorreoElectronico,
       usuarioId: schema.usuario.usuarioId,
       rol: schema.usuario.usuarioRol,
     })
@@ -537,36 +695,12 @@ async function findWorkerByRut(
     trabajadorId: row.trabajadorId,
     rut: row.rut,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
+    estado: row.estado,
+    telefono: row.telefono,
+    correoElectronico: row.correoElectronico,
     usuarioId: row.usuarioId,
     rol: normalizeUserRole(row.rol) ?? "trabajador",
   };
-}
-
-function mapWorkerRows(
-  rows: Array<{
-    correoElectronico: string | null;
-    estado: string;
-    fechaIngreso: string;
-    nombre: string;
-    apellido: string;
-    rol: string;
-    rut: string;
-    telefono: string;
-    ultimoLoginFechaHora: string | null;
-    usuarioId: string;
-  }>,
-): UserListItem[] {
-  return rows.map((row) => ({
-    usuarioId: row.usuarioId,
-    rut: row.rut,
-    nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
-    rol: normalizeUserRole(row.rol) ?? "trabajador",
-    telefono: row.telefono,
-    correoElectronico: row.correoElectronico ?? undefined,
-    fechaIngreso: row.fechaIngreso,
-    estado: row.estado as UserStatus,
-    ultimoLoginFechaHora: row.ultimoLoginFechaHora ?? undefined,
-  }));
 }
 
 /**
@@ -671,7 +805,10 @@ class WorkerError extends Error {
 }
 
 type SchemaLike = typeof import("../../db/schema");
-type DatabaseLike = Pick<typeof import("../../db/client").db, "transaction">;
+type DatabaseLike = Pick<
+  typeof import("../../db/client").db,
+  "select" | "transaction"
+>;
 type TransactionLike = {
   insert: typeof import("../../db/client").db.insert;
   select: typeof import("../../db/client").db.select;
