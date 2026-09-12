@@ -29,6 +29,13 @@
       "when": 1789173220718,
       "tag": "0003_sesion_rol_efectivo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789179781555,
+      "tag": "0004_cu43_sale_responsible_snapshot",
+      "breakpoints": true
     }
   ]
 }

@@ -101,6 +101,7 @@ describe("CU38 sale lookup and detail", () => {
           montoRecibido: 5000,
           usuarioId: "usuario-1",
           responsable: "Maria Huascar",
+          responsableRol: "trabajador",
           cierreCajaId: "caja-1",
           cajaEstado: "cerrado",
           fechaApertura: "2026-06-11T08:00:00.000Z",
@@ -130,7 +131,11 @@ describe("CU38 sale lookup and detail", () => {
         ventaId: saleId,
         fechaHora: "2026-06-11T18:30:00.000Z",
         estado: "anulada",
-        responsable: { usuarioId: "usuario-1", nombre: "Maria Huascar" },
+        responsable: {
+          usuarioId: "usuario-1",
+          nombre: "Maria Huascar",
+          rol: "trabajador",
+        },
         productos: [
           {
             productoId: 1,
@@ -180,6 +185,7 @@ describe("CU41 sales history search", () => {
         discountValue: 500,
         usuarioId: "u-1",
         responsable: "Ana Prueba",
+        responsableRol: "dueno",
         cajaEstado: "abierto",
         anulacionVentaId: null,
         subtotal: 3000,
@@ -194,6 +200,7 @@ describe("CU41 sales history search", () => {
         discountValue: 10,
         usuarioId: "u-2",
         responsable: "Luis Soto",
+        responsableRol: "trabajador",
         cajaEstado: "cerrado",
         anulacionVentaId: "annulment-1",
         subtotal: 5000,
@@ -208,6 +215,7 @@ describe("CU41 sales history search", () => {
         discountValue: null,
         usuarioId: "u-1",
         responsable: "Ana Prueba",
+        responsableRol: "dueno",
         cajaEstado: "cerrado",
         anulacionVentaId: null,
         subtotal: 2000,
@@ -340,6 +348,8 @@ describe("daily sales history query", () => {
           discountType: "monto",
           discountValue: "500",
           usuarioId: "u-1",
+          responsable: "Maria Huascar",
+          responsableRol: "dueno",
         },
         {
           ventaId: "venta-2",
@@ -349,6 +359,8 @@ describe("daily sales history query", () => {
           discountType: "porcentaje",
           discountValue: "10",
           usuarioId: "u-2",
+          responsable: "Luis Soto",
+          responsableRol: "trabajador",
         },
         {
           ventaId: "venta-1",
@@ -358,6 +370,8 @@ describe("daily sales history query", () => {
           discountType: "ninguno",
           discountValue: null,
           usuarioId: "u-1",
+          responsable: "Maria Huascar",
+          responsableRol: "dueno",
         },
       ])
       .mockResolvedValueOnce([
@@ -380,14 +394,6 @@ describe("daily sales history query", () => {
         { historialPrecioProductoId: "p-2", precio: "5000" },
         { historialPrecioProductoId: "p-1", precio: "2000" },
       ])
-      .mockResolvedValueOnce([
-        { usuarioId: "u-1", trabajadorId: 1 },
-        { usuarioId: "u-2", trabajadorId: 2 },
-      ])
-      .mockResolvedValueOnce([
-        { trabajadorId: 1, nombre: "Maria Huascar" },
-        { trabajadorId: 2, nombre: "Luis Soto" },
-      ])
       .mockResolvedValueOnce([{ ventaId: "venta-2" }]);
 
     await expect(
@@ -397,7 +403,11 @@ describe("daily sales history query", () => {
         {
           ventaId: "venta-3",
           fechaHora: "2026-06-11T18:30:00.000Z",
-          trabajadorResponsable: "Maria Huascar",
+          responsable: {
+            usuarioId: "u-1",
+            nombre: "Maria Huascar",
+            rol: "dueno",
+          },
           cantidadProductos: 3,
           total: 4500,
           metodoPago: "debito",
@@ -406,7 +416,11 @@ describe("daily sales history query", () => {
         {
           ventaId: "venta-2",
           fechaHora: "2026-06-11T17:00:00.000Z",
-          trabajadorResponsable: "Luis Soto",
+          responsable: {
+            usuarioId: "u-2",
+            nombre: "Luis Soto",
+            rol: "trabajador",
+          },
           cantidadProductos: 2,
           total: 9000,
           metodoPago: "efectivo",
@@ -415,7 +429,11 @@ describe("daily sales history query", () => {
         {
           ventaId: "venta-1",
           fechaHora: "2026-06-11T15:00:00.000Z",
-          trabajadorResponsable: "Maria Huascar",
+          responsable: {
+            usuarioId: "u-1",
+            nombre: "Maria Huascar",
+            rol: "dueno",
+          },
           cantidadProductos: 1,
           total: 2000,
           metodoPago: "efectivo",

@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   formatChileanPeso,
+  formatSaleResponsibleRole,
   getChileDateKey,
   isValidSaleHistoryDate,
   isValidSaleId,
@@ -532,7 +533,9 @@ function SalesTable({
             <tr className="border-t border-[#e1e7ee]" key={sale.ventaId}>
               <td className="px-4 py-4 font-mono text-xs text-[#24313d]">{sale.ventaId}</td>
               <td className="px-4 py-4 text-[#24313d]">{formatDateTime(sale.fechaHora)}</td>
-              <td className="px-4 py-4 text-[#24313d]">{sale.responsable.nombre}</td>
+              <td className="px-4 py-4 text-[#24313d]">
+                {sale.responsable.nombre} · {formatSaleResponsibleRole(sale.responsable.rol)}
+              </td>
               <td className="px-4 py-4 text-right font-semibold text-[#17202a]">
                 {formatChileanPeso(sale.total)}
               </td>
@@ -605,7 +608,10 @@ function SaleDetailPanel({
       </div>
 
       <dl className="mt-5 grid gap-4 rounded-md bg-[#f6f8fa] p-4 sm:grid-cols-2">
-        <Info label="Responsable" value={detail.responsable.nombre} />
+        <Info
+          label="Responsable"
+          value={`${detail.responsable.nombre} · ${formatSaleResponsibleRole(detail.responsable.rol)}`}
+        />
         <Info label="Fecha y hora" value={formatDateTime(detail.fechaHora)} />
       </dl>
 

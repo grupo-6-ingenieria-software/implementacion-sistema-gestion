@@ -22,6 +22,7 @@ type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
 let testDb: TestDatabase | undefined;
 const now = new Date("2026-06-12T20:30:00.000Z");
+const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
 
 beforeEach(async () => {
   testDb = await createTestDatabase();
@@ -171,10 +172,14 @@ describe("cash closing service", () => {
     const receipt = await registerSale(
       testDb!.db as unknown as DbExecutor,
       {
-        usuarioId: "12345678-9",
         metodoPago: "efectivo",
         montoRecibido: 2000,
         items: [{ productoId: 1, cantidad: 1 }],
+      },
+      {
+        usuarioId: "12345678-9",
+        sesionId: TEST_SESSION_ID,
+        rol: "dueno",
       },
       new Date("2026-06-13T12:00:00.000Z"),
     );
@@ -222,6 +227,21 @@ async function seedCashClosingFixture(db: DbExecutor): Promise<void> {
       trabajador_id
     )
     VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1)
+  `);
+
+  await db.run(sql`
+    INSERT INTO sesion_usuario (
+      sesion_usuario_id,
+      sesion_fecha_hora_inicio,
+      sesion_fecha_hora_ultimo_acceso,
+      usuario_id
+    )
+    VALUES (
+      ${TEST_SESSION_ID},
+      '2026-01-01T00:00:00.000Z',
+      '2099-01-01T00:00:00.000Z',
+      '12345678-9'
+    )
   `);
 
   await db.run(sql`
@@ -371,6 +391,8 @@ async function insertSale(
       es_venta_efectivo,
       es_venta_electronica,
       usuario_cajero_id,
+      venta_responsable_nombre,
+      venta_responsable_rol,
       cierre_caja_id
     )
     VALUES (
@@ -382,6 +404,8 @@ async function insertSale(
       ${esEfectivo ? 1 : 0},
       ${esEfectivo ? 0 : 1},
       '12345678-9',
+      'Ana Prueba',
+      'dueno',
       '00000000-0000-4000-8000-000000000201'
     )
   `);

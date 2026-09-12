@@ -57,7 +57,7 @@ try {
     const request = window.cartRequests[0];
     request.resolve({
       ok: true,
-      data: { lines: [{ productoId: 1, ean13: '7802920000015', nombre: 'Leche', cantidad: 1, precioUnitario: 1000, stockDisponible: 6, subtotal: 1000 }], subtotal: 1000 },
+      data: { lines: [{ productoId: 1, ean13: '7802920000015', nombre: 'Leche', categoria: 'Lácteos', cantidad: 1, precioUnitario: 1000, stockDisponible: 6, subtotal: 1000 }], subtotal: 1000 },
     });
   });
   await page.getByText('Leche').last().waitFor();
@@ -74,7 +74,7 @@ try {
   await page.evaluate(() => {
     const resolveAt = (index, cantidad) => window.cartRequests[index].resolve({
       ok: true,
-      data: { lines: [{ productoId: 1, ean13: '7802920000015', nombre: 'Leche', cantidad, precioUnitario: 1000, stockDisponible: 6, subtotal: cantidad * 1000 }], subtotal: cantidad * 1000 },
+      data: { lines: [{ productoId: 1, ean13: '7802920000015', nombre: 'Leche', categoria: 'Lácteos', cantidad, precioUnitario: 1000, stockDisponible: 6, subtotal: cantidad * 1000 }], subtotal: cantidad * 1000 },
     });
     resolveAt(2, 3);
     resolveAt(1, 2);

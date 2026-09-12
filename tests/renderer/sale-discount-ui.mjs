@@ -26,7 +26,7 @@ try {
     page.setDefaultTimeout(10000);
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
-    await page.addInitScript(() => {
+    await page.addInitScript((sessionRole) => {
       window.saleRequests = [];
       window.saleMode = "error";
       const product = {
@@ -85,9 +85,9 @@ try {
                 ventaId: "venta-cu37",
                 fechaHora: "2026-09-11T16:00:00Z",
                 responsable: {
-                  usuarioId: payload.usuarioId,
+                  usuarioId: "12345678-9",
                   nombre: "Ana Prueba",
-                  rol: "trabajador",
+                  rol: sessionRole,
                 },
                 metodoPago: payload.metodoPago,
                 subtotal,
@@ -114,7 +114,7 @@ try {
           throw new Error(`Canal inesperado: ${channel}`);
         },
       };
-    });
+    }, role);
     await page.goto(
       `${server.resolvedUrls.local[0]}tests/renderer/sale-discount-harness.html?rol=${role}`,
     );
