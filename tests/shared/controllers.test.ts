@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(34);
-    expect(new Set(ids)).toHaveProperty("size", 34);
+    expect(controllers).toHaveLength(37);
+    expect(new Set(ids)).toHaveProperty("size", 37);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -56,7 +56,7 @@ describe("controller registry", () => {
   });
 
   it("assigns at least one IPC channel to every controller", () => {
-    expect(ipcChannels.length).toBeGreaterThanOrEqual(33);
+    expect(ipcChannels.length).toBeGreaterThanOrEqual(37);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
