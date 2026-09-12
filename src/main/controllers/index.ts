@@ -20,6 +20,7 @@ import { productEditController } from "./product-edit";
 import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
 import { saleController } from "./sale";
+import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
 import { shiftController } from "./shift";
@@ -58,6 +59,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     eanReaderController,
     userManagementController,
     productDeleteController,
+    saleAnnulmentController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {

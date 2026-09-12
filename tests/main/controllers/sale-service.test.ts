@@ -35,6 +35,111 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
+  it.each(["dueno", "trabajador"])(
+    "CU37 preserves discounted registration for %s",
+    async (rol) => {
+      await testDb!.db.run(
+        sql`UPDATE usuario SET usuario_rol = ${rol} WHERE usuario_id = '12345678-9'`,
+      );
+      const result = await registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: "12345678-9",
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 1 }],
+        descuento: { monto: 100, razon: "Promoción" },
+      });
+      expect(result.total).toBe(900);
+      expect(result.responsable.rol).toBe(rol);
+    },
+  );
+  it.each([
+    [500, "  Promoción  ", "monto", 500, "Promoción", 2500],
+    [0, "", "ninguno", null, null, 3000],
+    [0, "Razón descartada", "ninguno", null, null, 3000],
+    [3000, "Cortesía", "monto", 3000, "Cortesía", 0],
+  ] as const)(
+    "CU37 persists discount %s and calculates authoritative totals",
+    async (monto, razon, tipo, valor, storedReason, total) => {
+      const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: "12345678-9",
+        metodoPago: "efectivo",
+        montoRecibido: 3000,
+        items: [{ productoId: 1, cantidad: 3 }],
+        descuento: { monto, razon },
+      });
+      expect(receipt).toMatchObject({
+        subtotal: 3000,
+        total,
+        vuelto: 3000 - total,
+        descuento: { tipo, valor: monto, razon: storedReason ?? undefined },
+      });
+      const rows = await testDb!.db.all(
+        sql`SELECT venta_descuento_tipo AS tipo, venta_descuento_valor AS valor, venta_descuento_razon AS razon FROM venta`,
+      );
+      expect(rows).toEqual([{ tipo, valor, razon: storedReason }]);
+    },
+  );
+
+  it.each([
+    { monto: 3001, razon: "Rango" },
+    { monto: 500, razon: "" },
+    { monto: 500, razon: " \t\n " },
+    { monto: -1, razon: "Negativo" },
+    { monto: NaN, razon: "Inválido" },
+    { monto: Infinity, razon: "Inválido" },
+    { monto: Number.MAX_SAFE_INTEGER + 1, razon: "Inválido" },
+    { monto: "500", razon: "Tipo incorrecto" },
+    { monto: "1.500", razon: "Texto IPC" },
+  ])("CU37 rejects invalid discount %j without writes", async (descuento) => {
+    await expect(
+      registerSale(testDb!.db as unknown as DbExecutor, {
+        usuarioId: "12345678-9",
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 3 }],
+        descuento: descuento as never,
+      }),
+    ).rejects.toBeInstanceOf(SaleValidationError);
+    const rows = await testDb!.db.all(sql`SELECT
+      (SELECT COUNT(*) FROM venta) AS ventas, (SELECT COUNT(*) FROM detalle_venta) AS detalles,
+      (SELECT COUNT(*) FROM venta_efectivo) AS efectivo, (SELECT COUNT(*) FROM venta_lote) AS consumos,
+      (SELECT COUNT(*) FROM log_auditoria) AS auditorias, (SELECT SUM(lote_cantidad_actual) FROM lote) AS stock,
+      (SELECT COUNT(*) FROM cierre_caja) AS cajas`);
+    expect(rows).toEqual([
+      {
+        ventas: 0,
+        detalles: 0,
+        efectivo: 0,
+        consumos: 0,
+        auditorias: 0,
+        stock: 6,
+        cajas: 1,
+      },
+    ]);
+  });
+
+  it("CU37 revalidates against a price changed after cart preview", async () => {
+    const database = testDb!.db as unknown as DbExecutor;
+    expect(
+      (
+        await validateSaleCart(database, {
+          items: [{ productoId: 1, cantidad: 1 }],
+        })
+      ).subtotal,
+    ).toBe(1000);
+    await testDb!.db.run(
+      sql`UPDATE historial_precio_producto SET historial_precio_venta = 400 WHERE producto_id = 1`,
+    );
+    await expect(
+      registerSale(database, {
+        usuarioId: "12345678-9",
+        metodoPago: "debito",
+        items: [{ productoId: 1, cantidad: 1 }],
+        descuento: { monto: 500, razon: "Promoción" },
+      }),
+    ).rejects.toThrow("mayor al subtotal");
+    expect(
+      await testDb!.db.all(sql`SELECT COUNT(*) AS cantidad FROM venta`),
+    ).toEqual([{ cantidad: 0 }]);
+  });
   it("validates the cart with SQL reads and performs no writes", async () => {
     const result = await validateSaleCart(testDb!.db as unknown as DbExecutor, {
       items: [{ productoId: 1, ean13: "7802920000015", cantidad: 2 }],
@@ -380,6 +485,7 @@ describe("registerSale", () => {
         usuarioId: "12345678-9",
         metodoPago: "debito",
         items: [{ productoId: 1, cantidad: 1 }],
+        descuento: { monto: 500, razon: "Promoción" },
       }),
     ).rejects.toThrow("fallo inyectado en venta_lote");
 

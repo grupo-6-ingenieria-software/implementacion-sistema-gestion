@@ -104,12 +104,18 @@ try {
   await page.getByRole('button', { name: 'Confirmar venta' }).click();
   await page.waitForFunction(() => window.saleRequests.length === 1);
   assert.equal(await page.evaluate(() => window.saleRequests[0].montoRecibido), null);
-  await page.getByLabel('Descuento').fill('100');
+  await page.getByRole('button', { name: 'Aplicar descuento', exact: true }).click();
+  await page.getByLabel('Monto del descuento').fill('100');
+  await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'razón del descuento' }).waitFor();
+  assert.equal(await page.evaluate(() => window.saleRequests.length), 1);
+  await page.getByLabel('Razón del descuento (obligatoria)').fill('Promoción');
+  await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar venta' }).click();
   await page.waitForFunction(() => window.saleRequests.length === 2);
   assert.deepEqual(
     await page.evaluate(() => window.saleRequests[1].descuento),
-    { monto: 100, razon: '' },
+    { monto: 100, razon: 'Promoción' },
   );
   console.log('PASS carrito se publica tras validación vigente y descarta respuestas antiguas');
 } finally {

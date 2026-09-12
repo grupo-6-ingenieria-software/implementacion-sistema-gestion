@@ -5,6 +5,7 @@ import {
   getLotCreateEan13,
   getProductDeleteEan13,
   getProductStatusEan13,
+  getSaleAnnulmentVentaId,
   getWasteCreateEan13,
   isImplementedViewNodeId,
 } from "../../../src/renderer/src/App";
@@ -44,6 +45,19 @@ describe("App inventory route helpers", () => {
   it("treats both shift routes as implemented views", () => {
     expect(isImplementedViewNodeId("shift-calendar")).toBe(true);
     expect(isImplementedViewNodeId("shift-create")).toBe(true);
+  });
+
+  it("treats CU38 as implemented and reads the V13 sale query", () => {
+    expect(isImplementedViewNodeId("sale-annulment")).toBe(true);
+    expect(
+      getSaleAnnulmentVentaId(
+        "/app/ventas/anular?ventaId=00000000-0000-4000-8000-000000000401",
+      ),
+    ).toBe("00000000-0000-4000-8000-000000000401");
+  });
+
+  it("treats CU41 as an implemented view", () => {
+    expect(isImplementedViewNodeId("sales-query")).toBe(true);
   });
 
   it("provides and clears documented shift success messages", () => {

@@ -13,6 +13,7 @@ import { calculateSaleAmount, type SaleRow } from "./dashboard-service";
 import { getDashboardDay } from "./dashboard-date";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 import { inspectDailyCashRegister } from "./cash-check";
+import { runSerializedWriteTransaction } from "./write-transaction";
 
 type CashUser = {
   role: Role;
@@ -68,7 +69,7 @@ export async function closeCashRegister(
     throw new CashClosingValidationError("Debe confirmar el cierre de caja.");
   }
 
-  return database.transaction(async (tx) => {
+  return runSerializedWriteTransaction(database, async (tx) => {
     const user = await authorizeCashClosingUser(tx, payload.usuarioId);
     const cashState = await inspectDailyCashRegister(tx, now);
 

@@ -28,6 +28,8 @@ describe("navigation tree", () => {
         "waste-create",
         "sale-register",
         "daily-sales",
+        "sales-query",
+        "sale-annulment",
         "cash-closing",
         "worker-list",
         "worker-create",
@@ -131,6 +133,43 @@ describe("navigation tree", () => {
         role: "trabajador",
       }),
     ).toEqual({ status: "allow" });
+  });
+
+  it("exposes CU38 to both roles from the sales menu", () => {
+    const node = navigationTree.find((item) => item.id === "sale-annulment");
+    expect(node).toMatchObject({
+      path: "/app/ventas/anular",
+      showInMenu: true,
+      roles: ["dueno", "trabajador"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess(
+          "/app/ventas/anular?ventaId=00000000-0000-4000-8000-000000000401",
+          { isAuthenticated: true, role },
+        ),
+      ).toEqual({ status: "allow" });
+    }
+  });
+
+  it("exposes CU41 to both roles from the sales menu", () => {
+    const node = navigationTree.find((item) => item.id === "sales-query");
+    expect(node).toMatchObject({
+      path: "/app/ventas/consulta",
+      showInMenu: true,
+      roles: ["dueno", "trabajador"],
+      controllerIds: ["access-control", "sales-history"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        evaluateRouteAccess(
+          "/app/ventas/consulta?criterio=rango&fechaInicio=2026-09-11&fechaTermino=2026-09-11",
+          { isAuthenticated: true, role },
+        ),
+      ).toEqual({ status: "allow" });
+    }
   });
 
   it("allows both roles to access product deletion outside the menu", () => {
