@@ -11,17 +11,18 @@ import type { Role } from "../../../shared/navigation";
 import type { ActiveWorkerListPayload } from "../../../shared/workers";
 import {
   addDaysToDateKey,
-  getWeekStartDateKey,
   isoDateToDisplay,
-  normalizeShiftEditPayload,
-  validateShiftEditPayload,
   type ShiftCalendarItem,
-  type ShiftFieldErrors,
   type ShiftListResponse,
   type ShiftMutationResponse,
 } from "../../../shared/shifts";
 
+import { buildShiftEditPath, getShiftCalendarContext } from "./shift-navigation";
+
 type ShiftCalendarViewProps = {
+  currentPath?: string;
+  successMessage?: string | null;
+  onSuccessConsumed?: () => void;
   role: Role;
   onNavigate: (path: string) => void;
   usuarioId: string;
@@ -31,12 +32,6 @@ type PageState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; data: ShiftListResponse; refreshing: boolean };
-
-type EditForm = {
-  fecha: string;
-  horaInicio: string;
-  horaTermino: string;
-};
 
 type CalendarInvoke = typeof window.appApi.invoke;
 
@@ -125,24 +120,24 @@ const dayNames = [
 ];
 
 export function ShiftCalendarView({
-  role,
-  onNavigate,
-  usuarioId,
+  role, onNavigate, usuarioId, currentPath = "/app/personal/turnos",
+  successMessage = null, onSuccessConsumed,
 }: ShiftCalendarViewProps): ReactElement {
-  const [weekStart, setWeekStart] = useState(getWeekStartDateKey);
-  const [workerFilter, setWorkerFilter] = useState("");
+  const initialContext = getShiftCalendarContext(currentPath);
+  const [weekStart, setWeekStart] = useState(initialContext.inicioSemana);
+  const [workerFilter, setWorkerFilter] = useState(initialContext.trabajadorId ? String(initialContext.trabajadorId) : "");
   const [workerFilterName, setWorkerFilterName] = useState("");
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [selected, setSelected] = useState<ShiftCalendarItem | null>(null);
-  const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<ShiftFieldErrors>({});
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(successMessage);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const deletingRef = useRef(false);
   const requestIdRef = useRef(0);
+  useEffect(() => { onSuccessConsumed?.(); }, [onSuccessConsumed]);
   const selectionRequestIdRef = useRef(0);
   const [checkingSelection, setCheckingSelection] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
@@ -153,12 +148,10 @@ export function ShiftCalendarView({
   const closeSelection = useCallback(() => {
     selectionRequestIdRef.current += 1;
     setSelected(null);
-    setEditForm(null);
     setCheckingSelection(false);
     setSelectionError(null);
     setDeleting(false);
     setActionMessage(null);
-    setFieldErrors({});
   }, []);
 
   const loadCalendar = useCallback(
@@ -185,6 +178,8 @@ export function ShiftCalendarView({
         }
 
         setWorkers(data.workers);
+        const filterName = data.workers.find((worker) => String(worker.trabajadorId) === workerFilter)?.nombreCompleto;
+        if (filterName) setWorkerFilterName(filterName);
         const unavailable = Boolean(workerFilter) && !data.workers.some(
           (worker) => String(worker.trabajadorId) === workerFilter,
         );
@@ -252,13 +247,6 @@ export function ShiftCalendarView({
       }
       setSelected(current);
       setSelectedDateKey(current.fechaIso);
-      if (current.puedeModificar) {
-        setEditForm({
-          fecha: current.fecha,
-          horaInicio: current.horaInicio,
-          horaTermino: current.horaTermino,
-        });
-      }
     } catch (error) {
       if (requestId !== selectionRequestIdRef.current) return;
       setSelectionError(error instanceof Error
@@ -269,56 +257,14 @@ export function ShiftCalendarView({
     }
   }
 
-  async function saveEdit(): Promise<void> {
-    if (!canManage || !selected || !editForm) {
-      return;
-    }
-
-    const payload = normalizeShiftEditPayload({
-      ...editForm,
-      turnoId: selected.turnoId,
-      usuarioId,
-    });
-    const errors = validateShiftEditPayload(payload);
-    setFieldErrors(errors);
-    setActionMessage(null);
-    setResultMessage(getShiftResultMessage("start-operation"));
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const response = await window.appApi.invoke<ShiftMutationResponse>(
-        "turno:editar",
-        payload,
-      );
-
-      if (!response.ok) {
-        setFieldErrors(response.error.fieldErrors ?? {});
-        setActionMessage(response.error.message);
-        return;
-      }
-
-      setSelected(null);
-      setEditForm(null);
-      setResultMessage(getShiftResultMessage("edit-success"));
-      await loadCalendar(true);
-    } catch {
-      setActionMessage("No fue posible comunicarse con el proceso principal.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function confirmDelete(): Promise<void> {
-    if (!canManage || !selected) {
+    if (!canManage || !selected || deletingRef.current) {
       return;
     }
 
+    deletingRef.current = true;
     setSaving(true);
+    const requestId = requestIdRef.current;
     setActionMessage(null);
     setResultMessage(getShiftResultMessage("start-operation"));
 
@@ -332,6 +278,7 @@ export function ShiftCalendarView({
         },
       );
 
+      if (requestId !== requestIdRef.current) return;
       if (!response.ok) {
         setActionMessage(response.error.message);
         setDeleting(false);
@@ -339,13 +286,14 @@ export function ShiftCalendarView({
       }
 
       setSelected(null);
-      setEditForm(null);
       setDeleting(false);
       setResultMessage(getShiftResultMessage("delete-success"));
       await loadCalendar(true);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setActionMessage("No fue posible comunicarse con el proceso principal.");
     } finally {
+      deletingRef.current = false;
       setSaving(false);
     }
   }
@@ -581,8 +529,6 @@ export function ShiftCalendarView({
           checkingSelection={checkingSelection}
           selectionError={selectionError}
           deleting={deleting}
-          editForm={editForm}
-          fieldErrors={fieldErrors}
           message={actionMessage}
           saving={saving}
           shift={selected}
@@ -592,8 +538,9 @@ export function ShiftCalendarView({
             setResultMessage(getShiftResultMessage("start-operation"));
             setDeleting(true);
           }}
-          onEditChange={setEditForm}
-          onSave={() => void saveEdit()}
+          onEdit={() => onNavigate(buildShiftEditPath(selected.turnoId, {
+            inicioSemana: weekStart, trabajadorId: workerFilter ? Number(workerFilter) : undefined,
+          }))}
         />
       ) : null}
     </section>
@@ -605,31 +552,25 @@ function ShiftDetail({
   checkingSelection,
   selectionError,
   deleting,
-  editForm,
-  fieldErrors,
   message,
   saving,
   shift,
   onCancel,
   onConfirmDelete,
   onDelete,
-  onEditChange,
-  onSave,
+  onEdit,
 }: {
   canManage: boolean;
   checkingSelection: boolean;
   selectionError: string | null;
   deleting: boolean;
-  editForm: EditForm | null;
-  fieldErrors: ShiftFieldErrors;
   message: string | null;
   saving: boolean;
   shift: ShiftCalendarItem;
   onCancel: () => void;
   onConfirmDelete: () => void;
   onDelete: () => void;
-  onEditChange: (form: EditForm) => void;
-  onSave: () => void;
+  onEdit: () => void;
 }): ReactElement {
   return (
     <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
@@ -645,6 +586,7 @@ function ShiftDetail({
         <button
           className="rounded-md border border-[#9ba9b5] px-3 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
           type="button"
+          disabled={saving}
           onClick={onCancel}
         >
           Cerrar
@@ -659,43 +601,13 @@ function ShiftDetail({
         <p className="mt-5 text-sm font-semibold text-[#8f2727]" role="alert">
           {selectionError} Seleccione nuevamente el turno para reintentar.
         </p>
-      ) : !shift.puedeModificar || !editForm ? (
+      ) : !shift.puedeModificar ? (
         <div className="mt-5 rounded-md border border-[#e3ad72] bg-[#fff8ed] p-4 text-sm text-[#6b4a24]">
           Este turno ya inicio o tiene asistencia registrada. No puede
           modificarse ni eliminarse.
         </div>
       ) : (
         <div className="mt-5 grid gap-5">
-          <div className="grid gap-5 md:grid-cols-3">
-            <Field label="Fecha (DD/MM/AAAA)" error={fieldErrors.fecha}>
-              <input
-                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                value={editForm.fecha}
-                onChange={(event) =>
-                  onEditChange({ ...editForm, fecha: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="Hora inicio (HH:MM)" error={fieldErrors.horaInicio}>
-              <input
-                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                value={editForm.horaInicio}
-                onChange={(event) =>
-                  onEditChange({ ...editForm, horaInicio: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="Hora termino (HH:MM)" error={fieldErrors.horaTermino}>
-              <input
-                className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-                value={editForm.horaTermino}
-                onChange={(event) =>
-                  onEditChange({ ...editForm, horaTermino: event.target.value })
-                }
-              />
-            </Field>
-          </div>
-
           {message ? (
             <p className="rounded-md border border-[#dba7a7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-[#8f2727]">
               {message}
@@ -736,9 +648,9 @@ function ShiftDetail({
                 className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:bg-[#9ba9b5]"
                 disabled={saving}
                 type="button"
-                onClick={onSave}
+                onClick={onEdit}
               >
-                {saving ? "Guardando..." : "Guardar cambios"}
+                Editar turno
               </button>
               <button
                 className="rounded-md border border-[#b66a60] px-4 py-2 text-sm font-semibold text-[#8a3b2d] transition hover:bg-[#fff3f1]"
@@ -753,25 +665,5 @@ function ShiftDetail({
         </div>
       )}
     </article>
-  );
-}
-
-function Field({
-  children,
-  error,
-  label,
-}: {
-  children: ReactElement;
-  error?: string;
-  label: string;
-}): ReactElement {
-  return (
-    <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
-      {label}
-      {children}
-      {error ? (
-        <span className="text-xs font-semibold text-[#9f2d20]">{error}</span>
-      ) : null}
-    </label>
   );
 }
