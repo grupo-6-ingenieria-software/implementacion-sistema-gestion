@@ -7,6 +7,7 @@ import {
 } from "../../../src/main/controllers/auth-fixtures";
 import { authorizeRequest } from "../../../src/main/controllers/auth-guard";
 import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+import { authenticateWithExecutor } from "../../../src/main/controllers/auth-login";
 import { shiftController } from "../../../src/main/controllers/shift";
 import type { ShiftListResponse } from "../../../src/shared/shifts";
 
@@ -90,6 +91,95 @@ async function expectRejected(payload: Record<string, unknown>, code: string, in
 }
 
 describe("CU26 editing through session authorization and the shift controller", () => {
+  it.each([0, 1])("loads V18 by ID with current data and session permissions for role %i", async (index) => {
+    await fixture.db.update(schema.turno).set({ turnoFechaHoraInicio: "2026-07-20T13:00:00.000Z", turnoFechaHoraFin: "2026-07-20T21:00:00.000Z" });
+    expect(await request("turno:listar", { consulta: "turno", turnoId, usuarioId: users[0] }, index))
+      .toMatchObject({ ok: true, data: { turno: {
+        turnoId, fecha: "20/07/2026", horaInicio: "09:00", horaTermino: "17:00", puedeModificar: index === 0,
+      } } });
+    expect(await editAudits()).toEqual([]);
+  });
+
+  it("does not expose an inactive worker through lookup by ID", async () => {
+    await fixture.db.update(schema.trabajador).set({ trabajadorEstado: "inactivo" })
+      .where(eq(schema.trabajador.trabajadorId, 2));
+    expect(await request("turno:listar", { consulta: "turno", turnoId }))
+      .toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
+  });
+
+  it("reports a missing shift instead of loading an unrelated calendar", async () => {
+    expect(await request("turno:listar", { consulta: "turno", turnoId: randomUUID() }))
+      .toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
+  });
+
+  it.each([
+    { consulta: "unknown", inicioSemana: "2026-06-15" },
+    { consulta: null, inicioSemana: "2026-06-15" },
+    { consulta: "turno" }, { consulta: "turno", turnoId: 12 },
+    { consulta: "turno", turnoId: "   " },
+  ])("rejects malformed lookup without a weekly fallback: %j", async (payload) => {
+    expect(await request("turno:listar", payload)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
+  });
+
+  it("blocks the editor when attendance appears after its lookup", async () => {
+    expect(await request("turno:listar", { consulta: "turno", turnoId }))
+      .toMatchObject({ ok: true, data: { turno: { puedeModificar: true } } });
+    await fixture.db.insert(schema.asistencia).values({
+      asistenciaId: randomUUID(), turnoId, trabajadorId: 2, asistenciaFechaHoraEntrada: originalStart,
+    });
+    await expectRejected(edit, "BUSINESS_RULE");
+  });
+
+  it("keeps creation consistent with the owner session role", async () => {
+    await fixture.db.update(schema.usuario).set({ usuarioRol: "trabajador" })
+      .where(eq(schema.usuario.usuarioId, users[0]));
+    expect(await request("turno:crear", {
+      trabajadorId: 2, fecha: "17/06/2026", horaInicio: "09:00", horaTermino: "17:00", usuarioId: users[1],
+    })).toMatchObject({ ok: true });
+    expect(await persistedShifts()).toHaveLength(2);
+    const [audit] = await fixture.db.select({ usuarioId: schema.usuarioVersion.usuarioId })
+      .from(schema.logAuditoria).innerJoin(schema.usuarioVersion, eq(schema.logAuditoria.usuarioVersionId, schema.usuarioVersion.usuarioVersionId))
+      .where(eq(schema.logAuditoria.logTipoAccion, "crear_turno"));
+    expect(audit.usuarioId).toBe(users[0]);
+  });
+
+  it.each([0, 1])("applies the changed database role on a new login: user %i", async (index) => {
+    const newRole = index === 0 ? "trabajador" : "dueno";
+    await fixture.db.update(schema.usuario).set({ usuarioRol: newRole })
+      .where(eq(schema.usuario.usuarioId, users[index]));
+    const login = await authenticateWithExecutor(fixture.db, schema, { usuario: users[index], contrasena: "test-password" }, {
+      comparePassword: async () => true, signToken: signSessionToken, now: () => new Date(),
+    });
+    expect(login).toMatchObject({ ok: true, data: { role: newRole } });
+    if (!login.ok) throw new Error(login.error.message);
+    const result = await request("turno:editar", { ...edit, __authToken: login.data.token }, index);
+    expect(result).toMatchObject(index === 0 ? { ok: false, error: { code: "FORBIDDEN" } } : { ok: true });
+  });
+
+  it.each(["turno:crear", "turno:editar", "turno:eliminar"])("rejects missing trusted context for %s", async (channel) => {
+    const before = await persistedShifts();
+    expect(await shiftController.handle({ ...edit, trabajadorId: 2, confirmacion: true, usuarioId: users[0] }, { channel }))
+      .toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    expect(await persistedShifts()).toEqual(before);
+  });
+
+  it("reports a technical authorization failure without changing the shift", async () => {
+    const select = vi.spyOn(fixture.db, "select").mockImplementationOnce(() => { throw new Error("Account read failed"); });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await request("turno:editar", edit)).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR" } });
+    select.mockRestore();
+    expect(await persistedShifts()).toMatchObject([{ turnoFechaHoraInicio: originalStart }]);
+    expect(await editAudits()).toEqual([]);
+  });
+
+  it("retains the owner session role until the next login after a database role change", async () => {
+    await fixture.db.update(schema.usuario).set({ usuarioRol: "trabajador" })
+      .where(eq(schema.usuario.usuarioId, users[0]));
+    expect(await request("turno:editar", edit)).toMatchObject({ ok: true });
+    expect(await persistedShifts()).toMatchObject([{ turnoFechaHoraInicio: "2026-06-16T13:00:00.000Z" }]);
+    expect(await editAudits()).toMatchObject([{ usuarioId: users[0] }]);
+  });
+
   it("persists both timestamps, preserves the worker and audits the trusted session identity", async () => {
     expect(await request("turno:editar", { ...edit, usuarioId: users[1], trabajadorId: 1 }))
       .toMatchObject({ ok: true, data: { turnoId } });
