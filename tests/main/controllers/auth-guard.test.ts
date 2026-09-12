@@ -134,6 +134,32 @@ describe("guardChannel (RF56/CU57)", () => {
     }
   });
 
+  it("allows both roles to load the CU44 dashboard channels", async () => {
+    for (const channel of [
+      "dashboard:cargar",
+      "dashboard:total-ventas-dia",
+    ]) {
+      expect(CHANNEL_ROLES.get(channel)).toEqual(
+        new Set(["dueno", "trabajador"]),
+      );
+
+      for (const role of ["dueno", "trabajador"] as const) {
+        const result = await guardChannel(
+          channel,
+          { usuarioId: "spoofed", __authToken: "t" },
+          deps({ verifyToken: () => claimsFor(role) }),
+        );
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect((result.payload as { usuarioId: string }).usuarioId).toBe(
+            "trusted-id",
+          );
+        }
+      }
+    }
+  });
+
   it("lets trabajador list active workers for Asistencia (cross-module override)", async () => {
     expect(CHANNEL_ROLES.get("trabajador:listar-activos")).toEqual(
       new Set(["dueno", "trabajador"]),
