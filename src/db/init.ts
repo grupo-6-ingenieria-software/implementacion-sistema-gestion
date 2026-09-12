@@ -10,6 +10,20 @@ export interface DatabaseInitPaths {
   triggersPath: string;
 }
 
+const CU43_MIGRATION_FILE = "0004_cu43_sale_responsible_snapshot.sql";
+
+// Estos triggers viven fuera de `venta`, pero consultan o actualizan esa tabla.
+// SQLite no los elimina al reemplazar `venta`, por lo que deben retirarse antes
+// del DROP/RENAME y se vuelven a crear con applyTriggers al terminar.
+const SALE_TABLE_DEPENDENT_TRIGGERS = [
+  "trg_venta_efectivo_flag_coherente",
+  "trg_anulacion_venta_solo_completada",
+  "trg_anulacion_venta_marca_estado",
+  "trg_venta_cierre_abierto",
+  "trg_venta_responsable_requerido",
+  "trg_venta_responsable_inmutable",
+] as const;
+
 export function resolveDatabaseInitPaths(options?: {
   isPackaged?: boolean;
   resourcesPath?: string;
@@ -49,6 +63,21 @@ async function applyMigrations(
   const migrationFiles = (await readdir(migrationsFolder))
     .filter((file) => file.endsWith(".sql"))
     .sort();
+  await recoverInterruptedCu43Migration(
+    client,
+    migrationsFolder,
+    migrationFiles,
+  );
+
+  const journal = JSON.parse(
+    await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8"),
+  ) as {
+    entries: Array<{ tag: string; when: number }>;
+  };
+  const journalTimestamps = new Map(
+    journal.entries.map((entry) => [entry.tag, entry.when]),
+  );
+  const lastDrizzleMigration = await getLastDrizzleMigrationTimestamp(client);
 
   for (const file of migrationFiles) {
     const migration = await readFile(join(migrationsFolder, file), "utf8");
@@ -58,14 +87,120 @@ async function applyMigrations(
       args: [hash],
     });
 
-    if (rows.length === 0) {
-      await client.executeMultiple(migration);
-      await client.execute({
-        sql: 'INSERT INTO "__migrations" (hash, created_at) VALUES (?, ?)',
-        args: [hash, Date.now()],
-      });
+    if (rows.length > 0) {
+      continue;
     }
+
+    const migrationTimestamp = journalTimestamps.get(file.slice(0, -4));
+    const wasAppliedByDrizzle =
+      lastDrizzleMigration !== undefined &&
+      migrationTimestamp !== undefined &&
+      migrationTimestamp <= lastDrizzleMigration;
+
+    if (!wasAppliedByDrizzle) {
+      if (file === CU43_MIGRATION_FILE) {
+        await dropSaleTableDependentTriggers(client);
+      }
+      await client.executeMultiple(migration);
+    }
+
+    await recordMigrationHash(client, hash);
   }
+}
+
+async function recoverInterruptedCu43Migration(
+  client: Client,
+  migrationsFolder: string,
+  migrationFiles: string[],
+): Promise<void> {
+  const cu43File = migrationFiles.find(
+    (file) => file === CU43_MIGRATION_FILE,
+  );
+
+  if (!cu43File) {
+    return;
+  }
+
+  const [ventaExists, pendingVentaExists] = await Promise.all([
+    tableExists(client, "venta"),
+    tableExists(client, "__new_venta"),
+  ]);
+
+  if (ventaExists || !pendingVentaExists) {
+    return;
+  }
+
+  const tableInfo = await client.execute("PRAGMA table_info(__new_venta)");
+  const columns = new Set(tableInfo.rows.map((row) => String(row.name)));
+  const requiredColumns = [
+    "venta_id",
+    "venta_responsable_nombre",
+    "venta_responsable_rol",
+  ];
+
+  if (!requiredColumns.every((column) => columns.has(column))) {
+    throw new Error(
+      "Se encontró una migración CU43 incompleta con un esquema inesperado.",
+    );
+  }
+
+  await dropSaleTableDependentTriggers(client);
+
+  await client.executeMultiple(`
+    ALTER TABLE "__new_venta" RENAME TO "venta";
+    CREATE INDEX IF NOT EXISTS "idx_venta_fecha" ON "venta" ("venta_fecha_hora");
+    CREATE INDEX IF NOT EXISTS "idx_venta_cierre" ON "venta" ("cierre_caja_id");
+    CREATE INDEX IF NOT EXISTS "idx_venta_cajero" ON "venta" ("usuario_cajero_id", "venta_fecha_hora");
+    CREATE INDEX IF NOT EXISTS "idx_venta_estado" ON "venta" ("venta_estado");
+  `);
+
+  const migration = await readFile(join(migrationsFolder, cu43File), "utf8");
+  const hash = createHash("sha256").update(migration).digest("hex");
+  await recordMigrationHash(client, hash);
+}
+
+async function dropSaleTableDependentTriggers(client: Client): Promise<void> {
+  for (const triggerName of SALE_TABLE_DEPENDENT_TRIGGERS) {
+    await client.execute(`DROP TRIGGER IF EXISTS "${triggerName}"`);
+  }
+}
+
+async function tableExists(client: Client, tableName: string): Promise<boolean> {
+  const result = await client.execute({
+    sql: `SELECT name FROM sqlite_master
+          WHERE type = 'table' AND name = ?`,
+    args: [tableName],
+  });
+  return result.rows.length > 0;
+}
+
+async function recordMigrationHash(client: Client, hash: string): Promise<void> {
+  await client.execute({
+    sql: `INSERT OR IGNORE INTO "__migrations" (hash, created_at)
+          VALUES (?, ?)`,
+    args: [hash, Date.now()],
+  });
+}
+
+async function getLastDrizzleMigrationTimestamp(
+  client: Client,
+): Promise<number | undefined> {
+  const table = await client.execute({
+    sql: `SELECT name FROM sqlite_master
+          WHERE type = 'table' AND name = '__drizzle_migrations'`,
+    args: [],
+  });
+
+  if (table.rows.length === 0) {
+    return undefined;
+  }
+
+  const result = await client.execute(
+    'SELECT MAX(created_at) AS created_at FROM "__drizzle_migrations"',
+  );
+  const createdAt = result.rows[0]?.created_at;
+
+  return typeof createdAt === "number" ? createdAt : undefined;
 }
 
 export async function initializeDatabase(

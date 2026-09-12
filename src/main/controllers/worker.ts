@@ -38,14 +38,22 @@ type WorkerDependencies = {
   authorize: (
     usuarioId: string | undefined,
     allowedRoles: readonly Role[],
+    sesionRol?: Role,
   ) => Promise<AuthenticatedUser>;
   changeStatus: (
     payload: UserStatusChangePayload,
+    sesionRol?: Role,
   ) => Promise<UserMutationResponse>;
-  createWorker: (payload: UserFormValues) => Promise<UserMutationResponse>;
+  createWorker: (
+    payload: UserFormValues,
+    sesionRol?: Role,
+  ) => Promise<UserMutationResponse>;
   listWorkers: () => Promise<UserListItem[]>;
   listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
-  updateWorker: (payload: UserFormValues) => Promise<UserMutationResponse>;
+  updateWorker: (
+    payload: UserFormValues,
+    sesionRol?: Role,
+  ) => Promise<UserMutationResponse>;
 };
 
 type WorkerResponse =
@@ -61,7 +69,11 @@ export function createWorkerController(
     try {
       if (context.channel === "trabajador:listar") {
         const usuarioId = normalizeUsuarioId(payload);
-        await dependencies.authorize(usuarioId, ["dueno"]);
+        await dependencies.authorize(
+          usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
 
         const filters = normalizeUserListPayload(payload);
         const workers = await dependencies.listWorkers();
@@ -113,11 +125,18 @@ export function createWorkerController(
           return validationError(fieldErrors);
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
+        await dependencies.authorize(
+          normalizedPayload.usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
 
         return {
           ok: true,
-          data: await dependencies.createWorker(normalizedPayload),
+          data: await dependencies.createWorker(
+            normalizedPayload,
+            normalizeSesionRol(payload),
+          ),
         };
       }
 
@@ -131,11 +150,18 @@ export function createWorkerController(
           return validationError(fieldErrors);
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
+        await dependencies.authorize(
+          normalizedPayload.usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
 
         return {
           ok: true,
-          data: await dependencies.updateWorker(normalizedPayload),
+          data: await dependencies.updateWorker(
+            normalizedPayload,
+            normalizeSesionRol(payload),
+          ),
         };
       }
 
@@ -153,11 +179,18 @@ export function createWorkerController(
           };
         }
 
-        await dependencies.authorize(normalizedPayload.usuarioId, ["dueno"]);
+        await dependencies.authorize(
+          normalizedPayload.usuarioId,
+          ["dueno"],
+          normalizeSesionRol(payload),
+        );
 
         return {
           ok: true,
-          data: await dependencies.changeStatus(normalizedPayload),
+          data: await dependencies.changeStatus(
+            normalizedPayload,
+            normalizeSesionRol(payload),
+          ),
         };
       }
 
@@ -194,10 +227,10 @@ export function createWorkerController(
 }
 
 const workerDependencies: WorkerDependencies = {
-  authorize: async (usuarioId, allowedRoles) => {
+  authorize: async (usuarioId, allowedRoles, sesionRol) => {
     const { db, schema } = await import("../../db/client");
 
-    return authorizeUser(db, schema, usuarioId, allowedRoles);
+    return authorizeUser(db, schema, usuarioId, allowedRoles, sesionRol);
   },
   changeStatus,
   createWorker,
@@ -207,6 +240,20 @@ const workerDependencies: WorkerDependencies = {
 };
 
 export const workerController = createWorkerController();
+
+function normalizeSesionRol(payload: unknown): Role | undefined {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "__rolSesion" in payload
+  ) {
+    const rol = (payload as Record<string, unknown>).__rolSesion;
+
+    return rol === "dueno" || rol === "trabajador" ? rol : undefined;
+  }
+
+  return undefined;
+}
 
 async function listWorkers(): Promise<UserListItem[]> {
   const { db, schema } = await import("../../db/client");
@@ -263,10 +310,11 @@ async function listActiveWorkers(): Promise<AttendanceWorkerOption[]> {
 
 async function createWorker(
   payload: UserFormValues,
+  sesionRol?: Role,
 ): Promise<UserMutationResponse> {
   const { db, schema } = await import("../../db/client");
 
-  return createWorkerWithExecutor(db, schema, payload);
+  return createWorkerWithExecutor(db, schema, payload, undefined, sesionRol);
 }
 
 /**
@@ -280,11 +328,18 @@ export async function createWorkerWithExecutor(
   schema: SchemaLike,
   payload: UserFormValues,
   passwordDeps: PasswordDeps = defaultPasswordDeps,
+  sesionRol?: Role,
 ): Promise<UserMutationResponse> {
   let contrasenaTemporal = "";
 
   await database.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+    const owner = await authorizeUser(
+      tx,
+      schema,
+      payload.usuarioId,
+      ["dueno"],
+      sesionRol,
+    );
     const existing = await findWorkerByRut(tx, schema, payload.rut);
 
     if (existing) {
@@ -341,11 +396,18 @@ export async function createWorkerWithExecutor(
 
 async function updateWorker(
   payload: UserFormValues,
+  sesionRol?: Role,
 ): Promise<UserMutationResponse> {
   const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+    const owner = await authorizeUser(
+      tx,
+      schema,
+      payload.usuarioId,
+      ["dueno"],
+      sesionRol,
+    );
     const existing = await findWorkerByRut(tx, schema, payload.rut);
 
     if (!existing) {
@@ -404,11 +466,18 @@ async function updateWorker(
 
 async function changeStatus(
   payload: UserStatusChangePayload,
+  sesionRol?: Role,
 ): Promise<UserMutationResponse> {
   const { db, schema } = await import("../../db/client");
 
   await db.transaction(async (tx) => {
-    const owner = await authorizeUser(tx, schema, payload.usuarioId, ["dueno"]);
+    const owner = await authorizeUser(
+      tx,
+      schema,
+      payload.usuarioId,
+      ["dueno"],
+      sesionRol,
+    );
     const existing = await findWorkerByRut(
       tx,
       schema,

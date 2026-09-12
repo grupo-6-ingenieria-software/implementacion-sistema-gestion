@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -20,7 +21,6 @@ import {
   resolveInitialRoute,
   type NavNode,
   type Role,
-  type RouteGuardDecision,
   type SessionState,
 } from "../../shared/navigation";
 import {
@@ -31,6 +31,11 @@ import {
 import { formatRutInput, rutToBackend } from "../../shared/users";
 import { AuditLogView } from "./views/AuditLogView";
 import { ConfigurarPorcentajesPrevisionalesView } from "./views/ConfigurarPorcentajesPrevisionalesView";
+import { AnularVentaView } from "./views/AnularVentaView";
+import {
+  ConsultaVentasView,
+  getSafeSalesQueryReturnPath,
+} from "./views/ConsultaVentasView";
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
@@ -45,7 +50,7 @@ import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
 import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
-import { ShiftCalendarView } from "./views/ShiftCalendarView";
+import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
 import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
@@ -55,6 +60,17 @@ import { UserManagementView } from "./views/UserManagementView";
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
+import {
+  clearPendingSaleResume,
+  clearSaleDraft,
+  markSaleDraftForResume,
+  readPendingSaleUserId,
+  readSaleDraft,
+} from "./sale-draft";
+
+const SALE_REGISTER_PATH = "/app/ventas/registrar";
+
+const ACCESS_DENIED_MESSAGE = "No tiene permiso para acceder a este módulo.";
 
 type AppSession = SessionState & {
   displayName?: string;
@@ -81,17 +97,29 @@ export function App(): ReactElement {
   const [session, setSession] = useState<AppSession>(defaultSession);
   const [path, setPath] = useState(getHashPath);
   const [notice, setNotice] = useState<string | null>(null);
-  const lastRouteAuditKey = useRef<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const isAuthenticatedRef = useRef(session.isAuthenticated);
+  const currentPathRef = useRef(path);
+  const postLoginRouteRef = useRef<string | null>(null);
+  const postPasswordRouteRef = useRef<string | null>(null);
 
   isAuthenticatedRef.current = session.isAuthenticated;
+  currentPathRef.current = path;
 
-  const expireSession = useRef((): void => {
-    window.appApi.setSessionToken(null);
-    setSession(defaultSession);
-    setNotice(SESSION_EXPIRED_MESSAGE);
-    navigate(PUBLIC_LOGIN_PATH);
-  }).current;
+  const expireSession = useRef(
+    (message = SESSION_EXPIRED_MESSAGE, resumeSale = false): void => {
+      const draft = readSaleDraft();
+      if (!resumeSale && currentPathRef.current === SALE_REGISTER_PATH && draft) {
+        markSaleDraftForResume(draft.usuarioId);
+      }
+      window.appApi.setSessionToken(null);
+      setSession(defaultSession);
+      setNotice(message);
+      navigate(PUBLIC_LOGIN_PATH);
+    },
+  ).current;
 
   useEffect(
     () =>
@@ -108,11 +136,36 @@ export function App(): ReactElement {
   }, []);
 
   useEffect(() => {
+    if (
+      path === PUBLIC_LOGIN_PATH &&
+      session.isAuthenticated &&
+      !session.passwordChangeRequired &&
+      postLoginRouteRef.current
+    ) {
+      const target = postLoginRouteRef.current;
+      postLoginRouteRef.current = null;
+      navigate(target);
+      return;
+    }
+
+    if (
+      path === PASSWORD_CHANGE_PATH &&
+      session.isAuthenticated &&
+      !session.passwordChangeRequired &&
+      postPasswordRouteRef.current
+    ) {
+      const target = postPasswordRouteRef.current;
+      postPasswordRouteRef.current = null;
+      navigate(target);
+      return;
+    }
+
     const decision = evaluateRouteAccess(path, session);
 
-    auditRouteAccess(path, session, decision, lastRouteAuditKey);
-
     if (decision.status !== "allow") {
+      if (decision.status === "deny") {
+        setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
+      }
       navigate(decision.to);
       return;
     }
@@ -128,6 +181,7 @@ export function App(): ReactElement {
             !response.ok &&
             response.error.code === "FORBIDDEN"
           ) {
+            setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
             navigate(APP_HOME_PATH);
           }
         })
@@ -184,14 +238,34 @@ export function App(): ReactElement {
 
     window.appApi.setSessionToken(data.token);
     setNotice(null);
+    setAccessDeniedMessage(null);
     setSession(nextSession);
-    navigate(resolveInitialRoute(nextSession));
+    const draft = readSaleDraft();
+    if (draft && draft.usuarioId !== data.usuarioId) {
+      clearSaleDraft();
+      clearPendingSaleResume();
+    }
+    const shouldResumeSale =
+      readPendingSaleUserId() === data.usuarioId &&
+      draft?.usuarioId === data.usuarioId;
+    if (!shouldResumeSale) clearPendingSaleResume();
+
+    if (data.passwordChangeRequired) {
+      navigate(resolveInitialRoute(nextSession));
+      return;
+    }
+
+    postLoginRouteRef.current = shouldResumeSale
+      ? SALE_REGISTER_PATH
+      : APP_HOME_PATH;
+    clearPendingSaleResume();
   };
 
   const logout = (): void => {
     void window.appApi.invoke("auth:logout", {}).catch(() => undefined);
     window.appApi.setSessionToken(null);
     setSession(defaultSession);
+    clearPendingSaleResume();
     navigate(PUBLIC_LOGIN_PATH);
   };
 
@@ -201,7 +275,14 @@ export function App(): ReactElement {
       passwordChangeRequired: false,
     };
     setSession(nextSession);
-    navigate(APP_HOME_PATH);
+    const draft = readSaleDraft();
+    const pendingUserId = readPendingSaleUserId();
+    const shouldResumeSale =
+      pendingUserId !== null && draft?.usuarioId === pendingUserId;
+    postPasswordRouteRef.current = shouldResumeSale
+      ? SALE_REGISTER_PATH
+      : APP_HOME_PATH;
+    clearPendingSaleResume();
   };
 
   if (path === PUBLIC_LOGIN_PATH) {
@@ -222,8 +303,13 @@ export function App(): ReactElement {
     <AppShell
       currentPath={path}
       session={session}
-      onNavigate={navigate}
+      bannerMessage={accessDeniedMessage}
+      onNavigate={(target) => {
+        setAccessDeniedMessage(null);
+        navigate(target);
+      }}
       onLogout={logout}
+      onAuthenticationRequired={(message) => expireSession(message, true)}
     />
   );
 }
@@ -543,17 +629,30 @@ function PasswordChangeView({
   );
 }
 
-function AppShell({
+export function AppShell({
   currentPath,
   session,
+  bannerMessage,
   onNavigate,
   onLogout,
+  onAuthenticationRequired,
 }: {
   currentPath: string;
   session: AppSession;
+  bannerMessage?: string | null;
   onNavigate: (path: string) => void;
   onLogout: () => void;
+  onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
+  const [shiftNotice, setShiftNotice] = useState<{ path: string; message: string } | null>(null);
+  const consumeShiftNotice = useCallback(() => setShiftNotice(null), []);
+  useEffect(() => {
+    if (!currentPath.startsWith("/app/personal/turnos")) setShiftNotice(null);
+  }, [currentPath]);
+  const onShiftEditSaved = (path: string): void => {
+    setShiftNotice({ path, message: getShiftResultMessage("edit-success")! });
+    onNavigate(path);
+  };
   const visibleMenu = useMemo(
     () => (session.role ? getVisibleMenu(session.role) : []),
     [session.role],
@@ -612,6 +711,14 @@ function AppShell({
         className={`scroll-area min-w-0 overflow-y-auto ${mainScroll.className}`}
         onScroll={mainScroll.onScroll}
       >
+        {bannerMessage ? (
+          <p
+            className="rounded-md border border-[#fecdca] bg-[#fff3f1] px-4 py-2 text-sm font-semibold text-[#b42318]"
+            role="alert"
+          >
+            {bannerMessage}
+          </p>
+        ) : null}
         <header className="flex items-center justify-between border-b border-[#cbd5df] bg-white px-8 py-4">
           <h2 className="text-2xl font-semibold">{currentNode.label}</h2>
           <div className="flex items-center gap-3">
@@ -632,6 +739,10 @@ function AppShell({
           session={session}
           onNavigate={onNavigate}
           currentPath={currentPath}
+          shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
+          onShiftNoticeConsumed={consumeShiftNotice}
+          onShiftEditSaved={onShiftEditSaved}
+          onAuthenticationRequired={onAuthenticationRequired}
         />
       </main>
     </div>
@@ -677,11 +788,19 @@ function ViewRenderer({
   node,
   onNavigate,
   session,
+  shiftSuccessMessage,
+  onShiftNoticeConsumed,
+  onShiftEditSaved,
+  onAuthenticationRequired,
 }: {
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
   session: AppSession;
+  shiftSuccessMessage: string | null;
+  onShiftNoticeConsumed: () => void;
+  onShiftEditSaved: (path: string) => void;
+  onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
   if (node.id === "dashboard" && session.role) {
     return (
@@ -754,7 +873,12 @@ function ViewRenderer({
   }
 
   if (node.id === "sale-register") {
-    return <SaleRegisterView session={session} />;
+    return (
+      <SaleRegisterView
+        session={session}
+        onAuthenticationRequired={onAuthenticationRequired}
+      />
+    );
   }
 
   if (node.id === "waste-create" && session.usuarioId) {
@@ -781,12 +905,42 @@ function ViewRenderer({
   }
 
   if (node.id === "daily-sales" && session.usuarioId) {
-    return <DailySalesView usuarioId={session.usuarioId} />;
+    return (
+      <DailySalesView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "sales-query" && session.usuarioId) {
+    return (
+      <ConsultaVentasView
+        currentPath={currentPath}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "sale-annulment" && session.usuarioId) {
+    return (
+      <AnularVentaView
+        initialVentaId={getSaleAnnulmentVentaId(currentPath)}
+        returnPath={getSafeSalesQueryReturnPath(currentPath)}
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   if (node.id === "shift-calendar" && session.usuarioId && session.role) {
     return (
       <ShiftCalendarView
+        key={currentPath}
+        currentPath={currentPath}
+        successMessage={shiftSuccessMessage}
+        onSuccessConsumed={onShiftNoticeConsumed}
         role={session.role}
         onNavigate={onNavigate}
         usuarioId={session.usuarioId}
@@ -794,9 +948,12 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === "shift-create" && session.usuarioId) {
+  if ((node.id === "shift-create" || node.id === "shift-edit") && session.usuarioId && session.role === "dueno") {
     return (
       <ShiftCreateView
+        key={currentPath}
+        role={session.role}
+        onEditSaved={onShiftEditSaved}
         currentPath={currentPath}
         onNavigate={onNavigate}
         usuarioId={session.usuarioId}
@@ -948,49 +1105,6 @@ function navigate(path: string): void {
   window.location.hash = path;
 }
 
-function auditRouteAccess(
-  pathname: string,
-  session: AppSession,
-  decision: RouteGuardDecision,
-  lastRouteAuditKey: { current: string | null },
-): void {
-  if (!pathname.startsWith("/app") || !session.usuarioId) {
-    return;
-  }
-
-  if (decision.status === "redirect") {
-    return;
-  }
-
-  const node = findNavNodeByPath(pathname);
-  const result = decision.status === "allow" ? "concedido" : "denegado";
-  const key = `${session.usuarioId}:${pathname}:${result}`;
-
-  if (lastRouteAuditKey.current === key) {
-    return;
-  }
-
-  lastRouteAuditKey.current = key;
-
-  const label = node?.label ?? pathname;
-  const moduleLabel = node
-    ? navGroupLabels[node.group].toLocaleLowerCase("es")
-    : "acceso";
-
-  void window.appApi
-    .invoke("auditoria:registrar", {
-      descripcion:
-        decision.status === "allow"
-          ? `Acceso concedido a ${label}.`
-          : `Acceso denegado a ${label}.`,
-      modulo: moduleLabel,
-      tipoAccion:
-        decision.status === "allow" ? "acceso_concedido" : "acceso_denegado",
-      usuarioId: session.usuarioId,
-    })
-    .catch(() => undefined);
-}
-
 function getHashPath(): string {
   const rawPath = window.location.hash.replace(/^#/, "");
   return rawPath.startsWith("/") ? rawPath : PUBLIC_LOGIN_PATH;
@@ -1007,6 +1121,8 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "attendance",
     "cash-closing",
     "daily-sales",
+    "sales-query",
+    "sale-annulment",
     "lot-create",
     "product-create",
     "product-edit",
@@ -1024,6 +1140,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "configuracion-previsional",
     "shift-calendar",
     "shift-create",
+    "shift-edit",
     "waste-create",
     "worker-create",
     "worker-list",
@@ -1055,6 +1172,13 @@ export function getLotCreateEan13(path: string): string | undefined {
   const ean13 = new URLSearchParams(query).get("ean13");
 
   return ean13 ? decodeURIComponent(ean13) : undefined;
+}
+
+export function getSaleAnnulmentVentaId(path: string): string | undefined {
+  const [, query = ""] = path.split("?");
+  const ventaId = new URLSearchParams(query).get("ventaId");
+
+  return ventaId ? decodeURIComponent(ventaId) : undefined;
 }
 
 export function getWasteCreateEan13(path: string): string | undefined {

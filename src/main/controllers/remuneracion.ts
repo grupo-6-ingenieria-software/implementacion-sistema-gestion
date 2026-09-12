@@ -24,7 +24,9 @@ import { authorizeUser } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
 import { ensureVigentTasas } from "./configuracion-previsional";
 
-const metadata = controllers[29];
+const metadata = controllers.find(
+  (controller) => controller.id === "remuneracion",
+)!;
 
 export type RemuneracionActor = {
   role: "dueno";

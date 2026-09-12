@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DASHBOARD_UPDATED_EVENT } from "../../../src/shared/dashboard";
+import {
+  SALE_ANNULLED_EVENT,
+  type SaleAnnulmentResult,
+} from "../../../src/shared/sales";
 
 const {
   closeCashRegister,
@@ -67,13 +71,25 @@ vi.mock("../../../src/main/controllers/cash-closing-service", async () => {
 });
 
 import { notifyDashboardUpdated } from "../../../src/main/controllers/dashboard-events";
+import { notifySaleAnnulled } from "../../../src/main/controllers/sale-annulment-events";
 import {
   SaleBusinessError,
-  type SaleReceipt,
 } from "../../../src/main/controllers/sale-service";
+import type { SaleReceipt } from "../../../src/shared/sales";
 import { saleController } from "../../../src/main/controllers/sale";
 import { cashClosingController } from "../../../src/main/controllers/cash-closing";
 import type { CashCloseResult } from "../../../src/shared/cash";
+
+const saleContext = {
+  channel: "venta:registrar",
+  claims: {
+    usuarioId: "usuario-1",
+    sesionId: "00000000-0000-4000-8000-000000000091",
+    rol: "trabajador" as const,
+    usuarioRol: "trabajador",
+    passwordTemporal: false,
+  },
+};
 
 beforeEach(() => {
   send.mockClear();
@@ -95,6 +111,31 @@ afterEach(() => {
 });
 
 describe("dashboard update events", () => {
+  it("emits the CU38 event and dashboard refresh only after annulment commit", () => {
+    const result = createAnnulmentResult();
+
+    notifySaleAnnulled(result);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(1, SALE_ANNULLED_EVENT, result);
+    expect(send).toHaveBeenNthCalledWith(2, DASHBOARD_UPDATED_EVENT);
+  });
+
+  it("still requests the dashboard refresh if the specific CU38 event fails", () => {
+    send.mockImplementationOnce(() => {
+      throw new Error("sale event unavailable");
+    });
+
+    notifySaleAnnulled(createAnnulmentResult());
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(2, DASHBOARD_UPDATED_EVENT);
+    expect(logError).toHaveBeenCalledWith(
+      "No fue posible notificar la anulación de venta.",
+      expect.any(Error),
+    );
+  });
+
   it("emits the dashboard update event to every open window", () => {
     notifyDashboardUpdated();
 
@@ -131,7 +172,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response.ok).toBe(true);
@@ -151,7 +192,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response).toEqual({
@@ -175,7 +216,7 @@ describe("dashboard update events", () => {
         items: [{ productoId: 1, cantidad: 1 }],
         metodoPago: "debito",
       },
-      { channel: "venta:registrar" },
+      saleContext,
     );
 
     expect(response.ok).toBe(false);
@@ -214,6 +255,20 @@ function createSaleReceipt(): SaleReceipt {
     },
     total: 1000,
     detalle: [],
+  };
+}
+
+function createAnnulmentResult(): SaleAnnulmentResult {
+  return {
+    ventaId: "00000000-0000-4000-8000-000000000401",
+    fechaHora: "2026-06-12T18:00:00.000Z",
+    razon: "Cliente devolvió la compra",
+    responsable: {
+      usuarioId: "usuario-1",
+      nombre: "Trabajador Prueba",
+    },
+    lotesRestituidos: 2,
+    unidadesRestituidas: 3,
   };
 }
 

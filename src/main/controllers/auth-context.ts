@@ -20,6 +20,7 @@ export async function authorizeUser(
   schema: SchemaLike,
   usuarioId: string | undefined,
   allowedRoles: readonly Role[],
+  sessionRole?: Role,
 ): Promise<AuthenticatedUser> {
   if (!usuarioId?.trim()) {
     throw new AccessDeniedError(
@@ -59,7 +60,7 @@ export async function authorizeUser(
     );
   }
 
-  const role = mapDatabaseRoleToTechnicalRole(account.usuarioRol);
+  const role = sessionRole ?? mapDatabaseRoleToTechnicalRole(account.usuarioRol);
 
   if (!role || !allowedRoles.includes(role)) {
     throw new AccessDeniedError("No tiene permiso para realizar esta accion.");
