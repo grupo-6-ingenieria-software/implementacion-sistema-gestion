@@ -47,6 +47,7 @@ import {
 } from "./worker";
 import { restockListController } from "./restock-list";
 import { restockReportExportController } from "./restock-report-export";
+import { inventoryValuationController } from "./inventory-valuation";
 import type { RegisteredController } from "./base";
 
 const workerController = createWorkerController({
@@ -102,6 +103,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     supplierEditController,
     restockListController,
     restockReportExportController,
+    inventoryValuationController,
   ];
 
 export function registerControllers(ipcMain: IpcMain): void {

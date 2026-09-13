@@ -62,6 +62,7 @@ import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
+import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -1024,6 +1025,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "inventory-valuation" && session.usuarioId) {
+    return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1180,6 +1185,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "stock-adjustment",
     "movement-history",
     "restock-list",
+    "inventory-valuation",
   ].includes(nodeId);
 }
 
