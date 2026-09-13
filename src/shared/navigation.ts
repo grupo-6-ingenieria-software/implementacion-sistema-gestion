@@ -49,7 +49,8 @@ export type ControllerId =
   | "supplier-query"
   | "supplier-edit"
   | "restock-list"
-  | "restock-report-export";
+  | "restock-report-export"
+  | "inventory-valuation";
 
 export type NavNode = {
   id: string;
@@ -279,6 +280,17 @@ export const navigationTree = [
       "restock-list",
       "restock-report-export",
     ],
+  },
+  {
+    id: "inventory-valuation",
+    viewName: "ValorizacionInventarioView",
+    label: "Valor de inventario",
+    path: "/app/inventario/valorizacion",
+    roles: ["dueno", "trabajador"],
+    group: "inventario",
+    showInMenu: true,
+    entryFrom: "Menu Inventario > Valor de inventario.",
+    controllerIds: ["access-control", "inventory-valuation"],
   },
   {
     id: "supplier-list",
@@ -711,6 +723,7 @@ export function validateNavigationTree(): string[] {
     "stock-adjustment",
     "movement-history",
     "restock-list",
+    "inventory-valuation",
     "supplier-list",
     "supplier-create",
     "supplier-edit",

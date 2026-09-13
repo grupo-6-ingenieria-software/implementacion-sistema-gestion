@@ -50,8 +50,38 @@ describe("navigation tree", () => {
         "stock-adjustment",
         "movement-history",
         "restock-list",
+        "inventory-valuation",
       ]),
     );
+  });
+
+  it("exposes V28 once under Inventario for both roles", () => {
+    const route = navigationTree.find(
+      (node) => node.id === "inventory-valuation",
+    );
+    expect(route).toMatchObject({
+      viewName: "ValorizacionInventarioView",
+      label: "Valor de inventario",
+      path: "/app/inventario/valorizacion",
+      roles: ["dueno", "trabajador"],
+      group: "inventario",
+      showInMenu: true,
+      controllerIds: ["access-control", "inventory-valuation"],
+    });
+
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(
+        getVisibleMenu(role).filter(
+          (node) => node.path === "/app/inventario/valorizacion",
+        ),
+      ).toHaveLength(1);
+      expect(
+        evaluateRouteAccess("/app/inventario/valorizacion", {
+          isAuthenticated: true,
+          role,
+        }),
+      ).toEqual({ status: "allow" });
+    }
   });
 
   it("exposes V25 once under Inventario for both roles and keeps UI05 internal", () => {
