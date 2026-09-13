@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(37);
-    expect(new Set(ids)).toHaveProperty("size", 37);
+    expect(controllers).toHaveLength(40);
+    expect(new Set(ids)).toHaveProperty("size", 40);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -46,6 +46,9 @@ describe("controller registry", () => {
       "supplier-create",
       "supplier-query",
       "supplier-edit",
+      "restock-list",
+      "restock-report-export",
+      "inventory-valuation",
     ]);
   });
 
@@ -63,7 +66,7 @@ describe("controller registry", () => {
   });
 
   it("appends the CU13 supplier controller without changing prior indices", () => {
-    expect(controllers.at(-3)).toMatchObject({
+    expect(controllers.at(34)).toMatchObject({
       id: "supplier-create",
       name: "RegistrarProveedorHandler",
       channels: ["proveedor:categorias", "proveedor:registrar"],
@@ -71,13 +74,36 @@ describe("controller registry", () => {
   });
 
   it("registers the CU14 query and edit channels", () => {
-    expect(controllers.slice(-2)).toMatchObject([
+    expect(controllers.slice(-5, -3)).toMatchObject([
       {
         id: "supplier-query",
         channels: ["proveedor:listar", "proveedor:buscar-existente"],
       },
       { id: "supplier-edit", channels: ["proveedor:editar"] },
     ]);
+  });
+
+  it("appends the CU16 controllers without changing inherited indices", () => {
+    expect(controllers.slice(-3, -1)).toMatchObject([
+      {
+        id: "restock-list",
+        name: "ReabastecimientoHandler",
+        channels: ["inventario:lista-reabastecimiento"],
+      },
+      {
+        id: "restock-report-export",
+        name: "ExportacionReporteHandler",
+        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+      },
+    ]);
+  });
+
+  it("appends the CU19 read-only controller", () => {
+    expect(controllers.at(-1)).toMatchObject({
+      id: "inventory-valuation",
+      name: "ValorizacionHandler",
+      channels: ["inventario:valorizacion"],
+    });
   });
 
   it("keeps remuneracion scoped to its documented channels", () => {
