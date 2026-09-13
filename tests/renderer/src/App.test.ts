@@ -62,6 +62,10 @@ describe("App inventory route helpers", () => {
     expect(isImplementedViewNodeId("sales-query")).toBe(true);
   });
 
+  it("treats CU19 as an implemented view", () => {
+    expect(isImplementedViewNodeId("inventory-valuation")).toBe(true);
+  });
+
   it("treats the CU13 supplier routes as implemented views", () => {
     expect(isImplementedViewNodeId("supplier-list")).toBe(true);
     expect(isImplementedViewNodeId("supplier-create")).toBe(true);

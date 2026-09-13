@@ -298,6 +298,24 @@ export const controllers = [
     module: "proveedores",
     channels: ["proveedor:editar"],
   },
+  {
+    id: "restock-list",
+    name: "ReabastecimientoHandler",
+    module: "inventario",
+    channels: ["inventario:lista-reabastecimiento"],
+  },
+  {
+    id: "restock-report-export",
+    name: "ExportacionReporteHandler",
+    module: "inventario",
+    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+  },
+  {
+    id: "inventory-valuation",
+    name: "ValorizacionHandler",
+    module: "inventario",
+    channels: ["inventario:valorizacion"],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);
