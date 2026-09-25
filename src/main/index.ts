@@ -8,6 +8,7 @@ import {
   isDebugLoginEnabled,
   registerDebugLogin,
 } from "./controllers/debug-login";
+import { startAutoUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -85,6 +86,7 @@ app.whenReady().then(async () => {
   }
 
   createMainWindow();
+  startAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

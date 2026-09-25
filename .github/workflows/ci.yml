@@ -102,8 +102,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
-  # electron-vite build + electron-builder: genera el .exe portable y lo sube
-  # al GitHub Release del tag recien creado.
+  # electron-vite build + electron-builder: genera el instalador NSIS (Setup.exe,
+  # .blockmap y latest.yml para electron-updater) y lo sube al GitHub Release del
+  # tag recien creado.
   release-windows:
     name: release-windows
     needs: version
@@ -123,7 +124,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build and publish portable .exe
+      - name: Build and publish NSIS installer
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
