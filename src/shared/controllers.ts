@@ -60,7 +60,7 @@ export const controllers = [
   },
   {
     id: "access-control",
-    name: "ControlAccesoMiddleware",
+    name: "ControlAcceso",
     module: "auth",
     channels: ["access:validate"],
   },

@@ -26,12 +26,20 @@ type RegisteredController<TPayload, TData> = {
 ## Registro y dispatch
 
 [`index.ts`](./index.ts) mantiene el arreglo `registeredControllers` y los conecta
-a `ipcMain.handle`. En cada invocación el dispatcher:
+a `ipcMain.handle`. El componente representado como
+`C_DispatcherControlAcceso` en los diagramas corresponde a
+`dispatchControllerWithAccessControl` en ese archivo, junto con la validación de
+`auth-guard.ts`. En cada invocación:
 
 1. Resuelve el controlador por canal (`findControllerByChannel`).
 2. Verifica identidad/rol vía [`auth-guard.ts`](./auth-guard.ts) (`guardChannel`).
 3. Inyecta la identidad de confianza y delega en `controller.handle`.
 4. Actualiza la actividad de sesión salvo en `NON_ACTIVITY_CHANNELS`.
+
+Los nombres de los handlers de negocio en los diagramas usan el prefijo `C_`
+seguido por `metadata.name` de `src/shared/controllers.ts` (por ejemplo,
+`C_RegistrarProductoHandler`). El controlador de validación de acceso se llama
+`ControlAcceso`, representado como `C_ControlAcceso`.
 
 ## Mapa de controladores
 
