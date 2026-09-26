@@ -106,6 +106,25 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     inventoryValuationController,
   ];
 
+/**
+ * Despachador con control de acceso que aparece como
+ * `C_DispatcherControlAcceso` en los diagramas de secuencia.
+ */
+export async function dispatchControllerWithAccessControl(
+  channel: string,
+  payload: unknown,
+  controller: RegisteredController<any, any>,
+  onSessionExpired: () => void,
+) {
+  const guard = await authorizeRequest(channel, payload, onSessionExpired);
+
+  if (!guard.ok) {
+    return guard.response;
+  }
+
+  return controller.handle(guard.payload, guard.context);
+}
+
 export function registerControllers(ipcMain: IpcMain): void {
   for (const controller of registeredControllers) {
     for (const channel of controller.metadata.channels) {
@@ -122,19 +141,17 @@ export function registerControllers(ipcMain: IpcMain): void {
           };
         }
 
-        // Guard de identidad/rol en el borde IPC: verifica el JWT de sesión
-        // (RF56/CU56) antes de despachar, salvo en canales públicos. En éxito,
-        // sobrescribe usuarioId con la identidad de confianza y adjunta claims.
-        const guard = await authorizeRequest(channel, payload, () => {
-          if (!_event.sender.isDestroyed())
-            _event.sender.send(SESSION_EXPIRED_EVENT);
-        });
-
-        if (!guard.ok) {
-          return guard.response;
-        }
-
-        return controller.handle(guard.payload, guard.context);
+        // El dispatcher valida el JWT/rol y entrega al controlador la identidad
+        // de confianza antes de procesar el canal.
+        return dispatchControllerWithAccessControl(
+          channel,
+          payload,
+          controller,
+          () => {
+            if (!_event.sender.isDestroyed())
+              _event.sender.send(SESSION_EXPIRED_EVENT);
+          },
+        );
       });
     }
   }
