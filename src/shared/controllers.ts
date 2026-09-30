@@ -316,6 +316,12 @@ export const controllers = [
     module: "inventario",
     channels: ["inventario:valorizacion"],
   },
+  {
+    id: "absence",
+    name: "AusenciaHandler",
+    module: "personal",
+    channels: ["ausencia:registrar"],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);

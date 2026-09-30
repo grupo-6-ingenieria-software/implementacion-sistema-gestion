@@ -23,6 +23,9 @@ import {
 import type { ControllerResponse } from "../../../src/shared/controllers";
 
 describe("App inventory route helpers", () => {
+  it("treats V34 as an implemented view", () => {
+    expect(isImplementedViewNodeId("absence-create")).toBe(true);
+  });
   it("treats lot-create as an implemented view", () => {
     expect(isImplementedViewNodeId("lot-create")).toBe(true);
   });

@@ -9,11 +9,14 @@ import {
 } from "../../../shared/users";
 import { WorkerFormView } from "./WorkerFormView";
 import { WorkerStatusView } from "./WorkerStatusView";
+import { buildAbsenceCreatePath } from "../../../shared/absence";
 
 type WorkerListViewProps = {
   usuarioId: string;
   onNavigate: (path: string) => void;
   role: UserRole;
+  successMessage?: string | null;
+  onSuccessConsumed?: () => void;
 };
 
 function roleLabel(role: UserRole): string {
@@ -43,6 +46,8 @@ export function WorkerListView({
   onNavigate,
   role,
   usuarioId,
+  successMessage,
+  onSuccessConsumed,
 }: WorkerListViewProps): ReactElement {
   const [workers, setWorkers] = useState<UserListItem[]>([]);
   const [search, setSearch] = useState("");
@@ -57,6 +62,13 @@ export function WorkerListView({
     null,
   );
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (successMessage) {
+      setMessage(successMessage);
+      onSuccessConsumed?.();
+    }
+  }, [successMessage, onSuccessConsumed]);
 
   const payload = useMemo(
     () => ({
@@ -332,6 +344,12 @@ export function WorkerListView({
                     <td className="px-5 py-4">
                       {role === "dueno" ? (
                         <div className="flex flex-wrap gap-2">
+                          {worker.estado === "activo" ? (
+                            <button className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
+                              disabled={saving} type="button" onClick={() => onNavigate(buildAbsenceCreatePath(worker.rut))}>
+                              Registrar ausencia
+                            </button>
+                          ) : null}
                           <button
                             className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                             disabled={saving}

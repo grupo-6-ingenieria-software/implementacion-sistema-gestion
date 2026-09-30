@@ -36,6 +36,7 @@ export type ControllerId =
   | "worker"
   | "shift"
   | "attendance"
+  | "absence"
   | "ean-reader"
   | "sale-annulment"
   | "product-detail"
@@ -498,6 +499,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "attendance", "audit"],
   },
   {
+    id: "absence-create",
+    viewName: "RegistrarAusenciaView",
+    label: "Registrar ausencia",
+    path: "/app/personal/ausencias/nueva",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Personal; acción por trabajador activo desde Trabajadores (V15).",
+    controllerIds: ["access-control", "absence", "worker", "audit"],
+  },
+  {
     id: "remuneracion-create",
     viewName: "RegistrarRemuneracionView",
     label: "Remuneraciones",
@@ -740,6 +752,7 @@ export function validateNavigationTree(): string[] {
     "shift-create",
     "shift-edit",
     "attendance",
+    "absence-create",
     "remuneracion-create",
     "configuracion-previsional",
     "user-management",

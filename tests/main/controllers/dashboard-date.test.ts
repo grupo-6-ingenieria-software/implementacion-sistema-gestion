@@ -6,6 +6,12 @@ import {
 } from "../../../src/main/controllers/dashboard-date";
 
 describe("dashboard date boundaries", () => {
+  it("preserves historical civil years below 100", () => {
+    expect(getChileDateRange("0095-09-08", "0095-09-08")).toEqual({
+      startUtc: "0095-09-08 04:42:45",
+      endUtc: "0095-09-09 04:42:45",
+    });
+  });
   it("uses Chile winter time for the current local day", () => {
     expect(getDashboardDay(new Date("2026-06-11T12:00:00Z"))).toEqual({
       dateKey: "2026-06-11",

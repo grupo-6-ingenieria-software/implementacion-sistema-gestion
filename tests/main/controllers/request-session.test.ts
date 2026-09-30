@@ -65,6 +65,7 @@ describe("C03 → C05 before dispatch", () => {
     "producto:listar",
     "venta:registrar",
     "asistencia:entrada",
+    "ausencia:registrar",
     "trabajador:registrar",
   ])(
     "rejects missing persisted sessions for %s despite a signed JWT",

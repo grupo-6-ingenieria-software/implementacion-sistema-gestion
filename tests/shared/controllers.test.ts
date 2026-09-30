@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(40);
-    expect(new Set(ids)).toHaveProperty("size", 40);
+    expect(controllers).toHaveLength(41);
+    expect(new Set(ids)).toHaveProperty("size", 41);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,6 +49,7 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "absence",
     ]);
   });
 
@@ -74,7 +75,7 @@ describe("controller registry", () => {
   });
 
   it("registers the CU14 query and edit channels", () => {
-    expect(controllers.slice(-5, -3)).toMatchObject([
+    expect(controllers.slice(35, 37)).toMatchObject([
       {
         id: "supplier-query",
         channels: ["proveedor:listar", "proveedor:buscar-existente"],
@@ -84,7 +85,7 @@ describe("controller registry", () => {
   });
 
   it("appends the CU16 controllers without changing inherited indices", () => {
-    expect(controllers.slice(-3, -1)).toMatchObject([
+    expect(controllers.slice(37, 39)).toMatchObject([
       {
         id: "restock-list",
         name: "ReabastecimientoHandler",
@@ -99,11 +100,15 @@ describe("controller registry", () => {
   });
 
   it("appends the CU19 read-only controller", () => {
-    expect(controllers.at(-1)).toMatchObject({
+    expect(controllers.at(39)).toMatchObject({
       id: "inventory-valuation",
       name: "ValorizacionHandler",
       channels: ["inventario:valorizacion"],
     });
+  });
+
+  it("appends C51 without changing inherited indices", () => {
+    expect(controllers.at(40)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
   });
 
   it("keeps remuneracion scoped to its documented channels", () => {

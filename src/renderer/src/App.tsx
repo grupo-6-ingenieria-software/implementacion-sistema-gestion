@@ -40,6 +40,8 @@ import {
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
+import { RegistrarAusenciaView } from "./views/RegistrarAusenciaView";
+import { getAbsenceInitialRut, type AbsenceResult } from "../../shared/absence";
 import { CashClosingView } from "./views/CashClosingView";
 import { LotCreateView } from "./views/LotCreateView";
 import { MovementHistoryView } from "./views/MovementHistoryView";
@@ -669,6 +671,16 @@ export function AppShell({
   onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
   const [shiftNotice, setShiftNotice] = useState<{ path: string; message: string } | null>(null);
+  const [absenceNotice, setAbsenceNotice] = useState<string | null>(null);
+  const consumeAbsenceNotice = useCallback(() => setAbsenceNotice(null), []);
+  useEffect(() => {
+    if (currentPath.split("?")[0] !== "/app/personal/trabajadores") setAbsenceNotice(null);
+  }, [currentPath]);
+  const onAbsenceSaved = (result: AbsenceResult): void => {
+    const [year, month, day] = result.fecha.split("-");
+    setAbsenceNotice(`Ausencia registrada correctamente para ${result.trabajadorNombre} el ${day}/${month}/${year}.`);
+    onNavigate("/app/personal/trabajadores");
+  };
   const consumeShiftNotice = useCallback(() => setShiftNotice(null), []);
   useEffect(() => {
     if (!currentPath.startsWith("/app/personal/turnos")) setShiftNotice(null);
@@ -766,6 +778,9 @@ export function AppShell({
           shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
           onShiftNoticeConsumed={consumeShiftNotice}
           onShiftEditSaved={onShiftEditSaved}
+          absenceSuccessMessage={absenceNotice}
+          onAbsenceNoticeConsumed={consumeAbsenceNotice}
+          onAbsenceSaved={onAbsenceSaved}
           onAuthenticationRequired={onAuthenticationRequired}
         />
       </main>
@@ -815,6 +830,9 @@ function ViewRenderer({
   shiftSuccessMessage,
   onShiftNoticeConsumed,
   onShiftEditSaved,
+  absenceSuccessMessage,
+  onAbsenceNoticeConsumed,
+  onAbsenceSaved,
   onAuthenticationRequired,
 }: {
   currentPath: string;
@@ -824,6 +842,9 @@ function ViewRenderer({
   shiftSuccessMessage: string | null;
   onShiftNoticeConsumed: () => void;
   onShiftEditSaved: (path: string) => void;
+  absenceSuccessMessage: string | null;
+  onAbsenceNoticeConsumed: () => void;
+  onAbsenceSaved: (result: AbsenceResult) => void;
   onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
   if (node.id === "dashboard" && session.role) {
@@ -1088,6 +1109,8 @@ function ViewRenderer({
   if (node.id === "worker-list" && session.usuarioId && session.role) {
     return (
       <WorkerListView
+        successMessage={absenceSuccessMessage}
+        onSuccessConsumed={onAbsenceNoticeConsumed}
         role={session.role}
         usuarioId={session.usuarioId}
         onNavigate={onNavigate}
@@ -1099,6 +1122,12 @@ function ViewRenderer({
     return (
       <WorkerFormView usuarioId={session.usuarioId} onNavigate={onNavigate} />
     );
+  }
+
+  if (node.id === "absence-create" && session.usuarioId && session.role) {
+    return <RegistrarAusenciaView key={`${session.usuarioId}:${currentPath}`}
+      role={session.role} usuarioId={session.usuarioId} initialRut={getAbsenceInitialRut(currentPath)}
+      onNavigate={onNavigate} onSaved={onAbsenceSaved} />;
   }
 
   if (node.id === "remuneracion-create" && session.usuarioId) {
@@ -1160,6 +1189,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "dashboard",
     "attendance",
+    "absence-create",
     "cash-closing",
     "daily-sales",
     "sales-query",
