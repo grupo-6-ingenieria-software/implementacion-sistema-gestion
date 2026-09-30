@@ -1,4 +1,5 @@
 import { controllers } from "../../shared/controllers";
+import { isReportExportRequest } from "../../shared/monthly-sales";
 import type { ControllerId, Role } from "../../shared/navigation";
 import { navigationTree } from "../../shared/navigation";
 import { controllerError } from "./base";
@@ -160,7 +161,7 @@ export async function authorizeRequest(
     }
 
     const rolEfectivo = session.rolEfectivo ?? claims.rol;
-    const requiredRoles = CHANNEL_ROLES.get(channel);
+    const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
 
     if (requiredRoles && !requiredRoles.has(rolEfectivo)) {
       await (deps.audit ?? defaultAuthorizeAudit)({
@@ -229,7 +230,7 @@ export async function guardChannel(
     };
   }
 
-  const requiredRoles = CHANNEL_ROLES.get(channel);
+  const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
 
   if (requiredRoles && !requiredRoles.has(claims.rol)) {
     await deps

@@ -1,9 +1,11 @@
 import type { ControllerResponse } from "../../shared/controllers";
+import { isReportExportRequest } from "../../shared/monthly-sales";
 import { controllerError, type ControllerContext, type RegisteredController } from "./base";
 
 // Las mutaciones y la consulta del propio log ya se auditan en sus servicios.
 // Las lecturas de negocio se registran aquí usando la identidad del dispatcher.
 export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
+  "reporte:ventas-mensuales",
   "dashboard:cargar", "dashboard:alertas-stock", "dashboard:alertas-vencimiento",
   "dashboard:total-ventas-dia", "producto:listar", "producto:buscar-activo",
   "producto:estado", "producto:buscar", "producto:detalle-lotes", "lote:proveedores",
@@ -42,7 +44,7 @@ export async function handleWithAudit(
   try {
     await audit({
       descripcion: `${isQuery ? "Consulta" : "Exportación"} realizada mediante ${context.channel}.`,
-      modulo: controller.metadata.module,
+      modulo: isReportExportRequest(context.channel, payload) ? "reportes" : controller.metadata.module,
       tipoAccion: isQuery ? "consulta" : "exportacion",
       usuarioId: context.claims.usuarioId,
     });
