@@ -69,7 +69,7 @@ describe("RF58 / CU58 / CP62", () => {
     expect(rows[0].descripcion).not.toContain("test-secret");
   });
 
-  it("limits entries, totals and options to twelve months while preserving old records", async () => {
+  it("limits entries, totals and options to records younger than twelve months", async () => {
     const row = await record();
     const version = row.usuarioVersionId;
     await datedRecord("2025-09-29T14:59:59.999Z", "old-only", version);
@@ -80,8 +80,9 @@ describe("RF58 / CU58 / CP62", () => {
     });
     expect(response.ok).toBe(true);
     if (!response.ok) return;
-    expect(response.data.total).toBe(2);
-    expect(response.data.entries.map((entry) => entry.tipoAccion)).toEqual(["registro", "boundary"]);
+    expect(response.data.total).toBe(1);
+    expect(response.data.entries.map((entry) => entry.tipoAccion)).toEqual(["registro"]);
+    expect(response.data.filters.tiposAccion).not.toContain("boundary");
     expect(response.data.filters.tiposAccion).not.toContain("old-only");
     expect(response.data.filters.tiposAccion).not.toContain("future-only");
     expect(response.data.periodoConsulta).toEqual({

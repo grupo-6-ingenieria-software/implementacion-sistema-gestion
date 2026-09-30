@@ -9,6 +9,10 @@ import {
   registerDebugLogin,
 } from "./controllers/debug-login";
 import { startAutoUpdater } from "./updater";
+import {
+  purgeExpiredAuditLogs,
+  startAuditRetentionMaintenance,
+} from "./controllers/audit-retention-service";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -80,6 +84,12 @@ app.whenReady().then(async () => {
   }
 
   registerControllers(ipcMain);
+
+  const stopAuditRetention = startAuditRetentionMaintenance({
+    purge: () => purgeExpiredAuditLogs(db),
+    reportError: (error) => log.error("Fallo al aplicar la retención de auditoría:", error),
+  });
+  app.once("before-quit", stopAuditRetention);
 
   if (isDebugLoginEnabled()) {
     registerDebugLogin(ipcMain);

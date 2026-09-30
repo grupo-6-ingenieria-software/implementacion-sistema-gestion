@@ -102,11 +102,21 @@ BEGIN
   SELECT RAISE(ABORT, 'log_auditoria es inmutable: UPDATE no permitido (RNF10)');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_log_auditoria_no_delete
+-- Actualiza también instalaciones que tenían el bloqueo absoluto de DELETE.
+-- La única excepción es la eliminación de registros que cumplieron 12 meses.
+DROP TRIGGER IF EXISTS trg_log_auditoria_no_delete;
+CREATE TRIGGER trg_log_auditoria_no_delete
 BEFORE DELETE ON log_auditoria
 FOR EACH ROW
+WHEN julianday(OLD.log_fecha_hora) IS NULL
+  OR julianday(OLD.log_fecha_hora) > (
+    CASE WHEN strftime('%m-%d', 'now') = '02-29'
+      THEN julianday('now', '-1 year', '-1 day')
+      ELSE julianday('now', '-1 year')
+    END
+  )
 BEGIN
-  SELECT RAISE(ABORT, 'log_auditoria es inmutable: DELETE no permitido (RNF10)');
+  SELECT RAISE(ABORT, 'log_auditoria es inmutable: DELETE no permitido antes de 12 meses (RNF09)');
 END;
 
 -- REPLACE puede borrar sin disparar BEFORE DELETE si recursive_triggers está

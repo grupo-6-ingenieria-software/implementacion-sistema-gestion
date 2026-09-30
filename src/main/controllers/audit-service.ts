@@ -243,7 +243,7 @@ async function loadUserOptions(
       SELECT 1
       FROM log_auditoria la
       WHERE la.usuario_version_id = uv.usuario_version_id
-        AND julianday(la.log_fecha_hora) >= julianday(${window.desde})
+        AND julianday(la.log_fecha_hora) > julianday(${window.desde})
         AND julianday(la.log_fecha_hora) <= julianday(${window.hasta})
     )
     GROUP BY uv.usuario_id, uv.usuario_version_nombre, uv.usuario_version_rol
@@ -258,7 +258,7 @@ async function loadActionTypes(
   const rows = await database.all<{ tipoAccion: string }>(sql`
     SELECT log_tipo_accion AS tipoAccion
     FROM log_auditoria
-    WHERE julianday(log_fecha_hora) >= julianday(${window.desde})
+    WHERE julianday(log_fecha_hora) > julianday(${window.desde})
       AND julianday(log_fecha_hora) <= julianday(${window.hasta})
     GROUP BY log_tipo_accion
     ORDER BY log_tipo_accion ASC
@@ -272,7 +272,7 @@ function buildWhereClause(
   window: AuditLogWindow,
 ): SQL {
   const conditions: SQL[] = [
-    sql`julianday(la.log_fecha_hora) >= julianday(${window.desde})`,
+    sql`julianday(la.log_fecha_hora) > julianday(${window.desde})`,
     sql`julianday(la.log_fecha_hora) <= julianday(${window.hasta})`,
   ];
 
