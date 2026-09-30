@@ -18,7 +18,7 @@ import { dashboardController } from "./dashboard";
 import { eanReaderController } from "./ean-reader";
 import { expirationAlertController } from "./expiration-alert";
 import { lotController } from "./lot";
-import { passwordController } from "./password";
+import { createPasswordController } from "./password";
 import { productCreateController } from "./product-create";
 import { productDeleteController } from "./product-delete";
 import { productEditController } from "./product-edit";
@@ -65,6 +65,8 @@ const workerController = createWorkerController({
       notifySessionInvalidated,
     ),
 });
+
+const passwordController = createPasswordController({}, notifySessionInvalidated);
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
   [
