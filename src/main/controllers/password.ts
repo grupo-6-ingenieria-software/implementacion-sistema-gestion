@@ -1,12 +1,16 @@
 import { randomInt } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { controllers, type ControllerResponse } from "../../shared/controllers";
 import {
   TEMP_PASSWORD_LENGTH,
   TEMP_PASSWORD_MS,
   validatePasswordComplexity,
+  isTemporaryPasswordValid,
+  TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from "../../shared/auth";
+import type { Role } from "../../shared/navigation";
+import { loadCurrentPassword } from "./current-password";
 import { db, schema as appSchema } from "../../db/client";
 import {
   controllerError,
@@ -20,7 +24,7 @@ import {
 } from "./auth-context";
 
 type SchemaLike = typeof import("../../db/schema");
-type PasswordExecutor = Pick<typeof db, "select" | "insert">;
+type PasswordExecutor = Pick<typeof db, "transaction">;
 type TempPasswordExecutor = Pick<typeof db, "insert">;
 
 const TEMP_PASSWORD_ALPHABET =
@@ -104,94 +108,94 @@ export async function changePasswordWithExecutor(
   }
 
   try {
-    const user = await authorizeUser(database, schema, usuarioId, [
-      "dueno",
-      "trabajador",
-    ]);
+    return await database.transaction(async (database) => {
+      const user = await authorizeUser(database, schema, usuarioId, [
+        "dueno",
+        "trabajador",
+      ]);
 
-    const [vigente] = await database
-      .select({
-        contrasenaHash: schema.contrasena.contrasenaHash,
-        esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
-      })
-      .from(schema.contrasena)
-      .where(eq(schema.contrasena.usuarioId, user.usuarioId))
-      .orderBy(desc(schema.contrasena.contrasenaFechaHoraCreacion))
-      .limit(1);
+      const vigente = await loadCurrentPassword(database, schema, user.usuarioId);
 
-    if (!vigente) {
-      return controllerError(
-        "NOT_FOUND",
-        "El usuario no tiene una contraseña registrada.",
-        "password",
-      );
-    }
-
-    if (!vigente.esContrasenaTemporal) {
-      if (!actual) {
+      if (!vigente) {
         return controllerError(
-          "VALIDATION_ERROR",
-          "Ingrese la contraseña actual y la nueva contraseña.",
+          "NOT_FOUND",
+          "El usuario no tiene una contraseña registrada.",
           "password",
         );
       }
 
-      const actualOk = await deps.comparePassword(
-        actual,
+      if (vigente.esContrasenaTemporal && !isTemporaryPasswordValid(vigente.expiracion, deps.now())) {
+        return controllerError("BUSINESS_RULE", TEMP_PASSWORD_EXPIRED_MESSAGE, "password");
+      }
+
+      if (!vigente.esContrasenaTemporal) {
+        if (!actual) {
+          return controllerError(
+            "VALIDATION_ERROR",
+            "Ingrese la contraseña actual y la nueva contraseña.",
+            "password",
+          );
+        }
+
+        const actualOk = await deps.comparePassword(
+          actual,
+          vigente.contrasenaHash,
+        );
+
+        if (!actualOk) {
+          return controllerError(
+            "VALIDATION_ERROR",
+            "La contraseña actual es incorrecta.",
+            "password",
+          );
+        }
+      }
+
+      const complexity = validatePasswordComplexity(nueva);
+
+      if (!complexity.valid) {
+        return controllerError(
+          "VALIDATION_ERROR",
+          complexity.message ?? "La nueva contraseña no cumple los requisitos.",
+          "password",
+        );
+      }
+
+      const sameAsCurrent = await deps.comparePassword(
+        nueva,
         vigente.contrasenaHash,
       );
 
-      if (!actualOk) {
+      if (sameAsCurrent) {
         return controllerError(
-          "VALIDATION_ERROR",
-          "La contraseña actual es incorrecta.",
+          "BUSINESS_RULE",
+          "La nueva contraseña debe ser distinta de la actual.",
           "password",
         );
       }
-    }
 
-    const complexity = validatePasswordComplexity(nueva);
+      const hash = await deps.hashPassword(nueva);
 
-    if (!complexity.valid) {
-      return controllerError(
-        "VALIDATION_ERROR",
-        complexity.message ?? "La nueva contraseña no cumple los requisitos.",
-        "password",
-      );
-    }
+      await database.insert(schema.contrasena).values({
+        contrasenaHash: hash,
+        contrasenaFechaHoraCreacion: deps.now().toISOString(),
+        esContrasenaTemporal: false,
+        esContrasenaDefinitiva: true,
+        usuarioId: user.usuarioId,
+        generadaPorUsuarioId: user.usuarioId,
+      });
 
-    const sameAsCurrent = await deps.comparePassword(
-      nueva,
-      vigente.contrasenaHash,
-    );
+      await revokePasswordSessions(database, schema, user.usuarioId, deps.now());
 
-    if (sameAsCurrent) {
-      return controllerError(
-        "BUSINESS_RULE",
-        "La nueva contraseña debe ser distinta de la actual.",
-        "password",
-      );
-    }
+      await registerAuditLog(database, schema, {
+        descripcion: `Cambio de contraseña de ${user.trabajadorNombre}.`,
+        modulo: "autenticacion",
+        tipoAccion: "cambio_password",
+        usuarioId: user.usuarioId,
+      });
 
-    const hash = await deps.hashPassword(nueva);
-
-    await database.insert(schema.contrasena).values({
-      contrasenaHash: hash,
-      contrasenaFechaHoraCreacion: deps.now().toISOString(),
-      esContrasenaTemporal: false,
-      esContrasenaDefinitiva: true,
-      usuarioId: user.usuarioId,
-      generadaPorUsuarioId: user.usuarioId,
+      return controllerSuccess({ cambiada: true });
     });
-
-    await registerAuditLog(database, schema, {
-      descripcion: `Cambio de contraseña de ${user.trabajadorNombre}.`,
-      modulo: "autenticacion",
-      tipoAccion: "cambio_password",
-      usuarioId: user.usuarioId,
-    });
-
-    return controllerSuccess({ cambiada: true });
   } catch (error) {
     return mapPasswordError(error);
   }
@@ -202,6 +206,7 @@ export async function resetPasswordWithExecutor(
   schema: SchemaLike,
   payload: unknown,
   deps: PasswordDeps = defaultDeps,
+  sessionRole?: Role,
 ): Promise<
   ControllerResponse<{ contrasenaTemporal: string; usuarioObjetivoId: string }>
 > {
@@ -218,49 +223,68 @@ export async function resetPasswordWithExecutor(
   }
 
   try {
-    // Solo el dueño puede restablecer contraseñas de otros usuarios (RF58).
-    const solicitante = await authorizeUser(database, schema, solicitanteId, [
-      "dueno",
-    ]);
+    return await database.transaction(async (database) => {
+      // Solo el dueño puede restablecer contraseñas (RF59).
+      const solicitante = await authorizeUser(database, schema, solicitanteId, [
+        "dueno",
+      ], sessionRole);
 
-    const [objetivo] = await database
-      .select({ usuarioId: schema.usuario.usuarioId })
-      .from(schema.usuario)
-      .where(eq(schema.usuario.usuarioId, objetivoId))
-      .limit(1);
+      const [objetivo] = await database
+        .select({ usuarioId: schema.usuario.usuarioId })
+        .from(schema.usuario)
+        .where(eq(schema.usuario.usuarioId, objetivoId))
+        .limit(1);
 
-    if (!objetivo) {
-      return controllerError(
-        "NOT_FOUND",
-        "El usuario seleccionado no existe.",
-        "password",
+      if (!objetivo) {
+        return controllerError(
+          "NOT_FOUND",
+          "El usuario seleccionado no existe.",
+          "password",
+        );
+      }
+
+      const temporal = await createTemporaryPasswordRecord(
+        database,
+        schema,
+        {
+          usuarioId: objetivo.usuarioId,
+          generadaPorUsuarioId: solicitante.usuarioId,
+        },
+        deps,
       );
-    }
 
-    const temporal = await createTemporaryPasswordRecord(
-      database,
-      schema,
-      {
-        usuarioId: objetivo.usuarioId,
-        generadaPorUsuarioId: solicitante.usuarioId,
-      },
-      deps,
-    );
+      await revokePasswordSessions(database, schema, objetivo.usuarioId, deps.now());
 
-    await registerAuditLog(database, schema, {
-      descripcion: `Restablecimiento de contraseña para el usuario ${objetivo.usuarioId}.`,
-      modulo: "administracion",
-      tipoAccion: "restablecer_password",
-      usuarioId: solicitante.usuarioId,
-    });
+      await registerAuditLog(database, schema, {
+        descripcion: `Restablecimiento de contraseña para el usuario ${objetivo.usuarioId}.`,
+        modulo: "administracion",
+        tipoAccion: "restablecer_password",
+        usuarioId: solicitante.usuarioId,
+      });
 
-    return controllerSuccess({
-      contrasenaTemporal: temporal,
-      usuarioObjetivoId: objetivo.usuarioId,
+      return controllerSuccess({
+        contrasenaTemporal: temporal,
+        usuarioObjetivoId: objetivo.usuarioId,
+      });
     });
   } catch (error) {
     return mapPasswordError(error);
   }
+}
+
+async function revokePasswordSessions(
+  database: Pick<typeof db, "update">,
+  schema: SchemaLike,
+  usuarioId: string,
+  now: Date,
+): Promise<void> {
+  await database.update(schema.sesionUsuario).set({
+    sesionFechaHoraCierre: now.toISOString(),
+    sesionMotivoCierre: "sistema",
+  }).where(and(
+    eq(schema.sesionUsuario.usuarioId, usuarioId),
+    isNull(schema.sesionUsuario.sesionFechaHoraCierre),
+  ));
 }
 
 export function generateTemporaryPassword(): string {
@@ -302,7 +326,7 @@ export function createPasswordController(
       }
 
       if (context.channel === "auth:restablecer-password") {
-        return resetPasswordWithExecutor(db, appSchema, payload, resolved);
+        return resetPasswordWithExecutor(db, appSchema, payload, resolved, context.claims?.rol);
       }
 
       return controllerError(
