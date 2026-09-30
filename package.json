@@ -74,11 +74,7 @@
       }
     ],
     "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false
+      "target": "portable"
     },
     "mac": {
       "target": "dmg"
