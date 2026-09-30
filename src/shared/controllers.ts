@@ -9,7 +9,8 @@ export type ControllerModule =
   | "caja"
   | "personal"
   | "administracion"
-  | "lector-ean";
+  | "lector-ean"
+  | "reportes";
 
 export type ControllerMetadata = {
   id: ControllerId;
@@ -315,6 +316,12 @@ export const controllers = [
     name: "ValorizacionHandler",
     module: "inventario",
     channels: ["inventario:valorizacion"],
+  },
+  {
+    id: "waste-report",
+    name: "ReporteMermasHandler",
+    module: "reportes",
+    channels: ["reporte:mermas"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

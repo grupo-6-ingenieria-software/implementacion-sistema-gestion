@@ -63,6 +63,7 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -1029,6 +1030,15 @@ function ViewRenderer({
     return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1186,6 +1196,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
   ].includes(nodeId);
 }
 

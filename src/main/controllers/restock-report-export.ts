@@ -16,6 +16,18 @@ import {
   type RestockListRequest,
 } from "../../shared/restock";
 import { ListaReabastecimientoPrintView } from "../../renderer/src/components/ListaReabastecimientoPrintView";
+import { ReporteMermasPrintView } from "../../renderer/src/components/ReporteMermasPrintView";
+import { queryWasteReportFromDb } from "./waste-report";
+import {
+  normalizeWasteReportRequest,
+  validateWasteReportRequest,
+  WASTE_REPORT_EMPTY_MESSAGE,
+  type WasteReportData,
+  type WasteReportRequest,
+} from "../../shared/report-waste";
+import { registerAuditLog } from "./auth-context";
+import { db, schema as appSchema } from "../../db/client";
+import type { ControllerResponse } from "../../shared/controllers";
 import type {
   ControllerContext,
   ControllerHandler,
@@ -32,6 +44,15 @@ type SaveDialogResult = {
   filePath?: string;
 };
 
+export type WasteReportPrintInput = {
+  fechaInicio: string;
+  fechaTermino: string;
+  fechaGeneracion: string;
+  items: WasteReportData["items"];
+  resumen: WasteReportData["resumen"];
+  usuario: string;
+};
+
 export type RestockExportDependencies = {
   load: (
     request: RestockListRequest,
@@ -43,6 +64,15 @@ export type RestockExportDependencies = {
   save: (path: string, contents: Buffer) => Promise<void>;
   now: () => Date;
   documentsPath: () => string;
+  loadWasteReport?: (request: WasteReportRequest) => Promise<WasteReportData>;
+  createWastePdf?: (input: WasteReportPrintInput) => Promise<Buffer>;
+  createWasteXlsx?: (input: WasteReportPrintInput) => Promise<Buffer>;
+  audit?: (event: {
+    usuarioId: string;
+    modulo: string;
+    tipoAccion: string;
+    descripcion: string;
+  }) => Promise<void>;
 };
 
 export type RestockReportInput = {
@@ -94,6 +124,19 @@ export function createRestockReportExportController(
     }
 
     try {
+      const record =
+        typeof payload === "object" && payload !== null
+          ? (payload as Record<string, unknown>)
+          : {};
+      if (record.tipoReporte === "mermas") {
+        return await handleWasteReportExport(
+          record,
+          context,
+          format,
+          dependencies,
+        );
+      }
+
       // Se extrae exclusivamente la identidad. Las filas, encabezados y rutas
       // que pudiera agregar el renderer quedan deliberadamente ignorados.
       const request = normalizeRestockListRequest(payload);
@@ -405,6 +448,251 @@ const defaultPdfGenerationDependencies: PdfGenerationDependencies = {
     }),
 };
 
+export function renderWasteReportPrintHtml(input: WasteReportPrintInput): string {
+  const markup = renderToStaticMarkup(
+    createElement(ReporteMermasPrintView, input),
+  );
+
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reporte de mermas</title>
+    <style>
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #17202a; font-family: Arial, sans-serif; font-size: 9pt; }
+      h1 { margin: 0; color: #1b4332; font-size: 18pt; }
+      h2 { margin: 4px 0 10px; font-size: 13pt; }
+      .report-metadata { display: flex; gap: 28px; margin: 0 0 14px; }
+      .report-metadata div { display: flex; gap: 6px; }
+      dt { font-weight: 700; }
+      dd { margin: 0; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+      th, td { border: 1px solid #aeb8c2; padding: 5px 6px; }
+      th { background: #d8f3dc; color: #17202a; text-align: left; }
+      tbody tr:nth-child(even) { background: #f6f7f9; }
+      .numeric { text-align: right; }
+    </style>
+  </head>
+  <body>${markup}</body>
+</html>`;
+}
+
+export async function createWastePdfBuffer(
+  input: WasteReportPrintInput,
+  dependencies: PdfGenerationDependencies = defaultPdfGenerationDependencies,
+): Promise<Buffer> {
+  let window: HiddenPrintWindow | null = null;
+
+  try {
+    window = dependencies.createWindow();
+    const html = renderWasteReportPrintHtml(input);
+    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    return await window.webContents.printToPDF({
+      landscape: true,
+      pageSize: "A4",
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+  } finally {
+    if (window && !window.isDestroyed()) {
+      window.destroy();
+    }
+  }
+}
+
+export async function createWasteXlsxBuffer(
+  input: WasteReportPrintInput,
+): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Minimarket y Panadería Huáscar";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Mermas", {
+    views: [{ state: "frozen", ySplit: 5 }],
+  });
+  sheet.mergeCells("A1:I1");
+  sheet.getCell("A1").value = "Minimarket y Panadería Huáscar - Reporte de mermas";
+  sheet.getCell("A1").font = { bold: true, color: { argb: "FFFFFFFF" }, size: 16 };
+  sheet.getCell("A1").fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1B4332" },
+  };
+  sheet.mergeCells("A2:I2");
+  sheet.getCell("A2").value = `Período: ${input.fechaInicio} al ${input.fechaTermino} | Generado: ${input.fechaGeneracion} | Usuario: ${input.usuario}`;
+  sheet.mergeCells("A3:I3");
+  sheet.getCell("A3").value = `Resumen: ${input.resumen.totalUnidades} unidades mermadas | Costo total: $${input.resumen.costoTotal.toLocaleString("es-CL")} (Vencimiento: ${input.resumen.unidadesPorMotivo.vencimiento}, Daño: ${input.resumen.unidadesPorMotivo.dano}, Robo: ${input.resumen.unidadesPorMotivo.robo}, Error registro: ${input.resumen.unidadesPorMotivo.error_registro})`;
+
+  const headers = [
+    "Fecha y hora",
+    "Producto",
+    "EAN-13",
+    "Categoría",
+    "Cantidad",
+    "Motivo",
+    "Costo unitario",
+    "Costo total",
+    "Responsable",
+  ];
+  const headerRow = sheet.getRow(5);
+  headerRow.values = headers;
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF2D6A4F" },
+  };
+
+  const MOTIVO_LABELS: Record<string, string> = {
+    vencimiento: "Vencimiento",
+    dano: "Daño",
+    robo: "Robo",
+    error_registro: "Error de registro",
+  };
+
+  for (const item of input.items) {
+    sheet.addRow([
+      item.fechaHora,
+      item.productoNombre,
+      item.productoEan13,
+      item.categoriaNombre,
+      item.cantidad,
+      MOTIVO_LABELS[item.motivo] ?? item.motivo,
+      item.costoUnitario,
+      item.costoTotal,
+      item.usuarioNombre,
+    ]);
+  }
+
+  sheet.autoFilter = "A5:I5";
+  const widths = [20, 30, 16, 20, 12, 18, 15, 15, 22];
+  widths.forEach((width, index) => {
+    sheet.getColumn(index + 1).width = width;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+async function handleWasteReportExport(
+  record: Record<string, unknown>,
+  context: ControllerContext,
+  format: RestockExportFormat,
+  dependencies: RestockExportDependencies,
+): Promise<ControllerResponse<RestockExportResult>> {
+  const role = effectiveSessionRole(context);
+  if (role !== "dueno") {
+    return {
+      ok: false,
+      error: {
+        code: "FORBIDDEN",
+        controllerId: "restock-report-export",
+        message: "Operación restringida al rol Dueño.",
+      },
+    };
+  }
+
+  const request = normalizeWasteReportRequest(record);
+  const validation = validateWasteReportRequest(request);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        controllerId: "restock-report-export",
+        message: validation.error,
+      },
+    };
+  }
+
+  const loadWaste = dependencies.loadWasteReport ?? queryWasteReportFromDb;
+  const wasteData = await loadWaste(request);
+
+  if (wasteData.items.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: "BUSINESS_RULE",
+        controllerId: "restock-report-export",
+        message: WASTE_REPORT_EMPTY_MESSAGE,
+      },
+    };
+  }
+
+  const generatedAt = dependencies.now();
+  const fechaGeneracion = generatedAt.toISOString();
+  const extension = format;
+  const dialogResult = await dependencies.showSaveDialog({
+    title: "Guardar reporte de mermas",
+    defaultPath: join(
+      dependencies.documentsPath(),
+      `Mermas_${request.fechaInicio}_al_${request.fechaTermino}_${formatFilenameDateInSantiago(generatedAt)}.${extension}`,
+    ),
+    filters: [
+      {
+        name: format === "pdf" ? "Documento PDF" : "Libro de Excel",
+        extensions: [extension],
+      },
+    ],
+  });
+
+  if (dialogResult.canceled || !dialogResult.filePath) {
+    return {
+      ok: true,
+      data: {
+        formato: format,
+        estado: "cancelled",
+        cantidadFilas: wasteData.items.length,
+        fechaGeneracion,
+      },
+    };
+  }
+
+  const printInput: WasteReportPrintInput = {
+    fechaInicio: request.fechaInicio,
+    fechaTermino: request.fechaTermino,
+    fechaGeneracion: formatDateTimeInSantiago(generatedAt),
+    items: wasteData.items,
+    resumen: wasteData.resumen,
+    usuario: context.claims?.usuarioId ?? "Dueño",
+  };
+
+  const createPdf = dependencies.createWastePdf ?? createWastePdfBuffer;
+  const createXlsx = dependencies.createWasteXlsx ?? createWasteXlsxBuffer;
+
+  const contents =
+    format === "pdf"
+      ? await createPdf(printInput)
+      : await createXlsx(printInput);
+  const outputPath = ensureExportExtension(dialogResult.filePath, format);
+  await dependencies.save(outputPath, contents);
+
+  const auditFn =
+    dependencies.audit ?? ((ev) => registerAuditLog(db, appSchema, ev));
+  await auditFn({
+    usuarioId: context.claims?.usuarioId ?? "dueno",
+    modulo: "reportes",
+    tipoAccion: "exportar_reporte_mermas",
+    descripcion: `Exportación de reporte de mermas (${format.toUpperCase()}) para el período ${request.fechaInicio} al ${request.fechaTermino}`,
+  });
+
+  return {
+    ok: true,
+    data: {
+      formato: format,
+      estado: "saved",
+      ruta: outputPath,
+      cantidadFilas: wasteData.items.length,
+      fechaGeneracion,
+    },
+  };
+}
+
 const restockExportDependencies: RestockExportDependencies = {
   load: (request, sessionRole) =>
     loadAuthorizedRestockList(request, sessionRole),
@@ -414,6 +702,10 @@ const restockExportDependencies: RestockExportDependencies = {
   save: (path, contents) => writeFile(path, contents),
   now: () => new Date(),
   documentsPath: () => app.getPath("documents"),
+  loadWasteReport: queryWasteReportFromDb,
+  createWastePdf: createWastePdfBuffer,
+  createWasteXlsx: createWasteXlsxBuffer,
+  audit: (event) => registerAuditLog(db, appSchema, event),
 };
 
 export const restockReportExportController =

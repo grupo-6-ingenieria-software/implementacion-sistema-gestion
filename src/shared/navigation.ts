@@ -8,6 +8,7 @@ export type NavGroup =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion";
 
 export type ControllerId =
@@ -50,7 +51,8 @@ export type ControllerId =
   | "supplier-edit"
   | "restock-list"
   | "restock-report-export"
-  | "inventory-valuation";
+  | "inventory-valuation"
+  | "waste-report";
 
 export type NavNode = {
   id: string;
@@ -546,6 +548,17 @@ export const navigationTree = [
     entryFrom: "Menu Administracion > Log de auditoria.",
     controllerIds: ["access-control", "audit"],
   },
+  {
+    id: "reporte-mermas",
+    viewName: "ReporteMermasView",
+    label: "Mermas",
+    path: "/app/reportes/mermas",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Mermas.",
+    controllerIds: ["access-control", "waste-report", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -587,6 +600,12 @@ export const internalComponents = [
     usedIn: ["restock-list"],
     controllerIds: ["restock-report-export"],
   },
+  {
+    id: "waste-report-print-view",
+    name: "ReporteMermasPrintView",
+    usedIn: ["reporte-mermas"],
+    controllerIds: ["restock-report-export"],
+  },
 ] as const;
 
 export const appMenuGroups: readonly NavGroup[] = [
@@ -596,6 +615,7 @@ export const appMenuGroups: readonly NavGroup[] = [
   "ventas",
   "caja",
   "personal",
+  "reportes",
   "administracion",
 ];
 
@@ -607,6 +627,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
+  reportes: "Reportes",
   administracion: "Administracion",
 };
 
@@ -744,6 +765,7 @@ export function validateNavigationTree(): string[] {
     "configuracion-previsional",
     "user-management",
     "audit-log",
+    "reporte-mermas",
   ]);
 
   for (const node of navigationTree) {

@@ -51,6 +51,7 @@ describe("navigation tree", () => {
         "movement-history",
         "restock-list",
         "inventory-valuation",
+        "reporte-mermas",
       ]),
     );
   });
@@ -176,6 +177,7 @@ describe("navigation tree", () => {
       "ventas",
       "caja",
       "personal",
+      "reportes",
       "administracion",
     ]);
 
@@ -392,5 +394,38 @@ describe("navigation tree", () => {
         to: APP_HOME_PATH,
       });
     }
+  });
+
+  it("exposes V40 ReporteMermasView exclusively to the owner under Reportes", () => {
+    const route = navigationTree.find((node) => node.id === "reporte-mermas");
+    expect(route).toMatchObject({
+      viewName: "ReporteMermasView",
+      label: "Mermas",
+      path: "/app/reportes/mermas",
+      roles: ["dueno"],
+      group: "reportes",
+      showInMenu: true,
+      controllerIds: ["access-control", "waste-report", "audit"],
+    });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/mermas", {
+        isAuthenticated: true,
+        role: "dueno",
+      }),
+    ).toEqual({ status: "allow" });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/mermas", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({
+      status: "deny",
+      to: APP_HOME_PATH,
+    });
+
+    expect(getVisibleMenu("dueno").map((node) => node.id)).toContain("reporte-mermas");
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain("reporte-mermas");
   });
 });
