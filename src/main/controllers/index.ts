@@ -24,6 +24,7 @@ import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
 import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
+import { saleCategoriesController } from "./sale-categories";
 import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
@@ -104,6 +105,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     restockListController,
     restockReportExportController,
     inventoryValuationController,
+    saleCategoriesController,
   ];
 
 /**

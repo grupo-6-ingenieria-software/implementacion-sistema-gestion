@@ -32,6 +32,7 @@ describe("navigation tree", () => {
         "supplier-order-create",
         "supplier-order-receptions",
         "sale-register",
+        "sale-categories",
         "daily-sales",
         "sales-query",
         "sale-annulment",
@@ -53,6 +54,22 @@ describe("navigation tree", () => {
         "inventory-valuation",
       ]),
     );
+  });
+
+  it("exposes V35 under Ventas to both roles and protects its route", () => {
+    expect(navigationTree.find((node) => node.id === "sale-categories")).toMatchObject({
+      path: "/app/ventas/categorias",
+      roles: ["dueno", "trabajador"],
+      group: "ventas",
+      showInMenu: true,
+      controllerIds: ["access-control", "sale-categories"],
+    });
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(evaluateRouteAccess("/app/ventas/categorias", {
+        isAuthenticated: true,
+        role,
+      })).toEqual({ status: "allow" });
+    }
   });
 
   it("exposes V28 once under Inventario for both roles", () => {
