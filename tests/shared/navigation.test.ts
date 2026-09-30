@@ -12,6 +12,18 @@ import {
 } from "../../src/shared/navigation";
 
 describe("navigation tree", () => {
+  it("traces UI01 to its consumers without declaring a scanner route", () => {
+    const component = internalComponents.find((item) => item.id === "ean-input")!;
+    expect(component.usedIn).toEqual(expect.arrayContaining([
+      "product-list", "product-create", "product-edit", "product-delete",
+      "lot-create", "waste-create", "stock-adjustment", "movement-history",
+      "sale-register", "supplier-order-create",
+    ]));
+    for (const id of component.usedIn) {
+      expect(navigationTree.find((node) => node.id === id)?.controllerIds).toContain("ean-reader");
+    }
+    expect(navigationTree.some((node) => (node.id as string) === "ean-reader")).toBe(false);
+  });
   it("declares every route without structural errors", () => {
     expect(validateNavigationTree()).toEqual([]);
     expect(new Set(navigationTree.map((node) => node.id))).toEqual(

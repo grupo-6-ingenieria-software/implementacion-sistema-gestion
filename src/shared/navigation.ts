@@ -141,7 +141,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader"],
   },
   {
     id: "product-create",
@@ -253,7 +253,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Ajuste de inventario.",
-    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit"],
+    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit", "ean-reader"],
   },
   {
     id: "movement-history",
@@ -264,7 +264,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
-    controllerIds: ["access-control", "movement-history"],
+    controllerIds: ["access-control", "movement-history", "ean-reader"],
   },
   {
     id: "restock-list",
@@ -561,9 +561,12 @@ export const internalComponents = [
     usedIn: [
       "product-list",
       "product-create",
+      "product-edit",
       "product-delete",
       "lot-create",
       "waste-create",
+      "stock-adjustment",
+      "movement-history",
       "sale-register",
       "supplier-order-create",
     ],
