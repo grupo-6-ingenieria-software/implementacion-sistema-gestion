@@ -8,6 +8,7 @@ export type ControllerModule =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion"
   | "lector-ean";
 
@@ -29,6 +30,7 @@ export type ControllerErrorCode =
   | "DATABASE_ERROR"
   | "FORBIDDEN"
   | "NOT_FOUND"
+  | "USUARIO_NO_ENCONTRADO"
   | "VALIDATION_ERROR"
   | "BUSINESS_RULE"
   | "TECHNICAL_ERROR";
@@ -56,7 +58,11 @@ export const controllers = [
     id: "password",
     name: "PasswordHandler",
     module: "auth",
-    channels: ["auth:cambiar-password", "auth:restablecer-password"],
+    channels: [
+      "auth:cambiar-password",
+      "auth:preparar-restablecimiento",
+      "auth:restablecer-password",
+    ],
   },
   {
     id: "access-control",
@@ -315,6 +321,18 @@ export const controllers = [
     name: "ValorizacionHandler",
     module: "inventario",
     channels: ["inventario:valorizacion"],
+  },
+  {
+    id: "monthly-sales",
+    name: "ReporteVentasMensualesHandler",
+    module: "reportes",
+    channels: ["reporte:ventas-mensuales"],
+  },
+  {
+    id: "sale-categories",
+    name: "VentasCategoriaHandler",
+    module: "ventas",
+    channels: ["venta:por-categoria"],
   },
   {
     id: "inventory-export",

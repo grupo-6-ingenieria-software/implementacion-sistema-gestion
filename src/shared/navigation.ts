@@ -8,6 +8,7 @@ export type NavGroup =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion";
 
 export type ControllerId =
@@ -29,6 +30,7 @@ export type ControllerId =
   | "lot"
   | "waste"
   | "sale"
+  | "sale-categories"
   | "stock-discount"
   | "sales-history"
   | "cash-closing"
@@ -51,6 +53,7 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "monthly-sales"
   | "inventory-export";
 
 export type NavNode = {
@@ -63,6 +66,9 @@ export type NavNode = {
   showInMenu: boolean;
   entryFrom: string;
   controllerIds: readonly ControllerId[];
+  // La vista invoca un canal que Main autoriza y audita; el renderer no la
+  // deniega localmente para no duplicar la denegación (CU58-E1).
+  authorizedByMain?: true;
 };
 
 export type SessionState = {
@@ -384,6 +390,17 @@ export const navigationTree = [
     ],
   },
   {
+    id: "sale-categories",
+    viewName: "VentasCategoriaView",
+    label: "Ventas por categoría",
+    path: "/app/ventas/categorias",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas > Ventas por categoría.",
+    controllerIds: ["access-control", "sale-categories"],
+  },
+  {
     id: "daily-sales",
     viewName: "DailySalesView",
     label: "Ventas del dia",
@@ -546,6 +563,18 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Administracion > Log de auditoria.",
     controllerIds: ["access-control", "audit"],
+    authorizedByMain: true,
+  },
+  {
+    id: "monthly-sales",
+    viewName: "ReporteMensualVentasView",
+    label: "Ventas mensuales",
+    path: "/app/reportes/ventas-mensuales",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas mensuales.",
+    controllerIds: ["access-control", "session", "monthly-sales", "audit"],
   },
 ] as const satisfies readonly NavNode[];
 
@@ -609,6 +638,7 @@ export const appMenuGroups: readonly NavGroup[] = [
   "ventas",
   "caja",
   "personal",
+  "reportes",
   "administracion",
 ];
 
@@ -620,6 +650,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
+  reportes: "Reportes",
   administracion: "Administracion",
 };
 
@@ -706,7 +737,11 @@ export function evaluateRouteAccess(
     };
   }
 
-  if (!node || !(node.roles as readonly Role[]).includes(session.role)) {
+  if (
+    !node ||
+    (!(node.roles as readonly Role[]).includes(session.role) &&
+      !node.authorizedByMain)
+  ) {
     return {
       status: "deny",
       to: APP_HOME_PATH,
@@ -722,6 +757,7 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "monthly-sales",
     "login",
     "password-change",
     "dashboard",
@@ -743,6 +779,7 @@ export function validateNavigationTree(): string[] {
     "supplier-order-create",
     "supplier-order-receptions",
     "sale-register",
+    "sale-categories",
     "daily-sales",
     "sales-query",
     "sale-annulment",

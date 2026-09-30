@@ -1,12 +1,16 @@
 import { sql, type SQL } from "drizzle-orm";
 import {
   normalizeAuditLogQueryPayload,
+  getAuditLogWindow,
+  getAuditDayStart,
+  type AuditLogWindow,
   type AuditLogEntry,
   type AuditLogQueryResponse,
   type AuditLogUserOption,
   type NormalizedAuditLogQuery,
 } from "../../shared/audit";
 import type { ControllerResponse } from "../../shared/controllers";
+import type { Role } from "../../shared/navigation";
 import * as appSchema from "../../db/schema";
 import {
   AccessDeniedError,
@@ -86,6 +90,8 @@ export async function queryAuditLog(
   database: AuditDatabase,
   schema: typeof appSchema,
   payload: unknown,
+  sessionRole?: Role,
+  now = new Date(),
 ): Promise<ControllerResponse<AuditLogQueryResponse>> {
   let query: NormalizedAuditLogQuery;
 
@@ -115,10 +121,9 @@ export async function queryAuditLog(
   }
 
   try {
-    const user = await authorizeUser(database, schema, query.usuarioId, [
-      "dueno",
-      "trabajador",
-    ]);
+    const user = await authorizeUser(
+      database, schema, query.usuarioId, ["dueno", "trabajador"], sessionRole,
+    );
 
     if (user.role !== "dueno") {
       await registerAuditLog(database, schema, {
@@ -138,7 +143,7 @@ export async function queryAuditLog(
       };
     }
 
-    const result = await loadAuditLog(database, query);
+    const result = await loadAuditLog(database, query, getAuditLogWindow(now));
 
     await registerAuditLog(database, schema, {
       descripcion: buildAuditQueryDescription(query, result.total),
@@ -175,8 +180,9 @@ export async function queryAuditLog(
 async function loadAuditLog(
   database: AuditDatabase,
   query: NormalizedAuditLogQuery,
+  window: AuditLogWindow,
 ): Promise<AuditLogQueryResponse> {
-  const where = buildWhereClause(query);
+  const where = buildWhereClause(query, window);
   const offset = (query.page - 1) * query.pageSize;
   const entries = await database.all<AuditLogEntry>(sql`
     SELECT
@@ -192,7 +198,7 @@ async function loadAuditLog(
     INNER JOIN usuario_version uv
       ON uv.usuario_version_id = la.usuario_version_id
     ${where}
-    ORDER BY datetime(la.log_fecha_hora) DESC, la.log_auditoria_id DESC
+    ORDER BY julianday(la.log_fecha_hora) DESC, la.log_auditoria_id DESC
     LIMIT ${query.pageSize}
     OFFSET ${offset}
   `);
@@ -205,8 +211,8 @@ async function loadAuditLog(
   `);
   const total = Number(totalRows[0]?.total ?? 0);
   const [usuarios, tiposAccion] = await Promise.all([
-    loadUserOptions(database),
-    loadActionTypes(database),
+    loadUserOptions(database, window),
+    loadActionTypes(database, window),
   ]);
 
   return {
@@ -219,11 +225,13 @@ async function loadAuditLog(
     pageSize: query.pageSize,
     total,
     totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+    periodoConsulta: window,
   };
 }
 
 async function loadUserOptions(
   database: AuditDatabase,
+  window: AuditLogWindow,
 ): Promise<AuditLogUserOption[]> {
   return database.all<AuditLogUserOption>(sql`
     SELECT
@@ -235,16 +243,23 @@ async function loadUserOptions(
       SELECT 1
       FROM log_auditoria la
       WHERE la.usuario_version_id = uv.usuario_version_id
+        AND julianday(la.log_fecha_hora) > julianday(${window.desde})
+        AND julianday(la.log_fecha_hora) <= julianday(${window.hasta})
     )
     GROUP BY uv.usuario_id, uv.usuario_version_nombre, uv.usuario_version_rol
     ORDER BY uv.usuario_version_nombre ASC
   `);
 }
 
-async function loadActionTypes(database: AuditDatabase): Promise<string[]> {
+async function loadActionTypes(
+  database: AuditDatabase,
+  window: AuditLogWindow,
+): Promise<string[]> {
   const rows = await database.all<{ tipoAccion: string }>(sql`
     SELECT log_tipo_accion AS tipoAccion
     FROM log_auditoria
+    WHERE julianday(log_fecha_hora) > julianday(${window.desde})
+      AND julianday(log_fecha_hora) <= julianday(${window.hasta})
     GROUP BY log_tipo_accion
     ORDER BY log_tipo_accion ASC
   `);
@@ -252,8 +267,14 @@ async function loadActionTypes(database: AuditDatabase): Promise<string[]> {
   return rows.map((row) => row.tipoAccion);
 }
 
-function buildWhereClause(query: NormalizedAuditLogQuery): SQL {
-  const conditions: SQL[] = [];
+function buildWhereClause(
+  query: NormalizedAuditLogQuery,
+  window: AuditLogWindow,
+): SQL {
+  const conditions: SQL[] = [
+    sql`julianday(la.log_fecha_hora) > julianday(${window.desde})`,
+    sql`julianday(la.log_fecha_hora) <= julianday(${window.hasta})`,
+  ];
 
   if (query.usuarioFiltroId) {
     conditions.push(sql`uv.usuario_id = ${query.usuarioFiltroId}`);
@@ -265,18 +286,14 @@ function buildWhereClause(query: NormalizedAuditLogQuery): SQL {
 
   if (query.fechaDesde) {
     conditions.push(
-      sql`datetime(la.log_fecha_hora) >= datetime(${query.fechaDesde})`,
+      sql`julianday(la.log_fecha_hora) >= julianday(${getAuditDayStart(query.fechaDesde)})`,
     );
   }
 
   if (query.fechaHasta) {
     conditions.push(
-      sql`datetime(la.log_fecha_hora) <= datetime(${query.fechaHasta}, '+1 day', '-1 second')`,
+      sql`julianday(la.log_fecha_hora) < julianday(${getAuditDayStart(query.fechaHasta, true)})`,
     );
-  }
-
-  if (conditions.length === 0) {
-    return sql``;
   }
 
   return sql`WHERE ${sql.join(conditions, sql` AND `)}`;

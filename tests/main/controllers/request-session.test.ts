@@ -8,11 +8,13 @@ import {
   type AuthTestDatabase,
 } from "../../../src/main/controllers/auth-fixtures";
 import {
+  authenticateChannel,
   authorizeRequest,
   guardChannel,
 } from "../../../src/main/controllers/auth-guard";
+import { registerAuditLog } from "../../../src/main/controllers/auth-context";
 import { validateAndRefreshActiveSession } from "../../../src/main/controllers/session";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/auth-jwt";
 
 const NOW = new Date("2026-09-08T12:00:00Z");
 const SESSION = "123e4567-e89b-42d3-a456-556642440000";
@@ -165,5 +167,65 @@ describe("C03 → C05 before dispatch", () => {
       });
     expect(expired).not.toHaveBeenCalled();
     errorLog.mockRestore();
+  });
+});
+
+describe("CU58-E1: sesión antes del rol", () => {
+  const WORKER = "22222222-2";
+
+  async function workerRequest(closed: boolean) {
+    await seedUser(fixture.db, {
+      usuarioId: WORKER, trabajadorId: 2, rut: WORKER, rolBd: "trabajador",
+    });
+    await fixture.db.insert(schema.sesionUsuario).values({
+      sesionUsuarioId: SESSION,
+      usuarioId: WORKER,
+      sesionFechaHoraInicio: new Date(NOW.getTime() - 60000).toISOString(),
+      sesionFechaHoraUltimoAcceso: new Date(NOW.getTime() - 60000).toISOString(),
+      sesionFechaHoraCierre: closed ? NOW.toISOString() : null,
+      sesionMotivoCierre: closed ? "sistema" : null,
+    });
+    const token = signSessionToken({
+      usuarioId: WORKER, rol: "trabajador", usuarioRol: "trabajador",
+      passwordTemporal: false, sesionId: SESSION,
+    });
+    const audit = (event: Parameters<typeof registerAuditLog>[2]) =>
+      registerAuditLog(fixture.db, schema, event);
+    return authorizeRequest("auditoria:consultar", { __authToken: token }, vi.fn(), {
+      identity: (channel, payload) => authenticateChannel(channel, payload, {
+        verifyToken: verifySessionToken, audit,
+      }),
+      session: (claims, refresh) => validateAndRefreshActiveSession(
+        fixture.db, schema, claims.sesionId, claims.usuarioId, refresh, { now: () => NOW },
+      ),
+      audit,
+    });
+  }
+
+  const denials = () => fixture.db.all<{ descripcion: string }>(sql`
+    SELECT log_descripcion AS descripcion FROM log_auditoria
+    WHERE log_tipo_accion = 'acceso_denegado'
+  `);
+
+  it("rechaza una sesión revocada sin registrar una denegación de rol", async () => {
+    const result = await workerRequest(true);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response).toMatchObject({
+        error: { message: expect.stringMatching(/sesión fue cerrada/i) },
+      });
+    }
+    expect(await denials()).toEqual([]);
+  });
+
+  it("con sesión activa rechaza al Trabajador y registra un solo intento", async () => {
+    const result = await workerRequest(false);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response).toMatchObject({ error: { code: "FORBIDDEN" } });
+    }
+    expect(await denials()).toEqual([{
+      descripcion: "Acceso denegado al canal auditoria:consultar para el rol trabajador.",
+    }]);
   });
 });

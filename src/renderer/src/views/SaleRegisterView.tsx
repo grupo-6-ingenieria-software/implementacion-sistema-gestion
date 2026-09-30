@@ -192,6 +192,7 @@ export function SaleRegisterView({
   async function addByEan13(code: string): Promise<void> {
     setError(null);
     setMessage(null);
+    setReceipt(null);
 
     if (!isValidEan13(code)) {
       setError("Ingrese un código EAN-13 válido.");
@@ -660,7 +661,7 @@ export function SaleRegisterView({
               </div>
             </section>
 
-            {receipt ? <ReceiptPanel receipt={receipt} /> : null}
+            {receipt ? <ComprobanteVentaCategoria receipt={receipt} /> : null}
           </aside>
         </div>
       </fieldset>
@@ -746,7 +747,11 @@ function SummaryLine({
   );
 }
 
-function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
+export function ComprobanteVentaCategoria({
+  receipt,
+}: {
+  receipt: SaleReceipt;
+}): ReactElement {
   return (
     <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
       <h3 className="text-lg font-semibold text-[#17202a]">Comprobante</h3>
@@ -770,6 +775,7 @@ function ReceiptPanel({ receipt }: { receipt: SaleReceipt }): ReactElement {
             key={line.productoId}
           >
             <p className="font-semibold text-[#17202a]">{line.nombre}</p>
+            <p className="text-[#61717f]">Categoría: {line.categoria}</p>
             <p className="text-[#61717f]">
               {line.cantidad} x {formatCurrency(line.precioUnitario)} ={" "}
               {formatCurrency(line.subtotal)}

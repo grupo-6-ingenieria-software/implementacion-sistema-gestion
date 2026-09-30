@@ -2,6 +2,37 @@ export const defaultAuditLogPageSize = 25;
 export const maxAuditLogPageSize = 100;
 export const auditTimezone = "America/Santiago";
 
+export type AuditLogWindow = {
+  desde: string;
+  hasta: string;
+};
+
+// Ventana de consulta alineada con los doce meses de retención de auditoría.
+export function getAuditLogWindow(now = new Date()): AuditLogWindow {
+  const year = now.getUTCFullYear() - 1;
+  const month = now.getUTCMonth();
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const cutoff = new Date(now.getTime());
+  cutoff.setUTCFullYear(year, month, Math.min(now.getUTCDate(), lastDay));
+  return { desde: cutoff.toISOString(), hasta: now.toISOString() };
+}
+
+export function getAuditDateInput(timestamp: string): string {
+  const parts = getChileDateTimeParts(new Date(timestamp));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+// Convierte el comienzo de una fecha chilena a UTC, incluyendo el salto de
+// medianoche al iniciar el horario de verano (ese día empieza a las 01:00).
+export function getAuditDayStart(dateInput: string, nextDay = false): string {
+  const midnight = new Date(`${dateInput}T00:00:00.000Z`);
+  if (nextDay) midnight.setUTCDate(midnight.getUTCDate() + 1);
+  const utc = midnight.getTime();
+  const first = utc - getChileOffsetMinutes(new Date(utc)) * 60000;
+  const second = utc - getChileOffsetMinutes(new Date(first)) * 60000;
+  return new Date(Math.max(first, second)).toISOString();
+}
+
 export type AuditLogQueryPayload = {
   fechaDesde?: string;
   fechaHasta?: string;
@@ -39,6 +70,7 @@ export type AuditLogQueryResponse = {
   pageSize: number;
   total: number;
   totalPages: number;
+  periodoConsulta?: AuditLogWindow;
 };
 
 export type NormalizedAuditLogQuery = {

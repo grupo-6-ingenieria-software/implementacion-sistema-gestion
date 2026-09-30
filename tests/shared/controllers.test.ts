@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(41);
-    expect(new Set(ids)).toHaveProperty("size", 41);
+    expect(controllers).toHaveLength(43);
+    expect(new Set(ids)).toHaveProperty("size", 43);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,6 +49,8 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "monthly-sales",
+      "sale-categories",
       "inventory-export",
     ]);
   });
@@ -60,7 +62,7 @@ describe("controller registry", () => {
   });
 
   it("appends C50 without reusing C33 channels", () => {
-    expect(controllers.at(40)).toMatchObject({
+    expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
       id: "inventory-export", name: "ExportacionInventarioHandler",
       channels: ["inventario:exportar-productos"],
     });
@@ -112,6 +114,14 @@ describe("controller registry", () => {
       id: "inventory-valuation",
       name: "ValorizacionHandler",
       channels: ["inventario:valorizacion"],
+    });
+  });
+
+  it("registers the CU45 query after inherited controllers", () => {
+    expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
+      id: "sale-categories",
+      name: "VentasCategoriaHandler",
+      channels: ["venta:por-categoria"],
     });
   });
 

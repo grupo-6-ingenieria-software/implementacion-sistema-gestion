@@ -179,7 +179,7 @@ describe("initializeDatabase", () => {
           )
         ).rows[0]?.count,
       ),
-    ).toBe(5);
+    ).toBe(6);
   });
 });
 

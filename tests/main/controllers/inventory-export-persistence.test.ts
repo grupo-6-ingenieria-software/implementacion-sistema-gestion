@@ -9,7 +9,8 @@ import {
   seedUser,
   type AuthTestDatabase,
 } from "../../../src/main/controllers/auth-fixtures";
-import { authorizeUser } from "../../../src/main/controllers/auth-context";
+import { authorizeUser, registerAuditLog } from "../../../src/main/controllers/auth-context";
+import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
 import {
   auditInventoryExportWithExecutor,
   createInventoryExportController,
@@ -79,15 +80,24 @@ const context = {
   },
 };
 
+function exportThroughAuditDispatcher(
+  controller: ReturnType<typeof createInventoryExportController>,
+  payload: unknown,
+) {
+  return handleWithAudit(controller, payload, context, (event) =>
+    registerAuditLog(fixture.db, schema, event),
+  );
+}
+
 describe("CU20 real persistence and audit transaction (T10/T12)", () => {
   it("saves a real workbook then audits the canonical identity without changing inventory", async () => {
     const before = await inventorySnapshot();
     const path = join(fixture.dir, "inventory.xlsx");
     const controller = createInventoryExportController(dependencies(path));
     expect(
-      await controller.handle(
+      await exportThroughAuditDispatcher(
+        controller,
         { formato: "xlsx", usuarioId: "attacker" },
-        context,
       ),
     ).toMatchObject({
       ok: true,
@@ -107,7 +117,7 @@ describe("CU20 real persistence and audit transaction (T10/T12)", () => {
       usuarioVersionNombre: "Camila Rojas",
       usuarioVersionRol: "trabajador",
     });
-    await controller.handle({ formato: "xlsx" }, context);
+    await exportThroughAuditDispatcher(controller, { formato: "xlsx" });
     expect(await fixture.db.select().from(schema.usuarioVersion)).toHaveLength(
       1,
     );
@@ -122,9 +132,9 @@ describe("CU20 real persistence and audit transaction (T10/T12)", () => {
     const path = join(fixture.dir, "inventory.xlsx");
     const deps = dependencies(path);
     expect(
-      await createInventoryExportController(deps).handle(
+      await exportThroughAuditDispatcher(
+        createInventoryExportController(deps),
         { formato: "xlsx" },
-        context,
       ),
     ).toMatchObject({
       ok: true,
