@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { controllers, type ControllerResponse } from "../../shared/controllers";
 import type { Role } from "../../shared/navigation";
@@ -9,6 +9,8 @@ import {
   evaluateLockout,
   formatRemainingLockout,
   type LoginAttempt,
+  isTemporaryPasswordValid,
+  TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from "../../shared/auth";
 import { db, schema as appSchema } from "../../db/client";
 import {
@@ -21,6 +23,7 @@ import {
   registerAuditLog,
 } from "./auth-context";
 import { signSessionToken, type SessionTokenClaims } from "./auth-jwt";
+import { loadCurrentPassword } from "./current-password";
 
 type SchemaLike = typeof import("../../db/schema");
 type LoginExecutor = Pick<typeof db, "select" | "insert" | "update">;
@@ -131,16 +134,7 @@ export async function authenticateWithExecutor(
   }
 
   // 5. Contraseña vigente del usuario.
-  const [vigente] = await database
-    .select({
-      contrasenaId: schema.contrasena.contrasenaId,
-      contrasenaHash: schema.contrasena.contrasenaHash,
-      esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
-    })
-    .from(schema.contrasena)
-    .where(eq(schema.contrasena.usuarioId, user.usuarioId))
-    .orderBy(desc(schema.contrasena.contrasenaFechaHoraCreacion))
-    .limit(1);
+  const vigente = await loadCurrentPassword(database, schema, user.usuarioId);
 
   if (!vigente) {
     return recordFailureAndRespond(
@@ -171,24 +165,13 @@ export async function authenticateWithExecutor(
     );
   }
 
-  // 6. Si la contraseña vigente es temporal, validar que no haya expirado (RF58).
-  if (vigente.esContrasenaTemporal) {
-    const [temporal] = await database
-      .select({
-        expiracion:
-          schema.contrasenaTemporal.contrasenaTemporalFechaHoraExpiracion,
-      })
-      .from(schema.contrasenaTemporal)
-      .where(eq(schema.contrasenaTemporal.contrasenaId, vigente.contrasenaId))
-      .limit(1);
-
-    if (temporal && nowMs > Date.parse(temporal.expiracion)) {
-      return controllerError(
-        "BUSINESS_RULE",
-        "La contraseña temporal expiró. Solicite al dueño un nuevo restablecimiento.",
-        "auth-login",
-      );
-    }
+  // RF59: no aceptar temporales vencidas ni registros sin expiración válida.
+  if (vigente.esContrasenaTemporal && !isTemporaryPasswordValid(vigente.expiracion, now)) {
+    return controllerError(
+      "BUSINESS_RULE",
+      TEMP_PASSWORD_EXPIRED_MESSAGE,
+      "auth-login",
+    );
   }
 
   const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);

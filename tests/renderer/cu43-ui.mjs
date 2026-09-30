@@ -111,6 +111,10 @@ try {
     .getByRole("button", { name: "Cambiar contraseña" })
     .click();
 
+  await sameUserPage.getByText("Contraseña cambiada correctamente. Inicie sesión con su nueva contraseña.", { exact: true }).waitFor();
+  await sameUserPage.evaluate(() => { window.requirePasswordChange = false; });
+  await login(sameUserPage, "12345678-9");
+
   await sameUserPage
     .getByRole("heading", { name: "Carrito", exact: true })
     .waitFor();
@@ -288,6 +292,7 @@ async function installBridge(page, options = {}) {
       debugMode: false,
       setSessionToken: (token) => window.tokens.push(token),
       onSessionExpired: () => () => undefined,
+      onSessionInvalidated: () => () => undefined,
       onDashboardUpdated: () => () => undefined,
       invoke: async (channel, payload) => {
         if (channel === "auth:login") {

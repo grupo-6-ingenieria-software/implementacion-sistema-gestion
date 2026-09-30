@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import {
   defaultUserListFilters,
   formatRoleLabel,
@@ -39,6 +39,8 @@ export function UserManagementView({
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(
     null,
   );
+  const [resetting, setResetting] = useState(false);
+  const resetPending = useRef(false);
 
   const payload = useMemo(
     () => ({
@@ -94,28 +96,39 @@ export function UserManagementView({
   }, [payload, reloadKey]);
 
   async function requestPasswordReset(user: UserListItem): Promise<void> {
+    if (resetPending.current || temporaryPassword) return;
     const confirmed = window.confirm(
-      `Confirme la solicitud de restablecimiento para ${user.nombreCompleto}.`,
+      `Confirme el restablecimiento para ${user.nombreCompleto}. Se cerrarán sus sesiones anteriores.`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    const response =
-      await window.appApi.invoke<UserPasswordResetRequestResponse>(
-        "usuario:solicitar-restablecimiento",
-        {
-          usuarioId,
-          usuarioObjetivoId: user.usuarioId,
-        },
-      );
+    resetPending.current = true;
+    setResetting(true);
+    setNotice(null);
+    try {
+      const response =
+        await window.appApi.invoke<Omit<UserPasswordResetRequestResponse, "estado">>(
+          "auth:restablecer-password",
+          {
+            usuarioId,
+            usuarioObjetivoId: user.usuarioId,
+          },
+        );
 
-    if (response.ok) {
-      setNotice(null);
-      setTemporaryPassword(response.data.contrasenaTemporal);
-    } else {
-      setNotice(response.error.message);
+      if (response.ok) {
+        setNotice(null);
+        setTemporaryPassword(response.data.contrasenaTemporal);
+      } else {
+        setNotice(response.error.message);
+      }
+    } catch {
+      setNotice("No fue posible restablecer la contraseña. Intente nuevamente.");
+    } finally {
+      resetPending.current = false;
+      setResetting(false);
     }
   }
 
@@ -280,6 +293,7 @@ export function UserManagementView({
                       <button
                         className="rounded-md border border-[#9ba9b5] px-2 py-1 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                         type="button"
+                        disabled={resetting || temporaryPassword !== null}
                         onClick={() => void requestPasswordReset(user)}
                       >
                         Restablecer
@@ -337,6 +351,9 @@ function TemporaryPasswordDialog({
         </h2>
         <p className="mt-2 text-sm text-[#61717f]">
           Contraseña temporal (cópiela ahora, no se mostrará de nuevo):
+        </p>
+        <p className="mt-2 text-sm text-[#61717f]">
+          Válida por 24 horas. El usuario deberá cambiarla al iniciar sesión.
         </p>
         <p className="mt-3 select-all rounded-md border border-[#9ba9b5] bg-[#f6f9fb] px-3 py-2 text-center font-mono text-lg font-semibold tracking-wider text-[#17202a]">
           {password}
