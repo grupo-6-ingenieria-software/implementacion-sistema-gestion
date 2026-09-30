@@ -8,13 +8,17 @@ import {
 } from "react";
 import {
   defaultAuditLogPageSize,
+  getAuditLogWindow,
+  getAuditDateInput,
   type AuditLogEntry,
   type AuditLogQueryPayload,
   type AuditLogQueryResponse,
 } from "../../../shared/audit";
+import { APP_HOME_PATH } from "../../../shared/navigation";
 
 type AuditLogViewProps = {
   usuarioId?: string;
+  onNavigate?: (path: string) => void;
 };
 
 export type AuditLogFilters = {
@@ -36,13 +40,18 @@ const emptyFilters: AuditLogFilters = {
   usuarioFiltroId: "",
 };
 
-export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
+export function AuditLogView({
+  usuarioId, onNavigate,
+}: AuditLogViewProps): ReactElement {
   const [filters, setFilters] = useState<AuditLogFilters>(emptyFilters);
   const [state, setState] = useState<AuditLogState>({ status: "loading" });
   const initialLoadStartedRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const appliedFiltersRef = useRef(emptyFilters);
 
   const loadLog = useCallback(
     async (nextFilters: AuditLogFilters, page = 1): Promise<void> => {
+      const requestId = ++requestIdRef.current;
       if (!usuarioId?.trim()) {
         setState({
           message: "Se requiere una sesion valida para consultar el log.",
@@ -59,7 +68,10 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
           buildAuditLogQueryPayload(usuarioId, nextFilters, page),
         );
 
+        if (requestId !== requestIdRef.current) return;
+
         if (!response.ok) {
+          if (response.error.code === "FORBIDDEN") onNavigate?.(APP_HOME_PATH);
           setState({
             message: response.error.message,
             status: "error",
@@ -72,13 +84,14 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
           status: "ready",
         });
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setState({
           message: "No fue posible comunicarse con el proceso principal.",
           status: "error",
         });
       }
     },
-    [usuarioId],
+    [usuarioId, onNavigate],
   );
 
   useEffect(() => {
@@ -102,24 +115,34 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
   );
 
   const applyFilters = (): void => {
+    appliedFiltersRef.current = filters;
     void loadLog(filters, 1);
   };
 
   const clearFilters = (): void => {
+    appliedFiltersRef.current = emptyFilters;
     setFilters(emptyFilters);
     void loadLog(emptyFilters, 1);
   };
 
   const refreshLog = (): void => {
-    void loadLog(filters, currentPage);
+    void loadLog(appliedFiltersRef.current, currentPage);
   };
 
   const goToPage = (page: number): void => {
-    void loadLog(filters, page);
+    void loadLog(appliedFiltersRef.current, page);
   };
+
+  const queryWindow =
+    state.status === "ready" && state.response.periodoConsulta
+      ? state.response.periodoConsulta
+      : getAuditLogWindow();
 
   return (
     <section className="space-y-6 px-8 py-8">
+      <p className="text-sm text-[#61717f]">
+        Consulta de los últimos 12 meses; los registros son de solo lectura.
+      </p>
       <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
         <div className="grid gap-4 xl:grid-cols-[1fr_220px_180px_180px]">
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
@@ -167,6 +190,8 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
             <input
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               type="date"
+              min={getAuditDateInput(queryWindow.desde)}
+              max={getAuditDateInput(queryWindow.hasta)}
               value={filters.fechaDesde}
               onChange={(event) =>
                 setFilters((current) => ({
@@ -181,6 +206,8 @@ export function AuditLogView({ usuarioId }: AuditLogViewProps): ReactElement {
             <input
               className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               type="date"
+              min={getAuditDateInput(queryWindow.desde)}
+              max={getAuditDateInput(queryWindow.hasta)}
               value={filters.fechaHasta}
               onChange={(event) =>
                 setFilters((current) => ({

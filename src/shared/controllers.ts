@@ -8,6 +8,7 @@ export type ControllerModule =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion"
   | "lector-ean";
 
@@ -315,6 +316,12 @@ export const controllers = [
     name: "ValorizacionHandler",
     module: "inventario",
     channels: ["inventario:valorizacion"],
+  },
+  {
+    id: "monthly-sales",
+    name: "ReporteVentasMensualesHandler",
+    module: "reportes",
+    channels: ["reporte:ventas-mensuales"],
   },
   {
     id: "sale-categories",

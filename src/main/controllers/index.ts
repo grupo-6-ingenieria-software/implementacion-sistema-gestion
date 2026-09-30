@@ -2,6 +2,8 @@ import type { IpcMain } from "electron";
 import { findControllerByChannel } from "../../shared/controllers";
 import { db, schema as appSchema } from "../../db/client";
 import { authorizeRequest } from "./auth-guard";
+import { handleWithAudit } from "./audit-dispatch";
+import { registerAuditLog } from "./auth-context";
 import { SESSION_EXPIRED_EVENT } from "../../shared/auth";
 import { notifySessionInvalidated } from "./session-events";
 import { accessControlController } from "./access-control";
@@ -47,7 +49,8 @@ import {
   workerDependencies,
 } from "./worker";
 import { restockListController } from "./restock-list";
-import { restockReportExportController } from "./restock-report-export";
+import { reportExportController } from "./report-export";
+import { monthlySalesController } from "./monthly-sales";
 import { inventoryValuationController } from "./inventory-valuation";
 import type { RegisteredController } from "./base";
 
@@ -103,8 +106,9 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     supplierQueryController,
     supplierEditController,
     restockListController,
-    restockReportExportController,
+    reportExportController,
     inventoryValuationController,
+    monthlySalesController,
     saleCategoriesController,
   ];
 
@@ -124,7 +128,9 @@ export async function dispatchControllerWithAccessControl(
     return guard.response;
   }
 
-  return controller.handle(guard.payload, guard.context);
+  return handleWithAudit(controller, guard.payload, guard.context, (event) =>
+    registerAuditLog(db, appSchema, event),
+  );
 }
 
 export function registerControllers(ipcMain: IpcMain): void {

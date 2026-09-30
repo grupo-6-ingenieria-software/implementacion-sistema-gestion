@@ -52,6 +52,7 @@ describe("navigation tree", () => {
         "movement-history",
         "restock-list",
         "inventory-valuation",
+        "monthly-sales",
       ]),
     );
   });
@@ -193,6 +194,7 @@ describe("navigation tree", () => {
       "ventas",
       "caja",
       "personal",
+      "reportes",
       "administracion",
     ]);
 

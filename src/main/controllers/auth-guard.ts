@@ -1,4 +1,5 @@
 import { controllers } from "../../shared/controllers";
+import { isReportExportRequest } from "../../shared/monthly-sales";
 import type { ControllerId, Role } from "../../shared/navigation";
 import { navigationTree } from "../../shared/navigation";
 import { controllerError } from "./base";
@@ -23,10 +24,18 @@ export const AUTHENTICATED_CHANNELS: ReadonlySet<string> = new Set([
   "auditoria:registrar",
 ]);
 
+export const TEMP_PASSWORD_CHANNELS: ReadonlySet<string> = new Set([
+  "auth:cambiar-password",
+  "auth:verificar-sesion",
+  "auth:logout",
+]);
+
 export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   string,
   ReadonlySet<Role>
 > = new Map<string, ReadonlySet<Role>>([
+  ["auth:restablecer-password", new Set<Role>(["dueno"])],
+  ["auditoria:consultar", new Set<Role>(["dueno"])],
   ["turno:listar", new Set<Role>(["dueno", "trabajador"])],
   ["turno:crear", new Set<Role>(["dueno"])],
   ["turno:editar", new Set<Role>(["dueno"])],
@@ -159,7 +168,7 @@ export async function authorizeRequest(
     }
 
     const rolEfectivo = session.rolEfectivo ?? claims.rol;
-    const requiredRoles = CHANNEL_ROLES.get(channel);
+    const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
 
     if (requiredRoles && !requiredRoles.has(rolEfectivo)) {
       await (deps.audit ?? defaultAuthorizeAudit)({
@@ -228,7 +237,23 @@ export async function guardChannel(
     };
   }
 
-  const requiredRoles = CHANNEL_ROLES.get(channel);
+  if (claims.passwordTemporal && !TEMP_PASSWORD_CHANNELS.has(channel)) {
+    await deps.audit({
+      descripcion: `Acceso denegado al canal ${channel}: cambio de contraseña obligatorio.`,
+      modulo: "control_acceso",
+      tipoAccion: "acceso_denegado",
+      usuarioId: claims.usuarioId,
+    }).catch(() => undefined);
+    return {
+      ok: false,
+      response: controllerError(
+        "FORBIDDEN",
+        "Debe cambiar la contraseña temporal antes de realizar esta acción.",
+      ),
+    };
+  }
+
+  const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
 
   if (requiredRoles && !requiredRoles.has(claims.rol)) {
     await deps

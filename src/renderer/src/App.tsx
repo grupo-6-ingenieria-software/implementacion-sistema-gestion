@@ -63,6 +63,7 @@ import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
+import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import {
   clearPendingSaleResume,
@@ -107,7 +108,6 @@ export function App(): ReactElement {
   const isAuthenticatedRef = useRef(session.isAuthenticated);
   const currentPathRef = useRef(path);
   const postLoginRouteRef = useRef<string | null>(null);
-  const postPasswordRouteRef = useRef<string | null>(null);
 
   isAuthenticatedRef.current = session.isAuthenticated;
   currentPathRef.current = path;
@@ -165,23 +165,15 @@ export function App(): ReactElement {
       return;
     }
 
-    if (
-      path === PASSWORD_CHANGE_PATH &&
-      session.isAuthenticated &&
-      !session.passwordChangeRequired &&
-      postPasswordRouteRef.current
-    ) {
-      const target = postPasswordRouteRef.current;
-      postPasswordRouteRef.current = null;
-      navigate(target);
-      return;
-    }
-
     const decision = evaluateRouteAccess(path, session);
 
     if (decision.status !== "allow") {
       if (decision.status === "deny") {
         setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
+        // La redirección local también debe dejar evidencia en el servidor.
+        void window.appApi
+          .invoke("access:validate", { ruta: path })
+          .catch(() => undefined);
       }
       navigate(decision.to);
       return;
@@ -291,19 +283,12 @@ export function App(): ReactElement {
   };
 
   const completePasswordChange = (): void => {
-    const nextSession = {
-      ...session,
-      passwordChangeRequired: false,
-    };
-    setSession(nextSession);
-    const draft = readSaleDraft();
-    const pendingUserId = readPendingSaleUserId();
-    const shouldResumeSale =
-      pendingUserId !== null && draft?.usuarioId === pendingUserId;
-    postPasswordRouteRef.current = shouldResumeSale
-      ? SALE_REGISTER_PATH
-      : APP_HOME_PATH;
-    clearPendingSaleResume();
+    // La definitiva invalida las sesiones temporales. Obtener un JWT nuevo
+    // mediante login evita conservar los permisos restringidos del anterior.
+    window.appApi.setSessionToken(null);
+    setSession(defaultSession);
+    setNotice("Contraseña cambiada correctamente. Inicie sesión con su nueva contraseña.");
+    navigate(PUBLIC_LOGIN_PATH);
   };
 
   if (path === PUBLIC_LOGIN_PATH) {
@@ -575,19 +560,21 @@ function PasswordChangeView({
 
     setIsLoading(true);
 
-    const response = await window.appApi.invoke("auth:cambiar-password", {
-      usuarioId,
-      contrasenaNueva: nueva,
-    });
-
-    setIsLoading(false);
-
-    if (!response.ok) {
-      setError(response.error.message);
-      return;
+    try {
+      const response = await window.appApi.invoke("auth:cambiar-password", {
+        usuarioId,
+        contrasenaNueva: nueva,
+      });
+      if (!response.ok) {
+        setError(response.error.message);
+        return;
+      }
+      onComplete();
+    } catch {
+      setError("No fue posible cambiar la contraseña. Intente nuevamente.");
+    } finally {
+      setIsLoading(false);
     }
-
-    onComplete();
   };
 
   return (
@@ -1034,6 +1021,10 @@ function ViewRenderer({
     return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === "monthly-sales" && session.usuarioId && session.role === "dueno") {
+    return <ReporteMensualVentasView onNavigate={onNavigate} />;
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1063,7 +1054,7 @@ function ViewRenderer({
   }
 
   if (node.id === "audit-log") {
-    return <AuditLogView usuarioId={session.usuarioId} />;
+    return <AuditLogView usuarioId={session.usuarioId} onNavigate={onNavigate} />;
   }
 
   if (node.id === "product-status" && session.usuarioId) {
@@ -1159,6 +1150,7 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "monthly-sales",
     "dashboard",
     "attendance",
     "cash-closing",

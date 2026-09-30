@@ -22,7 +22,18 @@ export const SESSION_EXPIRED_EVENT = "session:expirada";
 export const SESSION_INVALIDATED_EVENT = "session:invalidada";
 
 export const SESSION_INVALIDATED_MESSAGE =
-  "Su sesión fue cerrada porque su cuenta fue desactivada.";
+  "Su sesión fue cerrada por un cambio en su cuenta. Inicie sesión nuevamente.";
+
+export const TEMP_PASSWORD_EXPIRED_MESSAGE =
+  "La contraseña temporal expiró. Solicite al dueño un nuevo restablecimiento.";
+
+export function isTemporaryPasswordValid(
+  expiracion: string | null | undefined,
+  now: Date,
+): boolean {
+  const expirationMs = typeof expiracion === "string" ? Date.parse(expiracion) : NaN;
+  return Number.isFinite(expirationMs) && now.getTime() < expirationMs;
+}
 
 export type PasswordComplexityResult = {
   valid: boolean;
