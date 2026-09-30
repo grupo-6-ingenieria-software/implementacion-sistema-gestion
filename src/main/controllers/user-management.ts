@@ -28,6 +28,7 @@ type UserManagementDependencies = {
   listUsers: () => Promise<UserListItem[]>;
   requestPasswordReset: (
     payload: UserPasswordResetRequestPayload,
+    sessionRole?: Role,
   ) => Promise<ControllerResponse<UserPasswordResetRequestResponse>>;
 };
 
@@ -71,7 +72,7 @@ export function createUserManagementController(
           };
         }
 
-        return dependencies.requestPasswordReset(normalizedPayload);
+        return dependencies.requestPasswordReset(normalizedPayload, context.claims?.rol);
       }
 
       return {
@@ -164,15 +165,15 @@ async function listUsers(): Promise<UserListItem[]> {
 
 async function requestPasswordReset(
   payload: UserPasswordResetRequestPayload,
+  sessionRole?: Role,
 ): Promise<ControllerResponse<UserPasswordResetRequestResponse>> {
   const { db, schema } = await import("../../db/client");
 
-  // Reutiliza el generador de contraseña temporal de RF58: autoriza al dueño,
-  // genera la temporal de 24h, persiste contrasena + contrasena_temporal y audita.
+  // RF59 comparte la transacción de contraseña, revocación y auditoría con C02.
   const result = await resetPasswordWithExecutor(db, schema, {
     usuarioId: payload.usuarioId,
     usuarioObjetivoId: payload.usuarioObjetivoId,
-  });
+  }, undefined, sessionRole);
 
   if (!result.ok) {
     return result;

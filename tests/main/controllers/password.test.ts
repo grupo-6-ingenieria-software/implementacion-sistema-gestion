@@ -88,6 +88,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
       rut: "33333333-3",
       rolBd: "trabajador",
       esTemporal: true,
+      temporalExpiracion: new Date(NOW.getTime() + 3_600_000).toISOString(),
     });
 
     const response = await changePasswordWithExecutor(
@@ -187,7 +188,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
   });
 });
 
-describe("resetPasswordWithExecutor (RF58)", () => {
+describe("resetPasswordWithExecutor (RF59)", () => {
   beforeEach(async () => {
     await seedUser(testDb!.db, {
       usuarioId: "11111111-1",
