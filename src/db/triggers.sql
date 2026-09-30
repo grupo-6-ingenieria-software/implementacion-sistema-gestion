@@ -109,6 +109,35 @@ BEGIN
   SELECT RAISE(ABORT, 'log_auditoria es inmutable: DELETE no permitido (RNF10)');
 END;
 
+-- REPLACE puede borrar sin disparar BEFORE DELETE si recursive_triggers está
+-- desactivado, por lo que también se rechaza la reutilización de un identificador.
+CREATE TRIGGER IF NOT EXISTS trg_log_auditoria_no_replace
+BEFORE INSERT ON log_auditoria
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE log_auditoria_id = NEW.log_auditoria_id)
+BEGIN
+  SELECT RAISE(ABORT, 'log_auditoria es inmutable: REPLACE no permitido (RF58)');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_usuario_version_audit_identity
+BEFORE UPDATE ON usuario_version
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE usuario_version_id = OLD.usuario_version_id)
+  AND (NEW.usuario_version_nombre IS NOT OLD.usuario_version_nombre
+    OR NEW.usuario_version_rol IS NOT OLD.usuario_version_rol
+    OR NEW.usuario_id IS NOT OLD.usuario_id)
+BEGIN
+  SELECT RAISE(ABORT, 'La identidad histórica de auditoría es inmutable (RF58)');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_usuario_version_audit_no_replace
+BEFORE INSERT ON usuario_version
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE usuario_version_id = NEW.usuario_version_id)
+BEGIN
+  SELECT RAISE(ABORT, 'La identidad histórica de auditoría es inmutable: REPLACE no permitido (RF58)');
+END;
+
 CREATE TRIGGER IF NOT EXISTS trg_log_errores_no_update
 BEFORE UPDATE ON log_errores_tecnicos
 FOR EACH ROW

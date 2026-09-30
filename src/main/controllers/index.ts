@@ -2,6 +2,8 @@ import type { IpcMain } from "electron";
 import { findControllerByChannel } from "../../shared/controllers";
 import { db, schema as appSchema } from "../../db/client";
 import { authorizeRequest } from "./auth-guard";
+import { handleWithAudit } from "./audit-dispatch";
+import { registerAuditLog } from "./auth-context";
 import { SESSION_EXPIRED_EVENT } from "../../shared/auth";
 import { notifySessionInvalidated } from "./session-events";
 import { accessControlController } from "./access-control";
@@ -122,7 +124,9 @@ export async function dispatchControllerWithAccessControl(
     return guard.response;
   }
 
-  return controller.handle(guard.payload, guard.context);
+  return handleWithAudit(controller, guard.payload, guard.context, (event) =>
+    registerAuditLog(db, appSchema, event),
+  );
 }
 
 export function registerControllers(ipcMain: IpcMain): void {
