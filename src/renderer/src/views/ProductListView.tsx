@@ -8,7 +8,7 @@ import {
   type ProductSortBy,
   type ProductSortDirection,
 } from "../../../shared/products";
-import { CampoEAN13Input } from "../components";
+import { AccionExportarFormato, CampoEAN13Input } from "../components";
 
 type ProductListViewProps = {
   role: Role;
@@ -107,6 +107,7 @@ export function ProductListView({
   return (
     <section className="px-8 py-8">
       <div className="flex flex-wrap items-start justify-end gap-4">
+        <AccionExportarFormato />
         {role === "dueno" ? (
           <button
             className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354]"

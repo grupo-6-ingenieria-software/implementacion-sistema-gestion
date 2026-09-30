@@ -316,6 +316,12 @@ export const controllers = [
     module: "inventario",
     channels: ["inventario:valorizacion"],
   },
+  {
+    id: "inventory-export",
+    name: "ExportacionInventarioHandler",
+    module: "inventario",
+    channels: ["inventario:exportar-productos"],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);

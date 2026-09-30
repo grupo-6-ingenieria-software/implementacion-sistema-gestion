@@ -12,6 +12,15 @@ import {
 } from "../../src/shared/navigation";
 
 describe("navigation tree", () => {
+  it("registers CU20 for both V06 roles and keeps UI06/UI07 internal", () => {
+    const route = navigationTree.find((node) => node.id === "product-list")!;
+    expect(route.roles).toEqual(["dueno", "trabajador"]);
+    expect(route.controllerIds).toContain("inventory-export");
+    for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
+      expect(internalComponents.find((component) => component.name === name)).toMatchObject({ usedIn: ["product-list"], controllerIds: ["inventory-export"] });
+      expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
+    }
+  });
   it("declares every route without structural errors", () => {
     expect(validateNavigationTree()).toEqual([]);
     expect(new Set(navigationTree.map((node) => node.id))).toEqual(

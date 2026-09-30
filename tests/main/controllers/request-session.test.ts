@@ -63,6 +63,7 @@ function request(channel = "producto:listar", expired = vi.fn()) {
 describe("C03 → C05 before dispatch", () => {
   it.each([
     "producto:listar",
+    "inventario:exportar-productos",
     "venta:registrar",
     "asistencia:entrada",
     "trabajador:registrar",

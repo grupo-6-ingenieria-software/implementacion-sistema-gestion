@@ -50,7 +50,8 @@ export type ControllerId =
   | "supplier-edit"
   | "restock-list"
   | "restock-report-export"
-  | "inventory-valuation";
+  | "inventory-valuation"
+  | "inventory-export";
 
 export type NavNode = {
   id: string;
@@ -141,7 +142,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query"],
+    controllerIds: ["access-control", "product-status", "product-query", "inventory-export"],
   },
   {
     id: "product-create",
@@ -549,6 +550,18 @@ export const navigationTree = [
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
+  {
+    id: "export-format-action",
+    name: "AccionExportarFormato",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
+  {
+    id: "report-print-view",
+    name: "ReportePrintView",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
   {
     id: "sale-discount-modal",
     name: "DescuentoVentaModal",

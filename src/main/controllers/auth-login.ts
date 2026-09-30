@@ -135,7 +135,6 @@ export async function authenticateWithExecutor(
     .select({
       contrasenaId: schema.contrasena.contrasenaId,
       contrasenaHash: schema.contrasena.contrasenaHash,
-      esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
     })
     .from(schema.contrasena)
     .where(eq(schema.contrasena.usuarioId, user.usuarioId))
@@ -171,24 +170,24 @@ export async function authenticateWithExecutor(
     );
   }
 
-  // 6. Si la contraseña vigente es temporal, validar que no haya expirado (RF58).
-  if (vigente.esContrasenaTemporal) {
-    const [temporal] = await database
-      .select({
-        expiracion:
-          schema.contrasenaTemporal.contrasenaTemporalFechaHoraExpiracion,
-      })
-      .from(schema.contrasenaTemporal)
-      .where(eq(schema.contrasenaTemporal.contrasenaId, vigente.contrasenaId))
-      .limit(1);
+  // La relación con el subtipo determina si es temporal en ambos esquemas de BD.
+  const [temporal] = await database
+    .select({
+      expiracion:
+        schema.contrasenaTemporal.contrasenaTemporalFechaHoraExpiracion,
+    })
+    .from(schema.contrasenaTemporal)
+    .where(eq(schema.contrasenaTemporal.contrasenaId, vigente.contrasenaId))
+    .limit(1);
+  const esContrasenaTemporal = Boolean(temporal);
 
-    if (temporal && nowMs > Date.parse(temporal.expiracion)) {
-      return controllerError(
-        "BUSINESS_RULE",
-        "La contraseña temporal expiró. Solicite al dueño un nuevo restablecimiento.",
-        "auth-login",
-      );
-    }
+  // 6. Si la contraseña vigente es temporal, validar que no haya expirado (RF58).
+  if (temporal && nowMs > Date.parse(temporal.expiracion)) {
+    return controllerError(
+      "BUSINESS_RULE",
+      "La contraseña temporal expiró. Solicite al dueño un nuevo restablecimiento.",
+      "auth-login",
+    );
   }
 
   const role = mapDatabaseRoleToTechnicalRole(user.usuarioRol);
@@ -215,7 +214,7 @@ export async function authenticateWithExecutor(
     usuarioId: user.usuarioId,
     rol: role,
     usuarioRol: user.usuarioRol,
-    passwordTemporal: vigente.esContrasenaTemporal,
+    passwordTemporal: esContrasenaTemporal,
     sesionId,
   });
 
@@ -254,7 +253,7 @@ export async function authenticateWithExecutor(
     usuarioId: user.usuarioId,
     usuarioRol: user.usuarioRol,
     trabajadorNombre,
-    passwordChangeRequired: vigente.esContrasenaTemporal,
+    passwordChangeRequired: esContrasenaTemporal,
   });
 }
 
