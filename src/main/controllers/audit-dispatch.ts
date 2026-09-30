@@ -1,9 +1,11 @@
 import type { ControllerResponse } from "../../shared/controllers";
+import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
 import { controllerError, type ControllerContext, type RegisteredController } from "./base";
 
 // Las mutaciones y la consulta del propio log ya se auditan en sus servicios.
 // Las lecturas de negocio se registran aquí usando la identidad del dispatcher.
 export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
+  "reporte:ventas-mensuales",
   "dashboard:cargar", "dashboard:alertas-stock", "dashboard:alertas-vencimiento",
   "dashboard:total-ventas-dia", "producto:listar", "producto:buscar-activo",
   "producto:estado", "producto:buscar", "producto:detalle-lotes", "lote:proveedores",
@@ -35,8 +37,12 @@ export async function handleWithAudit(
   if (!response.ok || !context.claims) return response;
 
   const isQuery = AUDITED_QUERY_CHANNELS.has(context.channel);
-  const isExport = context.channel === "inventario:reabastecimiento:exportar-pdf" ||
+  const isInventoryExport = context.channel === "inventario:reabastecimiento:exportar-pdf" ||
     context.channel === "inventario:reabastecimiento:exportar-xlsx";
+  const isMonthlyExport = (context.channel === "reporte:exportar-pdf" ||
+    context.channel === "reporte:exportar-xlsx") &&
+    (payload as { tipo?: unknown } | null)?.tipo === MONTHLY_SALES_REPORT_TYPE;
+  const isExport = isInventoryExport || isMonthlyExport;
   // Cerrar el diálogo sin guardar no es una exportación realizada.
   if (!isQuery && !(isExport && response.data?.estado === "saved")) return response;
 

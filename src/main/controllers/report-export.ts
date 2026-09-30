@@ -8,12 +8,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { db, schema } from "../../db/client";
 import { controllers } from "../../shared/controllers";
+import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
 import { DAILY_SALES_EMPTY_MESSAGE, REPORT_EXPORT_ERROR_MESSAGE, type DailySalesExportRequest, type DailySalesExportResult, type DailySalesReport } from "../../shared/reports";
 import { ReporteVentasDiariasPrintView, type DailySalesPrintInput } from "../../renderer/src/components/ReporteVentasDiariasPrintView";
-import { controllerError, controllerSuccess, type RegisteredController } from "./base";
+import { controllerError, controllerSuccess, type ControllerHandler, type RegisteredController } from "./base";
 import { AccessDeniedError, authorizeUser, registerAuditLog } from "./auth-context";
 import { DailySalesReportValidationError, loadDailySalesReport } from "./daily-sales-report-service";
 import { formatDateTimeInSantiago, type HiddenPrintWindow } from "./restock-report-export";
+import { createMonthlySalesExportHandler } from "./monthly-sales-export";
 
 type Format = "pdf" | "xlsx";
 type SaveDialogResult = { canceled: boolean; filePath?: string };
@@ -192,3 +194,24 @@ const defaultDependencies: DailySalesExportDependencies = {
 };
 
 export const dailySalesExportController = createDailySalesExportController();
+
+export function createReportExportController(
+  monthly: ControllerHandler = createMonthlySalesExportHandler(),
+  daily: RegisteredController = dailySalesExportController,
+): RegisteredController {
+  const metadata = controllers.find((item) => item.id === "report-export")!;
+  return {
+    metadata,
+    handle: (payload, context) => {
+      if (context.channel !== "reporte:exportar-pdf" && context.channel !== "reporte:exportar-xlsx") {
+        return Promise.resolve(controllerError("INVALID_CHANNEL", "Canal de exportación inválido.", metadata.id));
+      }
+      const tipo = (payload as { tipo?: unknown } | null)?.tipo;
+      if (tipo === "ventas-diarias") return daily.handle(payload, context);
+      if (tipo === MONTHLY_SALES_REPORT_TYPE) return monthly(payload, context);
+      return Promise.resolve(controllerError("VALIDATION_ERROR", "Tipo de reporte no válido.", metadata.id));
+    },
+  };
+}
+
+export const reportExportController = createReportExportController();
