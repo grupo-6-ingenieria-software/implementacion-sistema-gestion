@@ -63,6 +63,7 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -917,6 +918,10 @@ function ViewRenderer({
         onNavigate={onNavigate}
       />
     );
+  }
+
+  if (node.id === "daily-sales-report" && session.role === "dueno") {
+    return <ReporteDiarioVentasView />;
   }
 
   if (node.id === "sales-query" && session.usuarioId) {

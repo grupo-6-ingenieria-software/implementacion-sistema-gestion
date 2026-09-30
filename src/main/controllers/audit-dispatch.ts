@@ -15,6 +15,7 @@ export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
   "configuracion:previsional-obtener", "pedido:listar", "pedido:detalle",
   "proveedor:categorias", "proveedor:listar", "proveedor:buscar-existente",
   "inventario:lista-reabastecimiento", "inventario:valorizacion",
+  "reporte:ventas-diarias",
 ]);
 
 export type DispatchAuditEvent = {
@@ -34,8 +35,8 @@ export async function handleWithAudit(
   if (!response.ok || !context.claims) return response;
 
   const isQuery = AUDITED_QUERY_CHANNELS.has(context.channel);
-  const isExport = context.channel === "reporte:exportar-pdf" ||
-    context.channel === "reporte:exportar-xlsx";
+  const isExport = context.channel === "inventario:reabastecimiento:exportar-pdf" ||
+    context.channel === "inventario:reabastecimiento:exportar-xlsx";
   // Cerrar el diálogo sin guardar no es una exportación realizada.
   if (!isQuery && !(isExport && response.data?.estado === "saved")) return response;
 

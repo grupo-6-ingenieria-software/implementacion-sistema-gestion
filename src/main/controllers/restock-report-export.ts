@@ -351,8 +351,8 @@ export async function createRestockXlsxBuffer(
 }
 
 function formatForChannel(channel: string): RestockExportFormat | null {
-  if (channel === "reporte:exportar-pdf") return "pdf";
-  if (channel === "reporte:exportar-xlsx") return "xlsx";
+  if (channel === "inventario:reabastecimiento:exportar-pdf") return "pdf";
+  if (channel === "inventario:reabastecimiento:exportar-xlsx") return "xlsx";
   return null;
 }
 

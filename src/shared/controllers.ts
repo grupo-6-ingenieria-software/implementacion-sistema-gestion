@@ -8,6 +8,7 @@ export type ControllerModule =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion"
   | "lector-ean";
 
@@ -308,13 +309,25 @@ export const controllers = [
     id: "restock-report-export",
     name: "ExportacionReporteHandler",
     module: "inventario",
-    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+    channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
   },
   {
     id: "inventory-valuation",
     name: "ValorizacionHandler",
     module: "inventario",
     channels: ["inventario:valorizacion"],
+  },
+  {
+    id: "daily-sales-report",
+    name: "ReporteVentasDiariasHandler",
+    module: "reportes",
+    channels: ["reporte:ventas-diarias"],
+  },
+  {
+    id: "report-export",
+    name: "ExportacionReportesHandler",
+    module: "reportes",
+    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

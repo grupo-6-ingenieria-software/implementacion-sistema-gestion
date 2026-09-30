@@ -29,7 +29,7 @@ describe("RF58 business query and export audit", () => {
     });
   });
 
-  it.each(["reporte:exportar-pdf", "reporte:exportar-xlsx"])("audits saved %s but not cancellations", async (channel) => {
+  it.each(["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"])("audits saved %s but not cancellations", async (channel) => {
     const audit = vi.fn(async () => undefined);
     await handleWithAudit(controller(channel, { estado: "saved" }), {}, context(channel), audit);
     expect(audit).toHaveBeenCalledOnce();
@@ -60,7 +60,7 @@ describe("RF58 business query and export audit", () => {
     const audit = vi.fn(async () => { throw new Error("database unavailable"); });
     expect(await handleWithAudit(controller("producto:listar"), {}, context("producto:listar"), audit))
       .toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
-    expect(await handleWithAudit(controller("reporte:exportar-pdf", { estado: "saved" }), {}, context("reporte:exportar-pdf"), audit))
+    expect(await handleWithAudit(controller("inventario:reabastecimiento:exportar-pdf", { estado: "saved" }), {}, context("inventario:reabastecimiento:exportar-pdf"), audit))
       .toMatchObject({ ok: false, error: { message: "El archivo fue guardado, pero no fue posible registrar su auditoría." } });
   });
 });

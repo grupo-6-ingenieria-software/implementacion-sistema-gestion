@@ -8,6 +8,7 @@ export type NavGroup =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion";
 
 export type ControllerId =
@@ -50,7 +51,9 @@ export type ControllerId =
   | "supplier-edit"
   | "restock-list"
   | "restock-report-export"
-  | "inventory-valuation";
+  | "inventory-valuation"
+  | "daily-sales-report"
+  | "report-export";
 
 export type NavNode = {
   id: string;
@@ -525,6 +528,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "configuracion-previsional", "audit"],
   },
   {
+    id: "daily-sales-report",
+    viewName: "ReporteDiarioVentasView",
+    label: "Ventas diarias",
+    path: "/app/reportes/ventas-diarias",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas diarias.",
+    controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -587,6 +601,18 @@ export const internalComponents = [
     usedIn: ["restock-list"],
     controllerIds: ["restock-report-export"],
   },
+  {
+    id: "daily-report-export",
+    name: "AccionExportarFormato",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "daily-report-print-view",
+    name: "ReporteVentasDiariasPrintView",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
 ] as const;
 
 export const appMenuGroups: readonly NavGroup[] = [
@@ -596,6 +622,7 @@ export const appMenuGroups: readonly NavGroup[] = [
   "ventas",
   "caja",
   "personal",
+  "reportes",
   "administracion",
 ];
 
@@ -607,6 +634,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
+  reportes: "Reportes",
   administracion: "Administracion",
 };
 
