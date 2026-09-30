@@ -10,14 +10,15 @@ export const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export interface UpdaterEnvironment {
   platform: NodeJS.Platform;
   isPackaged: boolean;
+  portableExecutableDir?: string;
 }
 
 /**
  * Sólo la build instalada de Windows (NSIS) se actualiza sola. En dev no hay
- * `app-update.yml` y el .dmg de macOS no está firmado, así que ahí no se consulta.
+ * `app-update.yml`; los portables de Windows y el .dmg de macOS tampoco consultan.
  */
 export function shouldCheckForUpdates(env: UpdaterEnvironment): boolean {
-  return env.platform === "win32" && env.isPackaged;
+  return env.platform === "win32" && env.isPackaged && !env.portableExecutableDir;
 }
 
 /**
@@ -29,6 +30,7 @@ export function startAutoUpdater(
   env: UpdaterEnvironment = {
     platform: process.platform,
     isPackaged: app.isPackaged,
+    portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
   },
 ): void {
   if (!shouldCheckForUpdates(env)) {
