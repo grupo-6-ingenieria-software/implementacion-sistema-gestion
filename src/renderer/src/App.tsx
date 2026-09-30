@@ -65,6 +65,7 @@ import { RestockListView } from "./views/RestockListView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import { ReporteMermasView } from "./views/ReporteMermasView";
 import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -1049,6 +1050,15 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1208,6 +1218,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "inventory-valuation",
     "reporte-mermas",
     "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

@@ -53,7 +53,8 @@ export type ControllerId =
   | "restock-report-export"
   | "inventory-valuation"
   | "waste-report"
-  | "expiring-lots-report";
+  | "expiring-lots-report"
+  | "movement-report";
 
 export type NavNode = {
   id: string;
@@ -571,6 +572,17 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Lotes proximos a vencer.",
     controllerIds: ["access-control", "expiring-lots-report", "audit"],
   },
+  {
+    id: "reporte-movimientos",
+    viewName: "ReporteMovimientosView",
+    label: "Movimientos",
+    path: "/app/reportes/movimientos-inventario",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Movimientos de inventario.",
+    controllerIds: ["access-control", "movement-report", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -622,6 +634,12 @@ export const internalComponents = [
     id: "expiring-lots-report-print-view",
     name: "ReporteLotesVencerPrintView",
     usedIn: ["reporte-lotes-vencer"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "movement-report-print-view",
+    name: "ReporteMovimientosPrintView",
+    usedIn: ["reporte-movimientos"],
     controllerIds: ["restock-report-export"],
   },
 ] as const;

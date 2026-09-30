@@ -50,6 +50,7 @@ import { restockReportExportController } from "./restock-report-export";
 import { inventoryValuationController } from "./inventory-valuation";
 import { wasteReportController } from "./waste-report";
 import { expiringLotsReportController } from "./expiring-lots-report";
+import { movementReportController } from "./movement-report";
 import type { RegisteredController } from "./base";
 
 const workerController = createWorkerController({
@@ -108,6 +109,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     inventoryValuationController,
     wasteReportController,
     expiringLotsReportController,
+    movementReportController,
   ];
 
 /**

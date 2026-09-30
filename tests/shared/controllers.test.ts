@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(42);
-    expect(new Set(ids)).toHaveProperty("size", 42);
+    expect(controllers).toHaveLength(43);
+    expect(new Set(ids)).toHaveProperty("size", 43);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -51,6 +51,7 @@ describe("controller registry", () => {
       "inventory-valuation",
       "waste-report",
       "expiring-lots-report",
+      "movement-report",
     ]);
   });
 
@@ -185,5 +186,15 @@ describe("controller registry", () => {
       "turno:editar",
       "turno:eliminar",
     ]);
+  });
+
+  it("registers the CU53 movement report controller", () => {
+    expect(
+      controllers.find((controller) => controller.id === "movement-report"),
+    ).toMatchObject({
+      id: "movement-report",
+      name: "ReporteMovimientosHandler",
+      channels: ["reporte:movimientos-inventario"],
+    });
   });
 });
