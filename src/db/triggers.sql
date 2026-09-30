@@ -189,16 +189,6 @@ BEGIN
     'venta_efectivo solo aplica a ventas marcadas es_venta_efectivo');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_contrasena_temporal_flag_coherente
-BEFORE INSERT ON contrasena_temporal
-FOR EACH ROW
-WHEN (SELECT es_contrasena_temporal FROM contrasena
-       WHERE contrasena_id = NEW.contrasena_id) <> 1
-BEGIN
-  SELECT RAISE(ABORT,
-    'contrasena_temporal solo aplica a contraseñas marcadas es_contrasena_temporal');
-END;
-
 CREATE TRIGGER IF NOT EXISTS trg_anulacion_venta_solo_completada
 BEFORE INSERT ON anulacion_venta
 FOR EACH ROW

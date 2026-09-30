@@ -18,6 +18,7 @@ export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(["auth:login"]);
 
 export const AUTHENTICATED_CHANNELS: ReadonlySet<string> = new Set([
   "auth:cambiar-password",
+  "auth:preparar-restablecimiento",
   "auth:restablecer-password",
   "auth:verificar-sesion",
   "auth:logout",
@@ -34,6 +35,7 @@ export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   string,
   ReadonlySet<Role>
 > = new Map<string, ReadonlySet<Role>>([
+  ["auth:preparar-restablecimiento", new Set<Role>(["dueno"])],
   ["auth:restablecer-password", new Set<Role>(["dueno"])],
   ["auditoria:consultar", new Set<Role>(["dueno"])],
   ["turno:listar", new Set<Role>(["dueno", "trabajador"])],

@@ -36,6 +36,13 @@
       "when": 1789179781555,
       "tag": "0004_cu43_sale_responsible_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790741519303,
+      "tag": "0005_rf59_contrasena_modelo_fisico",
+      "breakpoints": true
     }
   ]
 }
