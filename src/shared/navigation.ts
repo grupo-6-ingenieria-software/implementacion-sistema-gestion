@@ -52,7 +52,8 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
-  | "waste-report";
+  | "waste-report"
+  | "expiring-lots-report";
 
 export type NavNode = {
   id: string;
@@ -559,6 +560,17 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Mermas.",
     controllerIds: ["access-control", "waste-report", "audit"],
   },
+  {
+    id: "reporte-lotes-vencer",
+    viewName: "ReporteLotesVencerView",
+    label: "Lotes por vencer",
+    path: "/app/reportes/lotes-por-vencer",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Lotes proximos a vencer.",
+    controllerIds: ["access-control", "expiring-lots-report", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -604,6 +616,12 @@ export const internalComponents = [
     id: "waste-report-print-view",
     name: "ReporteMermasPrintView",
     usedIn: ["reporte-mermas"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "expiring-lots-report-print-view",
+    name: "ReporteLotesVencerPrintView",
+    usedIn: ["reporte-lotes-vencer"],
     controllerIds: ["restock-report-export"],
   },
 ] as const;

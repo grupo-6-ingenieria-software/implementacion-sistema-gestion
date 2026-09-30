@@ -25,6 +25,17 @@ import {
   type WasteReportData,
   type WasteReportRequest,
 } from "../../shared/report-waste";
+import { ReporteLotesVencerPrintView } from "../../renderer/src/components/ReporteLotesVencerPrintView";
+import { queryExpiringLotsReportFromDb } from "./expiring-lots-report";
+import {
+  DEFAULT_EXPIRING_LOTS_HORIZON,
+  EXPIRING_LOTS_EMPTY_MESSAGE,
+  EXPIRING_LOTS_HORIZON_ERROR,
+  normalizeExpiringLotsRequest,
+  validateExpiringLotsRequest,
+  type ExpiringLotsReportData,
+  type ExpiringLotsReportRequest,
+} from "../../shared/report-expiring-lots";
 import { registerAuditLog } from "./auth-context";
 import { db, schema as appSchema } from "../../db/client";
 import type { ControllerResponse } from "../../shared/controllers";
@@ -67,12 +78,30 @@ export type RestockExportDependencies = {
   loadWasteReport?: (request: WasteReportRequest) => Promise<WasteReportData>;
   createWastePdf?: (input: WasteReportPrintInput) => Promise<Buffer>;
   createWasteXlsx?: (input: WasteReportPrintInput) => Promise<Buffer>;
+  loadExpiringLotsReport?: (
+    request: ExpiringLotsReportRequest,
+  ) => Promise<ExpiringLotsReportData>;
+  createExpiringLotsPdf?: (
+    input: ExpiringLotsReportPrintInput,
+  ) => Promise<Buffer>;
+  createExpiringLotsXlsx?: (
+    input: ExpiringLotsReportPrintInput,
+  ) => Promise<Buffer>;
   audit?: (event: {
     usuarioId: string;
     modulo: string;
     tipoAccion: string;
     descripcion: string;
   }) => Promise<void>;
+};
+
+export type ExpiringLotsReportPrintInput = {
+  horizonte: number;
+  categoriaNombre?: string;
+  fechaGeneracion: string;
+  items: ExpiringLotsReportData["items"];
+  resumen: ExpiringLotsReportData["resumen"];
+  usuario: string;
 };
 
 export type RestockReportInput = {
@@ -130,6 +159,14 @@ export function createRestockReportExportController(
           : {};
       if (record.tipoReporte === "mermas") {
         return await handleWasteReportExport(
+          record,
+          context,
+          format,
+          dependencies,
+        );
+      }
+      if (record.tipoReporte === "lotes-por-vencer") {
+        return await handleExpiringLotsReportExport(
           record,
           context,
           format,
@@ -693,6 +730,282 @@ async function handleWasteReportExport(
   };
 }
 
+export function renderExpiringLotsPrintHtml(
+  input: ExpiringLotsReportPrintInput,
+): string {
+  const markup = renderToStaticMarkup(
+    createElement(ReporteLotesVencerPrintView, input),
+  );
+
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reporte de lotes próximos a vencer</title>
+    <style>
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #17202a; font-family: Arial, sans-serif; font-size: 10pt; }
+      h1 { margin: 0; color: #1b4332; font-size: 20pt; }
+      h2 { margin: 4px 0 12px; font-size: 14pt; }
+      .report-metadata { display: flex; gap: 32px; margin: 0 0 16px; }
+      .report-metadata div { display: flex; gap: 6px; }
+      dt { font-weight: 700; }
+      dd { margin: 0; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+      th, td { border: 1px solid #aeb8c2; padding: 6px 8px; }
+      th { background: #d8f3dc; color: #17202a; text-align: left; }
+      tbody tr:nth-child(even) { background: #f6f7f9; }
+      .numeric { text-align: right; }
+    </style>
+  </head>
+  <body>${markup}</body>
+</html>`;
+}
+
+export async function createExpiringLotsPdfBuffer(
+  input: ExpiringLotsReportPrintInput,
+  dependencies: PdfGenerationDependencies = defaultPdfGenerationDependencies,
+): Promise<Buffer> {
+  let window: HiddenPrintWindow | null = null;
+
+  try {
+    window = dependencies.createWindow();
+    const html = renderExpiringLotsPrintHtml(input);
+    await window.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+    );
+    return await window.webContents.printToPDF({
+      landscape: true,
+      pageSize: "A4",
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+  } finally {
+    if (window && !window.isDestroyed()) {
+      window.destroy();
+    }
+  }
+}
+
+export async function createExpiringLotsXlsxBuffer(
+  input: ExpiringLotsReportPrintInput,
+): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Minimarket y Panadería Huáscar";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Lotes por Vencer", {
+    views: [{ state: "frozen", ySplit: 5 }],
+  });
+
+  sheet.mergeCells("A1:I1");
+  sheet.getCell("A1").value = "Minimarket y Panadería Huáscar";
+  sheet.getCell("A1").font = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 16,
+  };
+  sheet.getCell("A1").fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1B4332" },
+  };
+
+  sheet.mergeCells("A2:I2");
+  sheet.getCell("A2").value =
+    `Reporte de Lotes Próximos a Vencer — Horizonte: ${input.horizonte} días | Categoría: ${input.categoriaNombre ?? "Todas"}`;
+  sheet.getCell("A2").font = { bold: true, size: 12 };
+
+  sheet.mergeCells("A3:I3");
+  sheet.getCell("A3").value =
+    `Fecha de generación: ${input.fechaGeneracion} | Generado por: ${input.usuario}`;
+  sheet.getCell("A3").font = { italic: true, size: 10 };
+
+  sheet.addRow([]);
+
+  const headerRow = sheet.addRow([
+    "Producto",
+    "EAN-13",
+    "Categoría",
+    "Proveedor",
+    "Lote ID",
+    "Unidades",
+    "Vencimiento",
+    "Días Restantes",
+    "Costo Unitario",
+    "Costo en Riesgo",
+  ]);
+
+  headerRow.font = { bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFD8F3DC" },
+    };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFAEB8C2" } },
+      bottom: { style: "thin", color: { argb: "FFAEB8C2" } },
+      left: { style: "thin", color: { argb: "FFAEB8C2" } },
+      right: { style: "thin", color: { argb: "FFAEB8C2" } },
+    };
+  });
+
+  for (const item of input.items) {
+    sheet.addRow([
+      item.productoNombre,
+      item.productoEan13,
+      item.categoriaNombre,
+      item.proveedorNombre ?? "Sin proveedor",
+      item.loteId.slice(0, 8),
+      item.cantidad,
+      item.fechaVencimiento,
+      item.diasRestantes,
+      item.precioCosto,
+      item.costoEnRiesgo,
+    ]);
+  }
+
+  sheet.autoFilter = "A5:J5";
+  const widths = [28, 16, 20, 24, 12, 12, 14, 14, 15, 16];
+  widths.forEach((width, index) => {
+    sheet.getColumn(index + 1).width = width;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+async function handleExpiringLotsReportExport(
+  record: Record<string, unknown>,
+  context: ControllerContext,
+  format: RestockExportFormat,
+  dependencies: RestockExportDependencies,
+): Promise<ControllerResponse<RestockExportResult>> {
+  const role = effectiveSessionRole(context);
+  if (role !== "dueno") {
+    return {
+      ok: false,
+      error: {
+        code: "FORBIDDEN",
+        controllerId: "restock-report-export",
+        message: "Operación restringida al rol Dueño.",
+      },
+    };
+  }
+
+  const request = normalizeExpiringLotsRequest(record);
+  const validation = validateExpiringLotsRequest(request);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        controllerId: "restock-report-export",
+        message: validation.error,
+      },
+    };
+  }
+
+  const loadData =
+    dependencies.loadExpiringLotsReport ?? queryExpiringLotsReportFromDb;
+  const reportData = await loadData(request);
+
+  if (reportData.items.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: "BUSINESS_RULE",
+        controllerId: "restock-report-export",
+        message: EXPIRING_LOTS_EMPTY_MESSAGE,
+      },
+    };
+  }
+
+  const generatedAt = dependencies.now();
+  const fechaGeneracion = generatedAt.toISOString();
+  const extension = format;
+  const parts = getSantiagoDateParts(generatedAt);
+  const dateFormatted = `${parts.day}-${parts.month}-${parts.year}`;
+
+  const dialogResult = await dependencies.showSaveDialog({
+    title: "Guardar reporte de lotes próximos a vencer",
+    defaultPath: join(
+      dependencies.documentsPath(),
+      `LotesPorVencer_Horizonte${reportData.horizonte}d_${dateFormatted}.${extension}`,
+    ),
+    filters: [
+      {
+        name: format === "pdf" ? "Documento PDF" : "Libro de Excel",
+        extensions: [extension],
+      },
+    ],
+  });
+
+  if (dialogResult.canceled || !dialogResult.filePath) {
+    return {
+      ok: true,
+      data: {
+        formato: format,
+        estado: "cancelled",
+        cantidadFilas: reportData.items.length,
+        fechaGeneracion,
+      },
+    };
+  }
+
+  const categoriaNombre = request.categoriaId
+    ? reportData.categorias.find((c) => c.id === request.categoriaId)?.nombre
+    : undefined;
+
+  const printInput: ExpiringLotsReportPrintInput = {
+    horizonte: reportData.horizonte,
+    categoriaNombre,
+    fechaGeneracion: formatDateTimeInSantiago(generatedAt),
+    items: reportData.items,
+    resumen: reportData.resumen,
+    usuario: context.claims?.usuarioId ?? "Dueño",
+  };
+
+  const createPdf =
+    dependencies.createExpiringLotsPdf ?? createExpiringLotsPdfBuffer;
+  const createXlsx =
+    dependencies.createExpiringLotsXlsx ?? createExpiringLotsXlsxBuffer;
+
+  const contents =
+    format === "pdf"
+      ? await createPdf(printInput)
+      : await createXlsx(printInput);
+
+  const outputPath = ensureExportExtension(dialogResult.filePath, format);
+  await dependencies.save(outputPath, contents);
+
+  const auditLogger =
+    dependencies.audit ??
+    ((event) => registerAuditLog(db, appSchema, event));
+  await auditLogger({
+    usuarioId: context.claims?.usuarioId ?? "system",
+    modulo: "reportes",
+    tipoAccion: "exportar_reporte_lotes_por_vencer",
+    descripcion: `Exportación de reporte de lotes próximos a vencer (${format.toUpperCase()}) horizonte ${reportData.horizonte} días`,
+  });
+
+  return {
+    ok: true,
+    data: {
+      formato: format,
+      estado: "saved",
+      ruta: outputPath,
+      cantidadFilas: reportData.items.length,
+      fechaGeneracion,
+    },
+  };
+}
+
 const restockExportDependencies: RestockExportDependencies = {
   load: (request, sessionRole) =>
     loadAuthorizedRestockList(request, sessionRole),
@@ -705,6 +1018,9 @@ const restockExportDependencies: RestockExportDependencies = {
   loadWasteReport: queryWasteReportFromDb,
   createWastePdf: createWastePdfBuffer,
   createWasteXlsx: createWasteXlsxBuffer,
+  loadExpiringLotsReport: queryExpiringLotsReportFromDb,
+  createExpiringLotsPdf: createExpiringLotsPdfBuffer,
+  createExpiringLotsXlsx: createExpiringLotsXlsxBuffer,
   audit: (event) => registerAuditLog(db, appSchema, event),
 };
 

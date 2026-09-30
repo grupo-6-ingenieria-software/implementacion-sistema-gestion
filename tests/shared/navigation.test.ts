@@ -52,6 +52,7 @@ describe("navigation tree", () => {
         "restock-list",
         "inventory-valuation",
         "reporte-mermas",
+        "reporte-lotes-vencer",
       ]),
     );
   });
@@ -428,4 +429,44 @@ describe("navigation tree", () => {
     expect(getVisibleMenu("dueno").map((node) => node.id)).toContain("reporte-mermas");
     expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain("reporte-mermas");
   });
+
+  it("exposes V41 ReporteLotesVencerView exclusively to the owner under Reportes", () => {
+    const route = navigationTree.find(
+      (node) => node.id === "reporte-lotes-vencer",
+    );
+    expect(route).toMatchObject({
+      viewName: "ReporteLotesVencerView",
+      label: "Lotes por vencer",
+      path: "/app/reportes/lotes-por-vencer",
+      roles: ["dueno"],
+      group: "reportes",
+      showInMenu: true,
+      controllerIds: ["access-control", "expiring-lots-report", "audit"],
+    });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/lotes-por-vencer", {
+        isAuthenticated: true,
+        role: "dueno",
+      }),
+    ).toEqual({ status: "allow" });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/lotes-por-vencer", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({
+      status: "deny",
+      to: APP_HOME_PATH,
+    });
+
+    expect(getVisibleMenu("dueno").map((node) => node.id)).toContain(
+      "reporte-lotes-vencer",
+    );
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "reporte-lotes-vencer",
+    );
+  });
 });
+
