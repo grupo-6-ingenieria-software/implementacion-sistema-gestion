@@ -8,6 +8,7 @@ export type NavGroup =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion";
 
 export type ControllerId =
@@ -50,7 +51,8 @@ export type ControllerId =
   | "supplier-edit"
   | "restock-list"
   | "restock-report-export"
-  | "inventory-valuation";
+  | "inventory-valuation"
+  | "monthly-sales";
 
 export type NavNode = {
   id: string;
@@ -546,6 +548,17 @@ export const navigationTree = [
     entryFrom: "Menu Administracion > Log de auditoria.",
     controllerIds: ["access-control", "audit"],
   },
+  {
+    id: "monthly-sales",
+    viewName: "ReporteMensualVentasView",
+    label: "Ventas mensuales",
+    path: "/app/reportes/ventas-mensuales",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas mensuales.",
+    controllerIds: ["access-control", "session", "monthly-sales", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -596,6 +609,7 @@ export const appMenuGroups: readonly NavGroup[] = [
   "ventas",
   "caja",
   "personal",
+  "reportes",
   "administracion",
 ];
 
@@ -607,6 +621,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
+  reportes: "Reportes",
   administracion: "Administracion",
 };
 
@@ -709,6 +724,7 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "monthly-sales",
     "login",
     "password-change",
     "dashboard",

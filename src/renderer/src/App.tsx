@@ -62,6 +62,7 @@ import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
+import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import {
   clearPendingSaleResume,
@@ -1015,6 +1016,10 @@ function ViewRenderer({
     return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === "monthly-sales" && session.usuarioId && session.role === "dueno") {
+    return <ReporteMensualVentasView onNavigate={onNavigate} />;
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1140,6 +1145,7 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "monthly-sales",
     "dashboard",
     "attendance",
     "cash-closing",
