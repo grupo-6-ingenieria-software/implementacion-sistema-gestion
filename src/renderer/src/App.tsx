@@ -51,6 +51,7 @@ import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
 import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
+import { VentasCategoriaView } from "./views/VentasCategoriaView";
 import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
@@ -888,6 +889,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "sale-categories") {
+    return <VentasCategoriaView />;
+  }
+
   if (node.id === "waste-create" && session.usuarioId) {
     return (
       <WasteCreateView
@@ -1159,6 +1164,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "sale-categories",
     "supplier-order-create",
     "supplier-order-receptions",
     "supplier-list",

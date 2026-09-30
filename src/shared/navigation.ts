@@ -30,6 +30,7 @@ export type ControllerId =
   | "lot"
   | "waste"
   | "sale"
+  | "sale-categories"
   | "stock-discount"
   | "sales-history"
   | "cash-closing"
@@ -383,6 +384,17 @@ export const navigationTree = [
       "audit",
       "ean-reader",
     ],
+  },
+  {
+    id: "sale-categories",
+    viewName: "VentasCategoriaView",
+    label: "Ventas por categoría",
+    path: "/app/ventas/categorias",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas > Ventas por categoría.",
+    controllerIds: ["access-control", "sale-categories"],
   },
   {
     id: "daily-sales",
@@ -746,6 +758,7 @@ export function validateNavigationTree(): string[] {
     "supplier-order-create",
     "supplier-order-receptions",
     "sale-register",
+    "sale-categories",
     "daily-sales",
     "sales-query",
     "sale-annulment",
