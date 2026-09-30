@@ -85,6 +85,24 @@ describe("navigation tree", () => {
     }
   });
 
+  it("delegates the audit log denial to Main for CU58-E1", () => {
+    expect(
+      evaluateRouteAccess("/app/admin/auditoria", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toEqual({ status: "allow" });
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "audit-log",
+    );
+    expect(
+      evaluateRouteAccess("/app/admin/usuarios", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({ status: "deny", to: "/app/inicio" });
+  });
+
   it("exposes V25 once under Inventario for both roles and keeps UI05 internal", () => {
     const route = navigationTree.find((node) => node.id === "restock-list");
     expect(route).toMatchObject({
