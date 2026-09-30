@@ -66,9 +66,11 @@ soporte a autenticación. `base.ts` define el contrato común.
 
 El Dueño consulta los últimos doce meses mediante `auditoria:consultar`, con
 filtros de usuario, acción y fechas chilenas, y paginación descendente. La ventana
-se aplica también al conteo y a las opciones de filtros; los registros antiguos
-se conservan. `UsuarioVersion` conserva el nombre y rol del responsable al
-momento del evento.
+se aplica también al conteo y a las opciones de filtros. Los registros se eliminan
+al cumplir doce meses mediante `audit-retention-service.ts`: la limpieza corre al
+iniciar la aplicación y cada 24 horas mientras permanece abierta, con reintento
+en el siguiente ciclo ante un fallo. `UsuarioVersion` conserva el nombre y rol
+del responsable al momento del evento.
 
 Login, altas, ediciones y anulaciones se auditan desde sus servicios existentes.
 `audit-dispatch.ts` agrega las consultas de negocio exitosas y las exportaciones
@@ -78,12 +80,19 @@ incorporarse a `AUDITED_QUERY_CHANNELS` si no registran su propia auditoría.
 
 El Trabajador no puede consultar el log: el servidor registra el intento y la
 interfaz vuelve al dashboard. Las denegaciones de navegación local también
-invocan `access:validate` para dejar evidencia. Los triggers impiden modificar,
-eliminar o reemplazar registros y alterar una identidad histórica utilizada;
-cerrar la vigencia de una versión y crear otra sigue permitido.
+invocan `access:validate` para dejar evidencia. Los triggers impiden modificar o
+reemplazar registros, eliminar registros vigentes y alterar una identidad
+histórica utilizada; cerrar la vigencia de una versión y crear otra sigue
+permitido.
+La eliminación por retención es la excepción al bloqueo de DELETE permitida por
+RF58 y RNF09 del Documento 0; no existe un canal IPC de eliminación y no se borran
+usuarios ni versiones.
 
 Pruebas CP62: `tests/main/controllers/rf58-audit.integration.test.ts`,
 `tests/main/controllers/audit-dispatch.test.ts` y `tests/shared/audit.test.ts`.
+La limpieza, sus límites y la actualización de triggers se verifican en
+`tests/main/controllers/audit-retention.integration.test.ts`; el ciclo automático
+se verifica en `tests/main/controllers/audit-retention-service.test.ts`.
 La interfaz se comprueba con `node tests/renderer/rf58-ui.mjs`; requiere Chromium
 de Playwright (`npx playwright install chromium`).
 

@@ -7,7 +7,7 @@ export type AuditLogWindow = {
   hasta: string;
 };
 
-// Ventana de consulta; los registros anteriores se conservan sin modificaciones.
+// Ventana de consulta alineada con los doce meses de retención de auditoría.
 export function getAuditLogWindow(now = new Date()): AuditLogWindow {
   const year = now.getUTCFullYear() - 1;
   const month = now.getUTCMonth();
