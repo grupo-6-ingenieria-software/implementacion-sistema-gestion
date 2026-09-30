@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Plan de implementación · Sincronización local ↔ Turso Cloud</title>
+  <style>
+    :root { --ink:#142a35; --muted:#5a6d78; --line:#d8e4e8; --paper:#f7faf9; --card:#fff; --teal:#0c766e; --teal-pale:#ddf2ed; --amber:#996000; --amber-pale:#fff1cc; --red:#a83243; --red-pale:#fce8eb; --blue:#245a85; --blue-pale:#e8f1f8; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.58 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    a { color:var(--teal); text-underline-offset:3px; }
+    a:hover { color:#074e49; }
+    .shell { max-width:1260px; margin:auto; display:grid; grid-template-columns:230px minmax(0,1fr); gap:32px; padding:28px 28px 90px; }
+    nav { position:sticky; top:24px; align-self:start; padding:20px; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 24px #1536460b; }
+    nav strong { display:block; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-size:.75rem; margin-bottom:12px; }
+    nav a { display:block; padding:5px 0; text-decoration:none; font-size:.9rem; }
+    .progress { margin-top:20px; padding-top:17px; border-top:1px solid var(--line); color:var(--muted); font-size:.82rem; }
+    progress { width:100%; height:8px; accent-color:var(--teal); }
+    main { min-width:0; }
+    header { border-radius:22px; padding:38px 42px; color:#e6f8f4; background:linear-gradient(130deg,#0d494d,#123744 58%,#164454); box-shadow:0 12px 36px #1536461a; }
+    .eyebrow { display:block; color:#a9e8d9; text-transform:uppercase; letter-spacing:.14em; font-size:.77rem; font-weight:750; }
+    h1 { color:#fff; font-size:clamp(2rem,4vw,3.2rem); line-height:1.12; margin:12px 0 14px; letter-spacing:-.035em; }
+    header p { max-width:760px; margin:0; font-size:1.08rem; color:#d5e9e9; }
+    .meta { margin-top:24px; display:flex; flex-wrap:wrap; gap:9px; }
+    .meta span,.tag { display:inline-block; border-radius:999px; padding:5px 11px; font-size:.76rem; font-weight:750; }
+    .meta span { background:#ffffff21; color:#e6f8f4; }
+    section { margin-top:30px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:30px 34px; box-shadow:0 6px 24px #15364609; }
+    h2 { margin:0 0 16px; font-size:1.58rem; letter-spacing:-.025em; line-height:1.2; }
+    h3 { margin:22px 0 7px; font-size:1.08rem; }
+    p { margin:0 0 13px; }
+    p:last-child { margin-bottom:0; }
+    ul,ol { margin:8px 0 16px; padding-left:24px; }
+    li { margin:5px 0; }
+    code { background:#edf3f3; border-radius:4px; padding:1px 4px; font-size:.9em; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#112e39; color:#e4f5f1; border-radius:12px; padding:18px 20px; font-size:.88rem; line-height:1.5; }
+    pre code { padding:0; background:none; }
+    .lead { color:var(--muted); font-size:1.04rem; }
+    .callout { margin:16px 0; border-left:4px solid var(--teal); background:var(--teal-pale); padding:13px 16px; border-radius:0 9px 9px 0; }
+    .callout.warn { border-color:#c6851b; background:var(--amber-pale); }
+    .callout.danger { border-color:var(--red); background:var(--red-pale); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .tile { border:1px solid var(--line); border-radius:12px; padding:15px 17px; }
+    .tile strong { display:block; margin-bottom:5px; }
+    .tile p { color:var(--muted); font-size:.92rem; }
+    .flow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:20px 0; }
+    .flow div { text-align:center; border-radius:11px; padding:14px 7px; color:#174a53; font-size:.86rem; font-weight:750; background:#e5f1f0; border:1px solid #c4dcda; }
+    .flow div:nth-child(even) { background:var(--blue-pale); border-color:#c8dce8; color:var(--blue); }
+    .phase { border-left:5px solid var(--teal); }
+    .phase h2 { display:flex; align-items:center; gap:11px; }
+    .number { flex:none; width:32px; height:32px; border-radius:50%; background:var(--teal); color:#fff; display:grid; place-items:center; font-size:.86rem; }
+    .tag { background:var(--blue-pale); color:var(--blue); vertical-align:middle; }
+    .tag.gate { background:var(--amber-pale); color:var(--amber); }
+    .tag.risk { background:var(--red-pale); color:var(--red); }
+    .refs { color:var(--muted); font-size:.88rem; border-top:1px solid var(--line); padding-top:11px; margin-top:17px; }
+    .checklist { list-style:none; padding-left:0; margin-top:8px; }
+    .checklist li { margin:7px 0; }
+    .checklist label { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+    .checklist input { width:16px; height:16px; flex:none; margin-top:4px; accent-color:var(--teal); }
+    .checklist input:checked + span { text-decoration:line-through; color:var(--muted); }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:.91rem; }
+    th,td { padding:10px 11px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; }
+    .small { color:var(--muted); font-size:.87rem; }
+    footer { margin:25px 0 0; color:var(--muted); font-size:.86rem; text-align:right; }
+    @media(max-width:850px) { .shell { display:block; padding:14px 14px 65px; } nav { position:static; margin-bottom:16px; } nav a { display:inline-block; margin-right:12px; } section { padding:23px 20px; } header { padding:29px 22px; } .grid { grid-template-columns:1fr; } .flow { grid-template-columns:1fr; } }
+    @media print { body { background:#fff; } .shell { display:block; max-width:none; padding:0; } nav { display:none; } header,section { box-shadow:none; break-inside:avoid; } section { margin-top:12px; } a { color:var(--ink); } }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <nav aria-label="Índice del plan">
+    <strong>Navegación</strong>
+    <a href="#resumen">Resumen y alcance</a>
+    <a href="#arquitectura">Arquitectura objetivo</a>
+    <a href="#decision">Decisión técnica</a>
+    <a href="#fase-0">0 · Descubrimiento</a>
+    <a href="#fase-1">1 · Datos y conflictos</a>
+    <a href="#fase-2">2 · Motor y acceso</a>
+    <a href="#fase-3">3 · Sincronización</a>
+    <a href="#fase-4">4 · Despliegue de datos</a>
+    <a href="#fase-5">5 · UX y operación</a>
+    <a href="#fase-6">6 · Verificación</a>
+    <a href="#criterios">Criterios de salida</a>
+    <a href="#fuentes">Fuentes</a>
+    <div class="progress"><strong>Seguimiento local</strong><progress id="progress" max="100" value="0"></progress><span id="progress-text">0 de 0 tareas verificadas</span></div>
+  </nav>
+  <main>
+    <header>
+      <span class="eyebrow">Plan de implementación · 27 septiembre 2026</span>
+      <h1>Base local sincronizada con Turso Cloud</h1>
+      <p>Dejar de operar con un archivo SQLite aislado: cada equipo conserva una base local, acepta operaciones sin red y comparte cambios con una base central de Turso.</p>
+      <div class="meta"><span>Proyecto: Sistema Gestión Huáscar</span><span>Estado: plan, sin implementación</span><span>Prioridad: integridad de ventas y stock</span></div>
+    </header>
+
+    <section id="resumen">
+      <h2>Resumen y alcance</h2>
+      <p class="lead">El código actual abre <code>file:./local.db</code>, activa WAL y aplica migraciones/triggers, pero no configura una réplica ni sincroniza con Turso Cloud. El documento técnico ya promete escritura local y sincronización cada cinco segundos.</p>
+      <div class="grid">
+        <div class="tile"><strong>Resultado esperado</strong><p>Una venta confirmada queda durable en el equipo; cuando hay red, llega a Turso y luego a las otras cajas, con estado visible y verificación de convergencia.</p></div>
+        <div class="tile"><strong>Condición de seguridad</strong><p>No habilitar cuatro escritores offline hasta probar claves globales, transacciones, triggers y resolución de conflictos. Un WAL local por sí solo no hace replicación.</p></div>
+      </div>
+      <div class="callout danger"><strong>Brecha del diseño actual.</strong> Hay claves <code>INTEGER AUTOINCREMENT</code> que pueden colisionar entre equipos, y triggers que rechazan ventas sin stock aunque el documento técnico promete aceptarlas y registrar discrepancias. Ambas decisiones deben resolverse antes de sincronizar escrituras.</div>
+      <p class="refs">Evidencia: <a href="../src/db/client.ts">src/db/client.ts</a>, <a href="../src/db/schema.ts">src/db/schema.ts</a>, <a href="../src/db/triggers.sql">src/db/triggers.sql</a>, <a href="../../dimension_tecnica/dimension_tecnica.md">dimension_tecnica.md</a>.</p>
+    </section>
+
+    <section id="arquitectura">
+      <h2>Arquitectura objetivo</h2>
+      <div class="flow" aria-label="Flujo de sincronización"><div>Equipo A<br>BD local + WAL</div><div>push / pull</div><div>Turso Cloud<br>fuente compartida</div><div>push / pull</div><div>Equipo B<br>BD local + WAL</div></div>
+      <p>La aplicación escribe primero en su archivo local. Un coordinador en el proceso principal envía cambios con <code>push()</code>, recibe los de otros equipos con <code>pull()</code> y registra el último éxito y los errores. El renderer consulta el estado por IPC y recarga datos cuando cambie la réplica. La sincronización se programa cada cinco segundos según el requisito, con un ciclo sin solapamientos y reintento con espera progresiva cuando no haya red.</p>
+      <p>La recomendación actual de Turso para escritura local es <a href="https://docs.turso.tech/sync/usage">Turso Sync</a> (<code>@tursodatabase/sync</code>). Su <code>push()</code> transmite cambios lógicos; no se debe implementar una copia manual del archivo <code>-wal</code>. La elección queda condicionada a la prueba de compatibilidad de la fase 0.</p>
+      <div class="callout warn"><strong>Versiones que requieren prueba.</strong> El proyecto usa Drizzle 0.45.2. El driver <code>drizzle-orm/tursodatabase-sync</code> aparece en Drizzle 1.0.0-rc.4; su implementación de transacciones usa una API que el SDK Sync 0.7.2 marca como obsoleta por posible intercalación de sentencias. Además, la documentación de <code>bootstrapIfEmpty:false</code> no coincide con el comportamiento publicado en Sync 0.7.2. El plan no presupone transacciones seguras ni primer arranque offline hasta demostrarlo.</div>
+      <div class="callout warn"><strong>Límite de consistencia.</strong> Sin conexión, ningún equipo conoce inmediatamente las ventas de los demás. Las reglas que exigen unicidad global o lectura del stock más reciente necesitan una política de conflicto explícita, incluso si las escrituras locales funcionan.</div>
+    </section>
+
+    <section id="decision">
+      <h2>Decisión técnica propuesta <span class="tag gate">Puerta de decisión</span></h2>
+      <div class="table-wrap"><table><thead><tr><th>Opción</th><th>Ventaja</th><th>Límite relevante</th><th>Uso en este plan</th></tr></thead><tbody>
+        <tr><td><code>@tursodatabase/sync</code></td><td>Lecturas y escrituras locales; <code>push()</code>/<code>pull()</code> explícitos; recomendado actualmente por Turso.</td><td>Motor y driver distintos; Drizzle y la base existente requieren migración y prueba de compatibilidad. Conflictos según estrategia del motor.</td><td><strong>Objetivo principal</strong>, sujeto a fase 0.</td></tr>
+        <tr><td><code>@libsql/client</code> con <code>syncUrl</code> y <code>offline: true</code></td><td>Menor cambio del cliente actual.</td><td>Según Turso, las transacciones que combinan lecturas y escrituras aún van al primario; la app tiene muchas. Su réplica embebida se recomienda principalmente para lecturas locales.</td><td>Comparador de la prueba; no declarar cumplimiento offline total sin evidencia.</td></tr>
+      </tbody></table></div>
+      <p class="refs">Fuentes: <a href="https://docs.turso.tech/features/embedded-replicas/introduction">Embedded Replicas</a>, <a href="https://docs.turso.tech/sync/usage">Turso Sync</a>. Versiones actuales del proyecto: <a href="../package.json">package.json</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-0">
+      <h2><span class="number">0</span> Descubrimiento y prueba vertical <span class="tag gate">Bloquea el resto</span></h2>
+      <p><strong>Implementar.</strong> Crear una prueba desechable con dos bases locales y una base Turso de ensayo: una tabla representativa, una venta con lectura y escritura dentro de transacción, desconexión, <code>push()</code>, <code>pull()</code> y conflicto. Probar el driver de Drizzle compatible con Turso Sync y el empaquetado de su módulo nativo en Electron/Windows. Registrar la versión exacta que funciona y las diferencias de tipos/SQL. Confirmar cómo se migra una base libSQL existente y si una instalación nueva puede iniciarse sin red.</p>
+      <p><strong>API permitida para el prototipo.</strong> Copiar la forma documentada <code>connect({ path, url, authToken })</code>; usar <code>db.push()</code>, <code>db.pull()</code>, <code>db.checkpoint()</code> y <code>db.stats()</code>. Verificar en el paquete instalado si existe <code>bootstrapIfEmpty</code> antes de usarlo: Sync 0.7.2 no lo expone ni lo aplica aunque aparece en la guía. Para Drizzle 1.0.0-rc.4, comprobar <code>drizzle({client: await connect(...), schema})</code> desde <code>drizzle-orm/tursodatabase-sync</code> y probar aislamiento concurrente; la API nativa <code>transactionAsync(fn)</code> es candidata para flujos críticos si el driver aún usa <code>transaction()</code>. En <code>@libsql/client</code> comparar <code>createClient({url, syncUrl, authToken, syncInterval: 5, offline:true})</code> y <code>client.sync()</code>; el intervalo legado está expresado en segundos.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>Prueba de dos equipos y una base de ensayo con escrituras locales, push y pull documentada.</span></label></li>
+        <li><label><input type="checkbox"><span>Transacciones de ventas y triggers reproducidos con el motor elegido; incompatibilidades enumeradas.</span></label></li>
+        <li><label><input type="checkbox"><span>Aislamiento de dos transacciones concurrentes probado; primer arranque offline demostrado o descartado.</span></label></li>
+        <li><label><input type="checkbox"><span>Decisión escrita: ruta Turso Sync viable o cambio de alcance/arquitectura justificado.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Interpretar <code>PRAGMA journal_mode=WAL</code> como subida a la nube; usar la base de producción para esta prueba; inventar métodos de Drizzle o parámetros del SDK; dar por seguro el primer arranque offline a partir de una opción que la versión instalada ignora.</p>
+      <p class="refs">Patrones: <a href="https://docs.turso.tech/sync/usage">guía oficial de Sync</a>, <a href="https://docs.turso.tech/features/embedded-replicas/introduction">guía de réplica embebida</a>, <a href="https://github.com/drizzle-team/drizzle-orm/releases">releases de Drizzle</a>, <a href="https://registry.npmjs.org/@tursodatabase/sync/-/sync-0.7.2.tgz">artefacto Sync 0.7.2</a>; código actual en <a href="../src/db/client.ts">client.ts</a> y <a href="../src/main/controllers/sale-service.ts">sale-service.ts</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-1">
+      <h2><span class="number">1</span> Identidades, reglas y conflictos</h2>
+      <p><strong>Implementar.</strong> Inventariar tablas, FKs, índices únicos, triggers y cada operación que modifica más de una tabla. Sustituir identificadores generados localmente que puedan colisionar entre equipos por IDs globalmente únicos, o diseñar un esquema de asignación que pruebe unicidad offline. Conservar relaciones y datos existentes mediante una migración ensayada. Definir por tipo de dato quién puede editarlo sin red y qué ocurre al recibir una versión concurrente.</p>
+      <p>Separar eventos que pueden coexistir (ventas, movimientos, auditoría) de datos que se pisan (precio, trabajador, configuración, sesión). Añadir claves de idempotencia donde un reintento podría duplicar una operación. Resolver la divergencia entre los triggers de stock y la política documentada de sobreventa; si se mantiene la aceptación, implementar <code>discrepancias_stock</code>, auditoría y la vista de reconciliación antes del despliegue.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>Matriz de conflictos aprobada para ventas, inventario, catálogos, usuarios, caja y auditoría.</span></label></li>
+        <li><label><input type="checkbox"><span>Dos equipos crean registros simultáneos sin colisión de PK, FK ni índices únicos.</span></label></li>
+        <li><label><input type="checkbox"><span>Dos ventas offline del mismo producto convergen según la política, sin desaparecer ni duplicarse.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Confiar en <code>AUTOINCREMENT</code> como identidad global, o en “último push gana” para eventos contables y ventas sin analizar pérdida de datos.</p>
+      <p class="refs">Archivos: <a href="../src/db/schema.ts">schema.ts</a>, <a href="../src/db/triggers.sql">triggers.sql</a>, <a href="../src/main/controllers/write-transaction.ts">write-transaction.ts</a>, <a href="../../dimension_tecnica/dimension_tecnica.md">política documental de conflictos</a>. Fuente: <a href="https://docs.turso.tech/sync/conflict-resolution">resolución de conflictos de Turso Sync</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-2">
+      <h2><span class="number">2</span> Motor local y acceso desde Electron</h2>
+      <p><strong>Implementar.</strong> Crear un módulo de inicialización de base para el proceso main, con archivo por instalación bajo <code>app.getPath('userData')</code>, URL remota y token obtenidos en tiempo de ejecución mediante un mecanismo de aprovisionamiento seguro. No poner el token en el renderer ni incrustarlo como literal del bundle. Adaptar el acceso Drizzle y sus tipos al driver validado. Eliminar la sustitución de credenciales en tiempo de build de <code>electron.vite.config.ts</code>. Mantener migraciones, triggers, seed y comandos administrativos apuntando explícitamente al destino correcto; impedir que una tarea de desarrollo cambie por accidente la base central.</p>
+      <p>Definir orden de arranque: abrir base, comprobar esquema y versión, resolver bootstrap inicial, aplicar migraciones una sola vez según el diseño elegido, iniciar sincronización, registrar IPC y abrir ventana. Establecer ruta de cierre: detener temporizador, terminar ciclo en curso o conservar cambios pendientes localmente, cerrar cliente. Registrar errores del WAL y no ocultar fallas con <code>catch {}</code>.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>La app empaquetada reinicia y conserva exactamente el mismo archivo local por equipo.</span></label></li>
+        <li><label><input type="checkbox"><span>El esquema, las migraciones, los triggers y todas las transacciones funcionan con el nuevo driver.</span></label></li>
+        <li><label><input type="checkbox"><span>El token no aparece en renderer, salida de build, logs ni código versionado.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Usar <code>file:./local.db</code> en producción, cambiar archivos <code>.env</code> desde la implementación, o copiar un WAL entre máquinas. La provisión de credenciales corresponde al operador.</p>
+      <p class="refs">Archivos: <a href="../src/main/index.ts">main/index.ts</a>, <a href="../src/db/client.ts">db/client.ts</a>, <a href="../src/db/init.ts">db/init.ts</a>, <a href="../drizzle.config.ts">drizzle.config.ts</a>, <a href="../electron.vite.config.ts">electron.vite.config.ts</a>, <a href="../package.json">package.json</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-3">
+      <h2><span class="number">3</span> Coordinador de sincronización</h2>
+      <p><strong>Implementar.</strong> Añadir un coordinador único en main. En un ciclo secuencial: comprobar que no haya otro ciclo, enviar cambios pendientes, recibir remotos, registrar la revisión y emitir evento si la base cambió. Programar cinco segundos cuando haya conexión; ante fallo, registrar error y reintentar con espera progresiva y límite. Ofrecer sincronización manual. Ejecutar <code>checkpoint()</code> bajo una política que limite el crecimiento de WAL y medirlo con <code>stats()</code>. No bloquear una venta local por un fallo de red si la fase 0 confirmó durabilidad local.</p>
+      <p>Modelar el estado como <em>al día</em>, <em>cambios pendientes</em>, <em>sin conexión</em>, <em>sincronizando</em> y <em>error que requiere atención</em>. “Al día” solo cuando el último <code>push()</code> y <code>pull()</code> terminaron y no hay escrituras pendientes conocidas. Dar prioridad a reintentos y registrar fallos persistentes sin exponer credenciales.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>No hay ciclos solapados; el mismo cambio no se pierde tras reiniciar en mitad de un fallo.</span></label></li>
+        <li><label><input type="checkbox"><span>Un equipo sin red sigue escribiendo localmente; al volver la red converge con Cloud y otra caja.</span></label></li>
+        <li><label><input type="checkbox"><span>WAL y almacenamiento se mantienen acotados por checkpoints medidos.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Silenciar errores de <code>push()</code>/<code>pull()</code>, marcar “sincronizado” por un temporizador solamente, o hacer checkpoint sin seguir el contrato del SDK.</p>
+      <p class="refs">Fuentes: <a href="https://docs.turso.tech/sync/usage">push, pull y stats</a>, <a href="https://docs.turso.tech/sync/checkpoint">checkpoint</a>; eventos actuales en <a href="../src/main/controllers/dashboard-events.ts">dashboard-events.ts</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-4">
+      <h2><span class="number">4</span> Migración de datos y despliegue gradual <span class="tag risk">Riesgo alto</span></h2>
+      <p><strong>Implementar.</strong> Preparar una base Turso de ensayo del <em>motor Turso</em> (no asumir que una instancia libSQL Cloud existente sirve como destino de Sync) y una copia íntegra de <code>local.db</code>. Confirmar el tipo de base remota; para una nueva, Turso documenta <code>turso db create NOMBRE --tursodb</code> y URL <code>turso://...</code>. Exportar e importar con herramientas soportadas; validar conteos, hashes de tablas críticas, FKs, triggers y saldo de caja/stock. No conectar directamente un archivo libSQL existente como réplica nueva sin comprobar conversión y bootstrap del SDK. Definir una ventana de corte: detener escrituras antiguas, capturar respaldo, importar base central, verificar, instalar un solo equipo, probar, luego incorporar los demás con identidad local independiente.</p>
+      <p>Planificar una reversión operativa: conservar copias previas y una vía de operación controlada si falla la sincronización, sin mezclar escrituras nuevas con la versión anterior. Los scripts de migración deben ser repetibles en ensayo, registrar su versión y rechazar doble importación. El paso a producción requiere credenciales y base Cloud aprovisionadas por el responsable; el plan no incluye editar archivos de entorno.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>Ensayo completo de migración con comparación de datos y restauración probada.</span></label></li>
+        <li><label><input type="checkbox"><span>Un equipo piloto sincroniza sin cambiar resultados contables ni de stock.</span></label></li>
+        <li><label><input type="checkbox"><span>Los cuatro equipos muestran la misma revisión tras converger, sin pérdida de operaciones.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Abrir el archivo de la réplica desde otra herramienta mientras sincroniza, reutilizar o clonar el mismo archivo en dos equipos, restaurar una copia antigua y seguir sincronizando sin procedimiento validado, publicar credenciales o activar escrituras simultáneas antes de pasar las pruebas de conflicto.</p>
+      <p class="refs">Archivos: <a href="../src/db/init.ts">init.ts</a>, <a href="../src/db/seed.ts">seed.ts</a>, <a href="../src/db/scripts/apply-triggers.ts">apply-triggers.ts</a>. Referencias: <a href="https://docs.turso.tech/sync/usage">bootstrap de Turso Sync</a>, <a href="https://docs.turso.tech/quickstart">creación de base</a>, <a href="https://docs.turso.tech/cloud/migrate-to-turso">migración Cloud</a>, <a href="https://github.com/tursodatabase/turso/issues/8129">riesgo de restauración de cliente Sync</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-5">
+      <h2><span class="number">5</span> Estado visible y operación diaria</h2>
+      <p><strong>Implementar.</strong> Publicar desde main por IPC un estado pequeño: última sincronización correcta, cambios pendientes, modo sin conexión y error resumido. Mostrarlo en la UI de caja y administración sin impedir tareas locales. Tras <code>pull()</code> con cambios, invalidar consultas afectadas y actualizar dashboard, stock y listas abiertas. Añadir acción “Sincronizar ahora”, aviso si el atraso supera un umbral y registro de diagnóstico para soporte.</p>
+      <p>Revisar lenguaje de la documentación y del producto: diferenciar “guardado en este equipo” de “recibido en Turso”. Documentar instalación de credenciales, rotación del token, recuperación de un equipo perdido y respuesta a conflictos o retrasos prolongados.</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span>El usuario distingue una venta guardada localmente de una ya recibida por Cloud.</span></label></li>
+        <li><label><input type="checkbox"><span>Un cambio remoto se refleja en vistas abiertas tras pull, sin reiniciar la app.</span></label></li>
+        <li><label><input type="checkbox"><span>El operador dispone de instrucciones de recuperación y diagnóstico sin acceder al token.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Mostrar éxito global al terminar solo la escritura local o exponer detalles sensibles en mensajes de error.</p>
+      <p class="refs">Archivos: <a href="../src/preload/index.ts">preload/index.ts</a>, <a href="../src/main/controllers/index.ts">controllers/index.ts</a>, <a href="../src/main/controllers/dashboard-events.ts">dashboard-events.ts</a>, <a href="../README.md">README.md</a>.</p>
+    </section>
+
+    <section class="phase" id="fase-6">
+      <h2><span class="number">6</span> Verificación final y liberación</h2>
+      <p><strong>Implementar.</strong> Automatizar pruebas locales de dos clientes contra un servidor de ensayo o simulador compatible y una prueba de integración real contra Turso de staging. Cubrir desconexión antes/durante/después de una venta, reinicio con cambios pendientes, push duplicado, pull concurrente, conflictos de datos maestros, migraciones, FKs, triggers, checkpoints y actualización de UI. Construir instalador de Windows y ejecutar prueba de extremo a extremo en dos equipos o perfiles aislados.</p>
+      <div class="table-wrap"><table><thead><tr><th>Escenario mínimo</th><th>Evidencia de éxito</th></tr></thead><tbody>
+        <tr><td>Venta offline en caja A</td><td>Venta, detalle, stock y auditoría quedan en A tras reinicio; estado indica pendiente.</td></tr>
+        <tr><td>Reconexión de A</td><td>Cloud recibe el evento una sola vez; A marca al día solo tras éxito confirmado.</td></tr>
+        <tr><td>Sincronización de B</td><td>B ve la misma venta, totales e inventario; su UI se refresca.</td></tr>
+        <tr><td>Ventas simultáneas A y B</td><td>Ambas sobreviven según política; discrepancia queda registrada o bloqueo se explica.</td></tr>
+        <tr><td>Token inválido o Cloud caído</td><td>Fallo visible, escrituras locales preservadas y reintento posterior verificable.</td></tr>
+      </tbody></table></div>
+      <ul class="checklist">
+        <li><label><input type="checkbox"><span><code>npm run typecheck</code>, pruebas relevantes y build Windows completos.</span></label></li>
+        <li><label><input type="checkbox"><span>Prueba real de dos instancias + Turso staging con conteos y revisiones antes/después.</span></label></li>
+        <li><label><input type="checkbox"><span>Revisión de APIs frente a docs, búsqueda de <code>catch {}</code> y de secretos en artefactos terminada.</span></label></li>
+      </ul>
+      <p><strong>Evitar.</strong> Dar por probada la sincronización con tests que solo miran <code>PRAGMA journal_mode</code> o con un único cliente.</p>
+      <p class="refs">Punto de partida: <a href="../tests/main/db-init.test.ts">db-init.test.ts</a>, <a href="../package.json">scripts de prueba y build</a>.</p>
+    </section>
+
+    <section id="criterios">
+      <h2>Criterios de salida del proyecto</h2>
+      <ol>
+        <li>Una operación crítica se guarda localmente y permanece después de cerrar y reabrir la aplicación sin red.</li>
+        <li>Al reconectar, cada operación aceptada llega exactamente una vez al conjunto de datos lógico de Turso y aparece en otro equipo.</li>
+        <li>Las colisiones de claves y conflictos concurrentes siguen una política comprobada; no desaparecen ventas ni auditorías.</li>
+        <li>El estado mostrado coincide con el resultado real de push/pull y permite diagnosticar retrasos.</li>
+        <li>La migración, el respaldo y la recuperación han sido ensayados con datos representativos antes del despliegue gradual.</li>
+      </ol>
+      <div class="callout"><strong>Dependencias externas.</strong> Para la integración final se necesitan una base Turso Cloud de ensayo y otra de producción, URLs y tokens aprovisionados por el responsable. El repositorio no contiene esas credenciales y este plan no las crea.</div>
+    </section>
+
+    <section id="fuentes">
+      <h2>Fuentes y referencias de ejecución</h2>
+      <ul>
+        <li><a href="https://docs.turso.tech/features/embedded-replicas/introduction">Turso: Embedded Replicas</a> — diferencia entre writes remotos por defecto y <code>offline: true</code>; <code>syncUrl</code>, <code>syncInterval</code>, <code>sync()</code>.</li>
+        <li><a href="https://docs.turso.tech/sync/usage">Turso: Sync Usage</a> — <code>connect()</code>, bootstrap, <code>push()</code>, <code>pull()</code>, <code>checkpoint()</code>, <code>stats()</code>.</li>
+        <li><a href="https://docs.turso.tech/sync/conflict-resolution">Turso: Conflict Resolution</a> — semántica de conflictos; validar con los casos del negocio.</li>
+        <li><a href="https://docs.turso.tech/sync/checkpoint">Turso: Checkpoint</a> — gestión del WAL local; usar <code>db.checkpoint()</code>.</li>
+        <li><a href="https://github.com/drizzle-team/drizzle-orm/releases">Drizzle ORM releases</a> y <a href="https://registry.npmjs.org/drizzle-orm/-/drizzle-orm-1.0.0-rc.4.tgz">paquete rc.4</a> — aparición y firma del driver Turso Sync; probar transacciones concurrentes.</li>
+        <li><a href="../src/db/README.md">Capa de datos del proyecto</a> y <a href="../../dimension_tecnica/dimension_tecnica.md">dimensión técnica</a> — intención de arquitectura frente al estado implementado.</li>
+      </ul>
+      <p class="small">Las APIs y versiones deberán volver a verificarse en la fase 0 antes de editar código, porque los SDK de Turso y Drizzle evolucionan.</p>
+    </section>
+    <footer>Plan de implementación · Archivo HTML autónomo · Casillas guardadas solo en este navegador</footer>
+  </main>
+</div>
+<script>
+  const boxes = [...document.querySelectorAll('.checklist input[type="checkbox"]')];
+  const key = 'huascar-plan-sync-v1';
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch { saved = {}; }
+  boxes.forEach((box, index) => {
+    box.checked = Boolean(saved[index]);
+    box.addEventListener('change', () => {
+      saved[index] = box.checked;
+      try { localStorage.setItem(key, JSON.stringify(saved)); } catch {}
+      updateProgress();
+    });
+  });
+  function updateProgress() {
+    const done = boxes.filter(box => box.checked).length;
+    document.getElementById('progress').value = boxes.length ? Math.round(done / boxes.length * 100) : 0;
+    document.getElementById('progress-text').textContent = `${done} de ${boxes.length} tareas verificadas`;
+  }
+  updateProgress();
+</script>
+</body>
+</html>

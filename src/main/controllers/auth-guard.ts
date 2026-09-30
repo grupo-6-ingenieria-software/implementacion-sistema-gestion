@@ -109,7 +109,7 @@ export type GuardResult =
   | { ok: false; response: ReturnType<typeof controllerError> };
 
 export type RequestAuthorizationDeps = {
-  identity: typeof guardChannel;
+  identity: typeof authenticateChannel;
   session: (
     claims: SessionTokenClaims,
     refresh: boolean,
@@ -131,7 +131,8 @@ export async function authorizeRequest(
   payload: unknown,
   onExpired: () => void = () => undefined,
   deps: RequestAuthorizationDeps = {
-    identity: guardChannel,
+    // El rol se evalúa después de confirmar la sesión (CU58-E1, pasos 3-13).
+    identity: authenticateChannel,
     session: (claims, refresh) =>
       validateAndRefreshActiveSession(
         db,
@@ -213,7 +214,41 @@ export async function authorizeRequest(
   }
 }
 
+// Identidad, rol del JWT y auditoría de la denegación, sin consultar la sesión.
 export async function guardChannel(
+  channel: string,
+  payload: unknown,
+  deps: GuardDeps = defaultDeps,
+): Promise<GuardResult> {
+  const result = await authenticateChannel(channel, payload, deps);
+  if (!result.ok || !result.context.claims) return result;
+  const claims = result.context.claims;
+  const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
+
+  if (requiredRoles && !requiredRoles.has(claims.rol)) {
+    await deps
+      .audit({
+        descripcion: `Acceso denegado al canal ${channel} para el rol ${claims.rol}.`,
+        modulo: "control_acceso",
+        tipoAccion: "acceso_denegado",
+        usuarioId: claims.usuarioId,
+      })
+      .catch(() => undefined);
+
+    return {
+      ok: false,
+      response: controllerError(
+        "FORBIDDEN",
+        "No tiene permiso para realizar esta acción.",
+      ),
+    };
+  }
+
+  return result;
+}
+
+// Verifica firma e identidad del JWT; el rol lo decide quien confirme la sesión.
+export async function authenticateChannel(
   channel: string,
   payload: unknown,
   deps: GuardDeps = defaultDeps,
@@ -249,27 +284,6 @@ export async function guardChannel(
       response: controllerError(
         "FORBIDDEN",
         "Debe cambiar la contraseña temporal antes de realizar esta acción.",
-      ),
-    };
-  }
-
-  const requiredRoles = isReportExportRequest(channel, payload) ? new Set<Role>(["dueno"]) : CHANNEL_ROLES.get(channel);
-
-  if (requiredRoles && !requiredRoles.has(claims.rol)) {
-    await deps
-      .audit({
-        descripcion: `Acceso denegado al canal ${channel} para el rol ${claims.rol}.`,
-        modulo: "control_acceso",
-        tipoAccion: "acceso_denegado",
-        usuarioId: claims.usuarioId,
-      })
-      .catch(() => undefined);
-
-    return {
-      ok: false,
-      response: controllerError(
-        "FORBIDDEN",
-        "No tiene permiso para realizar esta acción.",
       ),
     };
   }

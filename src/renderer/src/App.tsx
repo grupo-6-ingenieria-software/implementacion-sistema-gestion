@@ -179,6 +179,10 @@ export function App(): ReactElement {
       return;
     }
 
+    const node = findNavNodeByPath(path);
+    // La vista del nodo consulta directamente a Main, que autoriza y audita.
+    if (node?.authorizedByMain) return;
+
     if (path.startsWith("/app") && session.isAuthenticated) {
       let cancelled = false;
 
@@ -313,6 +317,10 @@ export function App(): ReactElement {
       onNavigate={(target) => {
         setAccessDeniedMessage(null);
         navigate(target);
+      }}
+      onAccessDenied={(message) => {
+        setAccessDeniedMessage(message);
+        navigate(APP_HOME_PATH);
       }}
       onLogout={logout}
       onAuthenticationRequired={(message) => expireSession(message, true)}
@@ -642,6 +650,7 @@ export function AppShell({
   session,
   bannerMessage,
   onNavigate,
+  onAccessDenied,
   onLogout,
   onAuthenticationRequired,
 }: {
@@ -649,6 +658,7 @@ export function AppShell({
   session: AppSession;
   bannerMessage?: string | null;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   onLogout: () => void;
   onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
@@ -746,6 +756,7 @@ export function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
+          onAccessDenied={onAccessDenied}
           currentPath={currentPath}
           shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
           onShiftNoticeConsumed={consumeShiftNotice}
@@ -795,6 +806,7 @@ function ViewRenderer({
   currentPath,
   node,
   onNavigate,
+  onAccessDenied,
   session,
   shiftSuccessMessage,
   onShiftNoticeConsumed,
@@ -804,6 +816,7 @@ function ViewRenderer({
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   session: AppSession;
   shiftSuccessMessage: string | null;
   onShiftNoticeConsumed: () => void;
@@ -1054,7 +1067,13 @@ function ViewRenderer({
   }
 
   if (node.id === "audit-log") {
-    return <AuditLogView usuarioId={session.usuarioId} onNavigate={onNavigate} />;
+    return (
+      <AuditLogView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+        onAccessDenied={onAccessDenied}
+      />
+    );
   }
 
   if (node.id === "product-status" && session.usuarioId) {

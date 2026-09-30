@@ -65,6 +65,9 @@ export type NavNode = {
   showInMenu: boolean;
   entryFrom: string;
   controllerIds: readonly ControllerId[];
+  // La vista invoca un canal que Main autoriza y audita; el renderer no la
+  // deniega localmente para no duplicar la denegación (CU58-E1).
+  authorizedByMain?: true;
 };
 
 export type SessionState = {
@@ -559,6 +562,7 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Administracion > Log de auditoria.",
     controllerIds: ["access-control", "audit"],
+    authorizedByMain: true,
   },
   {
     id: "monthly-sales",
@@ -720,7 +724,11 @@ export function evaluateRouteAccess(
     };
   }
 
-  if (!node || !(node.roles as readonly Role[]).includes(session.role)) {
+  if (
+    !node ||
+    (!(node.roles as readonly Role[]).includes(session.role) &&
+      !node.authorizedByMain)
+  ) {
     return {
       status: "deny",
       to: APP_HOME_PATH,
