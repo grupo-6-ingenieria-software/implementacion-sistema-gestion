@@ -24,10 +24,17 @@ export const AUTHENTICATED_CHANNELS: ReadonlySet<string> = new Set([
   "auditoria:registrar",
 ]);
 
+export const TEMP_PASSWORD_CHANNELS: ReadonlySet<string> = new Set([
+  "auth:cambiar-password",
+  "auth:verificar-sesion",
+  "auth:logout",
+]);
+
 export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   string,
   ReadonlySet<Role>
 > = new Map<string, ReadonlySet<Role>>([
+  ["auth:restablecer-password", new Set<Role>(["dueno"])],
   ["auditoria:consultar", new Set<Role>(["dueno"])],
   ["turno:listar", new Set<Role>(["dueno", "trabajador"])],
   ["turno:crear", new Set<Role>(["dueno"])],
@@ -226,6 +233,22 @@ export async function guardChannel(
       response: controllerError(
         "FORBIDDEN",
         "No hay una sesión válida para realizar esta acción.",
+      ),
+    };
+  }
+
+  if (claims.passwordTemporal && !TEMP_PASSWORD_CHANNELS.has(channel)) {
+    await deps.audit({
+      descripcion: `Acceso denegado al canal ${channel}: cambio de contraseña obligatorio.`,
+      modulo: "control_acceso",
+      tipoAccion: "acceso_denegado",
+      usuarioId: claims.usuarioId,
+    }).catch(() => undefined);
+    return {
+      ok: false,
+      response: controllerError(
+        "FORBIDDEN",
+        "Debe cambiar la contraseña temporal antes de realizar esta acción.",
       ),
     };
   }
