@@ -52,7 +52,8 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
-  | "monthly-sales";
+  | "monthly-sales"
+  | "products-most-sold";
 
 export type NavNode = {
   id: string;
@@ -559,6 +560,17 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Ventas mensuales.",
     controllerIds: ["access-control", "session", "monthly-sales", "audit"],
   },
+  {
+    id: "products-most-sold",
+    viewName: "ReporteProductosVendidosView",
+    label: "Productos más vendidos",
+    path: "/app/reportes/mas-vendidos",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Productos más vendidos.",
+    controllerIds: ["access-control", "session", "products-most-sold", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -724,6 +736,7 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "products-most-sold",
     "monthly-sales",
     "login",
     "password-change",

@@ -351,6 +351,46 @@ export function calculateRecordedSaleTotal(
   return subtotal;
 }
 
+export type SaleLineForAllocation = { lineId: string; subtotal: number };
+export type AllocatedSaleLine = SaleLineForAllocation & { descuento: number; neto: number };
+
+/** Reparte el descuento global en CLP enteros, conservando exactamente el total de la venta. */
+export function allocateRecordedSaleNet(
+  lines: readonly SaleLineForAllocation[],
+  recordedTotal: number,
+): AllocatedSaleLine[] {
+  if (!Number.isSafeInteger(recordedTotal) || recordedTotal < 0 || lines.length === 0) {
+    throw new RangeError("Los importes de la venta son incoherentes.");
+  }
+  const ids = new Set<string>();
+  let subtotal = 0;
+  for (const line of lines) {
+    if (!line.lineId || ids.has(line.lineId) || !Number.isSafeInteger(line.subtotal) || line.subtotal < 0) {
+      throw new RangeError("Los importes de la venta son incoherentes.");
+    }
+    ids.add(line.lineId);
+    subtotal += line.subtotal;
+    if (!Number.isSafeInteger(subtotal)) throw new RangeError("Los importes de la venta son incoherentes.");
+  }
+  if (recordedTotal > subtotal) throw new RangeError("Los importes de la venta son incoherentes.");
+  const discount = subtotal - recordedTotal;
+  if (subtotal === 0) return lines.map((line) => ({ ...line, descuento: 0, neto: 0 }));
+  const portions = lines.map((line) => {
+    const numerator = BigInt(discount) * BigInt(line.subtotal);
+    return { ...line, descuento: Number(numerator / BigInt(subtotal)), remainder: numerator % BigInt(subtotal) };
+  });
+  let remaining = discount - portions.reduce((sum, line) => sum + line.descuento, 0);
+  const rank = [...portions].sort((a, b) => a.remainder === b.remainder
+    ? a.lineId.localeCompare(b.lineId)
+    : a.remainder > b.remainder ? -1 : 1);
+  for (const line of rank) {
+    if (remaining === 0) break;
+    line.descuento += 1;
+    remaining -= 1;
+  }
+  return portions.map(({ remainder: _remainder, ...line }) => ({ ...line, neto: line.subtotal - line.descuento }));
+}
+
 export function calculateCashChange(
   total: number,
   montoRecibido: number,

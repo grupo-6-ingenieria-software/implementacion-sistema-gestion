@@ -52,6 +52,7 @@ describe("navigation tree", () => {
         "restock-list",
         "inventory-valuation",
         "monthly-sales",
+        "products-most-sold",
       ]),
     );
   });
