@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { queryAuditLog } from "../../../src/main/controllers/audit-service";
 
@@ -18,9 +18,13 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-29T15:00:00.000Z"));
   await clearAuditFixture(testDb!.db);
   await seedAuditFixture(testDb!.db);
 });
+
+afterEach(() => vi.useRealTimers());
 
 afterAll(async () => {
   if (!testDb) {

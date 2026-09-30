@@ -102,11 +102,50 @@ BEGIN
   SELECT RAISE(ABORT, 'log_auditoria es inmutable: UPDATE no permitido (RNF10)');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_log_auditoria_no_delete
+-- Actualiza también instalaciones que tenían el bloqueo absoluto de DELETE.
+-- La única excepción es la eliminación de registros que cumplieron 12 meses.
+DROP TRIGGER IF EXISTS trg_log_auditoria_no_delete;
+CREATE TRIGGER trg_log_auditoria_no_delete
 BEFORE DELETE ON log_auditoria
 FOR EACH ROW
+WHEN julianday(OLD.log_fecha_hora) IS NULL
+  OR julianday(OLD.log_fecha_hora) > (
+    CASE WHEN strftime('%m-%d', 'now') = '02-29'
+      THEN julianday('now', '-1 year', '-1 day')
+      ELSE julianday('now', '-1 year')
+    END
+  )
 BEGIN
-  SELECT RAISE(ABORT, 'log_auditoria es inmutable: DELETE no permitido (RNF10)');
+  SELECT RAISE(ABORT, 'log_auditoria es inmutable: DELETE no permitido antes de 12 meses (RNF09)');
+END;
+
+-- REPLACE puede borrar sin disparar BEFORE DELETE si recursive_triggers está
+-- desactivado, por lo que también se rechaza la reutilización de un identificador.
+CREATE TRIGGER IF NOT EXISTS trg_log_auditoria_no_replace
+BEFORE INSERT ON log_auditoria
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE log_auditoria_id = NEW.log_auditoria_id)
+BEGIN
+  SELECT RAISE(ABORT, 'log_auditoria es inmutable: REPLACE no permitido (RF58)');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_usuario_version_audit_identity
+BEFORE UPDATE ON usuario_version
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE usuario_version_id = OLD.usuario_version_id)
+  AND (NEW.usuario_version_nombre IS NOT OLD.usuario_version_nombre
+    OR NEW.usuario_version_rol IS NOT OLD.usuario_version_rol
+    OR NEW.usuario_id IS NOT OLD.usuario_id)
+BEGIN
+  SELECT RAISE(ABORT, 'La identidad histórica de auditoría es inmutable (RF58)');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_usuario_version_audit_no_replace
+BEFORE INSERT ON usuario_version
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM log_auditoria WHERE usuario_version_id = NEW.usuario_version_id)
+BEGIN
+  SELECT RAISE(ABORT, 'La identidad histórica de auditoría es inmutable: REPLACE no permitido (RF58)');
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_log_errores_no_update
@@ -148,16 +187,6 @@ WHEN (SELECT es_venta_efectivo FROM venta WHERE venta_id = NEW.venta_id) <> 1
 BEGIN
   SELECT RAISE(ABORT,
     'venta_efectivo solo aplica a ventas marcadas es_venta_efectivo');
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_contrasena_temporal_flag_coherente
-BEFORE INSERT ON contrasena_temporal
-FOR EACH ROW
-WHEN (SELECT es_contrasena_temporal FROM contrasena
-       WHERE contrasena_id = NEW.contrasena_id) <> 1
-BEGIN
-  SELECT RAISE(ABORT,
-    'contrasena_temporal solo aplica a contraseñas marcadas es_contrasena_temporal');
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_anulacion_venta_solo_completada

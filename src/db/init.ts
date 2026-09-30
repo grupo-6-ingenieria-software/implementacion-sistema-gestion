@@ -46,7 +46,18 @@ export async function applyTriggers(
   triggersPath: string,
 ): Promise<void> {
   const script = await readFile(triggersPath, "utf-8");
-  await client.executeMultiple(script);
+  // El cambio del trigger de retención debe ser atómico: ninguna conexión
+  // puede borrar registros vigentes entre DROP TRIGGER y CREATE TRIGGER.
+  const transaction = await client.transaction("write");
+  try {
+    await transaction.executeMultiple(script);
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  } finally {
+    transaction.close();
+  }
 }
 
 async function applyMigrations(

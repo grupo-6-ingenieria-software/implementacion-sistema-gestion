@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import {
   changePasswordWithExecutor,
+  prepareResetWithExecutor,
   resetPasswordWithExecutor,
   type PasswordDeps,
 } from "../../../src/main/controllers/password";
@@ -70,7 +71,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     }>(sql`
       SELECT
         (SELECT COUNT(*) FROM contrasena) AS contrasenas,
-        (SELECT COUNT(*) FROM contrasena WHERE es_contrasena_definitiva = 1) AS definitivas,
+        (SELECT COUNT(*) FROM contrasena c WHERE NOT EXISTS (SELECT 1 FROM contrasena_temporal t WHERE t.contrasena_id = c.contrasena_id)) AS definitivas,
         (SELECT COUNT(*) FROM log_auditoria) AS auditorias
     `);
 
@@ -88,6 +89,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
       rut: "33333333-3",
       rolBd: "trabajador",
       esTemporal: true,
+      temporalExpiracion: new Date(NOW.getTime() + 3_600_000).toISOString(),
     });
 
     const response = await changePasswordWithExecutor(
@@ -106,8 +108,12 @@ describe("changePasswordWithExecutor (CU56b)", () => {
       definitivas: number;
     }>(sql`
       SELECT COUNT(*) AS definitivas
-      FROM contrasena
-      WHERE usuario_id = '33333333-3' AND es_contrasena_definitiva = 1
+      FROM contrasena c
+      WHERE c.usuario_id = '33333333-3'
+        AND NOT EXISTS (
+          SELECT 1 FROM contrasena_temporal t
+          WHERE t.contrasena_id = c.contrasena_id
+        )
     `);
 
     expect(counts[0].definitivas).toBe(1);
@@ -187,7 +193,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
   });
 });
 
-describe("resetPasswordWithExecutor (RF58)", () => {
+describe("resetPasswordWithExecutor (RF59)", () => {
   beforeEach(async () => {
     await seedUser(testDb!.db, {
       usuarioId: "11111111-1",
@@ -224,7 +230,7 @@ describe("resetPasswordWithExecutor (RF58)", () => {
       auditorias: number;
     }>(sql`
       SELECT
-        (SELECT COUNT(*) FROM contrasena WHERE usuario_id = '22222222-2' AND es_contrasena_temporal = 1) AS temporales,
+        (SELECT COUNT(*) FROM contrasena c JOIN contrasena_temporal t ON t.contrasena_id = c.contrasena_id WHERE c.usuario_id = '22222222-2') AS temporales,
         (SELECT COUNT(*) FROM contrasena_temporal) AS expiraciones,
         (SELECT COUNT(*) FROM log_auditoria) AS auditorias
     `);
@@ -260,7 +266,122 @@ describe("resetPasswordWithExecutor (RF58)", () => {
 
     expect(response.ok).toBe(false);
     if (!response.ok) {
-      expect(response.error.code).toBe("NOT_FOUND");
+      expect(response.error.code).toBe("USUARIO_NO_ENCONTRADO");
+      expect(response.error.message).toBe("Usuario no encontrado.");
     }
+
+    const [{ contrasenas }] = await testDb!.db.all<{ contrasenas: number }>(sql`
+      SELECT COUNT(*) AS contrasenas FROM contrasena WHERE usuario_id = '99999999-9'
+    `);
+    expect(contrasenas).toBe(0);
+  });
+
+  it("notifies open windows only after the reset is committed", async () => {
+    const notify = vi.fn();
+
+    const response = await resetPasswordWithExecutor(
+      testDb!.db,
+      schema,
+      { usuarioId: "11111111-1", usuarioObjetivoId: "22222222-2" },
+      deps,
+      undefined,
+      notify,
+    );
+
+    expect(response.ok).toBe(true);
+    expect(notify).toHaveBeenCalledExactlyOnceWith("22222222-2");
+
+    const missing = await resetPasswordWithExecutor(
+      testDb!.db,
+      schema,
+      { usuarioId: "11111111-1", usuarioObjetivoId: "99999999-9" },
+      deps,
+      undefined,
+      notify,
+    );
+
+    expect(missing.ok).toBe(false);
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores the temporal as a Contrasena plus its own ContrasenaTemporal row", async () => {
+    await resetPasswordWithExecutor(
+      testDb!.db,
+      schema,
+      { usuarioId: "11111111-1", usuarioObjetivoId: "22222222-2" },
+      deps,
+    );
+
+    const [row] = await testDb!.db
+      .select()
+      .from(schema.contrasenaTemporal);
+
+    expect(row.contrasenaTemporalId).toHaveLength(36);
+    expect(row.contrasenaTemporalId).not.toBe(row.contrasenaId);
+    expect(row.contrasenaTemporalFechaHoraExpiracion).toBe(
+      new Date(NOW.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    );
+  });
+});
+
+describe("prepareResetWithExecutor (RF59 pasos 2-21)", () => {
+  beforeEach(async () => {
+    await seedUser(testDb!.db, {
+      usuarioId: "11111111-1",
+      trabajadorId: 1,
+      rut: "11111111-1",
+      rolBd: "dueno",
+    });
+    await seedUser(testDb!.db, {
+      usuarioId: "22222222-2",
+      trabajadorId: 2,
+      rut: "22222222-2",
+      rolBd: "trabajador",
+    });
+  });
+
+  it("confirms the selected account without writing credentials", async () => {
+    const response = await prepareResetWithExecutor(testDb!.db, schema, {
+      usuarioId: "11111111-1",
+      usuarioObjetivoId: "22222222-2",
+    });
+
+    expect(response).toEqual({
+      ok: true,
+      data: { usuarioObjetivoId: "22222222-2" },
+    });
+
+    const [counts] = await testDb!.db.all<{
+      contrasenas: number;
+      temporales: number;
+      auditorias: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM contrasena) AS contrasenas,
+        (SELECT COUNT(*) FROM contrasena_temporal) AS temporales,
+        (SELECT COUNT(*) FROM log_auditoria) AS auditorias
+    `);
+    expect(counts).toEqual({ contrasenas: 2, temporales: 0, auditorias: 0 });
+  });
+
+  it("returns USUARIO_NO_ENCONTRADO for a missing account", async () => {
+    const response = await prepareResetWithExecutor(testDb!.db, schema, {
+      usuarioId: "11111111-1",
+      usuarioObjetivoId: "99999999-9",
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "USUARIO_NO_ENCONTRADO", message: "Usuario no encontrado." },
+    });
+  });
+
+  it("forbids a non-owner", async () => {
+    const response = await prepareResetWithExecutor(testDb!.db, schema, {
+      usuarioId: "22222222-2",
+      usuarioObjetivoId: "11111111-1",
+    });
+
+    expect(response).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 });

@@ -32,6 +32,7 @@ describe("navigation tree", () => {
         "supplier-order-create",
         "supplier-order-receptions",
         "sale-register",
+        "sale-categories",
         "daily-sales",
         "sales-query",
         "sale-annulment",
@@ -51,11 +52,28 @@ describe("navigation tree", () => {
         "movement-history",
         "restock-list",
         "inventory-valuation",
+        "monthly-sales",
         "reporte-mermas",
         "reporte-lotes-vencer",
         "reporte-movimientos",
       ]),
     );
+  });
+
+  it("exposes V35 under Ventas to both roles and protects its route", () => {
+    expect(navigationTree.find((node) => node.id === "sale-categories")).toMatchObject({
+      path: "/app/ventas/categorias",
+      roles: ["dueno", "trabajador"],
+      group: "ventas",
+      showInMenu: true,
+      controllerIds: ["access-control", "sale-categories"],
+    });
+    for (const role of ["dueno", "trabajador"] as const) {
+      expect(evaluateRouteAccess("/app/ventas/categorias", {
+        isAuthenticated: true,
+        role,
+      })).toEqual({ status: "allow" });
+    }
   });
 
   it("exposes V28 once under Inventario for both roles", () => {
@@ -85,6 +103,24 @@ describe("navigation tree", () => {
         }),
       ).toEqual({ status: "allow" });
     }
+  });
+
+  it("delegates the audit log denial to Main for CU58-E1", () => {
+    expect(
+      evaluateRouteAccess("/app/admin/auditoria", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toEqual({ status: "allow" });
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "audit-log",
+    );
+    expect(
+      evaluateRouteAccess("/app/admin/usuarios", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({ status: "deny", to: "/app/inicio" });
   });
 
   it("exposes V25 once under Inventario for both roles and keeps UI05 internal", () => {

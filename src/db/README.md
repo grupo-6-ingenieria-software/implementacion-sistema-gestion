@@ -15,7 +15,7 @@ inicialización en runtime, triggers de integridad y datos semilla. Es la capa
 | [`schema.ts`](./schema.ts) | **Fuente de verdad del esquema.** ~33 tablas `sqliteTable` (trabajador, usuario, producto, venta, lote, sesión, logs, …) en 3FN estricto. De aquí drizzle-kit genera el DDL. |
 | [`client.ts`](./client.ts) | **Conexión única.** Crea el cliente libSQL e instancia Drizzle `db`. Activa `PRAGMA foreign_keys = ON` y `journal_mode = WAL`. Exporta `db`, `client`, `schema` y el tipo `DB`. |
 | [`init.ts`](./init.ts) | **Inicialización en runtime.** `initializeDatabase()` aplica, idempotente y en orden: (1) migraciones de esquema, (2) triggers. `resolveDatabaseInitPaths()` resuelve rutas para dev y para la app empaquetada. |
-| `triggers.sql` | Triggers de integridad con `CREATE TRIGGER IF NOT EXISTS`. Drizzle no expresa triggers en TS, por eso van en SQL aparte. |
+| `triggers.sql` | Triggers de integridad, incluida la excepción de retención de RF58/RNF09. Drizzle no expresa triggers en TS, por eso van en SQL aparte. |
 | [`seed.ts`](./seed.ts) | Datos semilla (`npm run db:seed`). |
 | `scripts/apply-triggers.ts` | Script de desarrollo para aplicar `triggers.sql` (`npm run db:triggers`). |
 
@@ -54,8 +54,12 @@ src/main/index.ts  (app.whenReady, ANTES de abrir ventana)
   dev `db:migrate` / `db:triggers`, que usan `tsx` y no existen en la app
   empaquetada (issue #30).
 
-Ambos pasos son idempotentes: `migrate` registra lo aplicado en
-`__drizzle_migrations`; los triggers usan `IF NOT EXISTS`.
+Ambos pasos son idempotentes: `migrate` registra lo aplicado y `applyTriggers`
+instala los triggers en una transacción. El trigger de DELETE de auditoría se
+reemplaza para actualizar instalaciones anteriores: bloquea la eliminación de
+registros vigentes y permite la de registros que cumplieron doce meses. La
+limpieza automática corre al iniciar la aplicación y cada 24 horas mientras
+está abierta; las versiones históricas de usuario no se eliminan.
 
 ## Cómo se consulta la BD
 

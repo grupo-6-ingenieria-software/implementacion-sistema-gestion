@@ -236,7 +236,7 @@ describe("user management password reset wiring (RF58)", () => {
       expiracion: string | null;
     }>(sql`
       SELECT
-        (SELECT COUNT(*) FROM contrasena WHERE usuario_id = '22222222-2' AND es_contrasena_temporal = 1) AS temporales,
+        (SELECT COUNT(*) FROM contrasena c JOIN contrasena_temporal t ON t.contrasena_id = c.contrasena_id WHERE c.usuario_id = '22222222-2') AS temporales,
         (SELECT COUNT(*) FROM contrasena_temporal) AS expiraciones,
         (SELECT contrasena_temporal_fecha_hora_expiracion FROM contrasena_temporal LIMIT 1) AS expiracion
     `);

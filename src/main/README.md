@@ -23,22 +23,22 @@ el renderer.
    false` y el `preload` compilado (`../preload/index.mjs`).
 3. `registerControllers(ipcMain)` conecta cada canal a su handler.
 4. En dev con `HUASCAR_DEBUG_LOGIN=1` se registra además el login de depuración.
-5. `startAutoUpdater()` busca una versión nueva (ver abajo).
+5. `startAutoUpdater()` comprueba si el formato admite autoactualización (ver abajo).
 
 ## Actualizaciones automáticas (`updater.ts`)
 
-- Sólo corre en la build empaquetada de Windows (`win.target: "nsis"`). En dev
-  y en el `.dmg` de macOS (sin firma, sólo para pruebas) no hace nada.
-- Lee `build.publish` de `package.json` (GitHub Releases del repo). El CI sube
-  en cada release el `Setup.exe`, su `.blockmap` y `latest.yml`, que es lo que
-  consulta el updater.
-- Busca al arrancar y cada 6 horas; descarga en segundo plano. Al terminar
+- El CI publica el mismo formato que las releases hasta v0.3.0: un `.exe`
+  portable para Windows y un `.dmg` para macOS. Para actualizar, descargar
+  la nueva versión desde GitHub Releases y reemplazar la anterior manualmente.
+- En Windows portable, electron-builder define `PORTABLE_EXECUTABLE_DIR`;
+  el updater lo detecta y no busca, descarga ni instala actualizaciones.
+  En dev y en macOS tampoco se activa.
+- El código de autoactualización queda disponible para builds instaladas de
+  Windows (NSIS), que requieren `Setup.exe`, `.blockmap` y `latest.yml`.
+  El CI ya no publica esos archivos de Windows.
+- En esas builds instaladas, busca al arrancar y cada 6 horas; descarga en segundo plano. Al terminar
   ofrece «Reiniciar ahora» o «Más tarde»; si se posterga, se instala al cerrar
   la app.
-- La instalación NSIS es por usuario (`perMachine: false`), así que no pide
-  permisos de administrador al actualizar.
-- La primera vez hay que instalar el `Setup.exe` a mano (el `.exe` portable
-  anterior no se puede actualizar solo).
 
 ## Seguridad
 

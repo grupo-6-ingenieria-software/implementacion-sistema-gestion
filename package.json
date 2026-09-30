@@ -1,6 +1,6 @@
 {
   "name": "sistema-gestion-huascar",
-  "version": "0.3.2",
+  "version": "0.3.7",
   "private": true,
   "type": "module",
   "author": "Grupo 6 - Ingenieria de Software",
@@ -74,11 +74,7 @@
       }
     ],
     "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false
+      "target": "portable"
     },
     "mac": {
       "target": "dmg"

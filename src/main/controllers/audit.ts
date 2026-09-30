@@ -11,7 +11,7 @@ export const auditController: RegisteredController = {
     }
 
     if (context.channel === "auditoria:consultar") {
-      return queryAuditLog(db, schema, payload);
+      return queryAuditLog(db, schema, payload, context.claims?.rol);
     }
 
     return {
