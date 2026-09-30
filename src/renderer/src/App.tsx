@@ -181,6 +181,10 @@ export function App(): ReactElement {
     if (decision.status !== "allow") {
       if (decision.status === "deny") {
         setAccessDeniedMessage(ACCESS_DENIED_MESSAGE);
+        // La redirección local también debe dejar evidencia en el servidor.
+        void window.appApi
+          .invoke("access:validate", { ruta: path })
+          .catch(() => undefined);
       }
       navigate(decision.to);
       return;
@@ -1058,7 +1062,7 @@ function ViewRenderer({
   }
 
   if (node.id === "audit-log") {
-    return <AuditLogView usuarioId={session.usuarioId} />;
+    return <AuditLogView usuarioId={session.usuarioId} onNavigate={onNavigate} />;
   }
 
   if (node.id === "product-status" && session.usuarioId) {

@@ -62,6 +62,31 @@ reutilizable que los controladores componen; `-queries` / `-events` separan
 lectura de notificaciones. `auth-jwt`, `auth-context` y `auth-fixtures` dan
 soporte a autenticación. `base.ts` define el contrato común.
 
+## RF58 CU58 Log de auditoría
+
+El Dueño consulta los últimos doce meses mediante `auditoria:consultar`, con
+filtros de usuario, acción y fechas chilenas, y paginación descendente. La ventana
+se aplica también al conteo y a las opciones de filtros; los registros antiguos
+se conservan. `UsuarioVersion` conserva el nombre y rol del responsable al
+momento del evento.
+
+Login, altas, ediciones y anulaciones se auditan desde sus servicios existentes.
+`audit-dispatch.ts` agrega las consultas de negocio exitosas y las exportaciones
+PDF/XLSX guardadas, usando la identidad verificada por C03/C05. Una cancelación o
+un error no genera una exportación exitosa. Los nuevos canales de lectura deben
+incorporarse a `AUDITED_QUERY_CHANNELS` si no registran su propia auditoría.
+
+El Trabajador no puede consultar el log: el servidor registra el intento y la
+interfaz vuelve al dashboard. Las denegaciones de navegación local también
+invocan `access:validate` para dejar evidencia. Los triggers impiden modificar,
+eliminar o reemplazar registros y alterar una identidad histórica utilizada;
+cerrar la vigencia de una versión y crear otra sigue permitido.
+
+Pruebas CP62: `tests/main/controllers/rf58-audit.integration.test.ts`,
+`tests/main/controllers/audit-dispatch.test.ts` y `tests/shared/audit.test.ts`.
+La interfaz se comprueba con `node tests/renderer/rf58-ui.mjs`; requiere Chromium
+de Playwright (`npx playwright install chromium`).
+
 ## Pruebas
 
 Tests unitarios en
