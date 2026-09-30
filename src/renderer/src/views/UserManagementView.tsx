@@ -97,24 +97,36 @@ export function UserManagementView({
 
   async function requestPasswordReset(user: UserListItem): Promise<void> {
     if (resetPending.current || temporaryPassword) return;
-    const confirmed = window.confirm(
-      `Confirme el restablecimiento para ${user.nombreCompleto}. Se cerrarán sus sesiones anteriores.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     resetPending.current = true;
     setResetting(true);
     setNotice(null);
     try {
+      const preparation = await window.appApi.invoke<{
+        usuarioObjetivoId: string;
+      }>("auth:preparar-restablecimiento", {
+        usuarioId,
+        usuarioObjetivoId: user.usuarioId,
+      });
+
+      if (!preparation.ok) {
+        setNotice(preparation.error.message);
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Confirme el restablecimiento para ${user.nombreCompleto}. Se cerrarán sus sesiones anteriores.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       const response =
         await window.appApi.invoke<Omit<UserPasswordResetRequestResponse, "estado">>(
           "auth:restablecer-password",
           {
             usuarioId,
-            usuarioObjetivoId: user.usuarioId,
+            usuarioObjetivoId: preparation.data.usuarioObjetivoId,
           },
         );
 

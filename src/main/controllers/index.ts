@@ -18,7 +18,7 @@ import { dashboardController } from "./dashboard";
 import { eanReaderController } from "./ean-reader";
 import { expirationAlertController } from "./expiration-alert";
 import { lotController } from "./lot";
-import { passwordController } from "./password";
+import { createPasswordController } from "./password";
 import { productCreateController } from "./product-create";
 import { productDeleteController } from "./product-delete";
 import { productEditController } from "./product-edit";
@@ -26,6 +26,7 @@ import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
 import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
+import { saleCategoriesController } from "./sale-categories";
 import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
@@ -65,6 +66,8 @@ const workerController = createWorkerController({
       notifySessionInvalidated,
     ),
 });
+
+const passwordController = createPasswordController({}, notifySessionInvalidated);
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
   [
@@ -110,6 +113,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     inventoryValuationController,
     monthlySalesController,
     productsMostSoldController,
+    saleCategoriesController,
   ];
 
 /**

@@ -19,6 +19,8 @@ import { APP_HOME_PATH } from "../../../shared/navigation";
 type AuditLogViewProps = {
   usuarioId?: string;
   onNavigate?: (path: string) => void;
+  // CU58-E1: muestra el aviso de Main y vuelve al dashboard.
+  onAccessDenied?: (message: string) => void;
 };
 
 export type AuditLogFilters = {
@@ -41,7 +43,7 @@ const emptyFilters: AuditLogFilters = {
 };
 
 export function AuditLogView({
-  usuarioId, onNavigate,
+  usuarioId, onNavigate, onAccessDenied,
 }: AuditLogViewProps): ReactElement {
   const [filters, setFilters] = useState<AuditLogFilters>(emptyFilters);
   const [state, setState] = useState<AuditLogState>({ status: "loading" });
@@ -71,7 +73,10 @@ export function AuditLogView({
         if (requestId !== requestIdRef.current) return;
 
         if (!response.ok) {
-          if (response.error.code === "FORBIDDEN") onNavigate?.(APP_HOME_PATH);
+          if (response.error.code === "FORBIDDEN") {
+            if (onAccessDenied) onAccessDenied(response.error.message);
+            else onNavigate?.(APP_HOME_PATH);
+          }
           setState({
             message: response.error.message,
             status: "error",
@@ -91,7 +96,7 @@ export function AuditLogView({
         });
       }
     },
-    [usuarioId, onNavigate],
+    [usuarioId, onNavigate, onAccessDenied],
   );
 
   useEffect(() => {

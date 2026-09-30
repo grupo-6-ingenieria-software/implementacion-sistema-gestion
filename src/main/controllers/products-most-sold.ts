@@ -7,7 +7,7 @@ import {
   type ProductsMostSoldReport,
   type ProductsMostSoldRow,
 } from "../../shared/products-most-sold";
-import { allocateRecordedSaleNet, calculateRecordedSaleTotal } from "../../shared/sales";
+import { allocateRecordedSaleNetAmounts } from "../../shared/sales";
 import { AccessDeniedError, authorizeUser, type AuthenticatedUser } from "./auth-context";
 import { controllerError, controllerSuccess, type ControllerContext, type RegisteredController } from "./base";
 import { getChileDateRange } from "./dashboard-date";
@@ -78,7 +78,7 @@ export async function queryProductsMostSold(
       }
       const subtotal = line.cantidad * line.precioUnitario;
       if (!Number.isSafeInteger(subtotal)) throw new RangeError("Los datos de venta son incoherentes.");
-      return { lineId: line.detalleVentaId, subtotal };
+      return { id: line.detalleVentaId, subtotal };
     });
     const subtotal = allocationInputs.reduce((sum, line) => safeAdd(sum, line.subtotal), 0);
     const [first] = saleLines;
@@ -91,8 +91,10 @@ export async function queryProductsMostSold(
     if (first.discountType === "monto" && (!Number.isSafeInteger(first.discountValue) || first.discountValue! < 0 || first.discountValue! > subtotal)) {
       throw new RangeError("Los datos de venta son incoherentes.");
     }
-    const total = calculateRecordedSaleTotal({ subtotal, discountType: first.discountType, discountValue: first.discountValue });
-    const netLines = allocateRecordedSaleNet(allocationInputs, total);
+    const netLines = allocateRecordedSaleNetAmounts(
+      { discountType: first.discountType, discountValue: first.discountValue },
+      allocationInputs,
+    );
     for (let index = 0; index < saleLines.length; index += 1) {
       const line = saleLines[index];
       totalUnidadesPeriodo = safeAdd(totalUnidadesPeriodo, line.cantidad);
@@ -101,7 +103,7 @@ export async function queryProductsMostSold(
         categoria: line.categoria, unidadesVendidas: 0, ingresoNeto: 0,
       };
       item.unidadesVendidas = safeAdd(item.unidadesVendidas, line.cantidad);
-      item.ingresoNeto = safeAdd(item.ingresoNeto, netLines[index].neto);
+      item.ingresoNeto = safeAdd(item.ingresoNeto, netLines[index].montoNeto);
       products.set(line.productoId, item);
     }
   }

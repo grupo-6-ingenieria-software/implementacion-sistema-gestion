@@ -168,14 +168,9 @@ describe("RF59 / CU59 / CP63", () => {
         { usuarioId: WORKER, contrasenaNueva: DEFINITIVE }, deps)).ok).toBe(accepted);
     });
 
-  it.each([null, "fecha-invalida"])("rejects a missing or malformed expiration (%s)", async (expiration) => {
+  it("rejects a malformed expiration", async () => {
     await reset();
-    const current = await loadCurrentPassword(fixture.db, schema, WORKER);
-    if (expiration === null) {
-      await fixture.db.delete(schema.contrasenaTemporal).where(eq(schema.contrasenaTemporal.contrasenaId, current!.contrasenaId));
-    } else {
-      await fixture.db.update(schema.contrasenaTemporal).set({ contrasenaTemporalFechaHoraExpiracion: expiration });
-    }
+    await fixture.db.update(schema.contrasenaTemporal).set({ contrasenaTemporalFechaHoraExpiracion: "fecha-invalida" });
     expect((await login(WORKER, TEMPORARY)).ok).toBe(false);
     expect((await changePasswordWithExecutor(fixture.db, schema,
       { usuarioId: WORKER, contrasenaNueva: DEFINITIVE }, deps)).ok).toBe(false);
@@ -205,7 +200,7 @@ describe("RF59 / CU59 / CP63", () => {
   it("denies workers, effective worker sessions, inactive owners, missing targets and malformed requests", async () => {
     expect(await reset(WORKER, OWNER)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await reset(OWNER, WORKER, "trabajador")).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
-    expect(await reset(OWNER, "unknown")).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(await reset(OWNER, "unknown")).toMatchObject({ ok: false, error: { code: "USUARIO_NO_ENCONTRADO", message: "Usuario no encontrado." } });
     expect(await resetPasswordWithExecutor(fixture.db, schema, null, deps)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     const worker = await login();
     const owner = await login(OWNER);

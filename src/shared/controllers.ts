@@ -30,6 +30,7 @@ export type ControllerErrorCode =
   | "DATABASE_ERROR"
   | "FORBIDDEN"
   | "NOT_FOUND"
+  | "USUARIO_NO_ENCONTRADO"
   | "VALIDATION_ERROR"
   | "BUSINESS_RULE"
   | "TECHNICAL_ERROR";
@@ -57,7 +58,11 @@ export const controllers = [
     id: "password",
     name: "PasswordHandler",
     module: "auth",
-    channels: ["auth:cambiar-password", "auth:restablecer-password"],
+    channels: [
+      "auth:cambiar-password",
+      "auth:preparar-restablecimiento",
+      "auth:restablecer-password",
+    ],
   },
   {
     id: "access-control",
@@ -328,6 +333,12 @@ export const controllers = [
     name: "ReporteProductosMasVendidosHandler",
     module: "reportes",
     channels: ["reporte:productos-mas-vendidos"],
+  },
+  {
+    id: "sale-categories",
+    name: "VentasCategoriaHandler",
+    module: "ventas",
+    channels: ["venta:por-categoria"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

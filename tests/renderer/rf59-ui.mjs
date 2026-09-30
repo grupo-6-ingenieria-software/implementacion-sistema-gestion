@@ -11,7 +11,7 @@ import { authenticateWithExecutor } from "../../src/main/controllers/auth-login.
 import { authorizeRequest, guardChannel } from "../../src/main/controllers/auth-guard.ts";
 import { verifySessionToken, signSessionToken } from "../../src/main/controllers/auth-jwt.ts";
 import { registerAuditLog } from "../../src/main/controllers/auth-context.ts";
-import { changePasswordWithExecutor, resetPasswordWithExecutor, defaultDeps } from "../../src/main/controllers/password.ts";
+import { changePasswordWithExecutor, prepareResetWithExecutor, resetPasswordWithExecutor, defaultDeps } from "../../src/main/controllers/password.ts";
 import { validateAndRefreshActiveSession, closeSessionWithExecutor } from "../../src/main/controllers/session.ts";
 
 const OWNER = "12345678-9";
@@ -42,7 +42,14 @@ async function invoke(channel, payload) {
     audit: (event) => registerAuditLog(fixture.db, schema, event),
   });
   if (!guard.ok) return guard.response;
+  if (channel === "auth:preparar-restablecimiento") {
+    return prepareResetWithExecutor(fixture.db, schema, guard.payload, guard.context.claims.rol);
+  }
   if (channel === "auth:restablecer-password") {
+    if (state.resetFailure === "missing") {
+      return resetPasswordWithExecutor(fixture.db, schema, { ...guard.payload, usuarioObjetivoId: "99999999-9" },
+        passwordDeps, guard.context.claims.rol);
+    }
     if (state.resetFailure === "throw") throw new Error("IPC unavailable");
     if (state.resetFailure === "response") return { ok: false, error: { code: "DATABASE_ERROR", message: "Error al guardar la contraseña" } };
     if (state.resetDelay) await new Promise((resolve) => setTimeout(resolve, state.resetDelay));
@@ -114,8 +121,17 @@ try {
   await owner.getByText("Camila Rojas", { exact: true }).waitFor();
   await worker.getByText("Camila Rojas", { exact: true }).waitFor();
   const resetCount = () => requests.filter((row) => row.channel === "auth:restablecer-password").length;
+  const prepareCount = () => requests.filter((row) => row.channel === "auth:preparar-restablecimiento").length;
   await confirmReset(owner, false);
+  assert.equal(prepareCount(), 1);
   assert.equal(resetCount(), 0);
+
+  state.resetFailure = "missing";
+  await confirmReset(owner);
+  await owner.getByText("Usuario no encontrado.", { exact: true }).waitFor();
+  assert.equal(await owner.getByRole("dialog").count(), 0);
+  assert.equal(prepareCount(), 2);
+  assert.equal(resetCount(), 1);
 
   state.resetFailure = "response";
   await confirmReset(owner);
@@ -176,7 +192,7 @@ try {
   assert.equal((await worker.evaluate(() => window.appApi.invoke("producto:listar"))).ok, true);
   assert.equal(await worker.getByRole("button", { name: "Usuarios", exact: true }).count(), 0);
   assert.deepEqual(pageErrors, []);
-  console.log("PASS RF59 UI + SQLite: cancelación, errores y reintentos, clave mostrada una vez, revocación de JWT, cambio obligatorio, validaciones y login definitivo");
+  console.log("PASS RF59 UI + SQLite: cancelación, E1 usuario no encontrado, errores y reintentos, clave mostrada una vez, revocación de JWT, cambio obligatorio, validaciones y login definitivo");
 } finally {
   await browser?.close();
   await server.close();
