@@ -64,6 +64,7 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import {
   clearPendingSaleResume,
@@ -1038,6 +1039,10 @@ function ViewRenderer({
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
+    return <ReporteProductosVendidosView onNavigate={onNavigate} />;
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1170,6 +1175,7 @@ function getProductEditEan13(path: string): string | undefined {
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "monthly-sales",
+    "products-most-sold",
     "dashboard",
     "attendance",
     "cash-closing",

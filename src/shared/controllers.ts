@@ -340,6 +340,12 @@ export const controllers = [
     channels: ["reporte:ventas-mensuales"],
   },
   {
+    id: "products-most-sold",
+    name: "ReporteProductosMasVendidosHandler",
+    module: "reportes",
+    channels: ["reporte:productos-mas-vendidos"],
+  },
+  {
     id: "sale-categories",
     name: "VentasCategoriaHandler",
     module: "ventas",
