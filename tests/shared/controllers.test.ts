@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(52);
-    expect(new Set(ids)).toHaveProperty("size", 52);
+    expect(controllers).toHaveLength(53);
+    expect(new Set(ids)).toHaveProperty("size", 53);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -61,6 +61,7 @@ describe("controller registry", () => {
       "category-profitability",
       "absence",
       "attendance-monthly-summary",
+      "attendance-report",
     ]);
   });
 

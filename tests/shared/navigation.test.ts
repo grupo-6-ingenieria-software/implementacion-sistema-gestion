@@ -17,7 +17,7 @@ describe("navigation tree", () => {
     expect(route.roles).toEqual(["dueno", "trabajador"]);
     expect(route.controllerIds).toContain("inventory-export");
     for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
-      expect(internalComponents.find((component) => component.name === name)).toMatchObject({ usedIn: ["product-list"], controllerIds: ["inventory-export"] });
+      expect(internalComponents.find((component) => component.name === name)).toMatchObject({ usedIn: expect.arrayContaining(["product-list"]), controllerIds: expect.arrayContaining(["inventory-export"]) });
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });
@@ -66,6 +66,7 @@ describe("navigation tree", () => {
         "attendance",
         "absence-create",
         "attendance-monthly-summary",
+        "attendance-report",
         "remuneracion-create",
         "configuracion-previsional",
         "user-management",

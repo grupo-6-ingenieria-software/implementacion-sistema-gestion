@@ -18,6 +18,8 @@ import { formatDateTimeInSantiago, restockReportExportController, type HiddenPri
 import { createMonthlySalesExportHandler } from "./monthly-sales-export";
 import { CATEGORY_PROFITABILITY_REPORT_TYPE } from "../../shared/category-profitability";
 import { createCategoryProfitabilityExportHandler } from "./category-profitability-export";
+import { ATTENDANCE_REPORT_TYPE } from "../../shared/attendance-report";
+import { createAttendanceReportExportHandler } from "./attendance-report-export";
 import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
 import { createProductsMostSoldExportHandler } from "./products-most-sold-export";
 
@@ -205,6 +207,7 @@ export function createReportExportController(
   productsMostSold: ControllerHandler = createProductsMostSoldExportHandler(),
   daily: RegisteredController = dailySalesExportController,
   profitability: ControllerHandler = createCategoryProfitabilityExportHandler(),
+  attendance: ControllerHandler = createAttendanceReportExportHandler(),
 ): RegisteredController {
   const metadata = controllers.find((item) => item.id === "report-export")!;
   return {
@@ -223,6 +226,7 @@ export function createReportExportController(
       if (tipo === MONTHLY_SALES_REPORT_TYPE) return monthly(payload, context);
       if (tipo === PRODUCTS_MOST_SOLD_REPORT_TYPE) return productsMostSold(payload, context);
       if (tipo === CATEGORY_PROFITABILITY_REPORT_TYPE) return profitability(payload, context);
+      if (tipo === ATTENDANCE_REPORT_TYPE) return attendance(payload, context);
       return Promise.resolve(controllerError("VALIDATION_ERROR", "Tipo de reporte no válido.", metadata.id));
     },
   };
