@@ -12,6 +12,18 @@ import {
 } from "../../src/shared/navigation";
 
 describe("navigation tree", () => {
+  it("traces UI01 to its consumers without declaring a scanner route", () => {
+    const component = internalComponents.find((item) => item.id === "ean-input")!;
+    expect(component.usedIn).toEqual(expect.arrayContaining([
+      "product-list", "product-create", "product-edit", "product-delete",
+      "lot-create", "waste-create", "stock-adjustment", "movement-history",
+      "sale-register", "supplier-order-create",
+    ]));
+    for (const id of component.usedIn) {
+      expect(navigationTree.find((node) => node.id === id)?.controllerIds).toContain("ean-reader");
+    }
+    expect(navigationTree.some((node) => (node.id as string) === "ean-reader")).toBe(false);
+  });
   it("declares every route without structural errors", () => {
     expect(validateNavigationTree()).toEqual([]);
     expect(new Set(navigationTree.map((node) => node.id))).toEqual(
@@ -54,6 +66,10 @@ describe("navigation tree", () => {
         "inventory-valuation",
         "monthly-sales",
         "category-profitability",
+        "products-most-sold",
+        "reporte-mermas",
+        "reporte-lotes-vencer",
+        "reporte-movimientos",
       ]),
     );
   });
@@ -430,5 +446,116 @@ describe("navigation tree", () => {
         to: APP_HOME_PATH,
       });
     }
+  });
+
+  it("exposes V40 ReporteMermasView exclusively to the owner under Reportes", () => {
+    const route = navigationTree.find((node) => node.id === "reporte-mermas");
+    expect(route).toMatchObject({
+      viewName: "ReporteMermasView",
+      label: "Mermas",
+      path: "/app/reportes/mermas",
+      roles: ["dueno"],
+      group: "reportes",
+      showInMenu: true,
+      controllerIds: ["access-control", "waste-report", "audit"],
+    });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/mermas", {
+        isAuthenticated: true,
+        role: "dueno",
+      }),
+    ).toEqual({ status: "allow" });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/mermas", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({
+      status: "deny",
+      to: APP_HOME_PATH,
+    });
+
+    expect(getVisibleMenu("dueno").map((node) => node.id)).toContain("reporte-mermas");
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain("reporte-mermas");
+  });
+
+  it("exposes V41 ReporteLotesVencerView exclusively to the owner under Reportes", () => {
+    const route = navigationTree.find(
+      (node) => node.id === "reporte-lotes-vencer",
+    );
+    expect(route).toMatchObject({
+      viewName: "ReporteLotesVencerView",
+      label: "Lotes por vencer",
+      path: "/app/reportes/lotes-por-vencer",
+      roles: ["dueno"],
+      group: "reportes",
+      showInMenu: true,
+      controllerIds: ["access-control", "expiring-lots-report", "audit"],
+    });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/lotes-por-vencer", {
+        isAuthenticated: true,
+        role: "dueno",
+      }),
+    ).toEqual({ status: "allow" });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/lotes-por-vencer", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({
+      status: "deny",
+      to: APP_HOME_PATH,
+    });
+
+    expect(getVisibleMenu("dueno").map((node) => node.id)).toContain(
+      "reporte-lotes-vencer",
+    );
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "reporte-lotes-vencer",
+    );
+  });
+
+  it("exposes V44 ReporteMovimientosView exclusively to the owner under Reportes", () => {
+    const route = navigationTree.find(
+      (node) => node.id === "reporte-movimientos",
+    );
+    expect(route).toMatchObject({
+      viewName: "ReporteMovimientosView",
+      label: "Movimientos",
+      path: "/app/reportes/movimientos-inventario",
+      roles: ["dueno"],
+      group: "reportes",
+      showInMenu: true,
+      controllerIds: ["access-control", "movement-report", "audit"],
+    });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/movimientos-inventario", {
+        isAuthenticated: true,
+        role: "dueno",
+      }),
+    ).toEqual({ status: "allow" });
+
+    expect(
+      evaluateRouteAccess("/app/reportes/movimientos-inventario", {
+        isAuthenticated: true,
+        role: "trabajador",
+      }),
+    ).toMatchObject({
+      status: "deny",
+      to: APP_HOME_PATH,
+    });
+
+    expect(getVisibleMenu("dueno").map((node) => node.id)).toContain(
+      "reporte-movimientos",
+    );
+    expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain(
+      "reporte-movimientos",
+    );
   });
 });

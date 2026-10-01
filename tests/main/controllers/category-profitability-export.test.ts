@@ -31,10 +31,26 @@ function dependencies(overrides: Partial<ProfitabilityExportDependencies> = {}):
 }
 
 describe("CU51 exportación C61 UI06 UI07", () => {
+  it("routes CU47, CU48, CU51 and legacy exports to their own handlers", async () => {
+    const monthly = vi.fn(async () => ({ ok: true as const, data: "monthly" }));
+    const products = vi.fn(async () => ({ ok: true as const, data: "products" }));
+    const profitability = vi.fn(async () => ({ ok: true as const, data: "profitability" }));
+    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
+    const controller = createReportExportController(monthly, legacy, products, profitability);
+    for (const channel of ["reporte:exportar-pdf", "reporte:exportar-xlsx"]) {
+      const ctx = { ...context, channel };
+      expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "monthly" });
+      expect(await controller.handle({ tipo: "productos-mas-vendidos" }, ctx)).toMatchObject({ data: "products" });
+      expect(await controller.handle(request, ctx)).toMatchObject({ data: "profitability" });
+      expect(await controller.handle({}, ctx)).toMatchObject({ data: "legacy" });
+    }
+    for (const handler of [monthly, products, profitability, legacy.handle]) expect(handler).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["pdf", "xlsx"] as const)("recalculates %s in Main instead of trusting rows or identity from the renderer", async (format) => {
     const deps = dependencies();
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
-    const controller = createReportExportController(undefined, undefined, createCategoryProfitabilityExportHandler(deps));
+    const controller = createReportExportController(undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
     const audit = vi.fn();
     const result = await handleWithAudit(controller, { ...request, categorias: [], usuario: "Fake", ruta: "Fake" }, ctx, audit);
     expect(deps.load).toHaveBeenCalledExactlyOnceWith(report.periodo, ctx);
@@ -55,7 +71,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     for (const fail of [false, true]) {
       const deps = dependencies(fail ? { save: vi.fn(async () => { throw new Error("Disk full"); }) } : { showSaveDialog: async () => ({ canceled: true }) });
       const audit = vi.fn();
-      const controller = createReportExportController(undefined, undefined, createCategoryProfitabilityExportHandler(deps));
+      const controller = createReportExportController(undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
       const result = await handleWithAudit(controller, request, context, audit);
       expect(audit).not.toHaveBeenCalled();
       if (fail) expect(result).toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });

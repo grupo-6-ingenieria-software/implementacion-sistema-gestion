@@ -7,6 +7,7 @@ import { controllerError, type ControllerContext, type RegisteredController } fr
 export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
   "reporte:ventas-mensuales",
   "reporte:rentabilidad-categoria",
+  "reporte:productos-mas-vendidos",
   "dashboard:cargar", "dashboard:alertas-stock", "dashboard:alertas-vencimiento",
   "dashboard:total-ventas-dia", "producto:listar", "producto:buscar-activo",
   "producto:estado", "producto:buscar", "producto:detalle-lotes", "lote:proveedores",

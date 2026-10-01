@@ -65,7 +65,11 @@ import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ReporteRentabilidadView } from "./views/ReporteRentabilidadView";
+import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
+import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -1043,6 +1047,37 @@ function ViewRenderer({
     return <ReporteRentabilidadView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
+    return <ReporteProductosVendidosView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-lotes-vencer" && session.usuarioId) {
+    return (
+      <ReporteLotesVencerView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1176,6 +1211,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "category-profitability",
     "monthly-sales",
+    "products-most-sold",
     "dashboard",
     "attendance",
     "cash-closing",
@@ -1209,6 +1245,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
+    "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

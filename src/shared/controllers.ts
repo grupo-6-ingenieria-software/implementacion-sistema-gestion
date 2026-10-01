@@ -1,4 +1,15 @@
 import type { ControllerId } from "./navigation";
+import type { ProductDetailResponse } from "./products";
+
+export type EanCaptureMode = "validar" | "buscar-producto";
+export type EanModule = "inventario" | "ventas" | "proveedores";
+export type EanCapturePayload = { value: string; mode?: EanCaptureMode };
+export type EanCaptureResponse = {
+  ean13: string;
+  producto?: ProductDetailResponse["product"];
+};
+export type EanFailurePayload = { modulo: EanModule };
+export type EanFailureResponse = { registrado: true };
 
 export type ControllerModule =
   | "auth"
@@ -10,7 +21,8 @@ export type ControllerModule =
   | "personal"
   | "reportes"
   | "administracion"
-  | "lector-ean";
+  | "lector-ean"
+  | "reportes";
 
 export type ControllerMetadata = {
   id: ControllerId;
@@ -215,7 +227,7 @@ export const controllers = [
     id: "ean-reader",
     name: "LectorEANHandler",
     module: "lector-ean",
-    channels: ["ean:validar-captura"],
+    channels: ["ean:validar-captura", "ean:registrar-fallo"],
   },
   {
     id: "user-management",
@@ -329,10 +341,34 @@ export const controllers = [
     channels: ["reporte:ventas-mensuales"],
   },
   {
+    id: "products-most-sold",
+    name: "ReporteProductosMasVendidosHandler",
+    module: "reportes",
+    channels: ["reporte:productos-mas-vendidos"],
+  },
+  {
     id: "sale-categories",
     name: "VentasCategoriaHandler",
     module: "ventas",
     channels: ["venta:por-categoria"],
+  },
+  {
+    id: "waste-report",
+    name: "ReporteMermasHandler",
+    module: "reportes",
+    channels: ["reporte:mermas"],
+  },
+  {
+    id: "expiring-lots-report",
+    name: "ReporteLotesVencerHandler",
+    module: "reportes",
+    channels: ["reporte:lotes-por-vencer"],
+  },
+  {
+    id: "movement-report",
+    name: "ReporteMovimientosHandler",
+    module: "reportes",
+    channels: ["reporte:movimientos-inventario"],
   },
   {
     id: "category-profitability",
