@@ -66,6 +66,9 @@ import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
+import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -1043,6 +1046,33 @@ function ViewRenderer({
     return <ReporteProductosVendidosView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-lotes-vencer" && session.usuarioId) {
+    return (
+      <ReporteLotesVencerView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1209,6 +1239,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
+    "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

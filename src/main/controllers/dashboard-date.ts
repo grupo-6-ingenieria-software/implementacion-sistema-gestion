@@ -46,7 +46,7 @@ export function differenceInCalendarDays(
   );
 }
 
-function addCalendarDays(dateKey: string, days: number): string {
+export function addCalendarDays(dateKey: string, days: number): string {
   const date = new Date(`${dateKey}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);

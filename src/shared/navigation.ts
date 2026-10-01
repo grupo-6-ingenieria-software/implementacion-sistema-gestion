@@ -53,6 +53,9 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "waste-report"
+  | "expiring-lots-report"
+  | "movement-report"
   | "monthly-sales"
   | "products-most-sold";
 
@@ -587,6 +590,39 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Productos más vendidos.",
     controllerIds: ["access-control", "session", "products-most-sold", "audit"],
   },
+  {
+    id: "reporte-mermas",
+    viewName: "ReporteMermasView",
+    label: "Mermas",
+    path: "/app/reportes/mermas",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Mermas.",
+    controllerIds: ["access-control", "waste-report", "audit"],
+  },
+  {
+    id: "reporte-lotes-vencer",
+    viewName: "ReporteLotesVencerView",
+    label: "Lotes por vencer",
+    path: "/app/reportes/lotes-por-vencer",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Lotes proximos a vencer.",
+    controllerIds: ["access-control", "expiring-lots-report", "audit"],
+  },
+  {
+    id: "reporte-movimientos",
+    viewName: "ReporteMovimientosView",
+    label: "Movimientos",
+    path: "/app/reportes/movimientos-inventario",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Movimientos de inventario.",
+    controllerIds: ["access-control", "movement-report", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -629,6 +665,24 @@ export const internalComponents = [
     id: "restock-print-view",
     name: "ListaReabastecimientoPrintView",
     usedIn: ["restock-list"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "waste-report-print-view",
+    name: "ReporteMermasPrintView",
+    usedIn: ["reporte-mermas"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "expiring-lots-report-print-view",
+    name: "ReporteLotesVencerPrintView",
+    usedIn: ["reporte-lotes-vencer"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "movement-report-print-view",
+    name: "ReporteMovimientosPrintView",
+    usedIn: ["reporte-movimientos"],
     controllerIds: ["restock-report-export"],
   },
 ] as const;
@@ -797,6 +851,7 @@ export function validateNavigationTree(): string[] {
     "configuracion-previsional",
     "user-management",
     "audit-log",
+    "reporte-mermas",
   ]);
 
   for (const node of navigationTree) {

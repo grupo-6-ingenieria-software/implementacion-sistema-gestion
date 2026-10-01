@@ -21,7 +21,8 @@ export type ControllerModule =
   | "personal"
   | "reportes"
   | "administracion"
-  | "lector-ean";
+  | "lector-ean"
+  | "reportes";
 
 export type ControllerMetadata = {
   id: ControllerId;
@@ -350,6 +351,24 @@ export const controllers = [
     name: "VentasCategoriaHandler",
     module: "ventas",
     channels: ["venta:por-categoria"],
+  },
+  {
+    id: "waste-report",
+    name: "ReporteMermasHandler",
+    module: "reportes",
+    channels: ["reporte:mermas"],
+  },
+  {
+    id: "expiring-lots-report",
+    name: "ReporteLotesVencerHandler",
+    module: "reportes",
+    channels: ["reporte:lotes-por-vencer"],
+  },
+  {
+    id: "movement-report",
+    name: "ReporteMovimientosHandler",
+    module: "reportes",
+    channels: ["reporte:movimientos-inventario"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 
