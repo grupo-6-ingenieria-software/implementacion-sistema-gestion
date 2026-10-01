@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(46);
-    expect(new Set(ids)).toHaveProperty("size", 46);
+    expect(controllers).toHaveLength(48);
+    expect(new Set(ids)).toHaveProperty("size", 48);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,6 +49,8 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "daily-sales-report",
+      "report-export",
       "monthly-sales",
       "products-most-sold",
       "sale-categories",
@@ -69,6 +71,7 @@ describe("controller registry", () => {
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+    expect(new Set(ipcChannels.map((item) => item.channel)).size).toBe(ipcChannels.length);
   });
 
   it("appends the CU13 supplier controller without changing prior indices", () => {
@@ -99,7 +102,7 @@ describe("controller registry", () => {
       {
         id: "restock-report-export",
         name: "ExportacionReporteHandler",
-        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+        channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
       },
     ]);
   });

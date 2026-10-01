@@ -1,5 +1,6 @@
 import type { ControllerResponse } from "../../shared/controllers";
-import { isReportExportRequest } from "../../shared/monthly-sales";
+import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
+import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
 import { controllerError, type ControllerContext, type RegisteredController } from "./base";
 
 // Las mutaciones y la consulta del propio log ya se auditan en sus servicios.
@@ -18,6 +19,7 @@ export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
   "configuracion:previsional-obtener", "pedido:listar", "pedido:detalle",
   "proveedor:categorias", "proveedor:listar", "proveedor:buscar-existente",
   "inventario:lista-reabastecimiento", "inventario:valorizacion",
+  "reporte:ventas-diarias",
 ]);
 
 export type DispatchAuditEvent = {
@@ -37,15 +39,20 @@ export async function handleWithAudit(
   if (!response.ok || !context.claims) return response;
 
   const isQuery = AUDITED_QUERY_CHANNELS.has(context.channel);
-  const isExport = context.channel === "reporte:exportar-pdf" ||
-    context.channel === "reporte:exportar-xlsx";
+  const isInventoryExport = context.channel === "inventario:reabastecimiento:exportar-pdf" ||
+    context.channel === "inventario:reabastecimiento:exportar-xlsx";
+  const reportType = (payload as { tipo?: unknown } | null)?.tipo;
+  const isSalesExport = (context.channel === "reporte:exportar-pdf" ||
+    context.channel === "reporte:exportar-xlsx") &&
+    (reportType === MONTHLY_SALES_REPORT_TYPE || reportType === PRODUCTS_MOST_SOLD_REPORT_TYPE);
+  const isExport = isInventoryExport || isSalesExport;
   // Cerrar el diálogo sin guardar no es una exportación realizada.
   if (!isQuery && !(isExport && response.data?.estado === "saved")) return response;
 
   try {
     await audit({
       descripcion: `${isQuery ? "Consulta" : "Exportación"} realizada mediante ${context.channel}.`,
-      modulo: isReportExportRequest(context.channel, payload) ? "reportes" : controller.metadata.module,
+      modulo: controller.metadata.module,
       tipoAccion: isQuery ? "consulta" : "exportacion",
       usuarioId: context.claims.usuarioId,
     });

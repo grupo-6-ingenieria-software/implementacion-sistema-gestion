@@ -61,12 +61,12 @@ describe("CU47 monthly export and CU54 compatibility", () => {
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "exportacion", modulo: "reportes", usuarioId: "owner" }));
   });
 
-  it("preserves legacy exports and never falls back for unknown report types", async () => {
-    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
-    const controller = createReportExportController(createMonthlySalesExportHandler(dependencies()), legacy);
-    expect(await controller.handle({ usuarioId: "worker" }, context)).toEqual({ ok: true, data: "legacy" });
+  it("dispatches daily exports separately and rejects unknown report types", async () => {
+    const daily = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
+    const controller = createReportExportController(createMonthlySalesExportHandler(dependencies()), undefined, undefined, daily);
+    expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, context)).toEqual({ ok: true, data: "daily" });
     expect(await controller.handle({ tipo: "unknown" }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
-    expect(legacy.handle).toHaveBeenCalledTimes(1);
+    expect(daily.handle).toHaveBeenCalledTimes(1);
   });
 
   it("rejects workers before looking up data", async () => {

@@ -26,7 +26,7 @@ try {
     } };
   });
   await page.goto(`${server.resolvedUrls.local[0]}tests/renderer/cu47-harness.html`);
-  await page.getByLabel("Mes", { exact: true }).selectOption("9");
+  await page.locator("select").first().selectOption("9");
   await page.getByLabel("Año", { exact: true }).fill("2026");
   assert.equal(await page.getByRole("button", { name: "Exportar PDF" }).count(), 0);
   await page.getByRole("button", { name: "Generar reporte" }).click();
@@ -43,7 +43,7 @@ try {
   await page.evaluate(() => { window.mode = "cancelled"; });
   await page.getByRole("button", { name: "Exportar PDF" }).click();
   await page.getByText("Exportación cancelada.", { exact: true }).waitFor();
-  await page.getByLabel("Mes", { exact: true }).selectOption("2");
+  await page.locator("select").first().selectOption("2");
   assert.equal(await page.getByRole("button", { name: "Exportar PDF" }).count(), 0);
   await page.evaluate(() => { window.mode = "empty"; });
   await page.getByRole("button", { name: "Generar reporte" }).click();

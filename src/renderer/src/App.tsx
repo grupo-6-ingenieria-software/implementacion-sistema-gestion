@@ -66,6 +66,7 @@ import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
 import { ReporteMermasView } from "./views/ReporteMermasView";
 import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
 import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
@@ -942,6 +943,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "daily-sales-report" && session.role === "dueno") {
+    return <ReporteDiarioVentasView />;
+  }
+
   if (node.id === "sales-query" && session.usuarioId) {
     return (
       <ConsultaVentasView
@@ -1205,6 +1210,7 @@ function getProductEditEan13(path: string): string | undefined {
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "monthly-sales",
+    "daily-sales-report",
     "products-most-sold",
     "dashboard",
     "attendance",

@@ -53,6 +53,8 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "daily-sales-report"
+  | "report-export"
   | "waste-report"
   | "expiring-lots-report"
   | "movement-report"
@@ -546,6 +548,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "configuracion-previsional", "audit"],
   },
   {
+    id: "daily-sales-report",
+    viewName: "ReporteDiarioVentasView",
+    label: "Ventas diarias",
+    path: "/app/reportes/ventas-diarias",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas diarias.",
+    controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -666,6 +679,18 @@ export const internalComponents = [
     name: "ListaReabastecimientoPrintView",
     usedIn: ["restock-list"],
     controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "daily-report-export",
+    name: "AccionExportarFormato",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "daily-report-print-view",
+    name: "ReporteVentasDiariasPrintView",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
   },
   {
     id: "waste-report-print-view",
@@ -815,6 +840,7 @@ export function validateNavigationTree(): string[] {
   const requiredRouteIds = new Set([
     "products-most-sold",
     "monthly-sales",
+    "daily-sales-report",
     "login",
     "password-change",
     "dashboard",

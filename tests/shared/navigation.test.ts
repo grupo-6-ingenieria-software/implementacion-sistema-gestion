@@ -64,6 +64,7 @@ describe("navigation tree", () => {
         "movement-history",
         "restock-list",
         "inventory-valuation",
+        "daily-sales-report",
         "monthly-sales",
         "products-most-sold",
         "reporte-mermas",
@@ -116,6 +117,18 @@ describe("navigation tree", () => {
         }),
       ).toEqual({ status: "allow" });
     }
+  });
+
+  it("expone V37 solo al Dueño, incluso por ruta directa", () => {
+    const path = "/app/reportes/ventas-diarias";
+    expect(navigationTree.find((node) => node.path === path)).toMatchObject({
+      id: "daily-sales-report", roles: ["dueno"], group: "reportes", showInMenu: true,
+      controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+    });
+    expect(getVisibleMenu("dueno").map((node) => node.path)).toContain(path);
+    expect(getVisibleMenu("trabajador").map((node) => node.path)).not.toContain(path);
+    expect(evaluateRouteAccess(path, { isAuthenticated: true, role: "dueno" })).toEqual({ status: "allow" });
+    expect(evaluateRouteAccess(path, { isAuthenticated: true, role: "trabajador" }).status).toBe("deny");
   });
 
   it("delegates the audit log denial to Main for CU58-E1", () => {
@@ -558,4 +571,3 @@ describe("navigation tree", () => {
     );
   });
 });
-
