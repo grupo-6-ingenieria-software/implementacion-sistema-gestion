@@ -41,6 +41,7 @@ import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
 import { ResumenMensualAsistenciaView } from "./views/ResumenMensualAsistenciaView";
+import { ReporteAsistenciaView } from "./views/ReporteAsistenciaView";
 import { getMonthlyAttendanceInitialRut } from "../../shared/monthly-attendance";
 import { RegistrarAusenciaView } from "./views/RegistrarAusenciaView";
 import { getAbsenceInitialRut, type AbsenceResult } from "../../shared/absence";
@@ -1072,6 +1073,10 @@ function ViewRenderer({
     return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === "attendance-report" && session.usuarioId && session.role === "dueno") {
+    return <ReporteAsistenciaView key={`${session.usuarioId}:${currentPath}`} onNavigate={onNavigate} />;
+  }
+
   if (node.id === "monthly-sales" && session.usuarioId && session.role === "dueno") {
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
   }
@@ -1250,6 +1255,7 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "attendance-report",
     "category-profitability",
     "monthly-sales",
     "daily-sales-report",

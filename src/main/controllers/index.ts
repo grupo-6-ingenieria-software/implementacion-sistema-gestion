@@ -10,6 +10,7 @@ import { accessControlController } from "./access-control";
 import { attendanceController } from "./attendance";
 import { absenceController } from "./absence";
 import { monthlyAttendanceController } from "./monthly-attendance";
+import { attendanceReportController } from "./attendance-report";
 import { auditController } from "./audit";
 import { authLoginController } from "./auth-login";
 import { cashCheckController } from "./cash-check";
@@ -132,6 +133,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     categoryProfitabilityController,
     absenceController,
     monthlyAttendanceController,
+    attendanceReportController,
   ];
 
 /**

@@ -39,6 +39,7 @@ export type ControllerId =
   | "shift"
   | "attendance"
   | "attendance-monthly-summary"
+  | "attendance-report"
   | "absence"
   | "ean-reader"
   | "sale-annulment"
@@ -673,20 +674,31 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Rentabilidad por categoría.",
     controllerIds: ["access-control", "session", "category-profitability", "audit"],
   },
+  {
+    id: "attendance-report",
+    viewName: "ReporteAsistenciaView",
+    label: "Asistencia del personal",
+    path: "/app/reportes/asistencia-personal",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Asistencia del personal.",
+    controllerIds: ["access-control", "session", "attendance-report", "report-export", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
   {
     id: "export-format-action",
     name: "AccionExportarFormato",
-    usedIn: ["product-list"],
-    controllerIds: ["inventory-export"],
+    usedIn: ["product-list", "attendance-report"],
+    controllerIds: ["inventory-export", "report-export"],
   },
   {
     id: "report-print-view",
     name: "ReportePrintView",
-    usedIn: ["product-list"],
-    controllerIds: ["inventory-export"],
+    usedIn: ["product-list", "attendance-report"],
+    controllerIds: ["inventory-export", "report-export"],
   },
   {
     id: "sale-discount-modal",
@@ -887,6 +899,7 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "attendance-report",
     "category-profitability",
     "products-most-sold",
     "monthly-sales",
