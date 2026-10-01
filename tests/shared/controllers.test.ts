@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(47);
-    expect(new Set(ids)).toHaveProperty("size", 47);
+    expect(controllers).toHaveLength(50);
+    expect(new Set(ids)).toHaveProperty("size", 50);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,9 +49,12 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "daily-sales-report",
+      "report-export",
       "monthly-sales",
       "products-most-sold",
       "sale-categories",
+      "inventory-export",
       "waste-report",
       "expiring-lots-report",
       "movement-report",
@@ -65,11 +68,20 @@ describe("controller registry", () => {
     ).toEqual(controllers.map((controller) => controller.id));
   });
 
+  it("appends C50 without reusing C33 channels", () => {
+    expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
+      id: "inventory-export", name: "ExportacionInventarioHandler",
+      channels: ["inventario:exportar-productos"],
+    });
+    expect(new Set(ipcChannels.map(({ channel }) => channel)).size).toBe(ipcChannels.length);
+  });
+
   it("assigns at least one IPC channel to every controller", () => {
     expect(ipcChannels.length).toBeGreaterThanOrEqual(37);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+    expect(new Set(ipcChannels.map((item) => item.channel)).size).toBe(ipcChannels.length);
   });
 
   it("appends the CU13 supplier controller without changing prior indices", () => {
@@ -100,7 +112,7 @@ describe("controller registry", () => {
       {
         id: "restock-report-export",
         name: "ExportacionReporteHandler",
-        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+        channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
       },
     ]);
   });
@@ -114,7 +126,7 @@ describe("controller registry", () => {
   });
 
   it("registers the CU45 query after inherited controllers", () => {
-    expect(controllers.find((c) => c.id === "sale-categories")).toMatchObject({
+    expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
       id: "sale-categories",
       name: "VentasCategoriaHandler",
       channels: ["venta:por-categoria"],

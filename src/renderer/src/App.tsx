@@ -67,6 +67,7 @@ import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
 import { ReporteRentabilidadView } from "./views/ReporteRentabilidadView";
 import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
 import { ReporteMermasView } from "./views/ReporteMermasView";
 import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
 import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
@@ -943,6 +944,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "daily-sales-report" && session.role === "dueno") {
+    return <ReporteDiarioVentasView />;
+  }
+
   if (node.id === "sales-query" && session.usuarioId) {
     return (
       <ConsultaVentasView
@@ -1211,6 +1216,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "category-profitability",
     "monthly-sales",
+    "daily-sales-report",
     "products-most-sold",
     "dashboard",
     "attendance",

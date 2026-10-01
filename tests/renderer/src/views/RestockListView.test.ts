@@ -33,8 +33,8 @@ describe("CU16 restock renderer helpers", () => {
   });
 
   it.each([
-    ["pdf", "reporte:exportar-pdf"],
-    ["xlsx", "reporte:exportar-xlsx"],
+    ["pdf", "inventario:reabastecimiento:exportar-pdf"],
+    ["xlsx", "inventario:reabastecimiento:exportar-xlsx"],
   ] as const)("exports %s without sending rows, paths or headers", async (format, channel) => {
     const data = {
       formato: format,

@@ -110,7 +110,7 @@ describe("RF47 CU47 CP54", () => {
       expect(result.ok).toBe(false);
     }
     expect(audit).toHaveBeenCalledTimes(3);
-    expect((await guardChannel("reporte:exportar-pdf", {}, deps)).ok).toBe(true);
+    expect((await guardChannel("inventario:reabastecimiento:exportar-pdf", {}, deps)).ok).toBe(true);
   });
 
   it("rejects revoked sessions before loading the report", async () => {

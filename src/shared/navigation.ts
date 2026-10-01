@@ -53,6 +53,9 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "inventory-export"
+  | "daily-sales-report"
+  | "report-export"
   | "waste-report"
   | "expiring-lots-report"
   | "movement-report"
@@ -152,7 +155,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query", "ean-reader"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "inventory-export"],
   },
   {
     id: "product-create",
@@ -547,6 +550,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "configuracion-previsional", "audit"],
   },
   {
+    id: "daily-sales-report",
+    viewName: "ReporteDiarioVentasView",
+    label: "Ventas diarias",
+    path: "/app/reportes/ventas-diarias",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas diarias.",
+    controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -639,6 +653,18 @@ export const navigationTree = [
 
 export const internalComponents = [
   {
+    id: "export-format-action",
+    name: "AccionExportarFormato",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
+  {
+    id: "report-print-view",
+    name: "ReportePrintView",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
+  {
     id: "sale-discount-modal",
     name: "DescuentoVentaModal",
     usedIn: ["sale-register"],
@@ -678,6 +704,18 @@ export const internalComponents = [
     name: "ListaReabastecimientoPrintView",
     usedIn: ["restock-list"],
     controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "daily-report-export",
+    name: "AccionExportarFormato",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "daily-report-print-view",
+    name: "ReporteVentasDiariasPrintView",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
   },
   {
     id: "waste-report-print-view",
@@ -828,6 +866,7 @@ export function validateNavigationTree(): string[] {
     "category-profitability",
     "products-most-sold",
     "monthly-sales",
+    "daily-sales-report",
     "login",
     "password-change",
     "dashboard",

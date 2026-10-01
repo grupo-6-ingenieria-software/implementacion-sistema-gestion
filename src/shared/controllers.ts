@@ -326,13 +326,25 @@ export const controllers = [
     id: "restock-report-export",
     name: "ExportacionReporteHandler",
     module: "inventario",
-    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+    channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
   },
   {
     id: "inventory-valuation",
     name: "ValorizacionHandler",
     module: "inventario",
     channels: ["inventario:valorizacion"],
+  },
+  {
+    id: "daily-sales-report",
+    name: "ReporteVentasDiariasHandler",
+    module: "reportes",
+    channels: ["reporte:ventas-diarias"],
+  },
+  {
+    id: "report-export",
+    name: "ExportacionReportesHandler",
+    module: "reportes",
+    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
   },
   {
     id: "monthly-sales",
@@ -351,6 +363,12 @@ export const controllers = [
     name: "VentasCategoriaHandler",
     module: "ventas",
     channels: ["venta:por-categoria"],
+  },
+  {
+    id: "inventory-export",
+    name: "ExportacionInventarioHandler",
+    module: "inventario",
+    channels: ["inventario:exportar-productos"],
   },
   {
     id: "waste-report",

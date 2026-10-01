@@ -12,6 +12,15 @@ import {
 } from "../../src/shared/navigation";
 
 describe("navigation tree", () => {
+  it("registers CU20 for both V06 roles and keeps UI06/UI07 internal", () => {
+    const route = navigationTree.find((node) => node.id === "product-list")!;
+    expect(route.roles).toEqual(["dueno", "trabajador"]);
+    expect(route.controllerIds).toContain("inventory-export");
+    for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
+      expect(internalComponents.find((component) => component.name === name)).toMatchObject({ usedIn: ["product-list"], controllerIds: ["inventory-export"] });
+      expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
+    }
+  });
   it("traces UI01 to its consumers without declaring a scanner route", () => {
     const component = internalComponents.find((item) => item.id === "ean-input")!;
     expect(component.usedIn).toEqual(expect.arrayContaining([
@@ -64,6 +73,7 @@ describe("navigation tree", () => {
         "movement-history",
         "restock-list",
         "inventory-valuation",
+        "daily-sales-report",
         "monthly-sales",
         "category-profitability",
         "products-most-sold",
@@ -117,6 +127,18 @@ describe("navigation tree", () => {
         }),
       ).toEqual({ status: "allow" });
     }
+  });
+
+  it("expone V37 solo al Dueño, incluso por ruta directa", () => {
+    const path = "/app/reportes/ventas-diarias";
+    expect(navigationTree.find((node) => node.path === path)).toMatchObject({
+      id: "daily-sales-report", roles: ["dueno"], group: "reportes", showInMenu: true,
+      controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+    });
+    expect(getVisibleMenu("dueno").map((node) => node.path)).toContain(path);
+    expect(getVisibleMenu("trabajador").map((node) => node.path)).not.toContain(path);
+    expect(evaluateRouteAccess(path, { isAuthenticated: true, role: "dueno" })).toEqual({ status: "allow" });
+    expect(evaluateRouteAccess(path, { isAuthenticated: true, role: "trabajador" }).status).toBe("deny");
   });
 
   it("delegates the audit log denial to Main for CU58-E1", () => {
