@@ -36,6 +36,7 @@ export function ProductListView({
   const [categories, setCategories] = useState<ProductCategoryOption[]>([]);
   const [textSearch, setTextSearch] = useState("");
   const [eanSearch, setEanSearch] = useState("");
+  const [appliedEanSearch, setAppliedEanSearch] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [sortBy, setSortBy] = useState<ProductSortBy>(
     defaultProductListFilters.sortBy,
@@ -50,13 +51,13 @@ export function ProductListView({
   const payload = useMemo(
     () => ({
       usuarioId,
-      search: eanSearch.trim() || textSearch.trim(),
+      search: appliedEanSearch || textSearch.trim(),
       estado: "activo",
       categoriaId: categoriaId ? Number(categoriaId) : undefined,
       sortBy,
       sortDirection,
     }),
-    [categoriaId, eanSearch, sortBy, sortDirection, textSearch, usuarioId],
+    [categoriaId, appliedEanSearch, sortBy, sortDirection, textSearch, usuarioId],
   );
 
   useEffect(() => {
@@ -131,7 +132,14 @@ export function ProductListView({
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Buscar por EAN-13
-            <CampoEAN13Input value={eanSearch} onChange={setEanSearch} />
+            <CampoEAN13Input
+              value={eanSearch}
+              onChange={(value) => {
+                setEanSearch(value);
+                if (!value) setAppliedEanSearch("");
+              }}
+              onValidSubmit={setAppliedEanSearch}
+            />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Categoria

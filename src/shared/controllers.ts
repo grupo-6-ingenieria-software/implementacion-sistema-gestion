@@ -1,4 +1,15 @@
 import type { ControllerId } from "./navigation";
+import type { ProductDetailResponse } from "./products";
+
+export type EanCaptureMode = "validar" | "buscar-producto";
+export type EanModule = "inventario" | "ventas" | "proveedores";
+export type EanCapturePayload = { value: string; mode?: EanCaptureMode };
+export type EanCaptureResponse = {
+  ean13: string;
+  producto?: ProductDetailResponse["product"];
+};
+export type EanFailurePayload = { modulo: EanModule };
+export type EanFailureResponse = { registrado: true };
 
 export type ControllerModule =
   | "auth"
@@ -215,7 +226,7 @@ export const controllers = [
     id: "ean-reader",
     name: "LectorEANHandler",
     module: "lector-ean",
-    channels: ["ean:validar-captura"],
+    channels: ["ean:validar-captura", "ean:registrar-fallo"],
   },
   {
     id: "user-management",

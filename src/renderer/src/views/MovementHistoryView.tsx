@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
+import { CampoEAN13Input } from "../components/CampoEAN13Input";
 import type { Role } from "../../../shared/navigation";
 import {
   movementTypeLabels,
@@ -23,6 +24,7 @@ export function MovementHistoryView({
   initialEan13,
 }: Props): ReactElement {
   const [ean13, setEan13] = useState(initialEan13 ?? "");
+  const [appliedEan13, setAppliedEan13] = useState(initialEan13 ?? "");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [tipo, setTipo] = useState<MovementType | "">("");
@@ -37,7 +39,7 @@ export function MovementHistoryView({
 
     void window.appApi
       .invoke<MovementHistoryResponse>("movimiento:historial", {
-        ean13: ean13 || undefined,
+        ean13: appliedEan13 || undefined,
         fechaDesde: fechaDesde || undefined,
         fechaHasta: fechaHasta || undefined,
         tipo: tipo || undefined,
@@ -64,7 +66,7 @@ export function MovementHistoryView({
     fetchMovements(1);
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ean13, fechaDesde, fechaHasta, tipo, usuarioId]);
+  }, [appliedEan13, fechaDesde, fechaHasta, tipo, usuarioId]);
 
   const handlePageChange = (newPage: number): void => {
     setPage(newPage);
@@ -81,12 +83,13 @@ export function MovementHistoryView({
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="grid gap-1 text-sm font-semibold text-[#24313d]">
             Producto (EAN-13)
-            <input
-              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
-              maxLength={13}
-              placeholder="EAN-13"
+            <CampoEAN13Input
               value={ean13}
-              onChange={(e) => setEan13(e.target.value)}
+              onChange={(value) => {
+                setEan13(value);
+                if (!value) setAppliedEan13("");
+              }}
+              onValidSubmit={setAppliedEan13}
             />
           </label>
 
