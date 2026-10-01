@@ -38,6 +38,7 @@ export type ControllerId =
   | "worker"
   | "shift"
   | "attendance"
+  | "absence"
   | "ean-reader"
   | "sale-annulment"
   | "product-detail"
@@ -53,8 +54,15 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "inventory-export"
+  | "daily-sales-report"
+  | "report-export"
+  | "waste-report"
+  | "expiring-lots-report"
+  | "movement-report"
   | "monthly-sales"
-  | "inventory-export";
+  | "products-most-sold"
+  | "category-profitability";
 
 export type NavNode = {
   id: string;
@@ -148,7 +156,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query", "inventory-export"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "inventory-export"],
   },
   {
     id: "product-create",
@@ -260,7 +268,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Ajuste de inventario.",
-    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit"],
+    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit", "ean-reader"],
   },
   {
     id: "movement-history",
@@ -271,7 +279,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
-    controllerIds: ["access-control", "movement-history"],
+    controllerIds: ["access-control", "movement-history", "ean-reader"],
   },
   {
     id: "restock-list",
@@ -516,6 +524,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "attendance", "audit"],
   },
   {
+    id: "absence-create",
+    viewName: "RegistrarAusenciaView",
+    label: "Registrar ausencia",
+    path: "/app/personal/ausencias/nueva",
+    roles: ["dueno"],
+    group: "personal",
+    showInMenu: true,
+    entryFrom: "Personal; acción por trabajador activo desde Trabajadores (V15).",
+    controllerIds: ["access-control", "absence", "worker", "audit"],
+  },
+  {
     id: "remuneracion-create",
     viewName: "RegistrarRemuneracionView",
     label: "Remuneraciones",
@@ -541,6 +560,17 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Personal > Configuracion previsional.",
     controllerIds: ["access-control", "configuracion-previsional", "audit"],
+  },
+  {
+    id: "daily-sales-report",
+    viewName: "ReporteDiarioVentasView",
+    label: "Ventas diarias",
+    path: "/app/reportes/ventas-diarias",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas diarias.",
+    controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
   },
   {
     id: "user-management",
@@ -576,6 +606,61 @@ export const navigationTree = [
     entryFrom: "Menu Reportes > Ventas mensuales.",
     controllerIds: ["access-control", "session", "monthly-sales", "audit", "restock-report-export"],
   },
+  {
+    id: "products-most-sold",
+    viewName: "ReporteProductosVendidosView",
+    label: "Productos más vendidos",
+    path: "/app/reportes/mas-vendidos",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Productos más vendidos.",
+    controllerIds: ["access-control", "session", "products-most-sold", "audit"],
+  },
+  {
+    id: "reporte-mermas",
+    viewName: "ReporteMermasView",
+    label: "Mermas",
+    path: "/app/reportes/mermas",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Mermas.",
+    controllerIds: ["access-control", "waste-report", "audit"],
+  },
+  {
+    id: "reporte-lotes-vencer",
+    viewName: "ReporteLotesVencerView",
+    label: "Lotes por vencer",
+    path: "/app/reportes/lotes-por-vencer",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Lotes proximos a vencer.",
+    controllerIds: ["access-control", "expiring-lots-report", "audit"],
+  },
+  {
+    id: "reporte-movimientos",
+    viewName: "ReporteMovimientosView",
+    label: "Movimientos",
+    path: "/app/reportes/movimientos-inventario",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Movimientos de inventario.",
+    controllerIds: ["access-control", "movement-report", "audit"],
+  },
+  {
+    id: "category-profitability",
+    viewName: "ReporteRentabilidadView",
+    label: "Rentabilidad por categoría",
+    path: "/app/reportes/rentabilidad",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Rentabilidad por categoría.",
+    controllerIds: ["access-control", "session", "category-profitability", "audit"],
+  },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
@@ -603,9 +688,12 @@ export const internalComponents = [
     usedIn: [
       "product-list",
       "product-create",
+      "product-edit",
       "product-delete",
       "lot-create",
       "waste-create",
+      "stock-adjustment",
+      "movement-history",
       "sale-register",
       "supplier-order-create",
     ],
@@ -627,6 +715,36 @@ export const internalComponents = [
     id: "restock-print-view",
     name: "ListaReabastecimientoPrintView",
     usedIn: ["restock-list"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "daily-report-export",
+    name: "AccionExportarFormato",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "daily-report-print-view",
+    name: "ReporteVentasDiariasPrintView",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "waste-report-print-view",
+    name: "ReporteMermasPrintView",
+    usedIn: ["reporte-mermas"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "expiring-lots-report-print-view",
+    name: "ReporteLotesVencerPrintView",
+    usedIn: ["reporte-lotes-vencer"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "movement-report-print-view",
+    name: "ReporteMovimientosPrintView",
+    usedIn: ["reporte-movimientos"],
     controllerIds: ["restock-report-export"],
   },
 ] as const;
@@ -757,7 +875,10 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "category-profitability",
+    "products-most-sold",
     "monthly-sales",
+    "daily-sales-report",
     "login",
     "password-change",
     "dashboard",
@@ -790,10 +911,12 @@ export function validateNavigationTree(): string[] {
     "shift-create",
     "shift-edit",
     "attendance",
+    "absence-create",
     "remuneracion-create",
     "configuracion-previsional",
     "user-management",
     "audit-log",
+    "reporte-mermas",
   ]);
 
   for (const node of navigationTree) {

@@ -1,4 +1,15 @@
 import type { ControllerId } from "./navigation";
+import type { ProductDetailResponse } from "./products";
+
+export type EanCaptureMode = "validar" | "buscar-producto";
+export type EanModule = "inventario" | "ventas" | "proveedores";
+export type EanCapturePayload = { value: string; mode?: EanCaptureMode };
+export type EanCaptureResponse = {
+  ean13: string;
+  producto?: ProductDetailResponse["product"];
+};
+export type EanFailurePayload = { modulo: EanModule };
+export type EanFailureResponse = { registrado: true };
 
 export type ControllerModule =
   | "auth"
@@ -10,7 +21,8 @@ export type ControllerModule =
   | "personal"
   | "reportes"
   | "administracion"
-  | "lector-ean";
+  | "lector-ean"
+  | "reportes";
 
 export type ControllerMetadata = {
   id: ControllerId;
@@ -217,7 +229,7 @@ export const controllers = [
     id: "ean-reader",
     name: "LectorEANHandler",
     module: "lector-ean",
-    channels: ["ean:validar-captura"],
+    channels: ["ean:validar-captura", "ean:registrar-fallo"],
   },
   {
     id: "user-management",
@@ -316,7 +328,7 @@ export const controllers = [
     id: "restock-report-export",
     name: "ExportacionReporteHandler",
     module: "inventario",
-    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"],
+    channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
   },
   {
     id: "inventory-valuation",
@@ -325,10 +337,28 @@ export const controllers = [
     channels: ["inventario:valorizacion"],
   },
   {
+    id: "daily-sales-report",
+    name: "ReporteVentasDiariasHandler",
+    module: "reportes",
+    channels: ["reporte:ventas-diarias"],
+  },
+  {
+    id: "report-export",
+    name: "ExportacionReportesHandler",
+    module: "reportes",
+    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"],
+  },
+  {
     id: "monthly-sales",
     name: "ReporteVentasMensualesHandler",
     module: "reportes",
     channels: ["reporte:ventas-mensuales"],
+  },
+  {
+    id: "products-most-sold",
+    name: "ReporteProductosMasVendidosHandler",
+    module: "reportes",
+    channels: ["reporte:productos-mas-vendidos"],
   },
   {
     id: "sale-categories",
@@ -341,6 +371,36 @@ export const controllers = [
     name: "ExportacionInventarioHandler",
     module: "inventario",
     channels: ["inventario:exportar-productos"],
+  },
+  {
+    id: "waste-report",
+    name: "ReporteMermasHandler",
+    module: "reportes",
+    channels: ["reporte:mermas"],
+  },
+  {
+    id: "expiring-lots-report",
+    name: "ReporteLotesVencerHandler",
+    module: "reportes",
+    channels: ["reporte:lotes-por-vencer"],
+  },
+  {
+    id: "movement-report",
+    name: "ReporteMovimientosHandler",
+    module: "reportes",
+    channels: ["reporte:movimientos-inventario"],
+  },
+  {
+    id: "category-profitability",
+    name: "ReporteRentabilidadHandler",
+    module: "reportes",
+    channels: ["reporte:rentabilidad-categoria"],
+  },
+  {
+    id: "absence",
+    name: "AusenciaHandler",
+    module: "personal",
+    channels: ["ausencia:registrar"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

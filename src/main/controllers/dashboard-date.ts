@@ -46,7 +46,7 @@ export function differenceInCalendarDays(
   );
 }
 
-function addCalendarDays(dateKey: string, days: number): string {
+export function addCalendarDays(dateKey: string, days: number): string {
   const date = new Date(`${dateKey}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
@@ -54,14 +54,14 @@ function addCalendarDays(dateKey: string, days: number): string {
 
 function zonedMidnightToSqlUtc(dateKey: string): string {
   const [year, month, day] = dateKey.split("-").map(Number);
-  const desiredAsUtc = Date.UTC(year, month - 1, day);
+  const desiredAsUtc = civilDateAsUtc(year, month, day);
   let candidate = desiredAsUtc;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const parts = getZonedParts(new Date(candidate));
-    const representedAsUtc = Date.UTC(
+    const representedAsUtc = civilDateAsUtc(
       parts.year,
-      parts.month - 1,
+      parts.month,
       parts.day,
       parts.hour,
       parts.minute,
@@ -77,6 +77,17 @@ function zonedMidnightToSqlUtc(dateKey: string): string {
   }
 
   return new Date(candidate).toISOString().slice(0, 19).replace("T", " ");
+}
+
+// Date.UTC remaps years 0–99 to 1900–1999; setUTCFullYear preserves civil years.
+function civilDateAsUtc(
+  year: number, month: number, day: number,
+  hour = 0, minute = 0, second = 0,
+): number {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(hour, minute, second, 0);
+  return date.getTime();
 }
 
 function getZonedParts(date: Date): {

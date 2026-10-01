@@ -38,6 +38,7 @@ export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   ["auth:preparar-restablecimiento", new Set<Role>(["dueno"])],
   ["auth:restablecer-password", new Set<Role>(["dueno"])],
   ["auditoria:consultar", new Set<Role>(["dueno"])],
+  ["ausencia:registrar", new Set<Role>(["dueno"])],
   ["turno:listar", new Set<Role>(["dueno", "trabajador"])],
   ["turno:crear", new Set<Role>(["dueno"])],
   ["turno:editar", new Set<Role>(["dueno"])],

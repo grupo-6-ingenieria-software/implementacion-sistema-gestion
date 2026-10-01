@@ -67,7 +67,7 @@ describe("CU16 report export controller (C33)", () => {
         ruta: "C:/ataque.xlsx",
         encabezados: ["Inyectado"],
       },
-      { channel: "reporte:exportar-pdf" },
+      { channel: "inventario:reabastecimiento:exportar-pdf" },
     );
 
     expect(deps.load).toHaveBeenCalledWith({ usuarioId: "worker" }, undefined);
@@ -96,11 +96,11 @@ describe("CU16 report export controller (C33)", () => {
 
     await controller.handle(
       { usuarioId: "worker" },
-      { channel: "reporte:exportar-pdf" },
+      { channel: "inventario:reabastecimiento:exportar-pdf" },
     );
     await controller.handle(
       { usuarioId: "worker" },
-      { channel: "reporte:exportar-xlsx" },
+      { channel: "inventario:reabastecimiento:exportar-xlsx" },
     );
 
     expect(deps.load).toHaveBeenCalledTimes(2);
@@ -113,7 +113,7 @@ describe("CU16 report export controller (C33)", () => {
     const controller = createRestockReportExportController(deps);
     const response = await controller.handle(
       { usuarioId: "worker" },
-      { channel: "reporte:exportar-pdf" },
+      { channel: "inventario:reabastecimiento:exportar-pdf" },
     );
 
     expect(response).toMatchObject({
@@ -130,7 +130,7 @@ describe("CU16 report export controller (C33)", () => {
     const controller = createRestockReportExportController(deps);
     const response = await controller.handle(
       { usuarioId: "worker" },
-      { channel: "reporte:exportar-xlsx" },
+      { channel: "inventario:reabastecimiento:exportar-xlsx" },
     );
 
     expect(response).toMatchObject({
@@ -159,8 +159,8 @@ describe("CU16 report export controller (C33)", () => {
           {
             channel:
               stage === "createXlsx"
-                ? "reporte:exportar-xlsx"
-                : "reporte:exportar-pdf",
+                ? "inventario:reabastecimiento:exportar-xlsx"
+                : "inventario:reabastecimiento:exportar-pdf",
           },
         ),
       ).resolves.toMatchObject({
