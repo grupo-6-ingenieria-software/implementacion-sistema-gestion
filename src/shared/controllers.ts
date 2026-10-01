@@ -204,6 +204,7 @@ export const controllers = [
       "trabajador:actualizar",
       "trabajador:cambiar-estado",
       "trabajador:listar-activos",
+      "trabajador:listar-para-resumen",
     ],
   },
   {
@@ -399,6 +400,12 @@ export const controllers = [
     name: "AusenciaHandler",
     module: "personal",
     channels: ["ausencia:registrar"],
+  },
+  {
+    id: "attendance-monthly-summary",
+    name: "ResumenAsistenciaHandler",
+    module: "personal",
+    channels: ["asistencia:resumen-mensual"],
   },
 ] as const satisfies readonly ControllerMetadata[];
 

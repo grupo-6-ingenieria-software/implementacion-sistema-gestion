@@ -70,3 +70,17 @@ export function normalizeRut(value: string): string {
 export function isValidRutFormat(value: string): boolean {
   return /^[1-9][0-9]{6,7}-[0-9K]$/.test(normalizeRut(value));
 }
+
+export function getWorkedMinutes(entradaAt: string, salidaAt: string): number {
+  return Math.floor(Math.max(0, Date.parse(salidaAt) - Date.parse(entradaAt)) / 60_000);
+}
+
+export function formatWorkedMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+export function formatWorkedHours(entradaAt: string, salidaAt: string): string {
+  return formatWorkedMinutes(getWorkedMinutes(entradaAt, salidaAt));
+}

@@ -65,6 +65,7 @@ describe("navigation tree", () => {
         "shift-edit",
         "attendance",
         "absence-create",
+        "attendance-monthly-summary",
         "remuneracion-create",
         "configuracion-previsional",
         "user-management",

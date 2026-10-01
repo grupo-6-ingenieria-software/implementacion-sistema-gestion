@@ -53,7 +53,7 @@ Agrupados por módulo (`ControllerModule`):
 | `inventario` | `product-create`, `product-edit`, `product-status`, `product-query`, `product-delete`, `lot`, `waste`, `stock-discount` |
 | `ventas` | `sale`, `sales-history` |
 | `caja` | `cash-closing`, `cash-check` |
-| `personal` | `worker`, `shift`, `attendance`, `absence`, `user-management` |
+| `personal` | `worker`, `shift`, `attendance`, `absence`, `attendance-monthly-summary`, `user-management` |
 | `lector-ean` | `ean-reader` |
 | `administración` | `audit` |
 
@@ -85,6 +85,35 @@ El esquema y los tipos adicionales almacenables permanecen compatibles.
 Pruebas: `tests/shared/absence.test.ts`, `tests/main/controllers/absence.test.ts`
 y `tests/main/controllers/absence-service.test.ts`. La verificación visual se ejecuta
 con `node tests/renderer/cu32-ui.mts` y deja capturas en `out/cu32-qa`.
+
+## RF33 CU33 Resumen mensual de asistencia
+
+`monthly-attendance.ts` implementa C52 (`ResumenAsistenciaHandler`) mediante
+`asistencia:resumen-mensual`, con `{ trabajadorId, mes, anio }`. V36 se abre en
+`/app/personal/asistencia/resumen-mensual` desde Personal, Trabajadores o Asistencia.
+Ambos canales de CU33 son exclusivos del Dueño y se auditan en el dispatcher;
+`trabajador:listar-para-resumen` incluye inactivos y personas sin cuenta de usuario.
+
+`queryMonthlyAttendance` lee un snapshot de trabajador, asistencias y ausencias,
+sin modificar sus datos. Devuelve días con registros, totales mensuales y todas las
+semanas lunes–domingo recortadas al mes. Fechas y cortes usan America/Santiago.
+La duración completa corresponde al día de entrada, incluso si cruza de mes;
+se descartan segundos incompletos por jornada. Los helpers de minutos de
+`shared/attendance.ts` también se usan al registrar la salida y permiten totales
+superiores a 24 horas. El servicio de consulta queda reutilizable para CU52.
+
+Una jornada pendiente cuenta como día trabajado sin aportar horas. Licencia,
+vacaciones y permiso suman como justificadas conservando su tipo diario.
+Duplicados, coexistencia de asistencia/ausencia y timestamps inválidos o invertidos
+devuelven `BUSINESS_RULE` con las fechas afectadas, sin totales parciales. Los meses
+vacíos y futuros son consultas exitosas con ceros; se admiten años 1900–9998.
+V36 no exporta y descarta respuestas tardías al cambiar filtros o salir de la vista.
+
+Pruebas: `tests/shared/monthly-attendance.test.ts`,
+`tests/main/controllers/monthly-attendance.test.ts` y
+`tests/main/controllers/monthly-attendance-service.test.ts`.
+La verificación visual se ejecuta con `node tests/renderer/cu33-ui.mts` y guarda
+capturas en `out/cu33-qa`.
 
 ## RF58 CU58 Log de auditoría
 

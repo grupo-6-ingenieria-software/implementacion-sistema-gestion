@@ -13,10 +13,12 @@ import type {
 } from "../../../shared/attendance";
 import type { Role } from "../../../shared/navigation";
 import { normalizeRut } from "../../../shared/attendance";
+import { buildMonthlyAttendancePath } from "../../../shared/monthly-attendance";
 
 type AttendanceViewProps = {
   role: Role;
   usuarioId?: string;
+  onNavigate?: (path: string) => void;
 };
 
 type Mode = "entrada" | "salida";
@@ -44,6 +46,7 @@ type PendingConfirmation = {
 export function AttendanceView({
   role,
   usuarioId,
+  onNavigate,
 }: AttendanceViewProps): ReactElement {
   const [pageState, setPageState] = useState<PageState>({ status: "loading" });
   const [workers, setWorkers] = useState<AttendanceWorkerOption[]>([]);
@@ -424,6 +427,11 @@ export function AttendanceView({
       <h3 className="text-2xl font-semibold text-[#17202a]">
         Registro de asistencia
       </h3>
+      {role === "dueno" && onNavigate ? <button type="button"
+        className="rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d]"
+        onClick={() => onNavigate(buildMonthlyAttendancePath(workers.find((worker) => normalizeRut(worker.rut) === normalizeRut(rut))?.rut))}>
+        Resumen mensual de asistencia
+      </button> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid gap-6">

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import {
+  formatWorkedHours,
   isValidRutFormat,
   normalizeRut,
   type AttendanceEntryResult,
@@ -528,15 +529,6 @@ function summarizeWorker(
     turnoInicio: shift?.turnoInicio,
     turnoFin: shift?.turnoFin,
   };
-}
-
-function formatWorkedHours(entradaAt: string, salidaAt: string): string {
-  const diffMs = Math.max(0, Date.parse(salidaAt) - Date.parse(entradaAt));
-  const totalMinutes = Math.floor(diffMs / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function getUsuarioId(payload: unknown): string | undefined {

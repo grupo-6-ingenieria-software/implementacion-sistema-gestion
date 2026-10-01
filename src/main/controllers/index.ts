@@ -9,6 +9,7 @@ import { notifySessionInvalidated } from "./session-events";
 import { accessControlController } from "./access-control";
 import { attendanceController } from "./attendance";
 import { absenceController } from "./absence";
+import { monthlyAttendanceController } from "./monthly-attendance";
 import { auditController } from "./audit";
 import { authLoginController } from "./auth-login";
 import { cashCheckController } from "./cash-check";
@@ -130,6 +131,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     movementReportController,
     categoryProfitabilityController,
     absenceController,
+    monthlyAttendanceController,
   ];
 
 /**
