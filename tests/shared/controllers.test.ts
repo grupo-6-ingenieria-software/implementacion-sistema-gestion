@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(43);
-    expect(new Set(ids)).toHaveProperty("size", 43);
+    expect(controllers).toHaveLength(48);
+    expect(new Set(ids)).toHaveProperty("size", 48);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -52,6 +52,11 @@ describe("controller registry", () => {
       "daily-sales-report",
       "report-export",
       "monthly-sales",
+      "products-most-sold",
+      "sale-categories",
+      "waste-report",
+      "expiring-lots-report",
+      "movement-report",
     ]);
   });
 
@@ -107,6 +112,22 @@ describe("controller registry", () => {
       id: "inventory-valuation",
       name: "ValorizacionHandler",
       channels: ["inventario:valorizacion"],
+    });
+  });
+
+  it("registers the CU45 query after inherited controllers", () => {
+    expect(controllers.find((c) => c.id === "sale-categories")).toMatchObject({
+      id: "sale-categories",
+      name: "VentasCategoriaHandler",
+      channels: ["venta:por-categoria"],
+    });
+  });
+
+  it("appends the CU49 waste report controller", () => {
+    expect(controllers.find((c) => c.id === "waste-report")).toMatchObject({
+      id: "waste-report",
+      name: "ReporteMermasHandler",
+      channels: ["reporte:mermas"],
     });
   });
 
@@ -179,5 +200,15 @@ describe("controller registry", () => {
       "turno:editar",
       "turno:eliminar",
     ]);
+  });
+
+  it("registers the CU53 movement report controller", () => {
+    expect(
+      controllers.find((controller) => controller.id === "movement-report"),
+    ).toMatchObject({
+      id: "movement-report",
+      name: "ReporteMovimientosHandler",
+      channels: ["reporte:movimientos-inventario"],
+    });
   });
 });

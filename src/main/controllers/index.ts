@@ -18,7 +18,7 @@ import { dashboardController } from "./dashboard";
 import { eanReaderController } from "./ean-reader";
 import { expirationAlertController } from "./expiration-alert";
 import { lotController } from "./lot";
-import { passwordController } from "./password";
+import { createPasswordController } from "./password";
 import { productCreateController } from "./product-create";
 import { productDeleteController } from "./product-delete";
 import { productEditController } from "./product-edit";
@@ -26,6 +26,7 @@ import { productQueryController } from "./product-query";
 import { productStatusController } from "./product-status";
 import { remuneracionController } from "./remuneracion";
 import { saleController } from "./sale";
+import { saleCategoriesController } from "./sale-categories";
 import { saleAnnulmentController } from "./sale-annulment";
 import { salesHistoryController } from "./sales-history";
 import { sessionController } from "./session";
@@ -51,8 +52,12 @@ import { restockListController } from "./restock-list";
 import { restockReportExportController } from "./restock-report-export";
 import { reportExportController } from "./report-export";
 import { monthlySalesController } from "./monthly-sales";
+import { productsMostSoldController } from "./products-most-sold";
 import { inventoryValuationController } from "./inventory-valuation";
 import { dailySalesReportController } from "./daily-sales-report";
+import { wasteReportController } from "./waste-report";
+import { expiringLotsReportController } from "./expiring-lots-report";
+import { movementReportController } from "./movement-report";
 import type { RegisteredController } from "./base";
 
 const workerController = createWorkerController({
@@ -66,6 +71,8 @@ const workerController = createWorkerController({
       notifySessionInvalidated,
     ),
 });
+
+const passwordController = createPasswordController({}, notifySessionInvalidated);
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
   [
@@ -112,6 +119,11 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     dailySalesReportController,
     reportExportController,
     monthlySalesController,
+    productsMostSoldController,
+    saleCategoriesController,
+    wasteReportController,
+    expiringLotsReportController,
+    movementReportController,
   ];
 
 /**

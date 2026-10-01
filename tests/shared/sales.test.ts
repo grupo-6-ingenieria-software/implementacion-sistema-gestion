@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocateRecordedSaleNetAmounts,
   calculateCashChange,
   calculateSaleTotals,
   formatChileanPeso,
@@ -15,6 +16,74 @@ describe("Chilean peso formatting", () => {
     expect(formatChileanPeso(0)).toBe("$ 0");
     expect(formatChileanPeso(990)).toBe("$ 990");
     expect(formatChileanPeso(1_250_000)).toBe("$ 1.250.000");
+  });
+});
+
+describe("CU45 recorded sale discount allocation", () => {
+  it("uses largest remainders and a stable line-id tie break", () => {
+    expect(
+      allocateRecordedSaleNetAmounts(
+        { discountType: "monto", discountValue: 1 },
+        [
+          { id: "b", subtotal: 100 },
+          { id: "a", subtotal: 100 },
+        ],
+      ),
+    ).toEqual([
+      { id: "b", subtotal: 100, descuento: 0, montoNeto: 100 },
+      { id: "a", subtotal: 100, descuento: 1, montoNeto: 99 },
+    ]);
+  });
+
+  it("reconciles a fixed discount across every line of the sale", () => {
+    const lines = allocateRecordedSaleNetAmounts(
+      { discountType: "monto", discountValue: 101 },
+      [
+        { id: "a", subtotal: 100 },
+        { id: "b", subtotal: 100 },
+        { id: "c", subtotal: 200 },
+      ],
+    );
+    expect(lines.map((line) => line.descuento)).toEqual([25, 25, 51]);
+    expect(lines.reduce((sum, line) => sum + line.montoNeto, 0)).toBe(299);
+  });
+
+  it("derives the effective CLP discount from a historical percentage", () => {
+    const lines = allocateRecordedSaleNetAmounts(
+      { discountType: "porcentaje", discountValue: 10 },
+      [
+        { id: "a", subtotal: 11 },
+        { id: "b", subtotal: 10 },
+      ],
+    );
+    expect(lines.map((line) => line.montoNeto)).toEqual([10, 9]);
+  });
+
+  it("handles zero and full discounts without negative net amounts", () => {
+    expect(
+      allocateRecordedSaleNetAmounts(
+        { discountType: "ninguno", discountValue: null },
+        [{ id: "a", subtotal: 0 }],
+      ),
+    ).toEqual([{ id: "a", subtotal: 0, descuento: 0, montoNeto: 0 }]);
+    expect(
+      allocateRecordedSaleNetAmounts(
+        { discountType: "monto", discountValue: 300 },
+        [
+          { id: "a", subtotal: 100 },
+          { id: "b", subtotal: 200 },
+        ],
+      ).map((line) => line.montoNeto),
+    ).toEqual([0, 0]);
+  });
+
+  it("rejects inconsistent persisted amounts", () => {
+    expect(() =>
+      allocateRecordedSaleNetAmounts(
+        { discountType: "monto", discountValue: 4 },
+        [{ id: "a", subtotal: 3 }],
+      ),
+    ).toThrow();
   });
 });
 

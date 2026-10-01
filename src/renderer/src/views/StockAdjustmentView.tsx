@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactElement } from "react";
+import { CampoEAN13Input } from "../components/CampoEAN13Input";
 import type { Role } from "../../../shared/navigation";
 import type {
   ActiveProductSearchItem,
@@ -83,12 +84,7 @@ export function StockAdjustmentView({
 
   const handleEan13Change = (value: string): void => {
     setEan13(value);
-    setSelectedByName(false);
-    if (value.length === 13) {
-      void loadAvailability(value);
-    } else {
-      resetProductSelection();
-    }
+    resetProductSelection();
   };
 
   const handleSearch = async (): Promise<void> => {
@@ -171,21 +167,11 @@ export function StockAdjustmentView({
               Buscar por EAN-13
             </label>
             <div className="mt-1">
-              <input
-                className={`w-full rounded-md border px-3 py-2 ${
-                  selectedByName
-                    ? "border-[#9ba9b5] bg-[#edf1f5] text-[#61717f]"
-                    : "border-[#9ba9b5]"
-                }`}
+              <CampoEAN13Input
                 disabled={selectedByName}
-                inputMode="numeric"
-                maxLength={13}
-                placeholder="EAN-13"
                 value={ean13}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "").slice(0, 13);
-                  handleEan13Change(value);
-                }}
+                onChange={handleEan13Change}
+                onValidSubmit={loadAvailability}
               />
             </div>
           </div>

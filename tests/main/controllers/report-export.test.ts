@@ -5,12 +5,14 @@ import ExcelJS from "exceljs";
 import { describe, expect, it, vi } from "vitest";
 import {
   createDailySalesExportController,
+  createReportExportController,
   createDailySalesPdfBuffer,
   createDailySalesXlsxBuffer,
   renderDailySalesPrintHtml,
   saveDailySalesWithAudit,
   type DailySalesExportDependencies,
 } from "../../../src/main/controllers/report-export";
+import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
 import type { DailySalesReport } from "../../../src/shared/reports";
 import { REPORT_EXPORT_ERROR_MESSAGE } from "../../../src/shared/reports";
 
@@ -36,6 +38,17 @@ function dependencies(overrides: Partial<DailySalesExportDependencies> = {}): Da
 }
 
 describe("CU46 C61 exportación", () => {
+  it.each(["pdf", "xlsx"] as const)("conserva una sola auditoría al despachar la exportación diaria %s", async (format) => {
+    const deps = dependencies();
+    const daily = createDailySalesExportController(deps);
+    const controller = createReportExportController(undefined, undefined, undefined, daily);
+    const audit = vi.fn(async () => undefined);
+    const result = await handleWithAudit(controller, { tipo: "ventas-diarias", fecha: report.fecha }, { channel: `reporte:exportar-${format}`, claims }, audit);
+    expect(result).toMatchObject({ ok: true, data: { estado: "saved", formato: format } });
+    expect(deps.saveAndAudit).toHaveBeenCalledOnce();
+    expect(audit).not.toHaveBeenCalled();
+  });
+
   it.each(["pdf", "xlsx"] as const)("recalcula y exporta %s usando identidad de Main", async (format) => {
     const deps = dependencies({ showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: `C:/Documentos/reporte.${format}` })) });
     const controller = createDailySalesExportController(deps);

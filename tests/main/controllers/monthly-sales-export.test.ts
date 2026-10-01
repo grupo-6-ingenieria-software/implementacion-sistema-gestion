@@ -63,7 +63,7 @@ describe("CU47 monthly export and CU54 compatibility", () => {
 
   it("dispatches daily exports separately and rejects unknown report types", async () => {
     const daily = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
-    const controller = createReportExportController(createMonthlySalesExportHandler(dependencies()), daily);
+    const controller = createReportExportController(createMonthlySalesExportHandler(dependencies()), undefined, undefined, daily);
     expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, context)).toEqual({ ok: true, data: "daily" });
     expect(await controller.handle({ tipo: "unknown" }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(daily.handle).toHaveBeenCalledTimes(1);

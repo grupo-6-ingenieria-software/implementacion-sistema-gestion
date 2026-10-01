@@ -51,6 +51,7 @@ import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
 import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
+import { VentasCategoriaView } from "./views/VentasCategoriaView";
 import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
@@ -63,8 +64,12 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
+import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -178,6 +183,10 @@ export function App(): ReactElement {
       navigate(decision.to);
       return;
     }
+
+    const node = findNavNodeByPath(path);
+    // La vista del nodo consulta directamente a Main, que autoriza y audita.
+    if (node?.authorizedByMain) return;
 
     if (path.startsWith("/app") && session.isAuthenticated) {
       let cancelled = false;
@@ -313,6 +322,10 @@ export function App(): ReactElement {
       onNavigate={(target) => {
         setAccessDeniedMessage(null);
         navigate(target);
+      }}
+      onAccessDenied={(message) => {
+        setAccessDeniedMessage(message);
+        navigate(APP_HOME_PATH);
       }}
       onLogout={logout}
       onAuthenticationRequired={(message) => expireSession(message, true)}
@@ -642,6 +655,7 @@ export function AppShell({
   session,
   bannerMessage,
   onNavigate,
+  onAccessDenied,
   onLogout,
   onAuthenticationRequired,
 }: {
@@ -649,6 +663,7 @@ export function AppShell({
   session: AppSession;
   bannerMessage?: string | null;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   onLogout: () => void;
   onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
@@ -746,6 +761,7 @@ export function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
+          onAccessDenied={onAccessDenied}
           currentPath={currentPath}
           shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
           onShiftNoticeConsumed={consumeShiftNotice}
@@ -795,6 +811,7 @@ function ViewRenderer({
   currentPath,
   node,
   onNavigate,
+  onAccessDenied,
   session,
   shiftSuccessMessage,
   onShiftNoticeConsumed,
@@ -804,6 +821,7 @@ function ViewRenderer({
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   session: AppSession;
   shiftSuccessMessage: string | null;
   onShiftNoticeConsumed: () => void;
@@ -887,6 +905,10 @@ function ViewRenderer({
         onAuthenticationRequired={onAuthenticationRequired}
       />
     );
+  }
+
+  if (node.id === "sale-categories") {
+    return <VentasCategoriaView />;
   }
 
   if (node.id === "waste-create" && session.usuarioId) {
@@ -1025,6 +1047,37 @@ function ViewRenderer({
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
+    return <ReporteProductosVendidosView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-lotes-vencer" && session.usuarioId) {
+    return (
+      <ReporteLotesVencerView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1054,7 +1107,13 @@ function ViewRenderer({
   }
 
   if (node.id === "audit-log") {
-    return <AuditLogView usuarioId={session.usuarioId} onNavigate={onNavigate} />;
+    return (
+      <AuditLogView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+        onAccessDenied={onAccessDenied}
+      />
+    );
   }
 
   if (node.id === "product-status" && session.usuarioId) {
@@ -1152,6 +1211,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "monthly-sales",
     "daily-sales-report",
+    "products-most-sold",
     "dashboard",
     "attendance",
     "cash-closing",
@@ -1165,6 +1225,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "sale-categories",
     "supplier-order-create",
     "supplier-order-receptions",
     "supplier-list",
@@ -1184,6 +1245,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
+    "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

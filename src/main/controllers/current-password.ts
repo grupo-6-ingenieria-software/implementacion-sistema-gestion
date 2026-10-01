@@ -12,7 +12,7 @@ export async function loadCurrentPassword(
     .select({
       contrasenaId: schema.contrasena.contrasenaId,
       contrasenaHash: schema.contrasena.contrasenaHash,
-      esContrasenaTemporal: schema.contrasena.esContrasenaTemporal,
+      contrasenaTemporalId: schema.contrasenaTemporal.contrasenaTemporalId,
       expiracion: schema.contrasenaTemporal.contrasenaTemporalFechaHoraExpiracion,
     })
     .from(schema.contrasena)
@@ -26,5 +26,15 @@ export async function loadCurrentPassword(
       sql`contrasena.rowid DESC`,
     )
     .limit(1);
-  return current;
+
+  if (!current) {
+    return undefined;
+  }
+
+  return {
+    contrasenaId: current.contrasenaId,
+    contrasenaHash: current.contrasenaHash,
+    esContrasenaTemporal: current.contrasenaTemporalId !== null,
+    expiracion: current.expiracion,
+  };
 }

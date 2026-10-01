@@ -8,14 +8,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { db, schema } from "../../db/client";
 import { controllers } from "../../shared/controllers";
-import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
+import { isReportExportRequest, MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
 import { DAILY_SALES_EMPTY_MESSAGE, REPORT_EXPORT_ERROR_MESSAGE, type DailySalesExportRequest, type DailySalesExportResult, type DailySalesReport } from "../../shared/reports";
 import { ReporteVentasDiariasPrintView, type DailySalesPrintInput } from "../../renderer/src/components/ReporteVentasDiariasPrintView";
 import { controllerError, controllerSuccess, type ControllerHandler, type RegisteredController } from "./base";
 import { AccessDeniedError, authorizeUser, registerAuditLog } from "./auth-context";
 import { DailySalesReportValidationError, loadDailySalesReport } from "./daily-sales-report-service";
-import { formatDateTimeInSantiago, type HiddenPrintWindow } from "./restock-report-export";
+import { formatDateTimeInSantiago, restockReportExportController, type HiddenPrintWindow } from "./restock-report-export";
 import { createMonthlySalesExportHandler } from "./monthly-sales-export";
+import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
+import { createProductsMostSoldExportHandler } from "./products-most-sold-export";
 
 type Format = "pdf" | "xlsx";
 type SaveDialogResult = { canceled: boolean; filePath?: string };
@@ -197,6 +199,8 @@ export const dailySalesExportController = createDailySalesExportController();
 
 export function createReportExportController(
   monthly: ControllerHandler = createMonthlySalesExportHandler(),
+  restock: RegisteredController = restockReportExportController,
+  productsMostSold: ControllerHandler = createProductsMostSoldExportHandler(),
   daily: RegisteredController = dailySalesExportController,
 ): RegisteredController {
   const metadata = controllers.find((item) => item.id === "report-export")!;
@@ -206,9 +210,15 @@ export function createReportExportController(
       if (context.channel !== "reporte:exportar-pdf" && context.channel !== "reporte:exportar-xlsx") {
         return Promise.resolve(controllerError("INVALID_CHANNEL", "Canal de exportación inválido.", metadata.id));
       }
+      const tipoReporte = (payload as { tipoReporte?: unknown } | null)?.tipoReporte;
+      if (tipoReporte === "mermas" || tipoReporte === "lotes-por-vencer" || tipoReporte === "movimientos-inventario") {
+        return restock.handle(payload, context);
+      }
+      if (!isReportExportRequest(context.channel, payload)) return restock.handle(payload, context);
       const tipo = (payload as { tipo?: unknown } | null)?.tipo;
       if (tipo === "ventas-diarias") return daily.handle(payload, context);
       if (tipo === MONTHLY_SALES_REPORT_TYPE) return monthly(payload, context);
+      if (tipo === PRODUCTS_MOST_SOLD_REPORT_TYPE) return productsMostSold(payload, context);
       return Promise.resolve(controllerError("VALIDATION_ERROR", "Tipo de reporte no válido.", metadata.id));
     },
   };
