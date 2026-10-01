@@ -54,6 +54,7 @@ import { reportExportController } from "./report-export";
 import { monthlySalesController } from "./monthly-sales";
 import { productsMostSoldController } from "./products-most-sold";
 import { inventoryValuationController } from "./inventory-valuation";
+import { inventoryExportController } from "./inventory-export";
 import { dailySalesReportController } from "./daily-sales-report";
 import { wasteReportController } from "./waste-report";
 import { expiringLotsReportController } from "./expiring-lots-report";
@@ -121,6 +122,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     monthlySalesController,
     productsMostSoldController,
     saleCategoriesController,
+    inventoryExportController,
     wasteReportController,
     expiringLotsReportController,
     movementReportController,

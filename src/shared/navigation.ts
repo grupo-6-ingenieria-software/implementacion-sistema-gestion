@@ -53,6 +53,7 @@ export type ControllerId =
   | "restock-list"
   | "restock-report-export"
   | "inventory-valuation"
+  | "inventory-export"
   | "daily-sales-report"
   | "report-export"
   | "waste-report"
@@ -153,7 +154,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query", "ean-reader"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "inventory-export"],
   },
   {
     id: "product-create",
@@ -639,6 +640,18 @@ export const navigationTree = [
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
+  {
+    id: "export-format-action",
+    name: "AccionExportarFormato",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
+  {
+    id: "report-print-view",
+    name: "ReportePrintView",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
   {
     id: "sale-discount-modal",
     name: "DescuentoVentaModal",

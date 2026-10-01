@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(48);
-    expect(new Set(ids)).toHaveProperty("size", 48);
+    expect(controllers).toHaveLength(49);
+    expect(new Set(ids)).toHaveProperty("size", 49);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -54,6 +54,7 @@ describe("controller registry", () => {
       "monthly-sales",
       "products-most-sold",
       "sale-categories",
+      "inventory-export",
       "waste-report",
       "expiring-lots-report",
       "movement-report",
@@ -64,6 +65,14 @@ describe("controller registry", () => {
     expect(
       registeredControllers.map((controller) => controller.metadata.id),
     ).toEqual(controllers.map((controller) => controller.id));
+  });
+
+  it("appends C50 without reusing C33 channels", () => {
+    expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
+      id: "inventory-export", name: "ExportacionInventarioHandler",
+      channels: ["inventario:exportar-productos"],
+    });
+    expect(new Set(ipcChannels.map(({ channel }) => channel)).size).toBe(ipcChannels.length);
   });
 
   it("assigns at least one IPC channel to every controller", () => {
@@ -116,7 +125,7 @@ describe("controller registry", () => {
   });
 
   it("registers the CU45 query after inherited controllers", () => {
-    expect(controllers.find((c) => c.id === "sale-categories")).toMatchObject({
+    expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
       id: "sale-categories",
       name: "VentasCategoriaHandler",
       channels: ["venta:por-categoria"],

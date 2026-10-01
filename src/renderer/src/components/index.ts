@@ -3,3 +3,5 @@ export { ResumenVentasDashboard } from "./ResumenVentasDashboard";
 export { SeccionesPagoVenta } from "./SeccionesPagoVenta";
 export { ListaReabastecimientoPrintView } from "./ListaReabastecimientoPrintView";
 export { DescuentoVentaModal } from "./DescuentoVentaModal";
+export { AccionExportarFormato } from "./AccionExportarFormato";
+export { ReportePrintView } from "./ReportePrintView";

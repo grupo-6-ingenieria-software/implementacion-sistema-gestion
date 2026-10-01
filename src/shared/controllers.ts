@@ -365,6 +365,12 @@ export const controllers = [
     channels: ["venta:por-categoria"],
   },
   {
+    id: "inventory-export",
+    name: "ExportacionInventarioHandler",
+    module: "inventario",
+    channels: ["inventario:exportar-productos"],
+  },
+  {
     id: "waste-report",
     name: "ReporteMermasHandler",
     module: "reportes",
