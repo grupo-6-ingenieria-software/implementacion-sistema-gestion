@@ -75,6 +75,7 @@ function createController(overrides: Partial<Dependencies> = {}) {
     }),
     createWorker: async (payload) => ({ usuarioId: payload.rut }),
     listActiveWorkers: async () => activeWorkers,
+    listSummaryWorkers: async () => activeWorkers.map((worker) => ({ ...worker, estado: "activo" as const })),
     listWorkers: async (filters) => filterAndSortUserList(workers, filters),
     updateWorker: async (payload) => ({ usuarioId: payload.rut }),
     ...overrides,

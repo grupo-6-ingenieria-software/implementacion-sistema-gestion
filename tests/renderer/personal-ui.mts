@@ -36,6 +36,7 @@ const controller = createWorkerController({
   createWorker: (payload) => createWorkerWithExecutor(fixture.db, schema, payload),
   listWorkers: (filters) => listWorkersWithExecutor(fixture.db, schema, filters),
   listActiveWorkers: async () => [],
+  listSummaryWorkers: async () => [],
   updateWorker: (payload, sesionRol) =>
     updateWorkerWithExecutor(fixture.db, schema, payload, sesionRol),
 });
