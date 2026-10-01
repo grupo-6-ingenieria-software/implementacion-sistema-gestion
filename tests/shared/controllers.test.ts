@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(50);
-    expect(new Set(ids)).toHaveProperty("size", 50);
+    expect(controllers).toHaveLength(51);
+    expect(new Set(ids)).toHaveProperty("size", 51);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -59,6 +59,7 @@ describe("controller registry", () => {
       "expiring-lots-report",
       "movement-report",
       "category-profitability",
+      "absence",
     ]);
   });
 
@@ -139,6 +140,10 @@ describe("controller registry", () => {
       name: "ReporteMermasHandler",
       channels: ["reporte:mermas"],
     });
+  });
+
+  it("appends C51 without changing inherited indices", () => {
+    expect(controllers.at(50)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
   });
 
   it("keeps remuneracion scoped to its documented channels", () => {

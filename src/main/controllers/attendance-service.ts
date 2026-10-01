@@ -13,6 +13,7 @@ import type { Role } from "../../shared/navigation";
 import { getDashboardDay } from "./dashboard-date";
 import { mapDatabaseRoleToTechnicalRole } from "./auth-context";
 import { registerAuditLog, type DbExecutor } from "./sale-service";
+import { runSerializedWriteTransaction } from "./write-transaction";
 
 export class AttendanceValidationError extends Error {}
 export class AttendanceBusinessError extends Error {}
@@ -183,7 +184,7 @@ async function registerEntry(
 ): Promise<AttendanceEntryResult> {
   const normalized = normalizeAttendanceRequest(payload);
 
-  return database.transaction(async (tx) => {
+  return runSerializedWriteTransaction(database, async (tx) => {
     const user = await authorizeAttendanceUser(tx, normalized.usuarioId);
     const worker = await findWorkerByRut(tx, normalized.trabajadorRut);
 

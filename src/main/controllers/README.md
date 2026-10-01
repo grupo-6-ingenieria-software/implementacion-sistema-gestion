@@ -53,7 +53,7 @@ Agrupados por módulo (`ControllerModule`):
 | `inventario` | `product-create`, `product-edit`, `product-status`, `product-query`, `product-delete`, `lot`, `waste`, `stock-discount` |
 | `ventas` | `sale`, `sales-history` |
 | `caja` | `cash-closing`, `cash-check` |
-| `personal` | `worker`, `shift`, `attendance`, `user-management` |
+| `personal` | `worker`, `shift`, `attendance`, `absence`, `user-management` |
 | `lector-ean` | `ean-reader` |
 | `administración` | `audit` |
 
@@ -62,6 +62,29 @@ Los archivos con sufijo `-service` (`sale-service`, `dashboard-service`,
 reutilizable que los controladores componen; `-queries` / `-events` separan
 lectura de notificaciones. `auth-jwt`, `auth-context` y `auth-fixtures` dan
 soporte a autenticación. `base.ts` define el contrato común.
+
+## RF32 CU32 Registro de ausencia
+
+`absence.ts` expone `ausencia:registrar` exclusivamente al Dueño y delega en
+`absence-service.ts`. La identidad proviene de los claims verificados; el servicio
+revalida sesión, rol efectivo y actividad del responsable dentro de la transacción.
+El contrato compartido de `shared/absence.ts` admite trabajador, fecha civil chilena,
+tipo justificada/injustificada y observación opcional de hasta 200 caracteres Unicode.
+
+El servicio comprueba trabajador existente/activo y conflictos con cualquier ausencia
+previa o asistencia cuya entrada pertenece a la fecha seleccionada en America/Santiago.
+No exige turno ni limita retrospectivamente las fechas válidas. Ausencia y auditoría
+`registrar_ausencia` se guardan en la misma transacción; un fallo revierte ambas.
+CU32 y las entradas de asistencia reutilizan `runSerializedWriteTransaction`, que
+repite las lecturas cuando una escritura competidora produce SQLITE_BUSY.
+
+V34 se abre desde Personal o por trabajador activo en V15, con RUT precargado y
+modificable. Después de guardar vuelve a Trabajadores con una confirmación temporal.
+El esquema y los tipos adicionales almacenables permanecen compatibles.
+
+Pruebas: `tests/shared/absence.test.ts`, `tests/main/controllers/absence.test.ts`
+y `tests/main/controllers/absence-service.test.ts`. La verificación visual se ejecuta
+con `node tests/renderer/cu32-ui.mts` y deja capturas en `out/cu32-qa`.
 
 ## RF58 CU58 Log de auditoría
 

@@ -8,6 +8,7 @@ import { SESSION_EXPIRED_EVENT } from "../../shared/auth";
 import { notifySessionInvalidated } from "./session-events";
 import { accessControlController } from "./access-control";
 import { attendanceController } from "./attendance";
+import { absenceController } from "./absence";
 import { auditController } from "./audit";
 import { authLoginController } from "./auth-login";
 import { cashCheckController } from "./cash-check";
@@ -128,6 +129,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     expiringLotsReportController,
     movementReportController,
     categoryProfitabilityController,
+    absenceController,
   ];
 
 /**
