@@ -5,6 +5,35 @@ import {
   type InventoryExportFormat,
   type InventoryExportResult,
 } from "../../../shared/inventory-export";
+import {
+  REPORT_EXPORT_ERROR_MESSAGE, REPORT_RECONCILE_CHANNEL,
+  type ReportExportRequest, type ReportExportResult, type ReportReconcileResult,
+} from "../../../shared/reports";
+
+export class ReportActionError extends Error {
+  constructor(message: string, readonly code?: string, readonly operacionId?: string) { super(message); }
+}
+
+export async function exportGeneratedReport(invoke: typeof window.appApi.invoke, format: InventoryExportFormat, request: ReportExportRequest): Promise<ReportExportResult> {
+  const response = await invoke<ReportExportResult>(`reporte:exportar-${format}`, {
+    tipo: request.tipo, periodo: request.periodo,
+    ...(request.filtros !== undefined ? { filtros: request.filtros } : {}),
+  }).catch(() => { throw new ReportActionError(REPORT_EXPORT_ERROR_MESSAGE); });
+  if (!response.ok) throw new ReportActionError(response.error.message, response.error.code, response.error.operacionId);
+  return response.data;
+}
+
+export async function verifyGeneratedReport(invoke: typeof window.appApi.invoke, operacionId: string): Promise<ReportReconcileResult> {
+  const response = await invoke<ReportReconcileResult>(REPORT_RECONCILE_CHANNEL, { operacionId })
+    .catch(() => { throw new ReportActionError(REPORT_EXPORT_ERROR_MESSAGE); });
+  if (!response.ok) throw new ReportActionError(response.error.message, response.error.code, response.error.operacionId);
+  return response.data;
+}
+
+type ExportActionProps = { invoke?: typeof window.appApi.invoke } & (
+  | { mode?: "inventory" }
+  | { mode: "report"; request: ReportExportRequest; disabled?: boolean; onBusyChange?: (busy: boolean) => void; onForbidden?: () => void }
+);
 
 export async function exportInventoryList(
   invoke: typeof window.appApi.invoke,
@@ -34,11 +63,9 @@ export function inventoryExportNotice(result: InventoryExportResult): {
 }
 
 /** UI06: no depende de las filas visibles ni de los permisos de costo de V06. */
-export function AccionExportarFormato({
-  invoke,
-}: {
-  invoke?: typeof window.appApi.invoke;
-}): ReactElement {
+export function AccionExportarFormato(props: ExportActionProps): ReactElement {
+  const { invoke } = props;
+  const isReport = props.mode === "report";
   const [selecting, setSelecting] = useState(false);
   const [format, setFormat] = useState<InventoryExportFormat | "">("");
   const [busy, setBusy] = useState(false);
@@ -46,35 +73,47 @@ export function AccionExportarFormato({
     message: string;
     tone: "success" | "warning" | "neutral" | "error";
   } | null>(null);
+  const [operationId, setOperationId] = useState<string | null>(null);
   const pending = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const verificationButton = useRef<HTMLButtonElement>(null);
   const wasSelecting = useRef(false);
   const formatId = useId();
   const panelId = useId();
   useEffect(() => {
     if (selecting) wasSelecting.current = true;
     else if (wasSelecting.current && !busy) {
-      trigger.current?.focus();
+      (operationId ? verificationButton : trigger).current?.focus();
       wasSelecting.current = false;
     }
-  }, [selecting, busy]);
+  }, [selecting, busy, operationId]);
   const buttonClass =
     "min-h-11 rounded-md border border-[#9ba9b5] px-4 py-2 text-sm font-semibold text-[#24313d] transition hover:bg-[#f0f3f6] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#244d61]";
 
   async function confirm(): Promise<void> {
-    if (!format || pending.current) return;
+    if (!format || pending.current || operationId || (props.mode === "report" && props.disabled)) return;
     pending.current = true;
     setBusy(true);
+    if (props.mode === "report") props.onBusyChange?.(true);
     setNotice(null);
     try {
-      const result = await exportInventoryList(
-        invoke ?? window.appApi.invoke,
-        format,
-      );
-      setNotice(inventoryExportNotice(result));
+      if (props.mode === "report") {
+        const result = await exportGeneratedReport(invoke ?? window.appApi.invoke, format, props.request);
+        setNotice({ tone: result.estado === "saved" ? "success" : "neutral", message: result.estado === "saved" ? "Reporte guardado correctamente." : "Exportación cancelada." });
+      } else {
+        const result = await exportInventoryList(invoke ?? window.appApi.invoke, format);
+        setNotice(inventoryExportNotice(result));
+      }
       setSelecting(false);
       setFormat("");
     } catch (error) {
+      if (error instanceof ReportActionError && props.mode === "report") {
+        if (error.code === "FORBIDDEN") props.onForbidden?.();
+        if (error.code === "EXPORT_RECONCILIATION_REQUIRED" && error.operacionId) {
+          setOperationId(error.operacionId);
+          setSelecting(false);
+        }
+      }
       setNotice({
         tone: "error",
         message:
@@ -85,6 +124,30 @@ export function AccionExportarFormato({
     } finally {
       pending.current = false;
       setBusy(false);
+      if (props.mode === "report") props.onBusyChange?.(false);
+    }
+  }
+
+  async function verify(): Promise<void> {
+    if (!operationId || pending.current) return;
+    pending.current = true;
+    wasSelecting.current = true;
+    setBusy(true);
+    if (props.mode === "report") props.onBusyChange?.(true);
+    try {
+      const result = await verifyGeneratedReport(invoke ?? window.appApi.invoke, operationId);
+      if (result.estado === "pending") setNotice({ tone: "warning", message: "La exportación sigue pendiente de verificación." });
+      else {
+        setOperationId(null);
+        setNotice({ tone: result.estado === "saved" ? "success" : "error", message: result.estado === "saved" ? "Reporte guardado correctamente." : REPORT_EXPORT_ERROR_MESSAGE });
+      }
+    } catch (error) {
+      if (error instanceof ReportActionError && error.code === "FORBIDDEN" && props.mode === "report") props.onForbidden?.();
+      setNotice({ tone: "error", message: error instanceof Error ? error.message : REPORT_EXPORT_ERROR_MESSAGE });
+    } finally {
+      pending.current = false;
+      setBusy(false);
+      if (props.mode === "report") props.onBusyChange?.(false);
     }
   }
 
@@ -95,7 +158,7 @@ export function AccionExportarFormato({
           ref={trigger}
           type="button"
           className={buttonClass}
-          disabled={busy}
+          disabled={busy || !!operationId || (props.mode === "report" && props.disabled)}
           aria-expanded={selecting}
           aria-controls={panelId}
           onClick={() => {
@@ -103,7 +166,7 @@ export function AccionExportarFormato({
             setNotice(null);
           }}
         >
-          {busy ? "Exportando..." : "Exportar listado"}
+          {busy ? (operationId ? "Verificando..." : "Exportando...") : isReport ? "Exportar reporte" : "Exportar listado"}
         </button>
       </div>
       {selecting ? (
@@ -158,11 +221,15 @@ export function AccionExportarFormato({
           </div>
           {busy ? (
             <p role="status" className="text-sm text-[#61717f]">
-              Preparando el archivo. Complete el diálogo Guardar como.
+              {isReport ? "Preparando el archivo. Seleccione la carpeta de destino." : "Preparando el archivo. Complete el diálogo Guardar como."}
             </p>
           ) : null}
         </form>
       ) : null}
+      {operationId ? <div className="mt-3 space-y-2">
+        <p role="status" className="text-sm text-[#61717f]">La exportación requiere verificación antes de volver a guardar en ese destino.</p>
+        <button ref={verificationButton} type="button" className={buttonClass} disabled={busy} onClick={() => void verify()}>Verificar exportación</button>
+      </div> : null}
       {notice ? (
         <p
           role={notice.tone === "error" ? "alert" : "status"}

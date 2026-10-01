@@ -1,16 +1,16 @@
-import { isReportExportRequest } from "../../shared/monthly-sales";
+import { isReportExportRequest } from "../../shared/reports";
 import type { ControllerHandler, RegisteredController } from "./base";
 import { restockReportExportController } from "./restock-report-export";
-import { createMonthlySalesExportHandler } from "./monthly-sales-export";
+import { createReportExportHandler } from "./report-export-service";
 
 export function createReportExportController(
-  monthly: ControllerHandler = createMonthlySalesExportHandler(),
+  reports: ControllerHandler = createReportExportHandler(),
   restock: RegisteredController = restockReportExportController,
 ): RegisteredController {
   return {
     metadata: restock.metadata,
     handle: (payload, context) => isReportExportRequest(context.channel, payload)
-      ? monthly(payload, context)
+      ? reports(payload, context)
       : restock.handle(payload, context),
   };
 }

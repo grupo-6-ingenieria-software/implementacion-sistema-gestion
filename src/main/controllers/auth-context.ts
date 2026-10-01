@@ -84,6 +84,7 @@ export async function registerAuditLog(
     tipoAccion: string;
     usuarioId: string;
   },
+  options: { logAuditoriaId?: string; fechaHora?: string } = {},
 ): Promise<void> {
   const usuarioVersionId = await getOrCreateCurrentUserVersion(
     executor,
@@ -92,7 +93,8 @@ export async function registerAuditLog(
   );
 
   await executor.insert(schema.logAuditoria).values({
-    logFechaHora: getAuditTimestamp(),
+    ...(options.logAuditoriaId ? { logAuditoriaId: options.logAuditoriaId } : {}),
+    logFechaHora: options.fechaHora ?? getAuditTimestamp(),
     logTipoAccion: event.tipoAccion,
     logModulo: event.modulo,
     logDescripcion: event.descripcion,

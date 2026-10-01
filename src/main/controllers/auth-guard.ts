@@ -1,5 +1,5 @@
 import { controllers } from "../../shared/controllers";
-import { isReportExportRequest } from "../../shared/monthly-sales";
+import { isReportExportRequest } from "../../shared/reports";
 import type { ControllerId, Role } from "../../shared/navigation";
 import { navigationTree } from "../../shared/navigation";
 import { controllerError } from "./base";

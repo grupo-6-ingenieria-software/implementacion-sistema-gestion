@@ -574,7 +574,7 @@ export const navigationTree = [
     group: "reportes",
     showInMenu: true,
     entryFrom: "Menu Reportes > Ventas mensuales.",
-    controllerIds: ["access-control", "session", "monthly-sales", "audit"],
+    controllerIds: ["access-control", "session", "monthly-sales", "audit", "restock-report-export"],
   },
 ] as const satisfies readonly NavNode[];
 
@@ -582,14 +582,14 @@ export const internalComponents = [
   {
     id: "export-format-action",
     name: "AccionExportarFormato",
-    usedIn: ["product-list"],
-    controllerIds: ["inventory-export"],
+    usedIn: ["product-list", "monthly-sales"],
+    controllerIds: ["inventory-export", "restock-report-export"],
   },
   {
     id: "report-print-view",
     name: "ReportePrintView",
-    usedIn: ["product-list"],
-    controllerIds: ["inventory-export"],
+    usedIn: ["product-list", "monthly-sales"],
+    controllerIds: ["inventory-export", "restock-report-export"],
   },
   {
     id: "sale-discount-modal",

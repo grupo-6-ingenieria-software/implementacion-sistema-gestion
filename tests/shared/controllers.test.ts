@@ -104,7 +104,7 @@ describe("controller registry", () => {
       {
         id: "restock-report-export",
         name: "ExportacionReporteHandler",
-        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"],
       },
     ]);
   });

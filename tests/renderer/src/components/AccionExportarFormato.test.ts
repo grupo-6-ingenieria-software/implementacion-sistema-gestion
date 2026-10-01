@@ -5,6 +5,9 @@ import {
   AccionExportarFormato,
   exportInventoryList,
   inventoryExportNotice,
+  exportGeneratedReport,
+  verifyGeneratedReport,
+  ReportActionError,
 } from "../../../../src/renderer/src/components/AccionExportarFormato";
 import { ProductListView } from "../../../../src/renderer/src/views/ProductListView";
 import {
@@ -106,5 +109,28 @@ describe("CU20 UI06 helpers and V06 integration", () => {
       tone: "warning",
       message: `Archivo guardado en list.pdf. ${INVENTORY_AUDIT_WARNING}`,
     });
+  });
+});
+
+describe("CU54 UI06 report mode", () => {
+  const request = { tipo: "ventas-mensuales", periodo: { mes: 9, anio: 2026 } };
+  it("uses the common internal action and supports disabling before data is available", () => {
+    const html = renderToStaticMarkup(createElement(AccionExportarFormato, { mode: "report", request, disabled: true }));
+    expect(html).toContain("Exportar reporte"); expect(html).toContain("disabled");
+    expect(html).not.toContain("Exportar listado");
+  });
+  it.each(["pdf", "xlsx"] as const)("sends only the generated descriptor for %s", async (format) => {
+    const invoke = vi.fn(async () => ({ ok: true as const, data: { ...base, formato: format, estado: "saved" } }));
+    await exportGeneratedReport(invoke as typeof window.appApi.invoke, format, { ...request, filas: [], ruta: "fake" } as typeof request);
+    expect(invoke).toHaveBeenCalledWith(`reporte:exportar-${format}`, request);
+  });
+  it("preserves uncertain operation IDs and forbidden responses for the interface", async () => {
+    const id = "00000000-0000-4000-8000-000000000054";
+    const invoke = vi.fn(async () => ({ ok: false as const, error: { code: "EXPORT_RECONCILIATION_REQUIRED" as const, message: "No fue posible generar el archivo", operacionId: id } }));
+    await expect(exportGeneratedReport(invoke as typeof window.appApi.invoke, "pdf", request)).rejects.toMatchObject({ code: "EXPORT_RECONCILIATION_REQUIRED", operacionId: id });
+    const verify = vi.fn(async () => ({ ok: true as const, data: { estado: "pending", operacionId: id } }));
+    expect(await verifyGeneratedReport(verify as typeof window.appApi.invoke, id)).toEqual({ estado: "pending", operacionId: id });
+    expect(verify).toHaveBeenCalledWith("reporte:conciliar-exportacion", { operacionId: id });
+    expect(new ReportActionError("denied", "FORBIDDEN").code).toBe("FORBIDDEN");
   });
 });

@@ -1,5 +1,5 @@
 import type { ControllerResponse } from "../../shared/controllers";
-import { isReportExportRequest } from "../../shared/monthly-sales";
+import { isReportExportRequest } from "../../shared/reports";
 import { controllerError, type ControllerContext, type RegisteredController } from "./base";
 
 // Las mutaciones y la consulta del propio log ya se auditan en sus servicios.
@@ -34,6 +34,8 @@ export async function handleWithAudit(
 ): Promise<ControllerResponse> {
   const response = await controller.handle(payload, context);
   if (!response.ok || !context.claims) return response;
+  // CU54 finalizes its immutable audit together with publication; C33 stays here.
+  if (isReportExportRequest(context.channel, payload)) return response;
 
   const isQuery = AUDITED_QUERY_CHANNELS.has(context.channel);
   const isExport = context.channel === "reporte:exportar-pdf" ||

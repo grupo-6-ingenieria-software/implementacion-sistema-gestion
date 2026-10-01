@@ -33,6 +33,7 @@ export type ControllerErrorCode =
   | "USUARIO_NO_ENCONTRADO"
   | "VALIDATION_ERROR"
   | "BUSINESS_RULE"
+  | "EXPORT_RECONCILIATION_REQUIRED"
   | "TECHNICAL_ERROR";
 
 export type ControllerResponse<TData = unknown> =
@@ -43,6 +44,7 @@ export type ControllerResponse<TData = unknown> =
         code: ControllerErrorCode;
         message: string;
         controllerId?: ControllerId;
+        operacionId?: string;
         fieldErrors?: Partial<Record<string, string>>;
       };
     };
@@ -314,7 +316,7 @@ export const controllers = [
     id: "restock-report-export",
     name: "ExportacionReporteHandler",
     module: "inventario",
-    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"],
   },
   {
     id: "inventory-valuation",
