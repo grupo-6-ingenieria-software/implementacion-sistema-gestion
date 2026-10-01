@@ -1,12 +1,14 @@
 import type { ControllerResponse } from "../../shared/controllers";
 import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
 import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
+import { CATEGORY_PROFITABILITY_REPORT_TYPE } from "../../shared/category-profitability";
 import { controllerError, type ControllerContext, type RegisteredController } from "./base";
 
 // Las mutaciones y la consulta del propio log ya se auditan en sus servicios.
 // Las lecturas de negocio se registran aquí usando la identidad del dispatcher.
 export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
   "reporte:ventas-mensuales",
+  "reporte:rentabilidad-categoria",
   "reporte:productos-mas-vendidos",
   "dashboard:cargar", "dashboard:alertas-stock", "dashboard:alertas-vencimiento",
   "dashboard:total-ventas-dia", "producto:listar", "producto:buscar-activo",
@@ -44,7 +46,8 @@ export async function handleWithAudit(
   const reportType = (payload as { tipo?: unknown } | null)?.tipo;
   const isSalesExport = (context.channel === "reporte:exportar-pdf" ||
     context.channel === "reporte:exportar-xlsx") &&
-    (reportType === MONTHLY_SALES_REPORT_TYPE || reportType === PRODUCTS_MOST_SOLD_REPORT_TYPE);
+    (reportType === MONTHLY_SALES_REPORT_TYPE || reportType === PRODUCTS_MOST_SOLD_REPORT_TYPE ||
+      reportType === CATEGORY_PROFITABILITY_REPORT_TYPE);
   const isExport = isInventoryExport || isSalesExport;
   // Cerrar el diálogo sin guardar no es una exportación realizada.
   if (!isQuery && !(isExport && response.data?.estado === "saved")) return response;

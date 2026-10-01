@@ -75,6 +75,7 @@ describe("navigation tree", () => {
         "inventory-valuation",
         "daily-sales-report",
         "monthly-sales",
+        "category-profitability",
         "products-most-sold",
         "reporte-mermas",
         "reporte-lotes-vencer",

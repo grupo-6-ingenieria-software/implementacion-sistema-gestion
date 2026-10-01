@@ -64,6 +64,7 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteRentabilidadView } from "./views/ReporteRentabilidadView";
 import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
@@ -1047,6 +1048,10 @@ function ViewRenderer({
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "category-profitability" && session.usuarioId && session.role === "dueno") {
+    return <ReporteRentabilidadView onNavigate={onNavigate} />;
+  }
+
   if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
     return <ReporteProductosVendidosView onNavigate={onNavigate} />;
   }
@@ -1209,6 +1214,7 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "category-profitability",
     "monthly-sales",
     "daily-sales-report",
     "products-most-sold",

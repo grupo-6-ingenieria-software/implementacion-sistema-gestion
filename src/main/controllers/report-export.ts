@@ -16,6 +16,8 @@ import { AccessDeniedError, authorizeUser, registerAuditLog } from "./auth-conte
 import { DailySalesReportValidationError, loadDailySalesReport } from "./daily-sales-report-service";
 import { formatDateTimeInSantiago, restockReportExportController, type HiddenPrintWindow } from "./restock-report-export";
 import { createMonthlySalesExportHandler } from "./monthly-sales-export";
+import { CATEGORY_PROFITABILITY_REPORT_TYPE } from "../../shared/category-profitability";
+import { createCategoryProfitabilityExportHandler } from "./category-profitability-export";
 import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
 import { createProductsMostSoldExportHandler } from "./products-most-sold-export";
 
@@ -202,6 +204,7 @@ export function createReportExportController(
   restock: RegisteredController = restockReportExportController,
   productsMostSold: ControllerHandler = createProductsMostSoldExportHandler(),
   daily: RegisteredController = dailySalesExportController,
+  profitability: ControllerHandler = createCategoryProfitabilityExportHandler(),
 ): RegisteredController {
   const metadata = controllers.find((item) => item.id === "report-export")!;
   return {
@@ -219,6 +222,7 @@ export function createReportExportController(
       if (tipo === "ventas-diarias") return daily.handle(payload, context);
       if (tipo === MONTHLY_SALES_REPORT_TYPE) return monthly(payload, context);
       if (tipo === PRODUCTS_MOST_SOLD_REPORT_TYPE) return productsMostSold(payload, context);
+      if (tipo === CATEGORY_PROFITABILITY_REPORT_TYPE) return profitability(payload, context);
       return Promise.resolve(controllerError("VALIDATION_ERROR", "Tipo de reporte no válido.", metadata.id));
     },
   };
