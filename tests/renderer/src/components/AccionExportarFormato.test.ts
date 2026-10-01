@@ -39,6 +39,24 @@ describe("CU20 UI06 helpers and V06 integration", () => {
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-busy="false"');
   });
+  it.each([
+    { disabled: false, exporting: false, label: "Exportar" },
+    { disabled: true, exporting: false, label: "Exportar" },
+    { disabled: false, exporting: true, label: "Exportando..." },
+  ])("preserves the daily report export controls for $label (disabled: $disabled)", ({ disabled, exporting, label }) => {
+    const html = renderToStaticMarkup(createElement(AccionExportarFormato, {
+      format: "xlsx",
+      disabled,
+      exporting,
+      onFormatChange: vi.fn(),
+      onExport: vi.fn(),
+    }));
+    expect(html).toContain('aria-label="Formato de exportación"');
+    expect(html).toContain('<option value="xlsx" selected="">');
+    expect(html).toContain(`>${label}</button>`);
+    expect(html).not.toContain("Exportar listado");
+    expect((html.match(/disabled=""/g) ?? []).length).toBe(disabled || exporting ? 2 : 0);
+  });
   it.each(["pdf", "xlsx"] as const)(
     "sends only format %s through IPC",
     async (formato) => {

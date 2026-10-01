@@ -49,10 +49,16 @@ import {
   workerDependencies,
 } from "./worker";
 import { restockListController } from "./restock-list";
+import { restockReportExportController } from "./restock-report-export";
 import { reportExportController } from "./report-export";
 import { monthlySalesController } from "./monthly-sales";
+import { productsMostSoldController } from "./products-most-sold";
 import { inventoryValuationController } from "./inventory-valuation";
 import { inventoryExportController } from "./inventory-export";
+import { dailySalesReportController } from "./daily-sales-report";
+import { wasteReportController } from "./waste-report";
+import { expiringLotsReportController } from "./expiring-lots-report";
+import { movementReportController } from "./movement-report";
 import type { RegisteredController } from "./base";
 
 const workerController = createWorkerController({
@@ -109,11 +115,17 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     supplierQueryController,
     supplierEditController,
     restockListController,
-    reportExportController,
+    restockReportExportController,
     inventoryValuationController,
+    dailySalesReportController,
+    reportExportController,
     monthlySalesController,
+    productsMostSoldController,
     saleCategoriesController,
     inventoryExportController,
+    wasteReportController,
+    expiringLotsReportController,
+    movementReportController,
   ];
 
 /**

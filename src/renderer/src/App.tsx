@@ -64,7 +64,12 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
+import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -938,6 +943,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "daily-sales-report" && session.role === "dueno") {
+    return <ReporteDiarioVentasView />;
+  }
+
   if (node.id === "sales-query" && session.usuarioId) {
     return (
       <ConsultaVentasView
@@ -1036,6 +1045,37 @@ function ViewRenderer({
 
   if (node.id === "monthly-sales" && session.usuarioId && session.role === "dueno") {
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
+    return <ReporteProductosVendidosView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-lotes-vencer" && session.usuarioId) {
+    return (
+      <ReporteLotesVencerView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   if (node.id === "product-list" && session.role && session.usuarioId) {
@@ -1170,6 +1210,8 @@ function getProductEditEan13(path: string): string | undefined {
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
     "monthly-sales",
+    "daily-sales-report",
+    "products-most-sold",
     "dashboard",
     "attendance",
     "cash-closing",
@@ -1203,6 +1245,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
+    "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(43);
-    expect(new Set(ids)).toHaveProperty("size", 43);
+    expect(controllers).toHaveLength(49);
+    expect(new Set(ids)).toHaveProperty("size", 49);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,9 +49,15 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "daily-sales-report",
+      "report-export",
       "monthly-sales",
+      "products-most-sold",
       "sale-categories",
       "inventory-export",
+      "waste-report",
+      "expiring-lots-report",
+      "movement-report",
     ]);
   });
 
@@ -74,6 +80,7 @@ describe("controller registry", () => {
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+    expect(new Set(ipcChannels.map((item) => item.channel)).size).toBe(ipcChannels.length);
   });
 
   it("appends the CU13 supplier controller without changing prior indices", () => {
@@ -104,7 +111,7 @@ describe("controller registry", () => {
       {
         id: "restock-report-export",
         name: "ExportacionReporteHandler",
-        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+        channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
       },
     ]);
   });
@@ -122,6 +129,14 @@ describe("controller registry", () => {
       id: "sale-categories",
       name: "VentasCategoriaHandler",
       channels: ["venta:por-categoria"],
+    });
+  });
+
+  it("appends the CU49 waste report controller", () => {
+    expect(controllers.find((c) => c.id === "waste-report")).toMatchObject({
+      id: "waste-report",
+      name: "ReporteMermasHandler",
+      channels: ["reporte:mermas"],
     });
   });
 
@@ -194,5 +209,15 @@ describe("controller registry", () => {
       "turno:editar",
       "turno:eliminar",
     ]);
+  });
+
+  it("registers the CU53 movement report controller", () => {
+    expect(
+      controllers.find((controller) => controller.id === "movement-report"),
+    ).toMatchObject({
+      id: "movement-report",
+      name: "ReporteMovimientosHandler",
+      channels: ["reporte:movimientos-inventario"],
+    });
   });
 });
