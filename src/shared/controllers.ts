@@ -334,6 +334,12 @@ export const controllers = [
     module: "ventas",
     channels: ["venta:por-categoria"],
   },
+  {
+    id: "category-profitability",
+    name: "ReporteRentabilidadHandler",
+    module: "reportes",
+    channels: ["reporte:rentabilidad-categoria"],
+  },
 ] as const satisfies readonly ControllerMetadata[];
 
 export const controllerIds = controllers.map((controller) => controller.id);

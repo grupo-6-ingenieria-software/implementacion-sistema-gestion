@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(42);
-    expect(new Set(ids)).toHaveProperty("size", 42);
+    expect(controllers).toHaveLength(43);
+    expect(new Set(ids)).toHaveProperty("size", 43);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -51,6 +51,7 @@ describe("controller registry", () => {
       "inventory-valuation",
       "monthly-sales",
       "sale-categories",
+      "category-profitability",
     ]);
   });
 
@@ -109,7 +110,7 @@ describe("controller registry", () => {
   });
 
   it("registers the CU45 query after inherited controllers", () => {
-    expect(controllers.at(-1)).toMatchObject({
+    expect(controllers[41]).toMatchObject({
       id: "sale-categories",
       name: "VentasCategoriaHandler",
       channels: ["venta:por-categoria"],

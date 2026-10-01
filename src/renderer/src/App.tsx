@@ -64,6 +64,7 @@ import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
 import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteRentabilidadView } from "./views/ReporteRentabilidadView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
 import {
   clearPendingSaleResume,
@@ -1038,6 +1039,10 @@ function ViewRenderer({
     return <ReporteMensualVentasView onNavigate={onNavigate} />;
   }
 
+  if (node.id === "category-profitability" && session.usuarioId && session.role === "dueno") {
+    return <ReporteRentabilidadView onNavigate={onNavigate} />;
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1169,6 +1174,7 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "category-profitability",
     "monthly-sales",
     "dashboard",
     "attendance",
