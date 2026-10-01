@@ -136,6 +136,24 @@ export type SaleHistorySearchResult = {
   resumen: SaleHistorySearchSummary;
 };
 
+export type SaleCategoryRequest = {
+  fechaInicio: string;
+  fechaTermino: string;
+};
+
+export type SaleCategoryResult = {
+  categorias: Array<{
+    categoriaId: number;
+    categoriaNombre: string;
+    unidadesVendidas: number;
+    montoNeto: number;
+  }>;
+  totales: {
+    unidadesVendidas: number;
+    montoNeto: number;
+  };
+};
+
 export type SaleDetailLine = {
   productoId: number;
   ean13: string;
@@ -276,6 +294,16 @@ export type RecordedSaleTotalsInput = {
   discountValue: number | null;
 };
 
+export type RecordedSaleLineAmount = {
+  id: string;
+  subtotal: number;
+};
+
+export type AllocatedSaleLineAmount = RecordedSaleLineAmount & {
+  descuento: number;
+  montoNeto: number;
+};
+
 export type DailySale = {
   ventaId: string;
   fechaHora: string;
@@ -349,6 +377,144 @@ export function calculateRecordedSaleTotal(
   }
 
   return subtotal;
+}
+
+export type SaleLineAllocationInput = { id: string; subtotal: number };
+export type SaleLineAllocation = SaleLineAllocationInput & {
+  descuento: number;
+  neto: number;
+};
+
+/** Reparte el descuento efectivo de una venta en pesos enteros sin perder un peso. */
+export function allocateRecordedSaleDiscount(
+  lines: readonly SaleLineAllocationInput[],
+  sale: Omit<RecordedSaleTotalsInput, "subtotal">,
+): SaleLineAllocation[] {
+  const ids = new Set<string>();
+  let subtotal = 0;
+  for (const line of lines) {
+    if (!line.id || ids.has(line.id) || !Number.isSafeInteger(line.subtotal) || line.subtotal < 0) {
+      throw new RangeError("Las líneas de venta contienen datos inválidos.");
+    }
+    ids.add(line.id);
+    subtotal += line.subtotal;
+    if (!Number.isSafeInteger(subtotal)) throw new RangeError("El subtotal excede el rango permitido.");
+  }
+  if (!Number.isSafeInteger(sale.discountValue ?? 0) || (sale.discountValue ?? 0) < 0) {
+    throw new RangeError("El descuento registrado es inválido.");
+  }
+  if (
+    (sale.discountType === "monto" && (sale.discountValue ?? 0) > subtotal) ||
+    (sale.discountType === "porcentaje" && (sale.discountValue ?? 0) > 100) ||
+    (sale.discountType === "ninguno" && (sale.discountValue ?? 0) !== 0)
+  ) {
+    throw new RangeError("El descuento registrado no es coherente con el subtotal.");
+  }
+  const total = calculateRecordedSaleTotal({ ...sale, subtotal });
+  const descuento = subtotal - total;
+  if (!Number.isSafeInteger(total) || descuento < 0 || (subtotal === 0 && descuento !== 0)) {
+    throw new RangeError("El total registrado es inválido.");
+  }
+  if (lines.length === 0) {
+    if (descuento !== 0) throw new RangeError("Una venta sin líneas tiene descuento.");
+    return [];
+  }
+  const base = lines.map((line) => {
+    const weighted = subtotal === 0 ? 0n : BigInt(descuento) * BigInt(line.subtotal);
+    return {
+      ...line,
+      descuento: subtotal === 0 ? 0 : Number(weighted / BigInt(subtotal)),
+      remainder: subtotal === 0 ? 0n : weighted % BigInt(subtotal),
+    };
+  });
+  let remaining = descuento - base.reduce((sum, line) => sum + line.descuento, 0);
+  const ordered = [...base].sort((a, b) =>
+    a.remainder === b.remainder
+      ? a.id.localeCompare(b.id)
+      : a.remainder > b.remainder ? -1 : 1,
+  );
+  for (const line of ordered) {
+    if (remaining <= 0) break;
+    line.descuento += 1;
+    remaining -= 1;
+  }
+  if (remaining !== 0) throw new RangeError("No fue posible distribuir el descuento.");
+  return base.map(({ id, subtotal: lineSubtotal, descuento: allocated }) => ({
+    id,
+    subtotal: lineSubtotal,
+    descuento: allocated,
+    neto: lineSubtotal - allocated,
+  }));
+}
+
+/** RF45: reparte pesos enteros por restos mayores, con empate por ID de línea. */
+export function allocateRecordedSaleNetAmounts(
+  sale: Pick<RecordedSaleTotalsInput, "discountType" | "discountValue">,
+  lines: readonly RecordedSaleLineAmount[],
+): AllocatedSaleLineAmount[] {
+  const ids = new Set<string>();
+  let subtotal = 0;
+  for (const line of lines) {
+    if (
+      !line.id ||
+      ids.has(line.id) ||
+      !Number.isSafeInteger(line.subtotal) ||
+      line.subtotal < 0 ||
+      !Number.isSafeInteger(subtotal + line.subtotal)
+    ) {
+      throw new RangeError("Las líneas de venta contienen importes inválidos.");
+    }
+    ids.add(line.id);
+    subtotal += line.subtotal;
+  }
+
+  if (
+    !Number.isSafeInteger(sale.discountValue ?? 0) ||
+    (sale.discountValue ?? 0) < 0 ||
+    (sale.discountType === "porcentaje" && (sale.discountValue ?? 0) > 100) ||
+    (sale.discountType === "monto" && (sale.discountValue ?? 0) > subtotal)
+  ) {
+    throw new RangeError("La venta contiene un descuento inválido.");
+  }
+
+  const total = calculateRecordedSaleTotal({ ...sale, subtotal });
+  const discount = subtotal - total;
+  if (!Number.isSafeInteger(discount) || discount < 0 || discount > subtotal) {
+    throw new RangeError("El total de la venta es incoherente.");
+  }
+  if (subtotal === 0) {
+    return lines.map((line) => ({ ...line, descuento: 0, montoNeto: 0 }));
+  }
+
+  const denominator = BigInt(subtotal);
+  const allocated = lines.map((line) => {
+    const numerator = BigInt(discount) * BigInt(line.subtotal);
+    return {
+      ...line,
+      descuento: Number(numerator / denominator),
+      remainder: numerator % denominator,
+    };
+  });
+  const assigned = allocated.reduce((sum, line) => sum + line.descuento, 0);
+  const byRemainder = [...allocated].sort((left, right) =>
+    left.remainder === right.remainder
+      ? left.id < right.id
+        ? -1
+        : left.id > right.id
+          ? 1
+          : 0
+      : left.remainder > right.remainder
+        ? -1
+        : 1,
+  );
+  for (let index = 0; index < discount - assigned; index += 1) {
+    byRemainder[index].descuento += 1;
+  }
+
+  return allocated.map(({ remainder: _remainder, ...line }) => ({
+    ...line,
+    montoNeto: line.subtotal - line.descuento,
+  }));
 }
 
 export function calculateCashChange(

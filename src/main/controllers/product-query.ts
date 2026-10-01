@@ -237,18 +237,20 @@ export function createProductQueryController(
 
     if (context.channel === "producto:buscar-activo") {
       const input = normalizeProductSearchPayload(payload);
-      const query = input.ean13?.trim() || input.query?.trim();
+      const ean13 = input.ean13?.trim();
+      const query = input.query?.trim();
 
       try {
         await dependencies.authorize(input.usuarioId, ["dueno", "trabajador"]);
 
         const products =
           (await dependencies.listActiveProducts?.({
+            ean13,
             query,
             limit: normalizeLimit(input.limit),
           })) ?? [];
 
-        if (query && products.length === 0) {
+        if ((ean13 || query) && products.length === 0) {
           return {
             ok: false,
             error: {
@@ -518,9 +520,11 @@ export async function queryActiveProductsWithExecutor(
   schema: typeof import("../../db/schema"),
   options: { query?: string; ean13?: string; limit: number },
 ): Promise<ActiveProductListItem[]> {
-  const search = options.ean13 ?? options.query;
+  const search = options.query;
   const conditions = [eq(schema.producto.productoEstado, "activo")];
-  if (search) {
+  if (options.ean13) {
+    conditions.push(eq(schema.producto.productoEan13, options.ean13));
+  } else if (search) {
     conditions.push(
       or(
         eq(schema.producto.productoEan13, search),

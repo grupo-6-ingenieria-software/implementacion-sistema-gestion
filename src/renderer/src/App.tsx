@@ -53,6 +53,7 @@ import { ProductListView } from "./views/ProductListView";
 import { ProductStatusView } from "./views/ProductStatusView";
 import { RegistrarRemuneracionView } from "./views/RegistrarRemuneracionView";
 import { SaleRegisterView } from "./views/SaleRegisterView";
+import { VentasCategoriaView } from "./views/VentasCategoriaView";
 import { ShiftCalendarView, getShiftResultMessage } from "./views/ShiftCalendarView";
 import { ShiftCreateView } from "./views/ShiftCreateView";
 import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
@@ -64,7 +65,14 @@ import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
 import { RestockListView } from "./views/RestockListView";
+import { ReporteMensualVentasView } from "./views/ReporteMensualVentasView";
+import { ReporteRentabilidadView } from "./views/ReporteRentabilidadView";
+import { ReporteProductosVendidosView } from "./views/ReporteProductosVendidosView";
 import { ValorizacionInventarioView } from "./views/ValorizacionInventarioView";
+import { ReporteDiarioVentasView } from "./views/ReporteDiarioVentasView";
+import { ReporteMermasView } from "./views/ReporteMermasView";
+import { ReporteLotesVencerView } from "./views/ReporteLotesVencerView";
+import { ReporteMovimientosView } from "./views/ReporteMovimientosView";
 import {
   clearPendingSaleResume,
   clearSaleDraft,
@@ -108,7 +116,6 @@ export function App(): ReactElement {
   const isAuthenticatedRef = useRef(session.isAuthenticated);
   const currentPathRef = useRef(path);
   const postLoginRouteRef = useRef<string | null>(null);
-  const postPasswordRouteRef = useRef<string | null>(null);
 
   isAuthenticatedRef.current = session.isAuthenticated;
   currentPathRef.current = path;
@@ -166,18 +173,6 @@ export function App(): ReactElement {
       return;
     }
 
-    if (
-      path === PASSWORD_CHANGE_PATH &&
-      session.isAuthenticated &&
-      !session.passwordChangeRequired &&
-      postPasswordRouteRef.current
-    ) {
-      const target = postPasswordRouteRef.current;
-      postPasswordRouteRef.current = null;
-      navigate(target);
-      return;
-    }
-
     const decision = evaluateRouteAccess(path, session);
 
     if (decision.status !== "allow") {
@@ -191,6 +186,10 @@ export function App(): ReactElement {
       navigate(decision.to);
       return;
     }
+
+    const node = findNavNodeByPath(path);
+    // La vista del nodo consulta directamente a Main, que autoriza y audita.
+    if (node?.authorizedByMain) return;
 
     if (path.startsWith("/app") && session.isAuthenticated) {
       let cancelled = false;
@@ -296,19 +295,12 @@ export function App(): ReactElement {
   };
 
   const completePasswordChange = (): void => {
-    const nextSession = {
-      ...session,
-      passwordChangeRequired: false,
-    };
-    setSession(nextSession);
-    const draft = readSaleDraft();
-    const pendingUserId = readPendingSaleUserId();
-    const shouldResumeSale =
-      pendingUserId !== null && draft?.usuarioId === pendingUserId;
-    postPasswordRouteRef.current = shouldResumeSale
-      ? SALE_REGISTER_PATH
-      : APP_HOME_PATH;
-    clearPendingSaleResume();
+    // La definitiva invalida las sesiones temporales. Obtener un JWT nuevo
+    // mediante login evita conservar los permisos restringidos del anterior.
+    window.appApi.setSessionToken(null);
+    setSession(defaultSession);
+    setNotice("Contraseña cambiada correctamente. Inicie sesión con su nueva contraseña.");
+    navigate(PUBLIC_LOGIN_PATH);
   };
 
   if (path === PUBLIC_LOGIN_PATH) {
@@ -333,6 +325,10 @@ export function App(): ReactElement {
       onNavigate={(target) => {
         setAccessDeniedMessage(null);
         navigate(target);
+      }}
+      onAccessDenied={(message) => {
+        setAccessDeniedMessage(message);
+        navigate(APP_HOME_PATH);
       }}
       onLogout={logout}
       onAuthenticationRequired={(message) => expireSession(message, true)}
@@ -580,19 +576,21 @@ function PasswordChangeView({
 
     setIsLoading(true);
 
-    const response = await window.appApi.invoke("auth:cambiar-password", {
-      usuarioId,
-      contrasenaNueva: nueva,
-    });
-
-    setIsLoading(false);
-
-    if (!response.ok) {
-      setError(response.error.message);
-      return;
+    try {
+      const response = await window.appApi.invoke("auth:cambiar-password", {
+        usuarioId,
+        contrasenaNueva: nueva,
+      });
+      if (!response.ok) {
+        setError(response.error.message);
+        return;
+      }
+      onComplete();
+    } catch {
+      setError("No fue posible cambiar la contraseña. Intente nuevamente.");
+    } finally {
+      setIsLoading(false);
     }
-
-    onComplete();
   };
 
   return (
@@ -660,6 +658,7 @@ export function AppShell({
   session,
   bannerMessage,
   onNavigate,
+  onAccessDenied,
   onLogout,
   onAuthenticationRequired,
 }: {
@@ -667,6 +666,7 @@ export function AppShell({
   session: AppSession;
   bannerMessage?: string | null;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   onLogout: () => void;
   onAuthenticationRequired: (message?: string) => void;
 }): ReactElement {
@@ -774,6 +774,7 @@ export function AppShell({
           node={currentNode}
           session={session}
           onNavigate={onNavigate}
+          onAccessDenied={onAccessDenied}
           currentPath={currentPath}
           shiftSuccessMessage={shiftNotice?.path === currentPath ? shiftNotice.message : null}
           onShiftNoticeConsumed={consumeShiftNotice}
@@ -826,6 +827,7 @@ function ViewRenderer({
   currentPath,
   node,
   onNavigate,
+  onAccessDenied,
   session,
   shiftSuccessMessage,
   onShiftNoticeConsumed,
@@ -838,6 +840,7 @@ function ViewRenderer({
   currentPath: string;
   node: NavNode;
   onNavigate: (path: string) => void;
+  onAccessDenied?: (message: string) => void;
   session: AppSession;
   shiftSuccessMessage: string | null;
   onShiftNoticeConsumed: () => void;
@@ -926,6 +929,10 @@ function ViewRenderer({
     );
   }
 
+  if (node.id === "sale-categories") {
+    return <VentasCategoriaView />;
+  }
+
   if (node.id === "waste-create" && session.usuarioId) {
     return (
       <WasteCreateView
@@ -956,6 +963,10 @@ function ViewRenderer({
         onNavigate={onNavigate}
       />
     );
+  }
+
+  if (node.id === "daily-sales-report" && session.role === "dueno") {
+    return <ReporteDiarioVentasView />;
   }
 
   if (node.id === "sales-query" && session.usuarioId) {
@@ -1054,6 +1065,45 @@ function ViewRenderer({
     return <ValorizacionInventarioView usuarioId={session.usuarioId} />;
   }
 
+  if (node.id === "monthly-sales" && session.usuarioId && session.role === "dueno") {
+    return <ReporteMensualVentasView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "category-profitability" && session.usuarioId && session.role === "dueno") {
+    return <ReporteRentabilidadView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "products-most-sold" && session.usuarioId && session.role === "dueno") {
+    return <ReporteProductosVendidosView onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "reporte-mermas" && session.usuarioId) {
+    return (
+      <ReporteMermasView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-lotes-vencer" && session.usuarioId) {
+    return (
+      <ReporteLotesVencerView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (node.id === "reporte-movimientos" && session.usuarioId) {
+    return (
+      <ReporteMovimientosView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   if (node.id === "product-list" && session.role && session.usuarioId) {
     return (
       <ProductListView
@@ -1083,7 +1133,13 @@ function ViewRenderer({
   }
 
   if (node.id === "audit-log") {
-    return <AuditLogView usuarioId={session.usuarioId} onNavigate={onNavigate} />;
+    return (
+      <AuditLogView
+        usuarioId={session.usuarioId}
+        onNavigate={onNavigate}
+        onAccessDenied={onAccessDenied}
+      />
+    );
   }
 
   if (node.id === "product-status" && session.usuarioId) {
@@ -1187,6 +1243,10 @@ function getProductEditEan13(path: string): string | undefined {
 
 export function isImplementedViewNodeId(nodeId: string): boolean {
   return [
+    "category-profitability",
+    "monthly-sales",
+    "daily-sales-report",
+    "products-most-sold",
     "dashboard",
     "attendance",
     "absence-create",
@@ -1201,6 +1261,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "product-list",
     "product-status",
     "sale-register",
+    "sale-categories",
     "supplier-order-create",
     "supplier-order-receptions",
     "supplier-list",
@@ -1220,6 +1281,9 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "movement-history",
     "restock-list",
     "inventory-valuation",
+    "reporte-mermas",
+    "reporte-lotes-vencer",
+    "reporte-movimientos",
   ].includes(nodeId);
 }
 

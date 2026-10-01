@@ -8,6 +8,7 @@ export type NavGroup =
   | "ventas"
   | "caja"
   | "personal"
+  | "reportes"
   | "administracion";
 
 export type ControllerId =
@@ -29,6 +30,7 @@ export type ControllerId =
   | "lot"
   | "waste"
   | "sale"
+  | "sale-categories"
   | "stock-discount"
   | "sales-history"
   | "cash-closing"
@@ -51,7 +53,16 @@ export type ControllerId =
   | "supplier-edit"
   | "restock-list"
   | "restock-report-export"
-  | "inventory-valuation";
+  | "inventory-valuation"
+  | "inventory-export"
+  | "daily-sales-report"
+  | "report-export"
+  | "waste-report"
+  | "expiring-lots-report"
+  | "movement-report"
+  | "monthly-sales"
+  | "products-most-sold"
+  | "category-profitability";
 
 export type NavNode = {
   id: string;
@@ -63,6 +74,9 @@ export type NavNode = {
   showInMenu: boolean;
   entryFrom: string;
   controllerIds: readonly ControllerId[];
+  // La vista invoca un canal que Main autoriza y audita; el renderer no la
+  // deniega localmente para no duplicar la denegación (CU58-E1).
+  authorizedByMain?: true;
 };
 
 export type SessionState = {
@@ -142,7 +156,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "inventory-export"],
   },
   {
     id: "product-create",
@@ -254,7 +268,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Ajuste de inventario.",
-    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit"],
+    controllerIds: ["access-control", "stock-adjustment", "product-query", "audit", "ean-reader"],
   },
   {
     id: "movement-history",
@@ -265,7 +279,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Movimientos, o desde Detalle de producto.",
-    controllerIds: ["access-control", "movement-history"],
+    controllerIds: ["access-control", "movement-history", "ean-reader"],
   },
   {
     id: "restock-list",
@@ -382,6 +396,17 @@ export const navigationTree = [
       "audit",
       "ean-reader",
     ],
+  },
+  {
+    id: "sale-categories",
+    viewName: "VentasCategoriaView",
+    label: "Ventas por categoría",
+    path: "/app/ventas/categorias",
+    roles: ["dueno", "trabajador"],
+    group: "ventas",
+    showInMenu: true,
+    entryFrom: "Menu Ventas > Ventas por categoría.",
+    controllerIds: ["access-control", "sale-categories"],
   },
   {
     id: "daily-sales",
@@ -537,6 +562,17 @@ export const navigationTree = [
     controllerIds: ["access-control", "configuracion-previsional", "audit"],
   },
   {
+    id: "daily-sales-report",
+    viewName: "ReporteDiarioVentasView",
+    label: "Ventas diarias",
+    path: "/app/reportes/ventas-diarias",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas diarias.",
+    controllerIds: ["access-control", "daily-sales-report", "report-export", "audit"],
+  },
+  {
     id: "user-management",
     viewName: "UserManagementView",
     label: "Usuarios",
@@ -557,10 +593,89 @@ export const navigationTree = [
     showInMenu: true,
     entryFrom: "Menu Administracion > Log de auditoria.",
     controllerIds: ["access-control", "audit"],
+    authorizedByMain: true,
+  },
+  {
+    id: "monthly-sales",
+    viewName: "ReporteMensualVentasView",
+    label: "Ventas mensuales",
+    path: "/app/reportes/ventas-mensuales",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Ventas mensuales.",
+    controllerIds: ["access-control", "session", "monthly-sales", "audit"],
+  },
+  {
+    id: "products-most-sold",
+    viewName: "ReporteProductosVendidosView",
+    label: "Productos más vendidos",
+    path: "/app/reportes/mas-vendidos",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Productos más vendidos.",
+    controllerIds: ["access-control", "session", "products-most-sold", "audit"],
+  },
+  {
+    id: "reporte-mermas",
+    viewName: "ReporteMermasView",
+    label: "Mermas",
+    path: "/app/reportes/mermas",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Mermas.",
+    controllerIds: ["access-control", "waste-report", "audit"],
+  },
+  {
+    id: "reporte-lotes-vencer",
+    viewName: "ReporteLotesVencerView",
+    label: "Lotes por vencer",
+    path: "/app/reportes/lotes-por-vencer",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Lotes proximos a vencer.",
+    controllerIds: ["access-control", "expiring-lots-report", "audit"],
+  },
+  {
+    id: "reporte-movimientos",
+    viewName: "ReporteMovimientosView",
+    label: "Movimientos",
+    path: "/app/reportes/movimientos-inventario",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Movimientos de inventario.",
+    controllerIds: ["access-control", "movement-report", "audit"],
+  },
+  {
+    id: "category-profitability",
+    viewName: "ReporteRentabilidadView",
+    label: "Rentabilidad por categoría",
+    path: "/app/reportes/rentabilidad",
+    roles: ["dueno"],
+    group: "reportes",
+    showInMenu: true,
+    entryFrom: "Menu Reportes > Rentabilidad por categoría.",
+    controllerIds: ["access-control", "session", "category-profitability", "audit"],
   },
 ] as const satisfies readonly NavNode[];
 
 export const internalComponents = [
+  {
+    id: "export-format-action",
+    name: "AccionExportarFormato",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
+  {
+    id: "report-print-view",
+    name: "ReportePrintView",
+    usedIn: ["product-list"],
+    controllerIds: ["inventory-export"],
+  },
   {
     id: "sale-discount-modal",
     name: "DescuentoVentaModal",
@@ -573,9 +688,12 @@ export const internalComponents = [
     usedIn: [
       "product-list",
       "product-create",
+      "product-edit",
       "product-delete",
       "lot-create",
       "waste-create",
+      "stock-adjustment",
+      "movement-history",
       "sale-register",
       "supplier-order-create",
     ],
@@ -599,6 +717,36 @@ export const internalComponents = [
     usedIn: ["restock-list"],
     controllerIds: ["restock-report-export"],
   },
+  {
+    id: "daily-report-export",
+    name: "AccionExportarFormato",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "daily-report-print-view",
+    name: "ReporteVentasDiariasPrintView",
+    usedIn: ["daily-sales-report"],
+    controllerIds: ["report-export"],
+  },
+  {
+    id: "waste-report-print-view",
+    name: "ReporteMermasPrintView",
+    usedIn: ["reporte-mermas"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "expiring-lots-report-print-view",
+    name: "ReporteLotesVencerPrintView",
+    usedIn: ["reporte-lotes-vencer"],
+    controllerIds: ["restock-report-export"],
+  },
+  {
+    id: "movement-report-print-view",
+    name: "ReporteMovimientosPrintView",
+    usedIn: ["reporte-movimientos"],
+    controllerIds: ["restock-report-export"],
+  },
 ] as const;
 
 export const appMenuGroups: readonly NavGroup[] = [
@@ -608,6 +756,7 @@ export const appMenuGroups: readonly NavGroup[] = [
   "ventas",
   "caja",
   "personal",
+  "reportes",
   "administracion",
 ];
 
@@ -619,6 +768,7 @@ export const navGroupLabels: Record<NavGroup, string> = {
   ventas: "Ventas",
   caja: "Caja",
   personal: "Personal",
+  reportes: "Reportes",
   administracion: "Administracion",
 };
 
@@ -705,7 +855,11 @@ export function evaluateRouteAccess(
     };
   }
 
-  if (!node || !(node.roles as readonly Role[]).includes(session.role)) {
+  if (
+    !node ||
+    (!(node.roles as readonly Role[]).includes(session.role) &&
+      !node.authorizedByMain)
+  ) {
     return {
       status: "deny",
       to: APP_HOME_PATH,
@@ -721,6 +875,10 @@ export function validateNavigationTree(): string[] {
   const errors: string[] = [];
   const paths = new Set<string>();
   const requiredRouteIds = new Set([
+    "category-profitability",
+    "products-most-sold",
+    "monthly-sales",
+    "daily-sales-report",
     "login",
     "password-change",
     "dashboard",
@@ -742,6 +900,7 @@ export function validateNavigationTree(): string[] {
     "supplier-order-create",
     "supplier-order-receptions",
     "sale-register",
+    "sale-categories",
     "daily-sales",
     "sales-query",
     "sale-annulment",
@@ -757,6 +916,7 @@ export function validateNavigationTree(): string[] {
     "configuracion-previsional",
     "user-management",
     "audit-log",
+    "reporte-mermas",
   ]);
 
   for (const node of navigationTree) {

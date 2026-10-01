@@ -6,8 +6,8 @@ describe("controller registry", () => {
   it("declares one metadata entry per controller id", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(41);
-    expect(new Set(ids)).toHaveProperty("size", 41);
+    expect(controllers).toHaveLength(51);
+    expect(new Set(ids)).toHaveProperty("size", 51);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -49,6 +49,16 @@ describe("controller registry", () => {
       "restock-list",
       "restock-report-export",
       "inventory-valuation",
+      "daily-sales-report",
+      "report-export",
+      "monthly-sales",
+      "products-most-sold",
+      "sale-categories",
+      "inventory-export",
+      "waste-report",
+      "expiring-lots-report",
+      "movement-report",
+      "category-profitability",
       "absence",
     ]);
   });
@@ -59,11 +69,20 @@ describe("controller registry", () => {
     ).toEqual(controllers.map((controller) => controller.id));
   });
 
+  it("appends C50 without reusing C33 channels", () => {
+    expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
+      id: "inventory-export", name: "ExportacionInventarioHandler",
+      channels: ["inventario:exportar-productos"],
+    });
+    expect(new Set(ipcChannels.map(({ channel }) => channel)).size).toBe(ipcChannels.length);
+  });
+
   it("assigns at least one IPC channel to every controller", () => {
     expect(ipcChannels.length).toBeGreaterThanOrEqual(37);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
     ).toBe(true);
+    expect(new Set(ipcChannels.map((item) => item.channel)).size).toBe(ipcChannels.length);
   });
 
   it("appends the CU13 supplier controller without changing prior indices", () => {
@@ -94,7 +113,7 @@ describe("controller registry", () => {
       {
         id: "restock-report-export",
         name: "ExportacionReporteHandler",
-        channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"],
+        channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
       },
     ]);
   });
@@ -107,8 +126,24 @@ describe("controller registry", () => {
     });
   });
 
+  it("registers the CU45 query after inherited controllers", () => {
+    expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
+      id: "sale-categories",
+      name: "VentasCategoriaHandler",
+      channels: ["venta:por-categoria"],
+    });
+  });
+
+  it("appends the CU49 waste report controller", () => {
+    expect(controllers.find((c) => c.id === "waste-report")).toMatchObject({
+      id: "waste-report",
+      name: "ReporteMermasHandler",
+      channels: ["reporte:mermas"],
+    });
+  });
+
   it("appends C51 without changing inherited indices", () => {
-    expect(controllers.at(40)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
+    expect(controllers.at(50)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
   });
 
   it("keeps remuneracion scoped to its documented channels", () => {
@@ -180,5 +215,15 @@ describe("controller registry", () => {
       "turno:editar",
       "turno:eliminar",
     ]);
+  });
+
+  it("registers the CU53 movement report controller", () => {
+    expect(
+      controllers.find((controller) => controller.id === "movement-report"),
+    ).toMatchObject({
+      id: "movement-report",
+      name: "ReporteMovimientosHandler",
+      channels: ["reporte:movimientos-inventario"],
+    });
   });
 });

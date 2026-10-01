@@ -32,7 +32,8 @@ a `ipcMain.handle`. El componente representado como
 `auth-guard.ts`. En cada invocación:
 
 1. Resuelve el controlador por canal (`findControllerByChannel`).
-2. Verifica identidad/rol vía [`auth-guard.ts`](./auth-guard.ts) (`guardChannel`).
+2. Verifica el JWT vía [`auth-guard.ts`](./auth-guard.ts) (`authenticateChannel`),
+   confirma la sesión persistida y después el rol efectivo (`authorizeRequest`).
 3. Inyecta la identidad de confianza y delega en `controller.handle`.
 4. Actualiza la actividad de sesión salvo en `NON_ACTIVITY_CHANNELS`.
 
@@ -101,9 +102,12 @@ PDF/XLSX guardadas, usando la identidad verificada por C03/C05. Una cancelación
 un error no genera una exportación exitosa. Los nuevos canales de lectura deben
 incorporarse a `AUDITED_QUERY_CHANNELS` si no registran su propia auditoría.
 
-El Trabajador no puede consultar el log: el servidor registra el intento y la
-interfaz vuelve al dashboard. Las denegaciones de navegación local también
-invocan `access:validate` para dejar evidencia. Los triggers impiden modificar o
+El Trabajador no puede consultar el log (CU58-E1): la ruta se marca
+`authorizedByMain`, de modo que V_LogAuditoriaView invoca `auditoria:consultar`
+y Main decide. `authorizeRequest` verifica el JWT (`authenticateChannel`),
+confirma la sesión y recién entonces rechaza el rol, registrando un único
+intento; la vista muestra el aviso y vuelve al dashboard. Las demás
+denegaciones de navegación local invocan `access:validate` para dejar evidencia. Los triggers impiden modificar o
 reemplazar registros, eliminar registros vigentes y alterar una identidad
 histórica utilizada; cerrar la vigencia de una versión y crear otra sigue
 permitido.
@@ -116,8 +120,9 @@ Pruebas CP62: `tests/main/controllers/rf58-audit.integration.test.ts`,
 La limpieza, sus límites y la actualización de triggers se verifican en
 `tests/main/controllers/audit-retention.integration.test.ts`; el ciclo automático
 se verifica en `tests/main/controllers/audit-retention-service.test.ts`.
-La interfaz se comprueba con `node tests/renderer/rf58-ui.mjs`; requiere Chromium
-de Playwright (`npx playwright install chromium`).
+La interfaz se comprueba con `node tests/renderer/rf58-ui.mjs` y
+`node --import tsx tests/renderer/rf58-e1-ui.mjs`; requiere Chromium de
+Playwright (`npx playwright install chromium`).
 
 ## Pruebas
 

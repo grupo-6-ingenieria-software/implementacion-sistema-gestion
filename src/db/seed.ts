@@ -59,8 +59,6 @@ const TRABAJADORA_TEMP_PASSWORD = "Caja2026";
 
 await db.insert(s.contrasena).values({
   contrasenaHash: await bcrypt.hash(DUENO_PASSWORD, 10),
-  esContrasenaTemporal: false,
-  esContrasenaDefinitiva: true,
   usuarioId: USR_DUENO,
   generadaPorUsuarioId: USR_DUENO,
 });
@@ -69,8 +67,6 @@ const [trabajadoraPwd] = await db
   .insert(s.contrasena)
   .values({
     contrasenaHash: await bcrypt.hash(TRABAJADORA_TEMP_PASSWORD, 10),
-    esContrasenaTemporal: true,
-    esContrasenaDefinitiva: false,
     usuarioId: USR_TRABAJADORA,
     generadaPorUsuarioId: USR_DUENO,
   })

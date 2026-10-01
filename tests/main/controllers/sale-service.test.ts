@@ -213,6 +213,7 @@ describe("registerSale", () => {
         total,
         vuelto: 3000 - total,
         descuento: { tipo, valor: monto, razon: storedReason ?? undefined },
+        detalle: [expect.objectContaining({ categoria: "Lacteos" })],
       });
       const rows = await testDb!.db.all(
         sql`SELECT venta_descuento_tipo AS tipo, venta_descuento_valor AS valor, venta_descuento_razon AS razon FROM venta`,

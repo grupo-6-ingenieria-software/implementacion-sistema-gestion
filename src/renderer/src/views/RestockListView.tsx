@@ -38,7 +38,9 @@ export async function exportRestockList(
   format: RestockExportFormat,
 ): Promise<RestockExportResult> {
   const channel =
-    format === "pdf" ? "reporte:exportar-pdf" : "reporte:exportar-xlsx";
+    format === "pdf"
+      ? "inventario:reabastecimiento:exportar-pdf"
+      : "inventario:reabastecimiento:exportar-xlsx";
   const response = await invoke<RestockExportResult>(channel, { usuarioId });
 
   if (!response.ok) throw new Error(response.error.message);

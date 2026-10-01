@@ -65,7 +65,7 @@ describe("createWorkerWithExecutor (alta de trabajador)", () => {
       registros: number;
     }>(sql`
       SELECT
-        (SELECT COUNT(*) FROM contrasena WHERE usuario_id = '22222222-2' AND es_contrasena_temporal = 1) AS temporales,
+        (SELECT COUNT(*) FROM contrasena c JOIN contrasena_temporal t ON t.contrasena_id = c.contrasena_id WHERE c.usuario_id = '22222222-2') AS temporales,
         (SELECT COUNT(*) FROM contrasena_temporal) AS expiraciones,
         (SELECT COUNT(*) FROM log_auditoria WHERE log_tipo_accion = 'registro') AS registros
     `);
@@ -119,7 +119,9 @@ describe("createWorkerWithExecutor (alta de trabajador)", () => {
 
     const counts = await testDb!.db.all<{ temporales: number }>(sql`
       SELECT COUNT(*) AS temporales
-      FROM contrasena WHERE usuario_id = '22222222-2' AND es_contrasena_temporal = 1
+      FROM contrasena c
+      JOIN contrasena_temporal t ON t.contrasena_id = c.contrasena_id
+      WHERE c.usuario_id = '22222222-2'
     `);
 
     // El segundo intento falla antes de insertar; sigue habiendo una sola temporal.

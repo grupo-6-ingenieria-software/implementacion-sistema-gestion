@@ -38,7 +38,7 @@ import {
 const windowsInstalled = { platform: "win32", isPackaged: true } as const;
 
 describe("shouldCheckForUpdates", () => {
-  it("sólo habilita la build empaquetada de Windows", () => {
+  it("sólo habilita la build instalada de Windows", () => {
     expect(shouldCheckForUpdates(windowsInstalled)).toBe(true);
     expect(shouldCheckForUpdates({ platform: "win32", isPackaged: false })).toBe(
       false,
@@ -46,6 +46,15 @@ describe("shouldCheckForUpdates", () => {
     expect(shouldCheckForUpdates({ platform: "darwin", isPackaged: true })).toBe(
       false,
     );
+  });
+
+  it("deshabilita la build portable de Windows", () => {
+    expect(
+      shouldCheckForUpdates({
+        ...windowsInstalled,
+        portableExecutableDir: "C:\\Huascar",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -69,6 +78,21 @@ describe("startAutoUpdater", () => {
     startAutoUpdater({ platform: "win32", isPackaged: false });
 
     expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it("no consulta, programa ni instala actualizaciones en Windows portable", () => {
+    startAutoUpdater({
+      ...windowsInstalled,
+      portableExecutableDir: "C:\\Huascar",
+    });
+    vi.advanceTimersByTime(UPDATE_CHECK_INTERVAL_MS);
+    autoUpdater.emit("update-downloaded", { version: "0.4.0" });
+
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(autoUpdater.listenerCount("update-downloaded")).toBe(0);
+    expect(showMessageBox).not.toHaveBeenCalled();
+    expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
   });
 
   it("consulta al arrancar y luego periódicamente", () => {

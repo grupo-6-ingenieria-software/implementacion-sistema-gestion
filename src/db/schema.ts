@@ -570,13 +570,6 @@ export const contrasena = sqliteTable(
     contrasenaFechaHoraCreacion: text("contrasena_fecha_hora_creacion")
       .notNull()
       .default(nowDefault),
-    // Flags discriminadores ISA (especialización temporal / definitiva).
-    esContrasenaTemporal: integer("es_contrasena_temporal", {
-      mode: "boolean",
-    }).notNull(),
-    esContrasenaDefinitiva: integer("es_contrasena_definitiva", {
-      mode: "boolean",
-    }).notNull(),
     usuarioId: text("usuario_id")
       .notNull()
       .references(() => usuario.usuarioId, { onDelete: "cascade" }),
@@ -587,11 +580,6 @@ export const contrasena = sqliteTable(
   },
   (t) => [
     check("contrasena_uuid", uuidCheck("contrasena_id")),
-    // ISA: exactamente uno de los dos flags es verdadero.
-    check(
-      "contrasena_isa_exclusivo",
-      sql`${t.esContrasenaTemporal} + ${t.esContrasenaDefinitiva} = 1`,
-    ),
     index("idx_contrasena_usuario").on(
       t.usuarioId,
       t.contrasenaFechaHoraCreacion,
@@ -600,14 +588,24 @@ export const contrasena = sqliteTable(
 );
 
 // Subtipo ISA 1:1 de contrasena
-export const contrasenaTemporal = sqliteTable("contrasena_temporal", {
-  contrasenaId: text("contrasena_id")
-    .primaryKey()
-    .references(() => contrasena.contrasenaId, { onDelete: "cascade" }),
-  contrasenaTemporalFechaHoraExpiracion: text(
-    "contrasena_temporal_fecha_hora_expiracion",
-  ).notNull(),
-});
+export const contrasenaTemporal = sqliteTable(
+  "contrasena_temporal",
+  {
+    contrasenaTemporalId: text("contrasena_temporal_id")
+      .primaryKey()
+      .$defaultFn(uuid),
+    contrasenaTemporalFechaHoraExpiracion: text(
+      "contrasena_temporal_fecha_hora_expiracion",
+    ).notNull(),
+    contrasenaId: text("contrasena_id")
+      .notNull()
+      .references(() => contrasena.contrasenaId, { onDelete: "cascade" }),
+  },
+  (t) => [
+    check("contrasena_temporal_uuid", uuidCheck("contrasena_temporal_id")),
+    uniqueIndex("uq_contrasena_temporal_contrasena").on(t.contrasenaId),
+  ],
+);
 
 export const sesionUsuario = sqliteTable(
   "sesion_usuario",
