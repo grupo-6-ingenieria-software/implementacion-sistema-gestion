@@ -274,7 +274,7 @@ export function LotCreateView({
               void submitForm();
             }}
           >
-            <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+            <div className="grid items-start gap-5 lg:grid-cols-[1.2fr_1fr]">
               <section className="grid gap-4">
                 <Field label="Producto" error={fieldErrors.ean13}>
                   <div className="grid gap-3">
