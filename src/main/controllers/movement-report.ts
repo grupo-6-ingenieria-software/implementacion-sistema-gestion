@@ -271,7 +271,7 @@ export async function queryMovementReportFromDb(
       return false;
     }
     // Filtro por usuario
-    if (request.usuarioId && evt.usuarioId !== request.usuarioId) {
+    if (request.usuarioFiltroId && evt.usuarioId !== request.usuarioFiltroId) {
       return false;
     }
     return true;
@@ -349,7 +349,7 @@ export async function queryMovementReportFromDb(
     fechaTermino: request.fechaTermino,
     tipo: request.tipo ?? null,
     categoriaId: request.categoriaId ?? null,
-    usuarioId: request.usuarioId ?? null,
+    usuarioId: request.usuarioFiltroId ?? null,
     categorias,
     usuarios,
     tipos,

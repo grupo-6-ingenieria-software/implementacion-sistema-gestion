@@ -1280,8 +1280,8 @@ async function handleMovementReportExport(
   const categoriaNombre = request.categoriaId
     ? reportData.categorias.find((c) => c.id === request.categoriaId)?.nombre
     : undefined;
-  const usuarioFiltroNombre = request.usuarioId
-    ? reportData.usuarios.find((u) => u.id === request.usuarioId)?.nombre
+  const usuarioFiltroNombre = request.usuarioFiltroId
+    ? reportData.usuarios.find((u) => u.id === request.usuarioFiltroId)?.nombre
     : undefined;
 
   const printInput: MovementReportPrintInput = {
