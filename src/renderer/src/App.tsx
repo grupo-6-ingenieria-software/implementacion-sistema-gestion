@@ -40,6 +40,8 @@ import {
 import { DailySalesView } from "./views/DailySalesView";
 import { DashboardView } from "./views/DashboardView";
 import { AttendanceView } from "./views/AttendanceView";
+import { ResumenMensualAsistenciaView } from "./views/ResumenMensualAsistenciaView";
+import { getMonthlyAttendanceInitialRut } from "../../shared/monthly-attendance";
 import { RegistrarAusenciaView } from "./views/RegistrarAusenciaView";
 import { getAbsenceInitialRut, type AbsenceResult } from "../../shared/absence";
 import { CashClosingView } from "./views/CashClosingView";
@@ -953,7 +955,12 @@ function ViewRenderer({
   }
 
   if (node.id === "attendance" && session.role) {
-    return <AttendanceView role={session.role} usuarioId={session.usuarioId} />;
+    return <AttendanceView role={session.role} usuarioId={session.usuarioId} onNavigate={onNavigate} />;
+  }
+
+  if (node.id === "attendance-monthly-summary" && session.role === "dueno") {
+    return <ResumenMensualAsistenciaView key={`${session.usuarioId}:${currentPath}`}
+      initialRut={getMonthlyAttendanceInitialRut(currentPath)} onNavigate={onNavigate} />;
   }
 
   if (node.id === "daily-sales" && session.usuarioId) {
@@ -1249,6 +1256,7 @@ export function isImplementedViewNodeId(nodeId: string): boolean {
     "products-most-sold",
     "dashboard",
     "attendance",
+    "attendance-monthly-summary",
     "absence-create",
     "cash-closing",
     "daily-sales",

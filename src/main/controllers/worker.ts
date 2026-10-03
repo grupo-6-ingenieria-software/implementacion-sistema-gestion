@@ -6,6 +6,7 @@ import {
   type AttendanceWorkerOption,
 } from "../../shared/attendance";
 import type { Role } from "../../shared/navigation";
+import type { MonthlyAttendanceWorker } from "../../shared/monthly-attendance";
 import {
   hasUserFieldErrors,
   normalizeSearchTerm,
@@ -53,6 +54,7 @@ type WorkerDependencies = {
   ) => Promise<UserMutationResponse>;
   listWorkers: (filters: UserListFilters) => Promise<UserListItem[]>;
   listActiveWorkers: () => Promise<AttendanceWorkerOption[]>;
+  listSummaryWorkers: () => Promise<MonthlyAttendanceWorker[]>;
   updateWorker: (
     payload: UserFormValues,
     sesionRol?: Role,
@@ -70,6 +72,12 @@ export function createWorkerController(
     context,
   ) => {
     try {
+      if (context.channel === "trabajador:listar-para-resumen") {
+        if (!context.claims || context.claims.rol !== "dueno") throw new AccessDeniedError();
+        await dependencies.authorize(context.claims.usuarioId, ["dueno"], context.claims.rol);
+        return { ok: true, data: await dependencies.listSummaryWorkers() };
+      }
+
       if (context.channel === "trabajador:listar") {
         const usuarioId = normalizeUsuarioId(payload);
         await dependencies.authorize(
@@ -261,6 +269,10 @@ export const workerDependencies: WorkerDependencies = {
   },
   createWorker,
   listActiveWorkers,
+  listSummaryWorkers: async () => {
+    const { db, schema } = await import("../../db/client");
+    return listSummaryWorkersWithExecutor(db, schema);
+  },
   listWorkers,
   updateWorker,
 };
@@ -287,6 +299,25 @@ async function listWorkers(
   const { db, schema } = await import("../../db/client");
 
   return listWorkersWithExecutor(db, schema, filters);
+}
+
+export async function listSummaryWorkersWithExecutor(
+  database: Pick<DatabaseLike, "select">,
+  schema: SchemaLike,
+): Promise<MonthlyAttendanceWorker[]> {
+  const rows = await database.select({
+    trabajadorId: schema.trabajador.trabajadorId,
+    rut: schema.trabajador.trabajadorRut,
+    nombre: schema.trabajador.trabajadorNombre,
+    apellido: schema.trabajador.trabajadorApellido,
+    estado: schema.trabajador.trabajadorEstado,
+  }).from(schema.trabajador).orderBy(
+    asc(schema.trabajador.trabajadorNombre), asc(schema.trabajador.trabajadorApellido),
+  );
+  return rows.map((row) => ({
+    trabajadorId: row.trabajadorId, rut: normalizeRut(row.rut),
+    nombreCompleto: `${row.nombre} ${row.apellido}`.trim(), estado: row.estado,
+  }));
 }
 
 export async function listWorkersWithExecutor(

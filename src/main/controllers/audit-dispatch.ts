@@ -22,6 +22,7 @@ export const AUDITED_QUERY_CHANNELS: ReadonlySet<string> = new Set([
   "proveedor:categorias", "proveedor:listar", "proveedor:buscar-existente",
   "inventario:lista-reabastecimiento", "inventario:valorizacion",
   "reporte:ventas-diarias",
+  "asistencia:resumen-mensual", "trabajador:listar-para-resumen",
 ]);
 
 export type DispatchAuditEvent = {

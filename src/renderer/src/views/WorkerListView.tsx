@@ -10,6 +10,7 @@ import {
 import { WorkerFormView } from "./WorkerFormView";
 import { WorkerStatusView } from "./WorkerStatusView";
 import { buildAbsenceCreatePath } from "../../../shared/absence";
+import { buildMonthlyAttendancePath } from "../../../shared/monthly-attendance";
 
 type WorkerListViewProps = {
   usuarioId: string;
@@ -344,6 +345,10 @@ export function WorkerListView({
                     <td className="px-5 py-4">
                       {role === "dueno" ? (
                         <div className="flex flex-wrap gap-2">
+                          <button className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d]"
+                            disabled={saving} type="button" onClick={() => onNavigate(buildMonthlyAttendancePath(worker.rut))}>
+                            Resumen mensual
+                          </button>
                           {worker.estado === "activo" ? (
                             <button className="rounded-md border border-[#9ba9b5] px-3 py-1.5 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                               disabled={saving} type="button" onClick={() => onNavigate(buildAbsenceCreatePath(worker.rut))}>

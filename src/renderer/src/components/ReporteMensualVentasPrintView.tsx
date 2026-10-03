@@ -1,8 +1,7 @@
 import {
-  formatMonthlySalesMoney, formatMonthlyVariation, monthlyPeriodLabel, paymentMethodLabels,
+  formatMonthlySalesMoney, formatMonthlyVariation, monthlyPeriodLabel, monthlySalesChartImage, paymentMethodLabels,
   type MonthlySalesReport,
 } from "../../../shared/monthly-sales";
-import { monthlySalesChartImage } from "./GraficoVentasMensual";
 import { REPORT_BUSINESS_NAME, type ReportHeader } from "../../../shared/reports";
 import { ReportPrintLayout } from "./ReportePrintView";
 
