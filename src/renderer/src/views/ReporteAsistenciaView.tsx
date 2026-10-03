@@ -118,7 +118,7 @@ export function ReporteAsistenciaView({ onNavigate }: { onNavigate: (path: strin
           <button type="button" className={buttonClass} disabled={loading || exporting || !report.filas.length} onClick={() => exportReport("xlsx")}>Exportar Excel</button>
         </div>
       </div>
-      <p className="text-sm text-[#61717f]">El promedio considera únicamente jornadas con salida. Las jornadas pendientes cuentan como días trabajados.</p>
+      <p className="text-sm text-[#61717f]">Las jornadas pendientes cuentan como días trabajados y no suman horas.</p>
       <AttendanceReportTable report={report} />
     </article> : null}
   </section>;

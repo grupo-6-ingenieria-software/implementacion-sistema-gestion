@@ -14,7 +14,7 @@ import type { AttendanceReport } from "../../../src/shared/attendance-report";
 import type { ControllerContext } from "../../../src/main/controllers/base";
 
 const report: AttendanceReport = { periodo: { mes: 9, anio: 2026 }, rol: "trabajador", filas: [
-  { trabajadorId: 2, nombreCompleto: "Luis <Rojas>", rol: "trabajador", diasTrabajados: 3, ausenciasJustificadas: 1, ausenciasInjustificadas: 2, minutosTrabajados: 6001, promedioMinutosPorDia: 480 },
+  { trabajadorId: 2, nombreCompleto: "Luis <Rojas>", rol: "trabajador", diasTrabajados: 3, ausenciasJustificadas: 1, ausenciasInjustificadas: 2, minutosTrabajados: 6001, promedioMinutosPorDia: 2000 },
   { trabajadorId: 3, nombreCompleto: "Inés Pérez", rol: null, diasTrabajados: 0, ausenciasJustificadas: 1, ausenciasInjustificadas: 0, minutosTrabajados: 0, promedioMinutosPorDia: null },
 ] };
 const user = { role: "dueno" as const, usuarioId: "owner", usuarioRol: "dueno", trabajadorNombre: "Ana <Soto>" };
@@ -78,7 +78,7 @@ describe("CU52 export through C61", () => {
   });
   it("renders all seven columns with institutional headings, filter and escaped identity", () => {
     const html = renderAttendancePrintHtml(printInput);
-    for (const value of ["Minimarket y Panadería Huáscar", "septiembre de 2026", "Rol: Trabajador", "30-09-2026", "Ana &lt;Soto&gt;", "Luis &lt;Rojas&gt;", "100:01", "08:00", "N/A", "Sin usuario"]) expect(html).toContain(value);
+    for (const value of ["Minimarket y Panadería Huáscar", "septiembre de 2026", "Rol: Trabajador", "30-09-2026", "Ana &lt;Soto&gt;", "Luis &lt;Rojas&gt;", "100:01", "33:20", "N/A", "Sin usuario"]) expect(html).toContain(value);
     expect(html.match(/<th /g)).toHaveLength(7);
     expect(html).toContain("A4 landscape");
   });
@@ -92,7 +92,7 @@ describe("CU52 export through C61", () => {
     expect(sheet.getCell("A9").value).toBe("Luis <Rojas>");
     expect(sheet.getCell("C9").value).toBe(3);
     expect(sheet.getCell("F9").value).toBe("100:01");
-    expect(sheet.getCell("G9").value).toBe("08:00");
+    expect(sheet.getCell("G9").value).toBe("33:20");
     expect(sheet.getCell("B10").value).toBe("Sin usuario");
     expect(sheet.getCell("G10").value).toBe("N/A");
   });

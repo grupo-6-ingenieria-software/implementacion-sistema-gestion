@@ -125,13 +125,16 @@ devuelve `{ periodo, rol, filas }` y se audita incluso cuando no hay filas.
 `attendance-report-service.ts` reúne trabajadores, asistencias y ausencias en tres
 consultas dentro del mismo snapshot. Comparte la consolidación de CU33 mediante
 `monthly-attendance-calculation.ts`: fechas de entrada chilenas, minutos completos
-por jornada y rechazo de registros inconsistentes. El rol mostrado y filtrado es
-el actual de Usuario; las personas sin cuenta muestran «Sin usuario» solo con Todos.
+por jornada y rechazo de registros inconsistentes. El nombre es el actual del
+trabajador. El rol mostrado y filtrado es el de la UsuarioVersion vigente al cierre
+del período; si no hay una versión anterior al cierre se usa la más antigua y, sin
+versiones, el rol actual de Usuario. Las personas sin cuenta muestran «Sin usuario»
+solo con Todos.
 
 Sin actividad en el período filtrado, la tabla queda vacía. Con actividad se incluyen
 los activos y los inactivos que tengan asistencia o ausencia. Los días pendientes
-cuentan como trabajados sin sumar minutos. El promedio divide por las jornadas con
-salida y trunca la fracción de minuto; sin jornadas cerradas devuelve `null` (`N/A`).
+cuentan como trabajados sin sumar minutos. El promedio divide las horas por los días
+trabajados y trunca la fracción de minuto; sin días trabajados devuelve `null` (`N/A`).
 
 C61 exporta con `{ tipo: "asistencia-personal", periodo: { mes, anio }, rol? }`,
 recalculando en Main con los mismos filtros. PDF horizontal y XLSX incluyen el

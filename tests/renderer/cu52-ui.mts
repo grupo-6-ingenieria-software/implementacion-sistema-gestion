@@ -51,10 +51,10 @@ try {
   await result().waitFor();
   assert.equal(await page.getByRole("columnheader").count(), 7);
   assert.equal(await page.locator("tbody tr").count(), 3);
-  assert.equal(await page.getByText("N/A", { exact: true }).count(), 2);
+  assert.equal(await page.getByText("N/A", { exact: true }).count(), 1);
   assert.equal(await page.getByText("Sin usuario", { exact: true }).count(), 1);
   assert.equal(await page.getByText("16:01", { exact: true }).count(), 1);
-  assert.equal(await page.getByText("08:00", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("05:20", { exact: true }).count(), 1);
   const output = join(process.cwd(), "out/cu52-qa");
   mkdirSync(output, { recursive: true });
   await page.screenshot({ path: join(output, "asistencia-personal.png"), fullPage: true });

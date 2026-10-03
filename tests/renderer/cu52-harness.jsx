@@ -9,8 +9,8 @@ const state = window.cu52 = { calls: [], hold: false, pending: [], empty: false,
   rejectQuery: false, exportError: false, cancelled: false, token: null };
 const rows = [
   { trabajadorId: 1, nombreCompleto: "Ana Soto", rol: "dueno", diasTrabajados: 0, ausenciasJustificadas: 0, ausenciasInjustificadas: 0, minutosTrabajados: 0, promedioMinutosPorDia: null },
-  { trabajadorId: 3, nombreCompleto: "Inés Pérez", rol: null, diasTrabajados: 1, ausenciasJustificadas: 1, ausenciasInjustificadas: 0, minutosTrabajados: 0, promedioMinutosPorDia: null },
-  { trabajadorId: 2, nombreCompleto: "Luis Rojas", rol: "trabajador", diasTrabajados: 3, ausenciasJustificadas: 4, ausenciasInjustificadas: 1, minutosTrabajados: 961, promedioMinutosPorDia: 480 },
+  { trabajadorId: 3, nombreCompleto: "Inés Pérez", rol: null, diasTrabajados: 1, ausenciasJustificadas: 1, ausenciasInjustificadas: 0, minutosTrabajados: 0, promedioMinutosPorDia: 0 },
+  { trabajadorId: 2, nombreCompleto: "Luis Rojas", rol: "trabajador", diasTrabajados: 3, ausenciasJustificadas: 4, ausenciasInjustificadas: 1, minutosTrabajados: 961, promedioMinutosPorDia: 320 },
 ];
 window.appApi = {
   debugMode: false,

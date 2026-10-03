@@ -31,7 +31,7 @@ const absence = (fecha: string, tipo: MonthlyAttendanceAbsenceType, trabajadorId
 const query = (input: AttendanceReportRequest = request) => queryAttendanceReport(database, input);
 
 describe("CU52 monthly report against libSQL", () => {
-  it("includes active workers and inactive workers with activity, matches CU33 and truncates averages over closed days", async () => {
+  it("includes active workers and inactive workers with activity, matches CU33 and truncates averages over worked days", async () => {
     await attendance("2026-09-01T12:00:45Z", "2026-09-01T20:01:44Z");
     await attendance("2026-09-02T12:00:00Z", "2026-09-02T20:01:00Z");
     await attendance("2026-09-03T12:00:00Z");
@@ -42,7 +42,7 @@ describe("CU52 monthly report against libSQL", () => {
     const report = await query();
     expect(report.filas.map((row) => row.trabajadorId)).toEqual([1, 3, 2, 4]);
     const luis = report.filas.find((row) => row.trabajadorId === 2)!;
-    expect(luis).toMatchObject({ rol: "trabajador", diasTrabajados: 3, minutosTrabajados: 961, promedioMinutosPorDia: 480, ausenciasJustificadas: 4, ausenciasInjustificadas: 1 });
+    expect(luis).toMatchObject({ rol: "trabajador", diasTrabajados: 3, minutosTrabajados: 961, promedioMinutosPorDia: 320, ausenciasJustificadas: 4, ausenciasInjustificadas: 1 });
     const individual = await queryMonthlyAttendance(database, { ...request, trabajadorId: 2 });
     for (const [key, value] of Object.entries(individual.totales)) expect(luis[key as keyof typeof luis]).toBe(value);
     expect(report.filas.find((row) => row.trabajadorId === 3)).toMatchObject({ rol: null, diasTrabajados: 1, promedioMinutosPorDia: 120 });
@@ -76,16 +76,31 @@ describe("CU52 monthly report against libSQL", () => {
     expect(report.filas[1]).toMatchObject({ rol: null, diasTrabajados: 0, ausenciasJustificadas: 1, promedioMinutosPorDia: null });
     expect((await query({ ...request, rol: "trabajador" })).filas).toEqual([]);
   });
-  it("shows current worker names and roles despite historical versions", async () => {
+  it("shows current names with the role in force at the end of the period", async () => {
     await attendance("2026-09-01T12:00:00Z");
-    await fixture.db.insert(schema.usuarioVersion).values({ usuarioId: WORKER, usuarioVersionNombre: "Nombre antiguo", usuarioVersionRol: "trabajador", usuarioVersionFechaHoraVigenciaDesde: "2026-01-01T00:00:00Z", usuarioVersionFechaHoraVigenciaHasta: null });
+    await attendance("2026-10-01T12:00:00Z");
+    await fixture.db.insert(schema.usuarioVersion).values([
+      { usuarioId: WORKER, usuarioVersionNombre: "Nombre antiguo", usuarioVersionRol: "trabajador", usuarioVersionFechaHoraVigenciaDesde: "2026-01-01 00:00:00", usuarioVersionFechaHoraVigenciaHasta: "2026-10-05T15:00:00.000Z" },
+      { usuarioId: WORKER, usuarioVersionNombre: "Luis Rojas", usuarioVersionRol: "dueno", usuarioVersionFechaHoraVigenciaDesde: "2026-10-05T15:00:00.000Z", usuarioVersionFechaHoraVigenciaHasta: null },
+    ]);
     await fixture.db.update(schema.usuario).set({ usuarioRol: "dueno" }).where(eq(schema.usuario.usuarioId, WORKER));
-    expect((await query({ ...request, rol: "dueno" })).filas).toEqual(expect.arrayContaining([expect.objectContaining({ trabajadorId: 2, nombreCompleto: "Luis Rojas", rol: "dueno" })]));
-    expect((await query({ ...request, rol: "trabajador" })).filas).toEqual([]);
+    expect((await query()).filas).toEqual(expect.arrayContaining([expect.objectContaining({ trabajadorId: 2, nombreCompleto: "Luis Rojas", rol: "trabajador" })]));
+    expect((await query({ ...request, rol: "trabajador" })).filas.map((row) => row.trabajadorId)).toEqual([2]);
+    expect((await query({ ...request, rol: "dueno" })).filas.map((row) => row.trabajadorId)).not.toContain(2);
+    const october = { mes: 10, anio: 2026 };
+    expect((await query({ ...october, rol: "dueno" })).filas).toEqual(expect.arrayContaining([expect.objectContaining({ trabajadorId: 2, rol: "dueno" })]));
+    expect((await query({ ...october, rol: "trabajador" })).filas).toEqual([]);
   });
-  it("counts pending-only activity without hours or average, and preserves a zero-minute closed average", async () => {
+  it("falls back to the oldest known version, then to the current Usuario role", async () => {
     await attendance("2026-09-01T12:00:00Z");
-    expect((await query()).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 1, minutosTrabajados: 0, promedioMinutosPorDia: null });
+    await fixture.db.update(schema.usuario).set({ usuarioRol: "dueno" }).where(eq(schema.usuario.usuarioId, WORKER));
+    expect((await query()).filas.find((row) => row.trabajadorId === 2)?.rol).toBe("dueno");
+    await fixture.db.insert(schema.usuarioVersion).values({ usuarioId: WORKER, usuarioVersionNombre: "Luis Rojas", usuarioVersionRol: "trabajador", usuarioVersionFechaHoraVigenciaDesde: "2026-11-01 10:00:00", usuarioVersionFechaHoraVigenciaHasta: null });
+    expect((await query()).filas.find((row) => row.trabajadorId === 2)?.rol).toBe("trabajador");
+  });
+  it("counts pending days as worked days without hours, so their average is zero", async () => {
+    await attendance("2026-09-01T12:00:00Z");
+    expect((await query()).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 1, minutosTrabajados: 0, promedioMinutosPorDia: 0 });
     await attendance("2026-09-02T12:00:00Z", "2026-09-02T12:00:59Z");
     expect((await query()).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 2, minutosTrabajados: 0, promedioMinutosPorDia: 0 });
   });

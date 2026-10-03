@@ -11,7 +11,7 @@ export function ReporteAsistenciaPrintView({ report, usuario, fecha }: Attendanc
     <p>Período: {monthlyPeriodLabel(report.periodo)}</p>
     <p>Rol: {attendanceFilterLabel(report.rol)}</p>
     <p>Generado: {fecha}</p><p>Usuario: {usuario}</p>
-    <p>El promedio considera únicamente jornadas con salida. Las jornadas pendientes cuentan como días trabajados.</p>
+    <p>Las jornadas pendientes cuentan como días trabajados y no suman horas.</p>
     <AttendanceReportTable report={report} />
   </main>;
 }

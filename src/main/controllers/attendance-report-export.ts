@@ -98,7 +98,7 @@ export async function createAttendanceXlsx({ report, usuario, fecha }: Attendanc
   }
   sheet.autoFilter = `A8:G${8 + report.filas.length}`;
   sheet.addRow([]);
-  sheet.addRow(["El promedio considera únicamente jornadas con salida. Las jornadas pendientes cuentan como días trabajados."]);
+  sheet.addRow(["Las jornadas pendientes cuentan como días trabajados y no suman horas."]);
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
