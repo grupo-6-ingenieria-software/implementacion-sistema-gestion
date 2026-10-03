@@ -8,6 +8,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import {
+  CashClosingAccessError,
   CashClosingBusinessError,
   CashClosingValidationError,
   closeCashRegister,
@@ -153,7 +154,42 @@ describe("cash closing service", () => {
         { usuarioId: "12345678-9" },
         now,
       ),
-    ).rejects.toBeInstanceOf(CashClosingBusinessError);
+    ).resolves.toMatchObject({ status: "cerrada", closedAt: now.toISOString() });
+  });
+
+  it.each(["dueno", "trabajador"])("allows %s to reread a closed summary without changing totals or audit", async (role) => {
+    const db = testDb!.db as unknown as DbExecutor;
+    await db.run(sql`UPDATE usuario SET usuario_rol = ${role} WHERE usuario_id = '12345678-9'`);
+    await seedSales(db);
+    const closed = await closeCashRegister(db, { confirmacion: true, usuarioId: "12345678-9" }, now);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const summary = await getCashClosingSummary(db, { usuarioId: "12345678-9" }, new Date("2026-06-12T21:30:00Z"));
+      expect(summary).toEqual({ ...closed, generatedAt: "2026-06-12T21:30:00.000Z" });
+    }
+    const audit = await db.all<{ count: number }>(sql`SELECT COUNT(*) AS count FROM log_auditoria WHERE log_tipo_accion = 'cerrar_caja'`);
+    expect(Number(audit[0].count)).toBe(1);
+    const cash = await db.all<{ count: number }>(sql`SELECT COUNT(*) AS count FROM cierre_caja WHERE cierre_estado = 'cerrado'`);
+    expect(Number(cash[0].count)).toBe(1);
+    await expect(registerSale(db, {
+      metodoPago: "efectivo", montoRecibido: 2000, items: [{ productoId: 1, cantidad: 1 }],
+    }, { usuarioId: "12345678-9", sesionId: TEST_SESSION_ID, rol: role as "dueno" | "trabajador" }, now)).rejects.toThrow(/cerrad/i);
+  });
+
+  it("returns an empty summary without opening a cash register when none exists", async () => {
+    const db = testDb!.db as unknown as DbExecutor;
+    await db.run(sql`DELETE FROM cierre_caja`);
+    await expect(getCashClosingSummary(db, { usuarioId: "12345678-9" }, now)).resolves.toMatchObject({
+      status: "sin_registro", currentAmount: 0, currentTransactions: 0, voidedAmount: 0, voidedTransactions: 0,
+    });
+    const rows = await db.all<{ count: number }>(sql`SELECT COUNT(*) AS count FROM cierre_caja`);
+    expect(Number(rows[0].count)).toBe(0);
+  });
+
+  it.each(["missing", "inactive"])("rejects a %s user reading a closed cash register", async (state) => {
+    const db = testDb!.db as unknown as DbExecutor;
+    await closeCashRegister(db, { confirmacion: true, usuarioId: "12345678-9" }, now);
+    if (state === "inactive") await db.run(sql`UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 1`);
+    await expect(getCashClosingSummary(db, { usuarioId: state === "missing" ? "99999999-9" : "12345678-9" }, now)).rejects.toBeInstanceOf(CashClosingAccessError);
   });
 
   it("abre una caja nueva para ventas del día siguiente al cierre", async () => {

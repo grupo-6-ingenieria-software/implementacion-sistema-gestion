@@ -6,6 +6,7 @@ import {
   type ReactElement,
 } from "react";
 import type { ControllerResponse } from "../../../shared/controllers";
+import { parseDatabaseTimestamp } from "../../../shared/date-time";
 import {
   cashPaymentMethodLabels,
   cashPaymentMethods,
@@ -480,7 +481,7 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-CL", {
     timeZone: "America/Santiago",
     dateStyle: "long",
-  }).format(new Date(value));
+  }).format(parseDatabaseTimestamp(value));
 }
 
 function formatTime(value: string): string {
@@ -488,7 +489,7 @@ function formatTime(value: string): string {
     timeZone: "America/Santiago",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(parseDatabaseTimestamp(value));
 }
 
 function formatCurrency(value: number): string {

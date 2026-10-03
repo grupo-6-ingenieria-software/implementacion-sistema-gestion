@@ -42,18 +42,17 @@ export async function getCashClosingSummary(
 ): Promise<CashClosingSummary> {
   await authorizeCashClosingUser(database, payload.usuarioId);
   const cashState = await inspectDailyCashRegister(database, now);
-  if (cashState.status === "cerrada") {
-    throw new CashClosingBusinessError("La caja de este día ya fue cerrada.");
-  }
-  const cashRegister =
-    cashState.status === "abierta"
+  const cashRegister: CashRegisterRow | undefined =
+    cashState.status !== "sin_registro"
       ? {
           cierreCajaId: cashState.cierreCajaId,
-          closedAt: null,
-          closedByName: null,
-          closedByUserId: null,
+          closedAt: cashState.status === "cerrada" ? cashState.closedAt : null,
+          closedByName:
+            cashState.status === "cerrada" ? cashState.closedByName ?? null : null,
+          closedByUserId:
+            cashState.status === "cerrada" ? cashState.closedByUserId ?? null : null,
           openedAt: cashState.openedAt,
-          status: "abierto" as const,
+          status: cashState.status === "cerrada" ? "cerrado" : "abierto",
         }
       : undefined;
 
