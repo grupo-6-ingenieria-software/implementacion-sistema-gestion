@@ -3,9 +3,18 @@ import {
   differenceInCalendarDays,
   getChileDateRange,
   getDashboardDay,
+  parseDatabaseTimestamp,
 } from "../../../src/main/controllers/dashboard-date";
 
 describe("dashboard date boundaries", () => {
+  it.each([
+    "2026-10-03 21:19:15.123",
+    "2026-10-03T21:19:15.123",
+    "2026-10-03T21:19:15.123Z",
+    "2026-10-03T18:19:15.123-03:00",
+  ])("parses database timestamp %s as the same UTC instant", (value) => {
+    expect(parseDatabaseTimestamp(value)).toBe(Date.UTC(2026, 9, 3, 21, 19, 15, 123));
+  });
   it("preserves historical civil years below 100", () => {
     expect(getChileDateRange("0095-09-08", "0095-09-08")).toEqual({
       startUtc: "0095-09-08 04:42:45",

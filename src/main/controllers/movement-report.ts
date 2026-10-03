@@ -14,7 +14,7 @@ import {
   type MovementReportUserOption,
   type MovementTypeSummary,
 } from "../../shared/report-movements";
-import { getChileDateRange } from "./dashboard-date";
+import { getChileDateRange, parseDatabaseTimestamp } from "./dashboard-date";
 import type { ControllerHandler, RegisteredController } from "./base";
 import { AccessDeniedError } from "./auth-context";
 import type { Role } from "../../shared/navigation";
@@ -51,6 +51,8 @@ export async function queryMovementReportFromDb(
 ): Promise<MovementReportData> {
   const { db } = await import("../../db/client");
   const range = getChileDateRange(request.fechaInicio, request.fechaTermino);
+  const startMs = parseDatabaseTimestamp(range.startUtc);
+  const endMs = parseDatabaseTimestamp(range.endUtc);
 
   // 1. Obtener lista de categorías para el selector de filtros
   const categoriesRaw = await db.all<{ id: number; nombre: string }>(sql`
@@ -245,7 +247,7 @@ export async function queryMovementReportFromDb(
   const enrichedEvents: RawStockEvent[] = [];
   for (const [_, list] of eventsByProduct) {
     list.sort((a, b) =>
-      a.fechaHora.localeCompare(b.fechaHora) || a.id.localeCompare(b.id),
+      parseDatabaseTimestamp(a.fechaHora) - parseDatabaseTimestamp(b.fechaHora) || a.id.localeCompare(b.id),
     );
 
     let runningBalance = 0;
@@ -259,7 +261,8 @@ export async function queryMovementReportFromDb(
   // 5. Aplicar filtros sobre los eventos que ya tienen su saldo resultante calculado
   const filtered = enrichedEvents.filter((evt) => {
     // Filtro de rango de fechas (UTC)
-    if (evt.fechaHora < range.startUtc || evt.fechaHora >= range.endUtc) {
+    const timestampMs = parseDatabaseTimestamp(evt.fechaHora);
+    if (timestampMs < startMs || timestampMs >= endMs) {
       return false;
     }
     // Filtro por tipo
@@ -279,7 +282,7 @@ export async function queryMovementReportFromDb(
 
   // 6. Ordenar los movimientos filtrados de forma descendente (más recientes primero)
   filtered.sort((a, b) =>
-    b.fechaHora.localeCompare(a.fechaHora) || b.id.localeCompare(a.id),
+    parseDatabaseTimestamp(b.fechaHora) - parseDatabaseTimestamp(a.fechaHora) || b.id.localeCompare(a.id),
   );
 
   // 7. Calcular resumen por tipo de movimiento

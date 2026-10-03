@@ -1,4 +1,5 @@
 import { getChileDateKey } from "../../shared/sales";
+export { parseDatabaseTimestamp } from "../../shared/date-time";
 
 const DASHBOARD_TIME_ZONE = "America/Santiago";
 

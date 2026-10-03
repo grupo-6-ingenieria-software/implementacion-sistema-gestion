@@ -5,6 +5,9 @@
   "type": "module",
   "author": "Grupo 6 - Ingenieria de Software",
   "main": "out/main/index.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "dev:debug": "HUASCAR_DEBUG_LOGIN=1 electron-vite dev",
@@ -25,7 +28,7 @@
     "@libsql/client": "0.17.2",
     "bcryptjs": "3.0.3",
     "drizzle-orm": "0.45.2",
-    "electron-updater": "6.8.3",
+    "electron-updater": "6.8.9",
     "exceljs": "^4.4.0",
     "jsonwebtoken": "9.0.3",
     "react": "19.2.5",
@@ -40,9 +43,9 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "dotenv": "^17.0.0",
-    "drizzle-kit": "^0.30.0",
-    "electron": "35.3.0",
-    "electron-builder": "26.8.2",
+    "drizzle-kit": "0.31.11",
+    "electron": "42.11.10",
+    "electron-builder": "26.15.3",
     "electron-log": "5.4.3",
     "electron-vite": "5.0.0",
     "playwright": "1.59.1",
@@ -50,7 +53,21 @@
     "tsx": "^4.0.0",
     "typescript": "6.0.3",
     "vite": "^7.0.0",
-    "vitest": "4.1.4"
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "@electron/get": "5.1.0"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    },
+    "vite": {
+      "esbuild": "0.28.2"
+    },
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   },
   "build": {
     "appId": "cl.huascar.sistemagestion",

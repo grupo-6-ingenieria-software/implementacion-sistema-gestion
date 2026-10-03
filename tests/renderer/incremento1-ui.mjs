@@ -28,7 +28,7 @@ try {
       },
     };
   });
-  const open = async view => { await page.goto(`${server.resolvedUrls.local[0]}tests/renderer/incremento1-harness.html?view=${view}`); };
+  const open = async (view, role = 'trabajador') => { await page.goto(`${server.resolvedUrls.local[0]}tests/renderer/incremento1-harness.html?view=${view}&role=${role}`); };
   page.on('response', r=>{if(r.status()>=400) console.error(r.status(),r.url());});
   const attendanceCalls = () => page.evaluate(() => window.calls.filter(c=>c.channel.startsWith('asistencia:')));
   await open('AttendanceView');
@@ -60,6 +60,10 @@ try {
     assert.equal(await page.evaluate(()=>window.calls.some(c=>['producto:eliminar','producto:cambiar-estado'].includes(c.channel))),false); pass('cancelación de producto sin escritura');
   }
   await open('WorkerListView');
+  await page.getByRole('button',{name:'Turnos',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Registrar trabajador',exact:true}).count(),0);
+  pass('CU21 trabajador no dispone de alta');
+  await open('WorkerListView', 'dueno');
   await page.getByRole('button',{name:'Turnos',exact:true}).click();
   assert.equal(await page.evaluate(()=>window.lastNavigation),'/app/personal/turnos'); pass('CU25 navegación desde trabajadores a turnos');
   await page.getByRole('button',{name:'Registrar trabajador',exact:true}).click();

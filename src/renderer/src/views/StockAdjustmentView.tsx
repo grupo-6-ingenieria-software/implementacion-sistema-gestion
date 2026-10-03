@@ -59,9 +59,12 @@ export function StockAdjustmentView({
     setSelectedByName(false);
   };
 
-  const loadAvailability = async (productEan13: string): Promise<void> => {
+  const loadAvailability = async (
+    productEan13: string,
+    successMessage?: string,
+  ): Promise<void> => {
     setIsLoading(true);
-    setMessage(null);
+    setMessage(successMessage ?? null);
     setFieldErrors({});
 
     const response = await window.appApi.invoke<StockAdjustmentAvailability>(
@@ -76,7 +79,9 @@ export function StockAdjustmentView({
       setEan13(productEan13);
       setForm(emptyForm);
     } else {
-      setMessage(response.error.message);
+      setMessage(successMessage
+        ? `${successMessage} No se pudo actualizar la disponibilidad: ${response.error.message}`
+        : response.error.message);
       setMessageType("error");
       setAvailability(null);
     }
@@ -136,13 +141,12 @@ export function StockAdjustmentView({
     setIsLoading(false);
 
     if (response.ok) {
-      setMessage(
-        `Ajuste registrado. Nueva cantidad del lote: ${response.data.nuevaCantidadLote}.`,
-      );
+      const successMessage =
+        `Ajuste registrado. Nueva cantidad del lote: ${response.data.nuevaCantidadLote}.`;
       setMessageType("success");
       setForm(emptyForm);
       // Recargar disponibilidad
-      void loadAvailability(ean13);
+      void loadAvailability(ean13, successMessage);
     } else {
       setMessage(response.error.message);
       setMessageType("error");

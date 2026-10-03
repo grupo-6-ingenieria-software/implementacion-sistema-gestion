@@ -17,6 +17,7 @@ import type {
   StockAlert,
 } from "../../../shared/dashboard";
 import type { Role } from "../../../shared/navigation";
+import { parseDatabaseTimestamp } from "../../../shared/date-time";
 import { ResumenVentasDashboard } from "../components";
 
 type DashboardViewProps = {
@@ -721,7 +722,7 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-CL", {
     timeZone: "America/Santiago",
     dateStyle: "long",
-  }).format(new Date(value));
+  }).format(parseDatabaseTimestamp(value));
 }
 
 function formatTime(value: string): string {
@@ -729,7 +730,7 @@ function formatTime(value: string): string {
     timeZone: "America/Santiago",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(parseDatabaseTimestamp(value));
 }
 
 function formatCurrency(value: number): string {

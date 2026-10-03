@@ -1,5 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
+import { parseDatabaseTimestamp } from "./dashboard-date";
 import type { Role } from "../../shared/navigation";
 import {
   normalizeMovementHistoryFilters,
@@ -220,7 +221,7 @@ async function queryMovements(
   }
 
   // Ordenar por fecha descendente
-  allMovements.sort((a, b) => b.fecha.localeCompare(a.fecha));
+  allMovements.sort((a, b) => parseDatabaseTimestamp(b.fecha) - parseDatabaseTimestamp(a.fecha));
 
   // Paginar
   const total = allMovements.length;
