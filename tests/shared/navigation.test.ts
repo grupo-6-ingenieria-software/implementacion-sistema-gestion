@@ -19,7 +19,7 @@ describe("navigation tree", () => {
     for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
       const component = internalComponents.find((component) => component.name === name)!;
       expect(component.usedIn).toEqual(["product-list", "monthly-sales"]);
-      expect(component.controllerIds).toEqual(["inventory-export", "restock-report-export"]);
+      expect(component.controllerIds).toEqual(["inventory-export", "report-export"]);
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });
