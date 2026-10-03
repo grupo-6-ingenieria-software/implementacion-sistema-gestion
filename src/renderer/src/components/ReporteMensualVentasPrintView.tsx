@@ -1,8 +1,7 @@
 import {
-  formatMonthlySalesMoney, formatMonthlyVariation, monthlyPeriodLabel, paymentMethodLabels,
+  formatMonthlySalesMoney, formatMonthlyVariation, monthlyPeriodLabel, monthlySalesChartImage, paymentMethodLabels,
   type MonthlySalesReport,
 } from "../../../shared/monthly-sales";
-import { monthlySalesChartImage } from "./GraficoVentasMensual";
 
 export type MonthlySalesPrintInput = { report: MonthlySalesReport; usuario: string; fecha: string };
 
