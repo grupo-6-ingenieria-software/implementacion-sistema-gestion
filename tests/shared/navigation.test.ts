@@ -18,8 +18,8 @@ describe("navigation tree", () => {
     expect(route.controllerIds).toContain("inventory-export");
     for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
       const component = internalComponents.find((component) => component.name === name)!;
-      expect(component.usedIn).toEqual(["product-list", "monthly-sales"]);
-      expect(component.controllerIds).toEqual(["inventory-export", "restock-report-export"]);
+      expect(component.usedIn).toEqual(["product-list", "monthly-sales", "attendance-report"]);
+      expect(component.controllerIds).toEqual(["inventory-export", "restock-report-export", "report-export"]);
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });
@@ -68,6 +68,7 @@ describe("navigation tree", () => {
         "attendance",
         "absence-create",
         "attendance-monthly-summary",
+        "attendance-report",
         "remuneracion-create",
         "configuracion-previsional",
         "user-management",

@@ -40,6 +40,7 @@ export const CHANNEL_ROLE_OVERRIDES: ReadonlyMap<
   ["auditoria:consultar", new Set<Role>(["dueno"])],
   ["ausencia:registrar", new Set<Role>(["dueno"])],
   ["asistencia:resumen-mensual", new Set<Role>(["dueno"])],
+  ["reporte:asistencia", new Set<Role>(["dueno"])],
   ["trabajador:listar-para-resumen", new Set<Role>(["dueno"])],
   ["turno:listar", new Set<Role>(["dueno", "trabajador"])],
   ["turno:crear", new Set<Role>(["dueno"])],

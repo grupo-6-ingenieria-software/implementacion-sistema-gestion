@@ -115,6 +115,35 @@ Pruebas: `tests/shared/monthly-attendance.test.ts`,
 La verificación visual se ejecuta con `node tests/renderer/cu33-ui.mts` y guarda
 capturas en `out/cu33-qa`.
 
+## RF52 CU52 Reporte de asistencia del personal
+
+`attendance-report.ts` implementa C59 (`ReporteAsistenciaHandler`) en
+`reporte:asistencia`, con `{ mes, anio, rol? }`. V43 se abre desde Reportes en
+`/app/reportes/asistencia-personal`, exclusivamente para el Dueño. La consulta
+devuelve `{ periodo, rol, filas }` y se audita incluso cuando no hay filas.
+
+`attendance-report-service.ts` reúne trabajadores, asistencias y ausencias en tres
+consultas dentro del mismo snapshot. Comparte la consolidación de CU33 mediante
+`monthly-attendance-calculation.ts`: fechas de entrada chilenas, minutos completos
+por jornada y rechazo de registros inconsistentes. El rol mostrado y filtrado es
+el actual de Usuario; las personas sin cuenta muestran «Sin usuario» solo con Todos.
+
+Sin actividad en el período filtrado, la tabla queda vacía. Con actividad se incluyen
+los activos y los inactivos que tengan asistencia o ausencia. Los días pendientes
+cuentan como trabajados sin sumar minutos. El promedio divide por las jornadas con
+salida y trunca la fracción de minuto; sin jornadas cerradas devuelve `null` (`N/A`).
+
+C61 exporta con `{ tipo: "asistencia-personal", periodo: { mes, anio }, rol? }`,
+recalculando en Main con los mismos filtros. PDF horizontal y XLSX incluyen el
+encabezado institucional y usan `AsistenciaPersonal_YYYY-MM_DD-MM-AAAA.ext`.
+La exportación vacía se rechaza y solo se auditan las exportaciones guardadas.
+
+Pruebas: `tests/shared/attendance-report.test.ts` y las tres pruebas
+`tests/main/controllers/attendance-report*.test.ts`. La verificación de la
+aplicación se ejecuta con `node tests/renderer/cu52-ui.mts` y deja capturas en
+`out/cu52-qa`. Simula el transporte IPC; los cálculos se prueban sobre SQLite real,
+el PDF mediante su HTML y contrato de impresión, y el XLSX se genera y vuelve a abrir.
+
 ## RF58 CU58 Log de auditoría
 
 El Dueño consulta los últimos doce meses mediante `auditoria:consultar`, con
