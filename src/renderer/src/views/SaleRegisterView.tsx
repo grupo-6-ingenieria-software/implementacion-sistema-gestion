@@ -431,7 +431,7 @@ export function SaleRegisterView({
           <div className="grid auto-rows-max content-start gap-6">
             <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
               <div className="grid gap-4 lg:grid-cols-[280px_1fr_auto]">
-                <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+                <label className="grid content-start gap-2 text-sm font-semibold text-[#24313d]">
                   Código EAN-13
                   <CampoEAN13Input
                     value={ean13}
@@ -439,7 +439,7 @@ export function SaleRegisterView({
                     onValidSubmit={addByEan13}
                   />
                 </label>
-                <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+                <label className="grid content-start gap-2 text-sm font-semibold text-[#24313d]">
                   Buscar producto
                   <input
                     className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
@@ -452,7 +452,7 @@ export function SaleRegisterView({
                   />
                 </label>
                 <button
-                  className="self-end rounded-md bg-[#244d61] px-4 py-2 font-semibold text-white transition hover:bg-[#1f4354]"
+                  className="self-start rounded-md border border-transparent bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] lg:mt-7"
                   type="button"
                   onClick={() => void addByEan13(ean13)}
                 >
