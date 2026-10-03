@@ -121,7 +121,7 @@ export function ProductListView({
       </div>
 
       <section className="mt-4 rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[1fr_220px_180px]">
+        <div className="grid items-start gap-4 lg:grid-cols-[1fr_220px_180px]">
           <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
             Buscar por nombre
             <input

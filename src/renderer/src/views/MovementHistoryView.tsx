@@ -80,7 +80,7 @@ export function MovementHistoryView({
       {/* Filtros */}
       <article className="rounded-md border border-[#cbd5df] bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-[#17202a]">Filtros</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="grid gap-1 text-sm font-semibold text-[#24313d]">
             Producto (EAN-13)
             <CampoEAN13Input
