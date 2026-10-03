@@ -47,15 +47,20 @@ describe("CU48 PDF/XLSX export", () => {
   });
 
   it.each(["pdf", "xlsx"] as const)("routes daily, monthly, CU48 and inventory exports through %s", async (format) => {
-    const monthly = vi.fn(async () => ({ ok: true as const, data: "monthly" }));
+    const reports = vi.fn(async (payload: unknown) => {
+      if ((payload as { tipo?: unknown } | null)?.tipo === "unknown") {
+        return { ok: false as const, error: { code: "VALIDATION_ERROR" as const, message: "Tipo de reporte no válido." } };
+      }
+      return { ok: true as const, data: "reports" };
+    });
     const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
     const products = vi.fn(async () => ({ ok: true as const, data: "products" }));
     const daily = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
-    const controller = createReportExportController(monthly, legacy, products, daily);
+    const controller = createReportExportController(reports, legacy, products, daily);
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
-    expect(controller.metadata).toMatchObject({ id: "report-export", module: "reportes", channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx"] });
+    expect(controller.metadata).toMatchObject({ id: "report-export", module: "reportes", channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"] });
     expect(await controller.handle(request, ctx)).toMatchObject({ data: "products" });
-    expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "monthly" });
+    expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "reports" });
     expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, ctx)).toMatchObject({ data: "daily" });
     expect(await controller.handle({}, ctx)).toMatchObject({ data: "legacy" });
     for (const tipoReporte of ["mermas", "lotes-por-vencer", "movimientos-inventario"]) {
@@ -63,10 +68,16 @@ describe("CU48 PDF/XLSX export", () => {
       expect(await controller.handle(payload, ctx)).toMatchObject({ data: "legacy" });
       expect(legacy.handle).toHaveBeenLastCalledWith(payload, ctx);
     }
-    expect(await controller.handle({ tipo: "unknown" }, ctx)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
+    const unknownRequest = { tipo: "unknown", periodo: {} };
+    expect(await controller.handle(unknownRequest, ctx)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
+    expect(reports).toHaveBeenLastCalledWith(unknownRequest, ctx);
+    const reconciliation = { operacionId: "00000000-0000-4000-8000-000000000054" };
+    const verifyContext = { ...ctx, channel: "reporte:conciliar-exportacion" };
+    expect(await controller.handle(reconciliation, verifyContext)).toMatchObject({ data: "reports" });
+    expect(reports).toHaveBeenLastCalledWith(reconciliation, verifyContext);
     expect(await controller.handle(request, { ...ctx, channel: "reporte:ventas-diarias" })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
     expect(products).toHaveBeenCalledTimes(1);
-    expect(monthly).toHaveBeenCalledTimes(1);
+    expect(reports).toHaveBeenCalledTimes(3);
     expect(daily.handle).toHaveBeenCalledTimes(1);
     expect(legacy.handle).toHaveBeenCalledTimes(4);
   });

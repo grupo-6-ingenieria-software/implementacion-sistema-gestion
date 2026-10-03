@@ -8,14 +8,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { db, schema } from "../../db/client";
 import { controllers } from "../../shared/controllers";
-import { isReportExportRequest, MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
+import { isReportExportRequest, REPORT_RECONCILE_CHANNEL } from "../../shared/reports";
 import { DAILY_SALES_EMPTY_MESSAGE, REPORT_EXPORT_ERROR_MESSAGE, type DailySalesExportRequest, type DailySalesExportResult, type DailySalesReport } from "../../shared/reports";
 import { ReporteVentasDiariasPrintView, type DailySalesPrintInput } from "../../renderer/src/components/ReporteVentasDiariasPrintView";
 import { controllerError, controllerSuccess, type ControllerHandler, type RegisteredController } from "./base";
 import { AccessDeniedError, authorizeUser, registerAuditLog } from "./auth-context";
 import { DailySalesReportValidationError, loadDailySalesReport } from "./daily-sales-report-service";
 import { formatDateTimeInSantiago, restockReportExportController, type HiddenPrintWindow } from "./restock-report-export";
-import { createMonthlySalesExportHandler } from "./monthly-sales-export";
+import { createReportExportHandler } from "./report-export-service";
 import { CATEGORY_PROFITABILITY_REPORT_TYPE } from "../../shared/category-profitability";
 import { createCategoryProfitabilityExportHandler } from "./category-profitability-export";
 import { ATTENDANCE_REPORT_TYPE } from "../../shared/attendance-report";
@@ -202,7 +202,7 @@ const defaultDependencies: DailySalesExportDependencies = {
 export const dailySalesExportController = createDailySalesExportController();
 
 export function createReportExportController(
-  monthly: ControllerHandler = createMonthlySalesExportHandler(),
+  reports: ControllerHandler = createReportExportHandler(),
   restock: RegisteredController = restockReportExportController,
   productsMostSold: ControllerHandler = createProductsMostSoldExportHandler(),
   daily: RegisteredController = dailySalesExportController,
@@ -213,6 +213,7 @@ export function createReportExportController(
   return {
     metadata,
     handle: (payload, context) => {
+      if (context.channel === REPORT_RECONCILE_CHANNEL) return reports(payload, context);
       if (context.channel !== "reporte:exportar-pdf" && context.channel !== "reporte:exportar-xlsx") {
         return Promise.resolve(controllerError("INVALID_CHANNEL", "Canal de exportación inválido.", metadata.id));
       }
@@ -223,11 +224,10 @@ export function createReportExportController(
       if (!isReportExportRequest(context.channel, payload)) return restock.handle(payload, context);
       const tipo = (payload as { tipo?: unknown } | null)?.tipo;
       if (tipo === "ventas-diarias") return daily.handle(payload, context);
-      if (tipo === MONTHLY_SALES_REPORT_TYPE) return monthly(payload, context);
       if (tipo === PRODUCTS_MOST_SOLD_REPORT_TYPE) return productsMostSold(payload, context);
       if (tipo === CATEGORY_PROFITABILITY_REPORT_TYPE) return profitability(payload, context);
       if (tipo === ATTENDANCE_REPORT_TYPE) return attendance(payload, context);
-      return Promise.resolve(controllerError("VALIDATION_ERROR", "Tipo de reporte no válido.", metadata.id));
+      return reports(payload, context);
     },
   };
 }

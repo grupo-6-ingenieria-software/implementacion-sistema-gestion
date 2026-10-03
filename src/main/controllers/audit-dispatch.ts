@@ -1,5 +1,5 @@
 import type { ControllerResponse } from "../../shared/controllers";
-import { MONTHLY_SALES_REPORT_TYPE } from "../../shared/monthly-sales";
+import { isReportExportRequest } from "../../shared/reports";
 import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
 import { CATEGORY_PROFITABILITY_REPORT_TYPE } from "../../shared/category-profitability";
 import { ATTENDANCE_REPORT_TYPE } from "../../shared/attendance-report";
@@ -42,16 +42,20 @@ export async function handleWithAudit(
 ): Promise<ControllerResponse> {
   const response = await controller.handle(payload, context);
   if (!response.ok || !context.claims) return response;
+  const reportType = (payload as { tipo?: unknown } | null)?.tipo;
+  // CU54 and daily/inventory reports audit in their services; CU48/CU51/CU52 audit here.
+  if (isReportExportRequest(context.channel, payload) &&
+      reportType !== PRODUCTS_MOST_SOLD_REPORT_TYPE && reportType !== CATEGORY_PROFITABILITY_REPORT_TYPE &&
+      reportType !== ATTENDANCE_REPORT_TYPE) return response;
 
   const isQuery = AUDITED_QUERY_CHANNELS.has(context.channel);
   const isInventoryExport = context.channel === "inventario:reabastecimiento:exportar-pdf" ||
     context.channel === "inventario:reabastecimiento:exportar-xlsx";
-  const reportType = (payload as { tipo?: unknown } | null)?.tipo;
-  const isReportExport = (context.channel === "reporte:exportar-pdf" ||
+  const isSalesExport = (context.channel === "reporte:exportar-pdf" ||
     context.channel === "reporte:exportar-xlsx") &&
-    (reportType === MONTHLY_SALES_REPORT_TYPE || reportType === PRODUCTS_MOST_SOLD_REPORT_TYPE ||
-      reportType === CATEGORY_PROFITABILITY_REPORT_TYPE || reportType === ATTENDANCE_REPORT_TYPE);
-  const isExport = isInventoryExport || isReportExport;
+    (reportType === PRODUCTS_MOST_SOLD_REPORT_TYPE || reportType === CATEGORY_PROFITABILITY_REPORT_TYPE ||
+      reportType === ATTENDANCE_REPORT_TYPE);
+  const isExport = isInventoryExport || isSalesExport;
   // Cerrar el diálogo sin guardar no es una exportación realizada.
   if (!isQuery && !(isExport && response.data?.estado === "saved")) return response;
 

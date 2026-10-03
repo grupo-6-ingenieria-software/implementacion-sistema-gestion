@@ -17,7 +17,9 @@ describe("navigation tree", () => {
     expect(route.roles).toEqual(["dueno", "trabajador"]);
     expect(route.controllerIds).toContain("inventory-export");
     for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
-      expect(internalComponents.find((component) => component.name === name)).toMatchObject({ usedIn: expect.arrayContaining(["product-list"]), controllerIds: expect.arrayContaining(["inventory-export"]) });
+      const component = internalComponents.find((component) => component.name === name)!;
+      expect(component.usedIn).toEqual(["product-list", "monthly-sales", "attendance-report"]);
+      expect(component.controllerIds).toEqual(["inventory-export", "restock-report-export", "report-export"]);
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });

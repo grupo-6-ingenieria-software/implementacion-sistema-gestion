@@ -1,11 +1,12 @@
 import { useRef, useState, type FormEvent } from "react";
 import { getChileDateKey } from "../../../shared/sales";
 import {
-  MONTHLY_SALES_EMPTY_MESSAGE, MONTHLY_SALES_REPORT_TYPE, REPORT_EXPORT_ERROR_MESSAGE,
+  MONTHLY_SALES_EMPTY_MESSAGE, MONTHLY_SALES_REPORT_TYPE,
   formatMonthlySalesMoney, formatMonthlyVariation, monthlyPeriodLabel, paymentMethodLabels,
-  type MonthlySalesPeriod, type MonthlySalesReport, type ReportExportResult,
+  type MonthlySalesPeriod, type MonthlySalesReport,
 } from "../../../shared/monthly-sales";
 import { GraficoVentasMensual } from "../components/GraficoVentasMensual";
+import { AccionExportarFormato } from "../components/AccionExportarFormato";
 
 export function ReporteMensualVentasView({ onNavigate }: { onNavigate: (path: string) => void }) {
   const today = getChileDateKey();
@@ -49,25 +50,6 @@ export function ReporteMensualVentasView({ onNavigate }: { onNavigate: (path: st
     }
   }
 
-  async function exportReport(format: "pdf" | "xlsx") {
-    if (!report || busy) return;
-    setExporting(true);
-    setError("");
-    setNotice("");
-    try {
-      const response = await window.appApi.invoke<ReportExportResult>(`reporte:exportar-${format}`, {
-        tipo: MONTHLY_SALES_REPORT_TYPE, periodo: report.periodo,
-      });
-      if (response.ok) setNotice(response.data.estado === "saved" ? "Reporte guardado correctamente." : "Exportación cancelada.");
-      else if (response.error.code === "FORBIDDEN") onNavigate("/app/inicio");
-      else setError(response.error.message);
-    } catch {
-      setError(REPORT_EXPORT_ERROR_MESSAGE);
-    } finally {
-      setExporting(false);
-    }
-  }
-
   return (
     <section className="space-y-6 px-8 py-8">
       <header><p className="text-sm text-[#61717f]">Reportes</p><h1 className="text-2xl font-semibold text-[#17202a]">Ventas mensuales</h1><p className="mt-2 text-sm text-[#61717f]">Consulta las ventas vigentes del mes y su comparación con el mes anterior.</p></header>
@@ -87,7 +69,10 @@ export function ReporteMensualVentasView({ onNavigate }: { onNavigate: (path: st
       {report ? <article className="space-y-6 rounded-md border border-[#cbd5df] bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-xl font-semibold capitalize">{monthlyPeriodLabel(report.periodo)}</h2>
-          <div className="flex gap-3"><button className="rounded-md border border-[#9ba9b5] px-4 py-2 disabled:opacity-50" disabled={busy} onClick={() => exportReport("pdf")}>Exportar PDF</button><button className="rounded-md border border-[#9ba9b5] px-4 py-2 disabled:opacity-50" disabled={busy} onClick={() => exportReport("xlsx")}>Exportar Excel</button></div>
+          {report.transacciones > 0 ? <AccionExportarFormato
+            mode="report" request={{ tipo: MONTHLY_SALES_REPORT_TYPE, periodo: report.periodo }} disabled={loading}
+            onBusyChange={setExporting} onForbidden={() => onNavigate("/app/inicio")}
+          /> : null}
         </div>
         <MonthlySalesSummary report={report} />
         <GraficoVentasMensual dias={report.dias} />

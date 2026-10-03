@@ -32,22 +32,28 @@ function dependencies(overrides: Partial<ProfitabilityExportDependencies> = {}):
 
 describe("CU51 exportación C61 UI06 UI07", () => {
   it("routes CU46, CU47, CU48, CU51 and legacy exports to their own handlers", async () => {
-    const monthly = vi.fn(async () => ({ ok: true as const, data: "monthly" }));
+    const reports = vi.fn(async (payload: unknown) => {
+      if ((payload as { tipo?: unknown } | null)?.tipo === "unknown") {
+        return { ok: false as const, error: { code: "VALIDATION_ERROR" as const, message: "Tipo de reporte no válido." } };
+      }
+      return { ok: true as const, data: "reports" };
+    });
     const products = vi.fn(async () => ({ ok: true as const, data: "products" }));
     const profitability = vi.fn(async () => ({ ok: true as const, data: "profitability" }));
     const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
     const daily = { metadata: legacy.metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
-    const controller = createReportExportController(monthly, legacy, products, daily, profitability);
+    const controller = createReportExportController(reports, legacy, products, daily, profitability);
     for (const channel of ["reporte:exportar-pdf", "reporte:exportar-xlsx"]) {
       const ctx = { ...context, channel };
       expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, ctx)).toMatchObject({ data: "daily" });
-      expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "monthly" });
+      expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "reports" });
       expect(await controller.handle({ tipo: "productos-mas-vendidos" }, ctx)).toMatchObject({ data: "products" });
       expect(await controller.handle(request, ctx)).toMatchObject({ data: "profitability" });
       expect(await controller.handle({}, ctx)).toMatchObject({ data: "legacy" });
       expect(await controller.handle({ tipo: "unknown" }, ctx)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     }
-    for (const handler of [monthly, products, profitability, legacy.handle, daily.handle]) expect(handler).toHaveBeenCalledTimes(2);
+    expect(reports).toHaveBeenCalledTimes(4);
+    for (const handler of [products, profitability, legacy.handle, daily.handle]) expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it.each(["pdf", "xlsx"] as const)("recalculates %s in Main instead of trusting rows or identity from the renderer", async (format) => {

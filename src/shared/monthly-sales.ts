@@ -1,7 +1,8 @@
 import type { PaymentMethod } from "./sales";
 
 export const MONTHLY_SALES_EMPTY_MESSAGE = "No se encontraron ventas para el período indicado";
-export const REPORT_EXPORT_ERROR_MESSAGE = "No fue posible generar el archivo";
+export { REPORT_EXPORT_ERROR_MESSAGE, isReportExportRequest } from "./reports";
+export type { ReportExportResult } from "./reports";
 export const MONTHLY_SALES_REPORT_TYPE = "ventas-mensuales";
 
 export type MonthlySalesPeriod = { mes: number; anio: number };
@@ -18,13 +19,6 @@ export type MonthlySalesReport = {
 export type MonthlySalesExportRequest = {
   tipo: typeof MONTHLY_SALES_REPORT_TYPE;
   periodo: MonthlySalesPeriod;
-};
-export type ReportExportResult = {
-  formato: "pdf" | "xlsx";
-  estado: "saved" | "cancelled";
-  cantidadFilas: number;
-  fechaGeneracion: string;
-  ruta?: string;
 };
 
 export const paymentMethodLabels: Record<PaymentMethod, string> = {
@@ -72,9 +66,4 @@ export function monthlySalesChartImage(dias: readonly MonthlySalesDay[]): string
   }).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="white"/><g font-family="Arial" font-size="12" fill="#17202a"><text x="8" y="22">Monto CLP</text><text x="8" y="42">${maximum}</text><text x="65" y="250">0</text><line x1="90" y1="250" x2="985" y2="250" stroke="#9ba9b5"/>${bars}<text x="500" y="295" text-anchor="middle">Día del mes</text></g></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-export function isReportExportRequest(channel: string, payload: unknown): boolean {
-  return (channel === "reporte:exportar-pdf" || channel === "reporte:exportar-xlsx") &&
-    payload !== null && typeof payload === "object" && "tipo" in payload;
 }
