@@ -117,7 +117,7 @@ export function ReporteMovimientosView({
         fechaTermino: end,
         tipo: tipoVal ? (tipoVal as MovementReportType) : undefined,
         categoriaId: catVal ? Number(catVal) : undefined,
-        usuarioId: usrVal || undefined,
+        usuarioFiltroId: usrVal || undefined,
       };
 
       void fetchMovementReport(window.appApi.invoke, req)
@@ -167,7 +167,7 @@ export function ReporteMovimientosView({
       fechaTermino,
       tipo: tipo ? (tipo as MovementReportType) : undefined,
       categoriaId: categoriaId ? Number(categoriaId) : undefined,
-      usuarioId: usuarioIdFiltro || undefined,
+      usuarioFiltroId: usuarioIdFiltro || undefined,
     };
 
     try {

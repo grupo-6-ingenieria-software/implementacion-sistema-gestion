@@ -209,7 +209,7 @@ describe("C60 ReporteMovimientosHandler", () => {
         fechaTermino: "2026-09-30",
         tipo: "venta",
         categoriaId: 1,
-        usuarioId: "usr-2",
+        usuarioFiltroId: "usr-2",
       },
       createContext("dueno"),
     );
@@ -219,7 +219,7 @@ describe("C60 ReporteMovimientosHandler", () => {
       fechaTermino: "2026-09-30",
       tipo: "venta",
       categoriaId: 1,
-      usuarioId: "usr-2",
+      usuarioFiltroId: "usr-2",
     });
 
     expect(response).toEqual({

@@ -18,7 +18,7 @@ export type MovementReportRequest = {
   fechaTermino: string;
   tipo?: MovementReportType;
   categoriaId?: number;
-  usuarioId?: string;
+  usuarioFiltroId?: string;
 };
 
 export type MovementReportItem = {
@@ -139,9 +139,9 @@ export function normalizeMovementReportRequest(
       typeof record.fechaTermino === "string" ? record.fechaTermino.trim() : "",
     tipo,
     categoriaId,
-    usuarioId:
-      typeof record.usuarioId === "string" && record.usuarioId.trim()
-        ? record.usuarioId.trim()
+    usuarioFiltroId:
+      typeof record.usuarioFiltroId === "string" && record.usuarioFiltroId.trim()
+        ? record.usuarioFiltroId.trim()
         : undefined,
   };
 }
