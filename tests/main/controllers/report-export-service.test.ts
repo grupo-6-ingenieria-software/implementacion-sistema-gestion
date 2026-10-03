@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +13,8 @@ import { REPORT_EXPORT_ERROR_MESSAGE, REPORT_RECONCILE_CHANNEL } from "../../../
 import { context, report, reportDependencies, request, user } from "./report-export-fixture";
 
 let directory: string;
-beforeEach(async () => { directory = await mkdtemp(join(tmpdir(), "cu54-service-")); });
+// Main resolves the selected folder (macOS tmpdir is a symlink to /private/var).
+beforeEach(async () => { directory = await realpath(await mkdtemp(join(tmpdir(), "cu54-service-"))); });
 afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
 const filename = "VentasMensuales_2026-09_30-09-2026.pdf";
 const verifyContext = { ...context, channel: REPORT_RECONCILE_CHANNEL };
