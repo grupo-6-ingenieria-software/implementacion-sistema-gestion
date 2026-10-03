@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReportFileStore } from "../../../src/main/controllers/report-export-file";
 import { createReportExportHandler } from "../../../src/main/controllers/report-export-service";
@@ -38,7 +38,7 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
       },
     };
     const deps = reportDependencies(directory, { files: new ReportFileStore(join(directory, "evidence"), operations) });
-    expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });
+    expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR", message: "No fue posible generar el archivo" } });
     expect(await fs.readFile(path, "utf8")).toBe("original");
     expect((await fs.readdir(directory)).filter((name) => /\.(tmp|bak)$/.test(name))).toEqual([]);
     expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
@@ -94,6 +94,52 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
     expect(await createReportExportHandler(deps)({ operacionId: operation.operacionId }, { ...context, channel: REPORT_RECONCILE_CHANNEL }))
       .toMatchObject({ ok: true, data: { estado: "reverted" } });
     expect(await fs.readFile(path, "utf8")).toBe("original");
+    expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
+  });
+});
+
+describe("CU54 publishes on filesystems without hard links (FAT32/exFAT)", () => {
+  const unsupported = (code: string) => Object.assign(new Error("hard links unsupported"), { code });
+  const listAuxiliary = async () => (await fs.readdir(directory)).filter((name) => /\.(tmp|bak)$/.test(name));
+  it.each([["ENOTSUP", true], ["EPERM", false], ["EISDIR", true]] as const)("copies exclusively on %s (previous file: %s)", async (code, previous) => {
+    const path = join(directory, filename); if (previous) await fs.writeFile(path, "original");
+    const operations = { ...fs, link: async () => { throw unsupported(code); } };
+    const deps = reportDependencies(directory, { files: new ReportFileStore(join(directory, "evidence"), operations) });
+    expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: true, data: { estado: "saved" } });
+    expect(await fs.readFile(path, "utf8")).toBe("pdf");
+    expect(await listAuxiliary()).toEqual([]);
+    expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
+  });
+  it("keeps a file created by another process instead of overwriting it", async () => {
+    const path = join(directory, filename);
+    const operations = { ...fs, link: async (...args: Parameters<typeof fs.link>) => {
+      if (String(args[0]).endsWith(".tmp")) await fs.writeFile(args[1], "external");
+      throw unsupported("ENOTSUP");
+    } };
+    const deps = reportDependencies(directory, { files: new ReportFileStore(join(directory, "evidence"), operations) });
+    expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false });
+    expect(await fs.readFile(path, "utf8")).toBe("external");
+  });
+  it("removes its partial copy and restores the previous file when copying fails", async () => {
+    const path = join(directory, filename); await fs.writeFile(path, "original");
+    const operations = { ...fs,
+      link: async (...args: Parameters<typeof fs.link>) => {
+        if (String(args[0]).endsWith(".tmp")) throw unsupported("ENOTSUP");
+        return fs.link(...args);
+      },
+      open: async (...args: Parameters<typeof fs.open>) => {
+        const handle = await fs.open(...args);
+        if (basename(String(args[0])) !== filename) return handle;
+        return new Proxy(handle, { get(target, key) {
+          if (key === "writeFile") return async () => { await target.writeFile("partial"); throw new Error("disk full"); };
+          const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
+        } });
+      },
+    };
+    const deps = reportDependencies(directory, { files: new ReportFileStore(join(directory, "evidence"), operations) });
+    expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR", message: "No fue posible generar el archivo" } });
+    expect(await fs.readFile(path, "utf8")).toBe("original");
+    expect(await listAuxiliary()).toEqual([]);
     expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
   });
 });

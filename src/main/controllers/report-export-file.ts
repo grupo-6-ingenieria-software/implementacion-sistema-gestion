@@ -39,6 +39,12 @@ export class ReportDestinationChangedError extends Error {
 function missing(error: unknown): boolean {
   return !!error && typeof error === "object" && "code" in error && error.code === "ENOENT";
 }
+// FAT32/exFAT and some network shares reject hard links (ENOTSUP on macOS, EPERM on
+// Linux; libuv maps Windows ERROR_INVALID_FUNCTION to EISDIR).
+const unsupportedLinkCodes = new Set(["ENOTSUP", "EOPNOTSUPP", "EPERM", "EISDIR", "ENOSYS", "EXDEV"]);
+function linkUnsupported(error: unknown): boolean {
+  return !!error && typeof error === "object" && "code" in error && unsupportedLinkCodes.has(String(error.code));
+}
 function digest(contents: Buffer | string): string {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -259,10 +265,26 @@ export class ReportFileStore {
       await this.fs.rename(op.path, op.backupPath);
       if (await this.hash(op.backupPath) !== op.originalHash) throw new ReportDestinationChangedError();
     }
-    // link publishes a complete same-directory file without clobbering a racing writer.
-    await this.fs.link(op.temporaryPath, op.path);
+    await this.place(op.temporaryPath, op.path);
     op.stage = "published";
     await this.checkpoint(op);
+  }
+
+  /** Places a complete file without clobbering a racing writer. */
+  private async place(source: string, target: string): Promise<void> {
+    try { return await this.fs.link(source, target); }
+    catch (error) { if (!linkUnsupported(error)) throw error; }
+    // Without hard links, an exclusive "wx" copy keeps the no-clobber guarantee.
+    const contents = await this.fs.readFile(source);
+    const handle = await this.fs.open(target, "wx");
+    try {
+      try { await handle.writeFile(contents); await handle.sync(); }
+      finally { await handle.close(); }
+    } catch (error) {
+      // The exclusive target belongs to this invocation; never leave a partial copy.
+      await this.fs.unlink(target).catch((cleanupError) => this.reportCleanup(cleanupError));
+      throw error;
+    }
   }
 
   private async removeMatching(path: string, expected: string | null): Promise<void> {
@@ -279,7 +301,7 @@ export class ReportFileStore {
       if (backup !== op.originalHash) throw new Error("ReportBackupChanged");
       if (current === op.contentsHash) await this.fs.unlink(op.path);
       else if (current !== null && current !== op.originalHash) throw new ReportDestinationChangedError();
-      if (await this.hash(op.path) === null) await this.fs.link(op.backupPath, op.path);
+      if (await this.hash(op.path) === null) await this.place(op.backupPath, op.path);
       if (await this.hash(op.path) !== op.originalHash) throw new Error("ReportRestoreFailed");
       await this.removeMatching(op.backupPath, op.originalHash);
     } else if (op.originalHash === null) {

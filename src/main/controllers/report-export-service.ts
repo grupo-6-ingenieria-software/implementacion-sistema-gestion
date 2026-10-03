@@ -143,7 +143,12 @@ export function createReportExportHandler(dependencies?: ReportExportDependencie
         auditDescripcion: `Exportación ${request.tipo} (${report.periodoEtiqueta}) en ${format!.toUpperCase()}: ${report.cantidadFilas} filas. Archivo: ${basename(destination.path)}.`,
       });
       stage = "auditoria";
-      await deps.audit.finalize(operation, () => deps!.files.publish(operation!));
+      // Filesystem failures inside the audit transaction are technical, not database errors.
+      await deps.audit.finalize(operation, async () => {
+        stage = "publicacion";
+        await deps!.files.publish(operation!);
+        stage = "auditoria";
+      });
       committed = true;
       stage = "confirmacion";
       await deps.files.finish(operation);
