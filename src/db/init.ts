@@ -89,16 +89,30 @@ async function applyMigrations(
     journal.entries.map((entry) => [entry.tag, entry.when]),
   );
   const lastDrizzleMigration = await getLastDrizzleMigrationTimestamp(client);
+  // Una sola lectura en las reaperturas evita un viaje a la BD remota por
+  // archivo. Se consulta después de la recuperación CU43, que puede registrar
+  // un hash. Las migraciones pendientes conservan su orden y sus escrituras.
+  const appliedMigrations = await client.execute('SELECT hash FROM "__migrations"');
+  const appliedHashes = new Set(
+    appliedMigrations.rows.map((row) => String(row.hash)),
+  );
 
   for (const file of migrationFiles) {
     const migration = await readFile(join(migrationsFolder, file), "utf8");
     const hash = createHash("sha256").update(migration).digest("hex");
-    const { rows } = await client.execute({
+    if (appliedHashes.has(hash)) {
+      continue;
+    }
+
+    // Otro cliente puede completar una actualización después de la lectura
+    // inicial. Conserva la comprobación fresca del flujo anterior para las
+    // pendientes; las reaperturas actualizadas no necesitan estas consultas.
+    const latest = await client.execute({
       sql: 'SELECT hash FROM "__migrations" WHERE hash = ?',
       args: [hash],
     });
-
-    if (rows.length > 0) {
+    if (latest.rows.length > 0) {
+      appliedHashes.add(hash);
       continue;
     }
 
@@ -116,6 +130,7 @@ async function applyMigrations(
     }
 
     await recordMigrationHash(client, hash);
+    appliedHashes.add(hash);
   }
 }
 

@@ -1,11 +1,11 @@
-import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../src/db/schema";
 import {
   initializeDatabase,
@@ -86,6 +86,77 @@ describe("initializeDatabase", () => {
     ).resolves.toBeUndefined();
 
     expect(await tableExists(testDb!.client, "producto")).toBe(true);
+  });
+
+  it("lee los hashes una vez al reabrir y conserva los datos", async () => {
+    await initializeDatabase(testDb!.db, testDb!.client);
+    await testDb!.client.execute("INSERT INTO categoria (categoria_nombre, categoria_exige_vencimiento) VALUES ('Persistente', 0)");
+    const execute = vi.spyOn(testDb!.client, "execute");
+    try {
+      await initializeDatabase(testDb!.db, testDb!.client);
+      const hashReads = execute.mock.calls.filter(([statement]) => {
+        const input: unknown = statement;
+        const sql = typeof input === "string" ? input : (input as { sql: string }).sql;
+        return /SELECT hash FROM "__migrations"/i.test(sql);
+      });
+      expect(hashReads).toHaveLength(1);
+      expect((await testDb!.client.execute("SELECT categoria_nombre FROM categoria")).rows).toEqual([
+        expect.objectContaining({ categoria_nombre: "Persistente" }),
+      ]);
+      expect((await testDb!.client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
+    } finally {
+      execute.mockRestore();
+    }
+  });
+
+  it("aplica una migración nueva después de reabrir sin repetir las anteriores", async () => {
+    await initializeDatabase(testDb!.db, testDb!.client);
+    const previousCount = Number((await testDb!.client.execute('SELECT COUNT(*) AS count FROM "__migrations"')).rows[0].count);
+    await testDb!.client.execute("INSERT INTO categoria (categoria_nombre, categoria_exige_vencimiento) VALUES ('Antes de actualizar', 0)");
+    const paths = resolveDatabaseInitPaths();
+    const migrationsFolder = join(testDb!.dir, "migrations");
+    await cp(paths.migrationsFolder, migrationsFolder, { recursive: true });
+    await writeFile(join(migrationsFolder, "0006_test_update.sql"),
+      "INSERT INTO categoria (categoria_nombre, categoria_exige_vencimiento) VALUES ('Después de actualizar', 0);");
+    const updatedPaths = { ...paths, migrationsFolder };
+    await initializeDatabase(testDb!.db, testDb!.client, updatedPaths);
+    await initializeDatabase(testDb!.db, testDb!.client, updatedPaths);
+    const categories = await testDb!.client.execute("SELECT categoria_nombre FROM categoria ORDER BY categoria_id");
+    expect(categories.rows.map((row) => row.categoria_nombre)).toEqual([
+      "Antes de actualizar", "Después de actualizar",
+    ]);
+    expect(Number((await testDb!.client.execute('SELECT COUNT(*) AS count FROM "__migrations"')).rows[0].count)).toBe(previousCount + 1);
+  });
+
+  it("no repite una migración que otro cliente completó después de leer los hashes", async () => {
+    await initializeDatabase(testDb!.db, testDb!.client);
+    const paths = resolveDatabaseInitPaths();
+    const migrationsFolder = join(testDb!.dir, "concurrent-migrations");
+    await cp(paths.migrationsFolder, migrationsFolder, { recursive: true });
+    const migration = "INSERT INTO categoria (categoria_nombre, categoria_exige_vencimiento) VALUES ('Otro cliente', 0);";
+    await writeFile(join(migrationsFolder, "9999_test_concurrent.sql"), migration);
+    const otherClient = createClient({ url: `file:${join(testDb!.dir, "test.db").replaceAll("\\", "/")}` });
+    const originalExecute = testDb!.client.execute.bind(testDb!.client);
+    const execute = vi.spyOn(testDb!.client, "execute");
+    execute.mockImplementation(async (statement) => {
+      const result = await originalExecute(statement);
+      if (statement === 'SELECT hash FROM "__migrations"') {
+        await otherClient.executeMultiple(migration);
+        await otherClient.execute({
+          sql: 'INSERT INTO "__migrations" (hash, created_at) VALUES (?, ?)',
+          args: [createHash("sha256").update(migration).digest("hex"), Date.now()],
+        });
+      }
+      return result;
+    });
+    try {
+      await initializeDatabase(testDb!.db, testDb!.client, { ...paths, migrationsFolder });
+      const categories = await testDb!.client.execute("SELECT categoria_nombre FROM categoria");
+      expect(categories.rows).toEqual([expect.objectContaining({ categoria_nombre: "Otro cliente" })]);
+    } finally {
+      execute.mockRestore();
+      otherClient.close();
+    }
   });
 
   it("reconcilia drizzle-kit y recupera una CU43 interrumpida", async () => {

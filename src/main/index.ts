@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import log from "electron-log/main";
 import { client, db } from "../db/client";
 import { initializeDatabase, resolveDatabaseInitPaths } from "../db/init";
@@ -15,6 +16,8 @@ import {
 } from "./controllers/audit-retention-service";
 
 let mainWindow: BrowserWindow | null = null;
+// Ruta explícita para ESM; no depende del shim __dirname del bundler.
+const mainDirectory = dirname(fileURLToPath(import.meta.url));
 
 function createMainWindow(): void {
   const window = new BrowserWindow({
@@ -25,7 +28,7 @@ function createMainWindow(): void {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, "../preload/index.mjs"),
+      preload: join(mainDirectory, "../preload/index.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -54,7 +57,7 @@ function createMainWindow(): void {
   if (rendererUrl) {
     void window.loadURL(rendererUrl);
   } else {
-    void window.loadFile(join(__dirname, "../renderer/index.html"));
+    void window.loadFile(join(mainDirectory, "../renderer/index.html"));
   }
 }
 

@@ -20,9 +20,12 @@ if (process.env.CI && !process.env.DATABASE_URL) {
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
     define: dbDefine,
     build: {
+      // Drizzle es ESM: Rollup puede incluir sólo lo usado por Main, evitando
+      // cargar todo el árbol de módulos del ORM antes de abrir la ventana.
+      // El cliente libSQL y sus binarios nativos siguen como dependencias externas.
+      externalizeDeps: { exclude: ["drizzle-orm"] },
       rollupOptions: {
         input: resolve(__dirname, "src/main/index.ts"),
       },

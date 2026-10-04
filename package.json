@@ -76,7 +76,9 @@
       "output": "dist"
     },
     "files": [
-      "out/**/*",
+      "out/main/**/*",
+      "out/preload/**/*",
+      "out/renderer/**/*",
       "resources/**",
       "package.json"
     ],
