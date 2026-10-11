@@ -42,5 +42,7 @@ Todos los controladores devuelven el contrato discriminado
 ```bash
 npm run dev         # levanta la app en desarrollo
 npm run typecheck   # tsc --noEmit
-npm test            # corre la suite (Vitest) desde tests/
+npm test            # corre la suite agrupada por RF (tests/rf/rf-map.json)
+npm test -- RF36    # solo los tests de un RF
+npm run test:vitest # suite completa con Vitest directo, sin agrupar
 ```
