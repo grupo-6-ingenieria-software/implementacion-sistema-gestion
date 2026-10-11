@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node tests/rf/run-by-rf.mjs",
     "test:vitest": "vitest run",
+    "test:ui": "node tests/ui/run-ui.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
