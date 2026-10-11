@@ -32,8 +32,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("lot controller", () => {
-  it("maps authorization failures to forbidden responses", async () => {
+describe("controlador de lotes", () => {
+  it("traduce fallos de autorización a respuestas prohibidas", async () => {
     const controller = createLotController({
       listProviders: async () => [],
       register: async () => {
@@ -60,7 +60,7 @@ describe("lot controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejects channels not declared for the lot controller", async () => {
+  it("rechaza canales no declarados para el controlador de lotes", async () => {
     const controller = createLotController({
       listProviders: async () => [],
       register: async () => ({
@@ -79,7 +79,7 @@ describe("lot controller", () => {
     expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it("lists providers for lot registration", async () => {
+  it("lista proveedores para el registro de lotes", async () => {
     const controller = createLotController({
       listProviders: async () => [
         { id: 1, nombre: "Distribuidora Central S.A." },
@@ -105,7 +105,7 @@ describe("lot controller", () => {
     ]);
   });
 
-  it("registers a non-perishable lot, movement and audit log", async () => {
+  it("registra un lote no perecible, su movimiento y el registro de auditoría", async () => {
     const result = await testDb!.db.transaction((tx) =>
       registerLotWithExecutor(tx, schema, {
         ean13: "7802920000022",
@@ -145,7 +145,7 @@ describe("lot controller", () => {
     });
   });
 
-  it("registers a perishable lot with expiration subtype", async () => {
+  it("registra un lote perecible con subtipo de vencimiento", async () => {
     testDb!.queries.length = 0;
     const result = await testDb!.db.transaction((tx) =>
       registerLotWithExecutor(tx, schema, {
@@ -180,7 +180,7 @@ describe("lot controller", () => {
     ]);
   });
 
-  it("rejects inactive products and missing providers", async () => {
+  it("rechaza productos inactivos y proveedores faltantes", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerLotWithExecutor(tx, schema, {
@@ -210,7 +210,7 @@ describe("lot controller", () => {
     } satisfies Partial<LotError>);
   });
 
-  it("rejects missing, malformed, impossible and non-future expiration dates with contractual messages", async () => {
+  it("rechaza fechas de vencimiento faltantes, malformadas, imposibles o no futuras con mensajes contractuales", async () => {
     const expirationCases = [
       [
         undefined,

@@ -49,8 +49,8 @@ async function snapshot() {
     fixture.db.select().from(schema.producto), fixture.db.select().from(schema.lote), fixture.db.select().from(schema.historialPrecioProducto), fixture.db.select().from(schema.cierreCaja)]);
 }
 
-describe("CU54 real database transactions and immutable audit", () => {
-  it("rejects an inactive owner before reading report data, opening a dialog or writing an audit", async () => {
+describe("CU54 transacciones reales de base de datos y auditoría inmutable", () => {
+  it("rechaza a un dueno inactivo antes de leer datos del reporte, abrir un diálogo o escribir auditoría", async () => {
     await fixture.db.update(schema.trabajador).set({ trabajadorEstado: "inactivo" }).where(eq(schema.trabajador.trabajadorId, 1));
     const deps = dependencies(); const dialog = vi.spyOn(deps, "selectDirectory"); const before = await snapshot();
     expect(await createReportExportHandler(deps)(request, ctx)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
@@ -59,7 +59,7 @@ describe("CU54 real database transactions and immutable audit", () => {
     expect(await fixture.db.select().from(schema.usuarioVersion)).toEqual([]);
     expect(await snapshot()).toEqual(before);
   });
-  it("recalculates after screen generation, exports historical prices and writes only one audit/version", async () => {
+  it("recalcula tras generar la pantalla, exporta precios históricos y escribe solo una auditoría/versión", async () => {
     const screen = await queryMonthlySales(fixture.db, request.periodo);
     const [line] = await fixture.db.select().from(schema.detalleVenta);
     await fixture.db.update(schema.detalleVenta).set({ detalleVentaCantidad: 2 }).where(eq(schema.detalleVenta.detalleVentaId, line.detalleVentaId));
@@ -75,7 +75,7 @@ describe("CU54 real database transactions and immutable audit", () => {
     await expect(fixture.db.delete(schema.logAuditoria).where(eq(schema.logAuditoria.logAuditoriaId, logs[0].logAuditoriaId))).rejects.toThrow();
     await expect(fixture.db.update(schema.logAuditoria).set({ logDescripcion: "altered" })).rejects.toThrow();
   });
-  it("rolls back the newly created identity version when audit insertion fails and preserves existing file", async () => {
+  it("revierte la nueva versión de identidad cuando falla la inserción de auditoría y conserva el archivo existente", async () => {
     await writeFile(join(fixture.dir, filename), "original"); const before = await snapshot();
     await fixture.db.run(sql`CREATE TRIGGER fail_report_audit BEFORE INSERT ON log_auditoria BEGIN SELECT RAISE(ABORT, 'test audit failure'); END`);
     expect(await createReportExportHandler(dependencies())(request, ctx)).toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });
@@ -83,14 +83,14 @@ describe("CU54 real database transactions and immutable audit", () => {
     expect(await fixture.db.select().from(schema.usuarioVersion)).toEqual([]); expect(await fixture.db.select().from(schema.logAuditoria)).toEqual([]);
     expect(await snapshot()).toEqual(before); expect(await readdir(join(fixture.dir, "evidence"))).toEqual([]);
   });
-  it("rolls back identity, audit and publication if the filesystem fails inside the real transaction", async () => {
+  it("revierte identidad, auditoría y publicación si el sistema de archivos falla dentro de la transacción real", async () => {
     await writeFile(join(fixture.dir, filename), "original"); const deps = dependencies();
     vi.spyOn(deps.files, "publish").mockRejectedValue(new Error("publish failure"));
     expect(await createReportExportHandler(deps)(request, ctx)).toMatchObject({ ok: false });
     expect(await fixture.db.select().from(schema.usuarioVersion)).toEqual([]); expect(await fixture.db.select().from(schema.logAuditoria)).toEqual([]);
     expect(await readFile(join(fixture.dir, filename), "utf8")).toBe("original");
   });
-  it.each([true, false])("resolves lost COMMIT acknowledgement with committed=%s using the original audit ID", async (committed) => {
+  it.each([true, false])("resuelve confirmación de COMMIT perdida con committed=%s usando el ID de auditoría original", async (committed) => {
     await writeFile(join(fixture.dir, filename), "original"); const deps = dependencies();
     const real = deps.audit;
     deps.audit = createReportAuditStorage({ transaction: async (callback) => {
@@ -108,7 +108,7 @@ describe("CU54 real database transactions and immutable audit", () => {
     if (!committed) expect(await readFile(join(fixture.dir, filename), "utf8")).toBe("original");
     expect(await readdir(join(fixture.dir, "evidence"))).toEqual([]);
   });
-  it("compensates an explicit SQL COMMIT rejection without classifying it as a transport ambiguity", async () => {
+  it("compensa un rechazo explícito de COMMIT SQL sin clasificarlo como ambigüedad de transporte", async () => {
     await writeFile(join(fixture.dir, filename), "original"); const deps = dependencies();
     deps.audit = createReportAuditStorage({ transaction: (callback) => fixture.db.transaction(async (tx) => {
       await callback(tx); throw Object.assign(new Error("deferred constraint"), { code: "SQLITE_CONSTRAINT_FOREIGNKEY" });

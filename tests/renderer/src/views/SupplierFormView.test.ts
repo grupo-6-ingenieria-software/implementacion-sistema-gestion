@@ -6,8 +6,8 @@ import {
 } from "../../../../src/renderer/src/views/SupplierFormView";
 import type { ControllerResponse } from "../../../../src/shared/controllers";
 
-describe("CU13 supplier form helpers", () => {
-  it("loads categories through the protected backend channel", async () => {
+describe("helpers del formulario de proveedores CU13", () => {
+  it("carga categorías a través del canal protegido del backend", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<unknown>> => ({
         ok: true,
@@ -26,7 +26,7 @@ describe("CU13 supplier form helpers", () => {
     });
   });
 
-  it("loads categories and current supplier data together in edit mode", async () => {
+  it("carga categorías y datos del proveedor actual juntos en modo edición", async () => {
     const detail = {
       proveedorId: 7,
       rut: "12.345.678-5",
@@ -59,7 +59,7 @@ describe("CU13 supplier form helpers", () => {
     ]);
   });
 
-  it("surfaces a missing edit target as a load error", async () => {
+  it("reporta un objetivo de edición ausente como error de carga", async () => {
     const invoke = vi.fn(
       async (channel: string): Promise<ControllerResponse<unknown>> =>
         channel === "proveedor:categorias"
@@ -79,7 +79,7 @@ describe("CU13 supplier form helpers", () => {
     ).rejects.toThrow("Proveedor inexistente");
   });
 
-  it("surfaces category loading errors so the view can offer retry", async () => {
+  it("reporta errores de carga de categorías para que la vista ofrezca reintentar", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<unknown>> => ({
         ok: false,
@@ -95,7 +95,7 @@ describe("CU13 supplier form helpers", () => {
     ).rejects.toThrow("Error de categorías");
   });
 
-  it("supports visible multiple selection without duplicate ids", () => {
+  it("admite selección múltiple visible sin ids duplicados", () => {
     expect(toggleSupplierCategory([], 1)).toEqual([1]);
     expect(toggleSupplierCategory([1], 2)).toEqual([1, 2]);
     expect(toggleSupplierCategory([1, 2], 1)).toEqual([2]);

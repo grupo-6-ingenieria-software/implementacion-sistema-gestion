@@ -64,8 +64,8 @@ function failWrite(fragment: string, failure: string | Error): DbExecutor {
   };
 }
 
-describe("CU32 transactional absence registration", () => {
-  it.each(["justificada", "injustificada"])("registers %s without a shift and with trusted identity", async (tipo) => {
+describe("CU32 registro transaccional de ausencias", () => {
+  it.each(["justificada", "injustificada"])("registra ausencia %s sin turno y con identidad confiable", async (tipo) => {
     const result = await register({ ...request, tipo, observacion: "  Motivo  ", usuarioId: "attacker", rol: "dueno" });
     expect(result).toMatchObject({ trabajadorId: 2, trabajadorNombre: "María Huáscar", fecha: request.fecha, tipo, registradoAt: NOW.toISOString() });
     expect(result.ausenciaId).toHaveLength(36);
@@ -79,26 +79,26 @@ describe("CU32 transactional absence registration", () => {
     expect(version.usuarioId).toBe(USER);
     expect(await counts()).toEqual({ absences: 1, logs: 1, attendances: 0, versions: 1 });
   });
-  it("stores an empty optional observation as NULL", async () => {
+  it("almacena una observación opcional vacía como NULL", async () => {
     await register({ ...request, observacion: "  " });
     expect((await fixture.db.select().from(schema.ausencia))[0].ausenciaObservacion).toBeNull();
   });
-  it("registers an existing active worker even without an account", async () => {
+  it("registra a un trabajador activo existente aun sin cuenta", async () => {
     await fixture.db.insert(schema.trabajador).values({ trabajadorId: 3, trabajadorRut: "33333333-3", trabajadorNombre: "Sin", trabajadorApellido: "Cuenta", trabajadorTelefono: "987654321", trabajadorFechaIngreso: "2026-09-08" });
     await expect(register({ ...request, trabajadorId: 3, fecha: "2024-02-29" })).resolves.toMatchObject({ trabajadorId: 3 });
   });
-  it.each(["justificada", "injustificada", "licencia", "vacaciones", "permiso"] as const)("rejects an existing %s absence", async (tipo) => {
+  it.each(["justificada", "injustificada", "licencia", "vacaciones", "permiso"] as const)("rechaza una ausencia existente de tipo %s", async (tipo) => {
     await absence(tipo);
     await expect(register()).rejects.toMatchObject({ code: "BUSINESS_RULE", message: expect.stringContaining("ausencia registrada") });
     expect((await counts()).absences).toBe(1);
     expect((await counts()).logs).toBe(0);
   });
-  it.each([null, "2026-09-08T22:00:00Z"])("rejects attendance whether open or closed (%s)", async (salida) => {
+  it.each([null, "2026-09-08T22:00:00Z"])("rechaza asistencia abierta o cerrada (%s)", async (salida) => {
     await attendance("2026-09-08T12:00:00Z", salida);
     await expect(register()).rejects.toMatchObject({ code: "BUSINESS_RULE", message: expect.stringContaining("asistencia") });
     expect((await counts()).absences).toBe(0);
   });
-  it("does not count a previous-day entry that exits on the requested date", async () => {
+  it("no cuenta un ingreso del día anterior que sale en la fecha solicitada", async () => {
     await attendance("2026-09-08T01:00:00Z", "2026-09-08T05:00:00Z");
     await expect(register()).resolves.toMatchObject({ fecha: request.fecha });
   });
@@ -107,7 +107,7 @@ describe("CU32 transactional absence registration", () => {
     ["2026-09-08T03:00:00.000Z", true],
     ["2026-09-09T02:59:59.999Z", true],
     ["2026-09-09T03:00:00.000Z", false],
-  ])("handles the exact day boundary %s", async (entrada, conflicts) => {
+  ])("maneja el límite exacto del día %s", async (entrada, conflicts) => {
     await attendance(entrada as string);
     if (conflicts) await expect(register()).rejects.toMatchObject({ code: "BUSINESS_RULE" });
     else await expect(register()).resolves.toBeDefined();
@@ -117,17 +117,17 @@ describe("CU32 transactional absence registration", () => {
     ["2026-04-05", "2026-04-05T03:30:00Z", false],
     ["2026-09-06", "2026-09-06T03:59:59Z", false], // Midnight skipped, 23-hour day.
     ["2026-09-06", "2026-09-06T04:00:00Z", true],
-  ])("handles Chile DST on %s for %s", async (fecha, entrada, conflicts) => {
+  ])("maneja el cambio de horario de Chile el %s para %s", async (fecha, entrada, conflicts) => {
     await attendance(entrada as string);
     const operation = register({ ...request, fecha });
     if (conflicts) await expect(operation).rejects.toMatchObject({ code: "BUSINESS_RULE" });
     else await expect(operation).resolves.toBeDefined();
   });
-  it("rejects an unknown worker without writes", async () => {
+  it("rechaza un trabajador desconocido sin escrituras", async () => {
     await expect(register({ ...request, trabajadorId: 99 })).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(await counts()).toEqual({ absences: 0, logs: 0, attendances: 0, versions: 0 });
   });
-  it("rechecks a worker inactivated after opening the form", async () => {
+  it("vuelve a verificar un trabajador inactivado tras abrir el formulario", async () => {
     await database.run(sql`UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 2`);
     await expect(register()).rejects.toMatchObject({ code: "BUSINESS_RULE" });
     expect((await counts()).absences).toBe(0);
@@ -135,11 +135,11 @@ describe("CU32 transactional absence registration", () => {
   it.each([
     { ...request, fecha: "2026-09-09" }, { ...request, tipo: "licencia" },
     { ...request, observacion: "x".repeat(201) }, { ...request, fecha: "2026-02-31" },
-  ])("validates server inputs without writes %j", async (payload) => {
+  ])("valida entradas del servidor sin escrituras %j", async (payload) => {
     await expect(register(payload)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     expect((await counts()).absences).toBe(0);
   });
-  it.each(["closed", "expired", "unknown", "different-owner", "worker-role", "inactive-owner", "invalid-timestamp"])("rejects %s sessions", async (kind) => {
+  it.each(["closed", "expired", "unknown", "different-owner", "worker-role", "inactive-owner", "invalid-timestamp"])("rechaza sesiones %s", async (kind) => {
     let responsible = actor;
     if (kind === "closed") await database.run(sql`UPDATE sesion_usuario SET sesion_fecha_hora_cierre = ${NOW.toISOString()}, sesion_motivo_cierre = 'manual'`);
     if (kind === "expired") await database.run(sql`UPDATE sesion_usuario SET sesion_fecha_hora_ultimo_acceso = '2026-09-08T14:30:00.000Z'`);
@@ -151,23 +151,23 @@ describe("CU32 transactional absence registration", () => {
     await expect(register(request, responsible)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(await counts()).toEqual({ absences: 0, logs: 0, attendances: 0, versions: 0 });
   });
-  it("requires an owner actor and supports legacy sessions with no stored role", async () => {
+  it("requiere un actor dueno y admite sesiones heredadas sin rol almacenado", async () => {
     await expect(registerAbsence(database, request, undefined)).rejects.toBeInstanceOf(AbsenceError);
     await expect(register(request, { ...actor, rol: "trabajador" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await database.run(sql`UPDATE sesion_usuario SET sesion_rol_efectivo = NULL`);
     await expect(register()).resolves.toBeDefined();
   });
-  it.each(["INSERT INTO ausencia", "INSERT INTO log_auditoria"])("rolls back all writes if %s fails", async (fragment) => {
+  it.each(["INSERT INTO ausencia", "INSERT INTO log_auditoria"])("revierte todas las escrituras si falla %s", async (fragment) => {
     await expect(register(request, actor, NOW, failWrite(fragment, "write failure"))).rejects.toThrow("write failure");
     expect(await counts()).toEqual({ absences: 0, logs: 0, attendances: 0, versions: 0 });
   });
-  it("translates the absence unique constraint but preserves unrelated technical errors", async () => {
+  it("traduce la restricción única de ausencia pero preserva los errores técnicos no relacionados", async () => {
     await expect(register(request, actor, NOW, failWrite("INSERT INTO ausencia", "UNIQUE constraint failed: ausencia.trabajador_id, ausencia.ausencia_fecha"))).rejects.toMatchObject({ code: "BUSINESS_RULE" });
     await expect(register(request, actor, NOW, failWrite("INSERT INTO ausencia", "UNIQUE constraint failed: otra.columna"))).rejects.toThrow("otra.columna");
     const wrapped = new Error("Failed query", { cause: new Error("UNIQUE constraint failed: ausencia.trabajador_id, ausencia.ausencia_fecha") });
     await expect(register(request, actor, NOW, failWrite("INSERT INTO ausencia", wrapped))).rejects.toMatchObject({ code: "BUSINESS_RULE" });
   });
-  it("revalidates domain state after SQLITE_BUSY", async () => {
+  it("vuelve a validar el estado del dominio tras SQLITE_BUSY", async () => {
     let attempts = 0;
     const competing: DbExecutor = { ...database, all: database.all.bind(database), run: database.run.bind(database),
       transaction: async (callback) => {
@@ -179,7 +179,7 @@ describe("CU32 transactional absence registration", () => {
     expect(attempts).toBe(2);
     expect((await counts()).absences).toBe(1);
   });
-  it.each(["absence-first", "attendance-first"])("serializes absence vs attendance (%s)", async (order) => {
+  it.each(["absence-first", "attendance-first"])("serializa ausencia frente a asistencia (%s)", async (order) => {
     const otherClient = createClient({ url: `file:${join(fixture.dir, "test.db").replace(/\\/g, "/")}` });
     await otherClient.execute("PRAGMA foreign_keys = ON");
     await otherClient.execute("PRAGMA busy_timeout = 3000");
@@ -196,7 +196,7 @@ describe("CU32 transactional absence registration", () => {
       expect(state.logs).toBe(1);
     } finally { otherClient.close(); }
   });
-  it("serializes two absence submissions into one record and one audit", async () => {
+  it("serializa dos envíos de ausencia en un solo registro y una sola auditoría", async () => {
     const otherClient = createClient({ url: `file:${join(fixture.dir, "test.db").replace(/\\/g, "/")}` });
     await otherClient.execute("PRAGMA foreign_keys = ON");
     await otherClient.execute("PRAGMA busy_timeout = 3000");

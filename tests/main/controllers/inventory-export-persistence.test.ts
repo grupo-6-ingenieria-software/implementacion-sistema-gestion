@@ -89,8 +89,8 @@ function exportThroughAuditDispatcher(
   );
 }
 
-describe("CU20 real persistence and audit transaction (T10/T12)", () => {
-  it("saves a real workbook then audits the canonical identity without changing inventory", async () => {
+describe("persistencia real y transacción de auditoría de CU20 (T10/T12)", () => {
+  it("guarda un libro real y luego audita la identidad canónica sin modificar el inventario", async () => {
     const before = await inventorySnapshot();
     const path = join(fixture.dir, "inventory.xlsx");
     const controller = createInventoryExportController(dependencies(path));
@@ -124,7 +124,7 @@ describe("CU20 real persistence and audit transaction (T10/T12)", () => {
     expect(await fixture.db.select().from(schema.logAuditoria)).toHaveLength(2);
     expect(await inventorySnapshot()).toEqual(before);
   });
-  it("rolls back the newly created user version if audit insertion fails, keeping the saved file", async () => {
+  it("revierte la nueva versión de usuario creada si falla la inserción de auditoría, conservando el archivo guardado", async () => {
     const before = await inventorySnapshot();
     await fixture.db.run(
       sql`CREATE TRIGGER fail_audit BEFORE INSERT ON log_auditoria BEGIN SELECT RAISE(ABORT, 'test audit failure'); END`,

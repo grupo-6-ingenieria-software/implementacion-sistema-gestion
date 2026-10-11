@@ -26,15 +26,15 @@ function workerController() {
   return { authorize, list, controller };
 }
 
-describe("C52 monthly attendance controller, permissions and audit", () => {
-  it("passes the validated request and trusted claims to the loader and returns an empty success", async () => {
+describe("controlador de asistencia mensual C52, permisos y auditoría", () => {
+  it("pasa la solicitud validada y los claims de confianza al cargador y devuelve un éxito vacío", async () => {
     const load = vi.fn(async () => report);
     const controller = createMonthlyAttendanceController(load);
     expect(await controller.handle({ ...request, usuarioId: "spoofed", rol: "trabajador" }, context)).toEqual({ ok: true, data: report });
     expect(load).toHaveBeenCalledExactlyOnceWith(request, context);
     expect(controller.metadata).toMatchObject({ id: "attendance-monthly-summary", name: "ResumenAsistenciaHandler" });
   });
-  it("rejects a missing session, a worker role and an unknown channel before loading records", async () => {
+  it("rechaza una sesión ausente, un rol de trabajador y un canal desconocido antes de cargar registros", async () => {
     const load = vi.fn(async () => report);
     const controller = createMonthlyAttendanceController(load);
     for (const identity of [undefined, { ...claims, rol: "trabajador" as const }]) {
@@ -43,21 +43,21 @@ describe("C52 monthly attendance controller, permissions and audit", () => {
     expect(await controller.handle(request, { ...context, channel: "invalid" })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
     expect(load).not.toHaveBeenCalled();
   });
-  it("validates inputs before performing database reads", async () => {
+  it("valida las entradas antes de realizar lecturas de base de datos", async () => {
     const load = vi.fn(async () => report);
     expect(await createMonthlyAttendanceController(load).handle({ ...request, mes: 13 }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(load).not.toHaveBeenCalled();
   });
-  it.each(["NOT_FOUND", "BUSINESS_RULE"] as const)("preserves the %s domain error", async (code) => {
+  it.each(["NOT_FOUND", "BUSINESS_RULE"] as const)("conserva el error de dominio %s", async (code) => {
     const controller = createMonthlyAttendanceController(async () => { throw new MonthlyAttendanceError(code, "2026-09-08: conflicto"); });
     expect(await controller.handle(request, context)).toMatchObject({ ok: false, error: { code, message: "2026-09-08: conflicto" } });
   });
-  it("reports authorization and database errors without leaking technical detail", async () => {
+  it("informa errores de autorización y de base de datos sin filtrar detalle técnico", async () => {
     expect(await createMonthlyAttendanceController(async () => { throw new AccessDeniedError(); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(await createMonthlyAttendanceController(async () => { throw new Error("secret connection detail"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR", message: "No fue posible consultar el resumen de asistencia. Intente nuevamente." } });
   });
-  it("loads summary worker choices exclusively with the owner claim identity", async () => {
+  it("carga las opciones de trabajador del resumen exclusivamente con la identidad del claim de dueño", async () => {
     const { controller, authorize, list } = workerController();
     expect(await controller.handle({ usuarioId: "spoofed", __rolSesion: "trabajador" }, { channel: "trabajador:listar-para-resumen", claims })).toEqual({ ok: true, data: [report.trabajador] });
     expect(authorize).toHaveBeenCalledExactlyOnceWith(claims.usuarioId, ["dueno"], "dueno");
@@ -67,7 +67,7 @@ describe("C52 monthly attendance controller, permissions and audit", () => {
     }
     expect(list).toHaveBeenCalledOnce();
   });
-  it.each(["asistencia:resumen-mensual", "trabajador:listar-para-resumen"])("guards %s with the effective session role and trusted identity", async (channel) => {
+  it.each(["asistencia:resumen-mensual", "trabajador:listar-para-resumen"])("protege %s con el rol de sesión efectivo y la identidad de confianza", async (channel) => {
     expect([...CHANNEL_ROLES.get(channel)!]).toEqual(["dueno"]);
     const audit = vi.fn(async () => undefined);
     expect((await guardChannel(channel, {}, { verifyToken: () => null, audit })).ok).toBe(false);
@@ -79,7 +79,7 @@ describe("C52 monthly attendance controller, permissions and audit", () => {
     expect((await authorizeRequest(channel, {}, undefined, { identity, session: async () => ({ active: true, rolEfectivo: "trabajador" }), audit })).ok).toBe(false);
     expect((await authorizeRequest(channel, {}, undefined, { identity, session: async () => ({ active: false, reason: "inactividad" }), audit })).ok).toBe(false);
   });
-  it("audits both successful queries once, including empty summaries, and fails when audit cannot be persisted", async () => {
+  it("audita una vez ambas consultas exitosas, incluidos los resúmenes vacíos, y falla si la auditoría no puede persistirse", async () => {
     const audit = vi.fn(async () => undefined);
     const controller = createMonthlyAttendanceController(async () => report);
     expect((await handleWithAudit(controller, request, context, audit)).ok).toBe(true);

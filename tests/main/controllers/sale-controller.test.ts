@@ -42,8 +42,8 @@ function dependencies(state: "sin_registro" | "abierta" | "cerrada") {
   };
 }
 
-describe("saleController contracts", () => {
-  it("CU37 maps a rejected discount to validation error without notifying", async () => {
+describe("contratos de saleController", () => {
+  it("CU37 mapea un descuento rechazado a error de validación sin notificar", async () => {
     const deps = dependencies("abierta");
     deps.register.mockRejectedValueOnce(
       new SaleValidationError(
@@ -64,7 +64,7 @@ describe("saleController contracts", () => {
     expect(deps.notify).not.toHaveBeenCalled();
   });
 
-  it("CU37 notifies only after the discounted sale resolves", async () => {
+  it("CU37 notifica solo después de que la venta con descuento se resuelve", async () => {
     const deps = dependencies("abierta");
     let finish!: (value: { ventaId: string }) => void;
     deps.register.mockImplementationOnce(
@@ -84,7 +84,7 @@ describe("saleController contracts", () => {
     expect(deps.notify).toHaveBeenCalledOnce();
   });
   it.each(["sin_registro", "abierta", "cerrada"] as const)(
-    "returns the discriminated daily cash state %s without opening cash",
+    "devuelve el estado discriminado de caja diaria %s sin abrir caja",
     async (status) => {
       const deps = dependencies(status);
       const controller = createSaleController(deps as never);
@@ -97,7 +97,7 @@ describe("saleController contracts", () => {
     },
   );
 
-  it("maps a transactional closed-cash rejection without using the preflight read", async () => {
+  it("mapea un rechazo transaccional por caja cerrada sin usar la lectura previa", async () => {
     const deps = dependencies("cerrada");
     deps.register.mockRejectedValueOnce(
       new SaleBusinessError(
@@ -117,7 +117,7 @@ describe("saleController contracts", () => {
     expect(deps.inspectCash).not.toHaveBeenCalled();
   });
 
-  it("exposes the read-only cart validation result through its own channel", async () => {
+  it("expone el resultado de validación del carrito de solo lectura por su propio canal", async () => {
     const deps = dependencies("sin_registro");
     deps.validateCart.mockResolvedValueOnce({
       lines: [{ productoId: 1, cantidad: 2, stockDisponible: 4 }],
@@ -133,7 +133,7 @@ describe("saleController contracts", () => {
     expect(deps.inspectCash).not.toHaveBeenCalled();
   });
 
-  it("CU43 strips spoofed identity and builds the actor from trusted claims", async () => {
+  it("CU43 elimina la identidad falsificada y construye el actor a partir de claims de confianza", async () => {
     const deps = dependencies("abierta");
     await createSaleController(deps as never).handle(
       {
@@ -162,7 +162,7 @@ describe("saleController contracts", () => {
     );
   });
 
-  it("CU43 rejects registration when trusted claims are absent", async () => {
+  it("CU43 rechaza el registro cuando faltan claims de confianza", async () => {
     const deps = dependencies("abierta");
     const response = await createSaleController(deps as never).handle(
       { items: [{ productoId: 1, cantidad: 1 }], metodoPago: "debito" },

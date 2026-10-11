@@ -20,8 +20,8 @@ const claims = (rol: "dueno" | "trabajador", usuarioId = "usuario-1") => ({
 });
 beforeEach(() => allMock.mockReset().mockResolvedValue([]));
 
-describe("dashboard controller", () => {
-  it("rejects requests without a supported development role", async () => {
+describe("controlador de dashboard", () => {
+  it("rechaza solicitudes sin un rol de desarrollo compatible", async () => {
     await expect(
       dashboardController.handle({}, { channel: "dashboard:cargar" }),
     ).resolves.toEqual({
@@ -34,7 +34,7 @@ describe("dashboard controller", () => {
     });
   });
 
-  it("rejects worker dashboard requests without an authenticated user", async () => {
+  it("rechaza solicitudes del dashboard de trabajador sin usuario autenticado", async () => {
     await expect(
       dashboardController.handle(
         { role: "trabajador" },
@@ -50,7 +50,7 @@ describe("dashboard controller", () => {
     });
   });
 
-  it("loads dashboard data for a supported development role", async () => {
+  it("carga los datos del dashboard para un rol de desarrollo compatible", async () => {
     allMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -121,7 +121,7 @@ describe("dashboard controller", () => {
     });
   });
 
-  it("returns a technical error when dashboard data cannot be read", async () => {
+  it("devuelve un error técnico cuando no se pueden leer los datos del dashboard", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
@@ -145,8 +145,8 @@ describe("dashboard controller", () => {
   });
 });
 
-describe("dashboard attendance controller", () => {
-  it("rejects worker summaries without an authenticated user", async () => {
+describe("controlador de asistencia del dashboard", () => {
+  it("rechaza resúmenes de trabajador sin usuario autenticado", async () => {
     await expect(
       attendanceController.handle(
         { role: "trabajador" },
@@ -163,7 +163,7 @@ describe("dashboard attendance controller", () => {
     });
   });
 
-  it("filters attendance using trusted identity and role, ignoring forged payload", async () => {
+  it("filtra la asistencia con identidad y rol de confianza, ignorando el payload falsificado", async () => {
     allMock
       .mockResolvedValueOnce([{ workerId: 2 }])
       .mockResolvedValueOnce([{ workerId: 2, fullName: "Luis Soto" }])

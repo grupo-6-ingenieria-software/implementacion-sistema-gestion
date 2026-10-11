@@ -116,8 +116,8 @@ async function runGroup(label, byFile) {
     console.log(color("red", ` × error no manejado: ${e?.message ?? e}`));
   }
 
-  const summary = [color("green", `${passed} passed`)];
-  if (failed) summary.push(color("red", `${failed} failed`));
+  const summary = [color("green", `${passed} aprobados`)];
+  if (failed) summary.push(color("red", `${failed} fallidos`));
   console.log(`   ${summary.join(color("dim", " | "))} ${color("dim", `(${ms(elapsed)})`)}`);
   results.push({ label, ok: failed === 0, passed, failed });
 }
@@ -157,7 +157,7 @@ const total = results.reduce((n, r) => n + r.passed, 0);
 const totalFailed = results.reduce((n, r) => n + r.failed, 0);
 console.log(
   `\n ${color("bold", "Grupos")}  ${results.length}` +
-    `\n ${color("bold", "Tests")}   ${color("green", `${total} passed`)}${totalFailed ? color("red", ` | ${totalFailed} failed`) : ""}` +
+    `\n ${color("bold", "Pruebas")} ${color("green", `${total} aprobados`)}${totalFailed ? color("red", ` | ${totalFailed} fallidos`) : ""}` +
     (bad.length ? `\n ${color("bold", "Fallos")}  ${color("red", bad.map((r) => r.label).join(", "))}` : ""),
 );
 process.exit(bad.length ? 1 : 0);

@@ -39,7 +39,7 @@ function deps(overrides: Partial<GuardDeps>): GuardDeps {
 }
 
 describe("guardChannel (RF56/CU57)", () => {
-  it("lets the only public channel through without a token", async () => {
+  it("permite el único canal público sin token", async () => {
     expect(PUBLIC_CHANNELS.has("auth:login")).toBe(true);
 
     const result = await guardChannel("auth:login", { usuario: "x" }, deps({}));
@@ -47,7 +47,7 @@ describe("guardChannel (RF56/CU57)", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rejects a sensitive channel with a missing/invalid token (FORBIDDEN)", async () => {
+  it("rechaza un canal sensible con token ausente o inválido (FORBIDDEN)", async () => {
     const result = await guardChannel(
       "producto:registrar",
       { usuarioId: "spoofed", __authToken: "garbage" },
@@ -63,7 +63,7 @@ describe("guardChannel (RF56/CU57)", () => {
     }
   });
 
-  it("denies a wrong-role token on a dueno-only channel and audits it", async () => {
+  it("deniega un token con rol incorrecto en un canal solo para dueno y lo registra en auditoría", async () => {
     const audit = vi.fn(async () => undefined);
 
     const result = await guardChannel(
@@ -85,7 +85,7 @@ describe("guardChannel (RF56/CU57)", () => {
     );
   });
 
-  it("overwrites a spoofed usuarioId with the trusted claim identity", async () => {
+  it("sobrescribe un usuarioId falsificado con la identidad de confianza del claim", async () => {
     const result = await guardChannel(
       "producto:registrar",
       { usuarioId: "spoofed-attacker", nombre: "x", __authToken: "t" },
@@ -101,7 +101,7 @@ describe("guardChannel (RF56/CU57)", () => {
     }
   });
 
-  it("allows an authenticated-only channel for any valid role", async () => {
+  it("permite un canal solo para autenticados con cualquier rol válido", async () => {
     const result = await guardChannel(
       "auditoria:registrar",
       { __authToken: "t" },
@@ -112,14 +112,14 @@ describe("guardChannel (RF56/CU57)", () => {
     expect(CHANNEL_ROLES.has("auditoria:registrar")).toBe(false);
   });
 
-  it("derives dueno-only gating from the navigation tree", () => {
+  it("deriva la restricción solo para dueno desde el árbol de navegación", () => {
     expect(CHANNEL_ROLES.get("producto:registrar")).toEqual(new Set(["dueno"]));
     expect(CHANNEL_ROLES.get("venta:registrar")).toEqual(
       new Set(["dueno", "trabajador"]),
     );
   });
 
-  it("allows both roles on every CU38/CU41 channel and trusts only JWT identity", async () => {
+  it("permite ambos roles en cada canal CU38/CU41 y confía solo en la identidad del JWT", async () => {
     for (const channel of ["venta:buscar", "venta:detalle", "venta:anular"]) {
       expect(CHANNEL_ROLES.get(channel)).toEqual(
         new Set(["dueno", "trabajador"]),
@@ -138,7 +138,7 @@ describe("guardChannel (RF56/CU57)", () => {
     }
   });
 
-  it("allows both roles to load the CU44 dashboard channels", async () => {
+  it("permite a ambos roles cargar los canales del dashboard CU44", async () => {
     for (const channel of [
       "dashboard:cargar",
       "dashboard:total-ventas-dia",
@@ -164,7 +164,7 @@ describe("guardChannel (RF56/CU57)", () => {
     }
   });
 
-  it("lets trabajador list active workers for Asistencia (cross-module override)", async () => {
+  it("permite a trabajador listar trabajadores activos para Asistencia (sobrescritura entre módulos)", async () => {
     expect(CHANNEL_ROLES.get("trabajador:listar-activos")).toEqual(
       new Set(["dueno", "trabajador"]),
     );
@@ -178,7 +178,7 @@ describe("guardChannel (RF56/CU57)", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("opens worker consultation to both roles and keeps mutations dueno-only", () => {
+  it("abre la consulta de trabajadores a ambos roles y mantiene las mutaciones solo para dueno", () => {
     expect(CHANNEL_ROLES.get("trabajador:listar")).toEqual(
       new Set(["dueno", "trabajador"]),
     );
@@ -222,7 +222,7 @@ describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
     };
   }
 
-  it("prefers the session role over the JWT role and over the database role", async () => {
+  it("prefiere el rol de sesión sobre el rol del JWT y sobre el de la base de datos", async () => {
     // Cuenta dueno en la BD y JWT dueno, pero la sesión quedó congelada como
     // trabajador: el permiso se niega con el rol de la sesión.
     await seedUser(testDb!.db, {
@@ -249,7 +249,7 @@ describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
     expect(audit).toHaveBeenCalledTimes(1);
   });
 
-  it("grants with the session role even when the account row says otherwise", async () => {
+  it("concede acceso con el rol de sesión aunque la fila de la cuenta indique otro rol", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "trusted-id",
       trabajadorId: 1,
@@ -276,7 +276,7 @@ describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
     }
   });
 
-  it("keeps the JWT role when the session predates the migration (null rol efectivo)", async () => {
+  it("mantiene el rol del JWT cuando la sesión es anterior a la migración (rol efectivo nulo)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "trusted-id",
       trabajadorId: 1,
@@ -301,7 +301,7 @@ describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
     }
   });
 
-  it("audits a denied worker mutation exactly once", async () => {
+  it("audita una mutación denegada de trabajador exactamente una vez", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "trusted-id",
       trabajadorId: 1,
@@ -329,7 +329,7 @@ describe("authorizeRequest con rol efectivo de sesión (CU57, D1/D2)", () => {
   });
 });
 
-describe("guardChannel audit persistence", () => {
+describe("persistencia de auditoría de guardChannel", () => {
   let testDb: AuthTestDatabase | undefined;
 
   beforeEach(async () => {
@@ -345,7 +345,7 @@ describe("guardChannel audit persistence", () => {
     testDb = undefined;
   });
 
-  it("persists an acceso_denegado row on role mismatch", async () => {
+  it("persiste una fila acceso_denegado ante un rol no coincidente", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "trusted-id",
       trabajadorId: 1,
@@ -372,7 +372,7 @@ describe("guardChannel audit persistence", () => {
 });
 
 describe("authorizeRequest con sesion revocada (CU23/D10)", () => {
-  it("reports the revocation message when the session was closed by the system", async () => {
+  it("informa el mensaje de revocación cuando el sistema cerró la sesión", async () => {
     const token = signSessionToken(claimsFor("dueno"));
 
     const result = await authorizeRequest(

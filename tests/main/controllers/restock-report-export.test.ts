@@ -56,8 +56,8 @@ function dependencies(
   };
 }
 
-describe("CU16 report export controller (C33)", () => {
-  it("ignores renderer rows and paths, recalculates and saves the selected format", async () => {
+describe("controlador de exportación de reporte (C33)", () => {
+  it("ignora filas y rutas enviadas por el renderer, recalcula y guarda el formato seleccionado", async () => {
     const deps = dependencies();
     const controller = createRestockReportExportController(deps);
     const response = await controller.handle(
@@ -88,7 +88,7 @@ describe("CU16 report export controller (C33)", () => {
     });
   });
 
-  it("recalculates on every export invocation", async () => {
+  it("recalcula en cada invocación de exportación", async () => {
     const deps = dependencies({
       showSaveDialog: vi.fn(async () => ({ canceled: true })),
     });
@@ -106,7 +106,7 @@ describe("CU16 report export controller (C33)", () => {
     expect(deps.load).toHaveBeenCalledTimes(2);
   });
 
-  it("returns BUSINESS_RULE before the dialog when the recalculated list is empty", async () => {
+  it("devuelve BUSINESS_RULE antes del diálogo cuando la lista recalculada está vacía", async () => {
     const deps = dependencies({
       load: vi.fn(async () => ({ items: [], user })),
     });
@@ -123,7 +123,7 @@ describe("CU16 report export controller (C33)", () => {
     expect(deps.showSaveDialog).not.toHaveBeenCalled();
   });
 
-  it("treats dialog cancellation as a normal result without a file", async () => {
+  it("trata la cancelación del diálogo como resultado normal sin archivo", async () => {
     const deps = dependencies({
       showSaveDialog: vi.fn(async () => ({ canceled: true })),
     });
@@ -142,7 +142,7 @@ describe("CU16 report export controller (C33)", () => {
   });
 
   it.each(["load", "createPdf", "createXlsx", "save"] as const)(
-    "maps a %s failure to the exact E2 message",
+    "asigna un fallo de %s al mensaje exacto E2",
     async (stage) => {
       const overrides: Partial<RestockExportDependencies> = {};
       if (stage === "load") overrides.load = vi.fn(async () => { throw new Error("query"); });
@@ -173,7 +173,7 @@ describe("CU16 report export controller (C33)", () => {
     },
   );
 
-  it("rejects invalid channels", async () => {
+  it("rechaza canales inválidos", async () => {
     const response = await createRestockReportExportController(
       dependencies(),
     ).handle({}, { channel: "reporte:otro" });
@@ -184,8 +184,8 @@ describe("CU16 report export controller (C33)", () => {
   });
 });
 
-describe("CU16 generated report files", () => {
-  it("escapes HTML and provides multipage printable structure", () => {
+describe("archivos de reporte generados de CU16", () => {
+  it("escapa el HTML y genera una estructura imprimible de varias páginas", () => {
     const html = renderRestockPrintHtml(reportInput);
     expect(html).toContain("Minimarket y Panadería Huáscar");
     expect(html).toContain("12-09-2026 20:30");
@@ -196,7 +196,7 @@ describe("CU16 generated report files", () => {
     expect(html).toContain("@page { size: A4 landscape;");
   });
 
-  it("always destroys the isolated PDF window, including print failure", async () => {
+  it("siempre destruye la ventana PDF aislada, incluso ante un fallo de impresión", async () => {
     const destroy = vi.fn();
     const printToPDF = vi.fn(async () => {
       throw new Error("print failed");
@@ -225,7 +225,7 @@ describe("CU16 generated report files", () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  it("creates a readable XLSX with metadata, numeric values and table features", async () => {
+  it("crea un XLSX legible con metadatos, valores numéricos y características de tabla", async () => {
     const buffer = await createRestockXlsxBuffer(reportInput);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(
@@ -254,7 +254,7 @@ describe("CU16 generated report files", () => {
     expect(sheet!.autoFilter).toBe("A5:F5");
   });
 
-  it("formats the report time and filename in America/Santiago", () => {
+  it("formatea la hora y el nombre de archivo del reporte en America/Santiago", () => {
     const instant = new Date("2026-09-12T23:30:00.000Z");
     expect(formatDateTimeInSantiago(instant)).toBe("12-09-2026 20:30");
     expect(formatFilenameDateInSantiago(instant)).toBe("2026-09-12_20-30");

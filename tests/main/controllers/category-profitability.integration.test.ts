@@ -48,7 +48,7 @@ afterEach(async () => {
   if (fixture) await removeAuthTempDir(fixture.dir);
 });
 
-it("reads historical lot consumption with real migrations and triggers and reconciles net amounts with CU45", async () => {
+it("lee el consumo histórico de lotes con migraciones y triggers reales y concilia los montos netos con CU45", async () => {
   const ventaId = randomUUID();
   const [cash] = await fixture.db.select().from(schema.cierreCaja);
   await fixture.db.insert(schema.venta).values({

@@ -60,7 +60,7 @@ async function seedSession(
 }
 
 describe("verifySessionWithExecutor (RF55)", () => {
-  it("reports a missing sesionId (no trusted claims) as inactive", async () => {
+  it("reporta un sesionId ausente (sin claims de confianza) como inactivo", async () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
@@ -77,7 +77,7 @@ describe("verifySessionWithExecutor (RF55)", () => {
     }
   });
 
-  it("reports a missing session as inactive", async () => {
+  it("reporta una sesión ausente como inactiva", async () => {
     const response = await verifySessionWithExecutor(
       testDb!.db,
       schema,
@@ -91,7 +91,7 @@ describe("verifySessionWithExecutor (RF55)", () => {
     }
   });
 
-  it("keeps an active session WITHOUT refreshing the last access time (read-only heartbeat)", async () => {
+  it("mantiene una sesión activa SIN actualizar la última hora de acceso (heartbeat de solo lectura)", async () => {
     await seedSession(5);
     const ultimoAccesoOriginal = new Date(
       NOW.getTime() - 5 * 60_000,
@@ -117,7 +117,7 @@ describe("verifySessionWithExecutor (RF55)", () => {
     expect(rows[0]?.ultimo).not.toBe(NOW.toISOString());
   });
 
-  it("expires after 30 minutes even if heartbeats keep firing (heartbeat never resets inactivity)", async () => {
+  it("expira tras 30 minutos aunque los heartbeats sigan llegando (el heartbeat nunca reinicia la inactividad)", async () => {
     // Sesión con 25 min de inactividad: varios latidos seguidos NO la mantienen
     // viva; al cruzar los 30 min se cierra por inactividad.
     await seedSession(25);
@@ -153,7 +153,7 @@ describe("verifySessionWithExecutor (RF55)", () => {
     }
   });
 
-  it("closes a session after 30 minutes of inactivity", async () => {
+  it("cierra una sesión tras 30 minutos de inactividad", async () => {
     await seedSession(31);
 
     const response = await verifySessionWithExecutor(
@@ -176,7 +176,7 @@ describe("verifySessionWithExecutor (RF55)", () => {
 });
 
 describe("validateAndRefreshActiveSession (rol efectivo, CU57/D1)", () => {
-  it("returns the rol efectivo stored in the session row on renewal", async () => {
+  it("devuelve el rol efectivo almacenado en la fila de sesión al renovar", async () => {
     await seedSession(1, "trabajador");
 
     const result = await validateAndRefreshActiveSession(
@@ -191,7 +191,7 @@ describe("validateAndRefreshActiveSession (rol efectivo, CU57/D1)", () => {
     expect(result).toEqual({ active: true, rolEfectivo: "trabajador" });
   });
 
-  it("resolves the rol efectivo from usuario when the row predates the migration", async () => {
+  it("resuelve el rol efectivo desde usuario cuando la fila es anterior a la migración", async () => {
     await seedSession(1, null);
 
     const renewed = await validateAndRefreshActiveSession(
@@ -218,7 +218,7 @@ describe("validateAndRefreshActiveSession (rol efectivo, CU57/D1)", () => {
     expect(inspected).toEqual({ active: true, rolEfectivo: "dueno" });
   });
 
-  it("reads a stored trabajador rol on the inspection path too", async () => {
+  it("lee también un rol de trabajador almacenado en la ruta de inspección", async () => {
     await seedSession(1, "trabajador");
 
     const result = await validateAndRefreshActiveSession(
@@ -234,8 +234,8 @@ describe("validateAndRefreshActiveSession (rol efectivo, CU57/D1)", () => {
   });
 });
 
-describe("closeSessionWithExecutor (CU56 logout)", () => {
-  it("closes the active session as manual using the sesionId from claims", async () => {
+describe("closeSessionWithExecutor (cierre de sesión CU56)", () => {
+  it("cierra la sesión activa como manual usando el sesionId de los claims", async () => {
     await seedSession(2);
 
     const response = await closeSessionWithExecutor(
@@ -260,7 +260,7 @@ describe("closeSessionWithExecutor (CU56 logout)", () => {
     expect(rows[0]?.cierre).toBe(NOW.toISOString());
   });
 
-  it("reports no closure when there is no sesionId in the trusted claims", async () => {
+  it("reporta que no hay cierre cuando no hay sesionId en los claims de confianza", async () => {
     await seedSession(2);
 
     const response = await closeSessionWithExecutor(
@@ -281,7 +281,7 @@ describe("closeSessionWithExecutor (CU56 logout)", () => {
     expect(rows[0]?.cierre ?? null).toBeNull();
   });
 
-  it("is idempotent: a second logout does not alter the already closed row", async () => {
+  it("es idempotente: un segundo cierre de sesión no altera la fila ya cerrada", async () => {
     await seedSession(2);
 
     await closeSessionWithExecutor(testDb!.db, schema, SESSION_ID, deps);
@@ -307,7 +307,7 @@ describe("closeSessionWithExecutor (CU56 logout)", () => {
 });
 
 describe("refreshSessionActivity (actividad real del usuario, RF55)", () => {
-  it("refreshes the last access time for an open session", async () => {
+  it("actualiza la última hora de acceso de una sesión abierta", async () => {
     // 5 min de inactividad previa; una acción real la lleva a NOW.
     await seedSession(5);
 
@@ -319,7 +319,7 @@ describe("refreshSessionActivity (actividad real del usuario, RF55)", () => {
     expect(rows[0]?.ultimo).toBe(NOW.toISOString());
   });
 
-  it("does nothing when there is no sesionId", async () => {
+  it("no hace nada cuando no hay sesionId", async () => {
     await seedSession(5);
     const ultimoAccesoOriginal = new Date(
       NOW.getTime() - 5 * 60_000,
@@ -333,7 +333,7 @@ describe("refreshSessionActivity (actividad real del usuario, RF55)", () => {
     expect(rows[0]?.ultimo).toBe(ultimoAccesoOriginal);
   });
 
-  it("does NOT revive a session already closed (cierre IS NOT NULL)", async () => {
+  it("NO reactiva una sesión ya cerrada (cierre IS NOT NULL)", async () => {
     // Sesión cerrada por inactividad: una acción posterior no debe reabrirla ni
     // mover su último acceso.
     await seedSession(5);

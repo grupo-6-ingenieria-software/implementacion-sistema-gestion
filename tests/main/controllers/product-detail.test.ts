@@ -118,8 +118,8 @@ async function invokeDetail(
   }) as Promise<ControllerResponse<ProductDetailWithLotsResponse>>;
 }
 
-describe("product detail controller (C26)", () => {
-  it("returns product with lots and cost for owner", async () => {
+describe("controlador de detalle de producto (C26)", () => {
+  it("devuelve producto con lotes y costo para el dueño", async () => {
     const response = await invokeDetail({
       ean13: "7802920000015",
       usuarioId: "dueno",
@@ -135,7 +135,7 @@ describe("product detail controller (C26)", () => {
     expect(response.data.stockTotal).toBe(48);
   });
 
-  it("omits cost data for worker", async () => {
+  it("omite datos de costo para trabajador", async () => {
     const response = await invokeDetail({
       ean13: "7802920000015",
       usuarioId: "trabajador",
@@ -148,7 +148,7 @@ describe("product detail controller (C26)", () => {
     expect(response.data.lots[0]).not.toHaveProperty("precioCosto");
   });
 
-  it("returns NOT_FOUND for unknown product", async () => {
+  it("devuelve NOT_FOUND para producto desconocido", async () => {
     const response = await invokeDetail({
       ean13: "0000000000000",
       usuarioId: "dueno",
@@ -159,7 +159,7 @@ describe("product detail controller (C26)", () => {
     expect(response.error.code).toBe("NOT_FOUND");
   });
 
-  it("rejects request without authorized user", async () => {
+  it("rechaza solicitud sin usuario autorizado", async () => {
     const response = await invokeDetail({
       ean13: "7802920000015",
     });
@@ -169,7 +169,7 @@ describe("product detail controller (C26)", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejects request without EAN-13", async () => {
+  it("rechaza solicitud sin EAN-13", async () => {
     const response = await invokeDetail({
       usuarioId: "dueno",
     });
@@ -179,7 +179,7 @@ describe("product detail controller (C26)", () => {
     expect(response.error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("rejects request with empty EAN-13", async () => {
+  it("rechaza solicitud con EAN-13 vacío", async () => {
     const response = await invokeDetail({
       ean13: "   ",
       usuarioId: "dueno",
@@ -190,7 +190,7 @@ describe("product detail controller (C26)", () => {
     expect(response.error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("rejects request on invalid IPC channel", async () => {
+  it("rechaza solicitud en canal IPC inválido", async () => {
     const response = await createController().handle(
       { ean13: "7802920000015", usuarioId: "dueno" },
       { channel: "canal:invalido" },
@@ -202,7 +202,7 @@ describe("product detail controller (C26)", () => {
     });
   });
 
-  it("returns DATABASE_ERROR when dependency throws unexpected error", async () => {
+  it("devuelve DATABASE_ERROR cuando la dependencia lanza un error inesperado", async () => {
     const controller = createController({
       findProductWithLots: async () => {
         throw new Error("Connection lost");
@@ -220,7 +220,7 @@ describe("product detail controller (C26)", () => {
     });
   });
 
-  it("includes perishable lot expiration dates", async () => {
+  it("incluye fechas de vencimiento de lotes perecibles", async () => {
     const response = await invokeDetail({
       ean13: "7802920000015",
       usuarioId: "dueno",

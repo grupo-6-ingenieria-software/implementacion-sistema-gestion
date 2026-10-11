@@ -42,18 +42,18 @@ async function insert(fecha: SQL, action: string): Promise<void> {
   `);
 }
 
-describe("RF58 / RNF09 twelve-month deletion", () => {
+describe("eliminación a doce meses de RF58 / RNF09", () => {
   it.each([
     "2024-02-29T15:16:17.123Z", "2026-09-29T15:00:00.000Z",
     "2025-02-28T00:00:00.000Z", "2026-01-01T00:00:00.000Z",
-  ])("matches the shared cutoff with SQLite 3.45 for %s", async (now) => {
+  ])("coincide con el corte compartido de SQLite 3.45 para %s", async (now) => {
     const rows = await fixture.db.all<{ cutoff: string }>(sql`
       SELECT strftime('%Y-%m-%dT%H:%M:%fZ', ${auditRetentionCutoffExpression(sql`${now}`)}) AS cutoff
     `);
     expect(rows[0].cutoff).toBe(getAuditLogWindow(new Date(now)).desde);
   });
 
-  it("deletes expired and boundary records while preserving current and invalid dates", async () => {
+  it("elimina registros vencidos y del límite, conservando fechas vigentes e inválidas", async () => {
     const cutoff = auditRetentionCutoffExpression();
     await insert(sql`strftime('%Y-%m-%dT%H:%M:%fZ', ${cutoff} - 1)`, "expired");
     await insert(sql`strftime('%Y-%m-%dT%H:%M:%fZ', ${cutoff})`, "boundary");
@@ -68,7 +68,7 @@ describe("RF58 / RNF09 twelve-month deletion", () => {
     expect(await fixture.db.select().from(schema.usuario)).toHaveLength(1);
   });
 
-  it("prevents a broad manual deletion from removing retained or invalid records", async () => {
+  it("impide que una eliminación manual amplia quite registros retenidos o inválidos", async () => {
     await insert(sql`'invalid-date'`, "invalid");
     await expect(fixture.db.run(sql`DELETE FROM log_auditoria`)).rejects.toMatchObject({
       cause: { message: expect.stringContaining("antes de 12 meses") },
@@ -76,7 +76,7 @@ describe("RF58 / RNF09 twelve-month deletion", () => {
     expect(await fixture.db.select().from(schema.logAuditoria)).toHaveLength(2);
   });
 
-  it("keeps expired records protected against edits and replacements before cleanup", async () => {
+  it("mantiene protegidos los registros vencidos contra ediciones y reemplazos antes de la limpieza", async () => {
     await insert(sql`strftime('%Y-%m-%dT%H:%M:%fZ', ${auditRetentionCutoffExpression()} - 1)`, "expired");
     for (const query of [
       sql`UPDATE log_auditoria SET log_descripcion = 'alterado' WHERE log_tipo_accion = 'expired'`,
@@ -89,7 +89,7 @@ describe("RF58 / RNF09 twelve-month deletion", () => {
     expect(await purgeExpiredAuditLogs(fixture.db)).toBe(1);
   });
 
-  it("upgrades the old absolute DELETE trigger idempotently", async () => {
+  it("actualiza de forma idempotente el trigger DELETE absoluto anterior", async () => {
     await fixture.client.executeMultiple(`
       DROP TRIGGER trg_log_auditoria_no_delete;
       CREATE TRIGGER trg_log_auditoria_no_delete BEFORE DELETE ON log_auditoria
@@ -103,7 +103,7 @@ describe("RF58 / RNF09 twelve-month deletion", () => {
     await expect(fixture.db.run(sql`DELETE FROM log_auditoria`)).rejects.toThrow();
   });
 
-  it("restores the previous protection when a trigger upgrade fails", async () => {
+  it("restaura la protección anterior cuando falla la actualización del trigger", async () => {
     const badScript = join(fixture.dir, "failed-trigger-upgrade.sql");
     await writeFile(badScript, `
       DROP TRIGGER trg_log_auditoria_no_delete;

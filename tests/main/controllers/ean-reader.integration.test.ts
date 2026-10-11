@@ -30,8 +30,8 @@ function context(channel: string, rol: "dueno" | "trabajador", usuarioId: string
   return { channel, claims: { usuarioId, rol, usuarioRol: rol, passwordTemporal: false, sesionId: "session" } };
 }
 
-describe("C24 reuses C13 and C04 against libSQL", () => {
-  it("keeps the sale lookup exact even when another product name contains the scanned EAN", async () => {
+describe("C24 reutiliza C13 y C04 contra libSQL", () => {
+  it("mantiene exacta la búsqueda de venta aunque el nombre de otro producto contenga el EAN escaneado", async () => {
     await fixture.db.insert(schema.producto).values({
       productoEan13: "5901234123457", productoNombre: "7802920000015", productoPrecioVenta: 900, categoriaId: 1,
     });
@@ -49,7 +49,7 @@ describe("C24 reuses C13 and C04 against libSQL", () => {
       context("producto:buscar-activo", "dueno", "12345678-9")))
       .toMatchObject({ ok: true, data: [{ ean13: "7802920000015" }] });
   });
-  it("looks up the exact EAN and does not confuse numeric product names with codes", async () => {
+  it("busca el EAN exacto y no confunde nombres numéricos de producto con códigos", async () => {
     await fixture.db.insert(schema.producto).values({ productoEan13: "4006381333931", productoNombre: "7802345600012", productoPrecioVenta: 900, categoriaId: 1 });
     const ctx = context("ean:validar-captura", "trabajador", "23456789-0");
     expect(await controller().handle({ value: "7802920000015", mode: "buscar-producto" }, ctx))
@@ -61,7 +61,7 @@ describe("C24 reuses C13 and C04 against libSQL", () => {
   });
 
   it.each([ ["dueno", "12345678-9"], ["trabajador", "23456789-0"] ] as const)(
-    "persists a failure with trusted %s identity, role, timestamp and module", async (rol, usuarioId) => {
+    "persiste un fallo con la identidad confiable de %s, rol, marca de tiempo y módulo", async (rol, usuarioId) => {
       const before = new Date();
       expect(await controller().handle({ modulo: "ventas", usuarioId: "spoofed", ean13: "inventado" }, context("ean:registrar-fallo", rol, usuarioId)))
         .toEqual({ ok: true, data: { registrado: true } });

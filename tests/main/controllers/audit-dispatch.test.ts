@@ -17,8 +17,8 @@ function controller(channel: string, data: unknown = {}): RegisteredController {
   };
 }
 
-describe("RF58 business query and export audit", () => {
-  it.each([...AUDITED_QUERY_CHANNELS])("audits successful %s with the trusted identity", async (channel) => {
+describe("RF58 auditoría de consultas y exportaciones de negocio", () => {
+  it.each([...AUDITED_QUERY_CHANNELS])("audita la consulta exitosa %s con la identidad confiable", async (channel) => {
     const audit = vi.fn(async () => undefined);
     const handler = controller(channel);
     const response = await handleWithAudit(handler, { usuarioId: "spoofed" }, context(channel), audit);
@@ -29,7 +29,7 @@ describe("RF58 business query and export audit", () => {
     });
   });
 
-  it.each(["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"])("audits saved %s but not cancellations", async (channel) => {
+  it.each(["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"])("audita la exportación guardada %s, pero no las cancelaciones", async (channel) => {
     const audit = vi.fn(async () => undefined);
     await handleWithAudit(controller(channel, { estado: "saved" }), {}, context(channel), audit);
     expect(audit).toHaveBeenCalledOnce();
@@ -39,7 +39,7 @@ describe("RF58 business query and export audit", () => {
     expect(audit).not.toHaveBeenCalled();
   });
 
-  it("does not duplicate mutation, login, audit query or heartbeat records", async () => {
+  it("no duplica registros de mutación, inicio de sesión, consulta de auditoría o heartbeat", async () => {
     const audit = vi.fn(async () => undefined);
     for (const channel of ["producto:registrar", "producto:editar", "venta:anular", "auth:login",
       "auditoria:consultar", "auditoria:registrar", "auth:verificar-sesion", "ean:validar-captura"]) {
@@ -48,7 +48,7 @@ describe("RF58 business query and export audit", () => {
     expect(audit).not.toHaveBeenCalled();
   });
 
-  it("does not record failed queries as successful", async () => {
+  it("no registra como exitosas las consultas fallidas", async () => {
     const audit = vi.fn(async () => undefined);
     const handler = controller("producto:listar");
     handler.handle = async () => ({ ok: false, error: { code: "DATABASE_ERROR", message: "error" } });
@@ -56,7 +56,7 @@ describe("RF58 business query and export audit", () => {
     expect(audit).not.toHaveBeenCalled();
   });
 
-  it("reports audit persistence failure, including whether the export was saved", async () => {
+  it("informa el fallo de persistencia de la auditoría, incluyendo si la exportación fue guardada", async () => {
     const audit = vi.fn(async () => { throw new Error("database unavailable"); });
     expect(await handleWithAudit(controller("producto:listar"), {}, context("producto:listar"), audit))
       .toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });

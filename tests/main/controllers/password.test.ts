@@ -50,7 +50,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     });
   });
 
-  it("stores a new definitive password and audits the change", async () => {
+  it("almacena una contraseña definitiva nueva y audita el cambio", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
@@ -82,7 +82,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     });
   });
 
-  it("changes a temporary password without requiring the current one", async () => {
+  it("cambia una contraseña temporal sin exigir la actual", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "33333333-3",
       trabajadorId: 3,
@@ -119,7 +119,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     expect(counts[0].definitivas).toBe(1);
   });
 
-  it("still requires the current password for voluntary changes", async () => {
+  it("sigue exigiendo la contraseña actual para cambios voluntarios", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
@@ -137,7 +137,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     }
   });
 
-  it("rejects a wrong current password", async () => {
+  it("rechaza una contraseña actual incorrecta", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
@@ -156,7 +156,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     }
   });
 
-  it("rejects a new password that does not meet complexity", async () => {
+  it("rechaza una contraseña nueva que no cumple la complejidad", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
@@ -174,7 +174,7 @@ describe("changePasswordWithExecutor (CU56b)", () => {
     }
   });
 
-  it("rejects a new password equal to the current one", async () => {
+  it("rechaza una contraseña nueva igual a la actual", async () => {
     const response = await changePasswordWithExecutor(
       testDb!.db,
       schema,
@@ -211,7 +211,7 @@ describe("resetPasswordWithExecutor (RF59)", () => {
     });
   });
 
-  it("lets the owner generate a temporal password with 24h expiry", async () => {
+  it("permite al dueno generar una contraseña temporal con vencimiento de 24 h", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
@@ -242,7 +242,7 @@ describe("resetPasswordWithExecutor (RF59)", () => {
     });
   });
 
-  it("forbids a non-owner from resetting passwords", async () => {
+  it("prohíbe restablecer contraseñas a quien no sea dueno", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
@@ -256,7 +256,7 @@ describe("resetPasswordWithExecutor (RF59)", () => {
     }
   });
 
-  it("returns not found for an unknown target user", async () => {
+  it("devuelve no encontrado para un usuario objetivo desconocido", async () => {
     const response = await resetPasswordWithExecutor(
       testDb!.db,
       schema,
@@ -276,7 +276,7 @@ describe("resetPasswordWithExecutor (RF59)", () => {
     expect(contrasenas).toBe(0);
   });
 
-  it("notifies open windows only after the reset is committed", async () => {
+  it("notifica a las ventanas abiertas solo después de confirmar el restablecimiento", async () => {
     const notify = vi.fn();
 
     const response = await resetPasswordWithExecutor(
@@ -304,7 +304,7 @@ describe("resetPasswordWithExecutor (RF59)", () => {
     expect(notify).toHaveBeenCalledTimes(1);
   });
 
-  it("stores the temporal as a Contrasena plus its own ContrasenaTemporal row", async () => {
+  it("almacena la contraseña temporal como Contrasena más su propia fila en ContrasenaTemporal", async () => {
     await resetPasswordWithExecutor(
       testDb!.db,
       schema,
@@ -340,7 +340,7 @@ describe("prepareResetWithExecutor (RF59 pasos 2-21)", () => {
     });
   });
 
-  it("confirms the selected account without writing credentials", async () => {
+  it("confirma la cuenta seleccionada sin escribir credenciales", async () => {
     const response = await prepareResetWithExecutor(testDb!.db, schema, {
       usuarioId: "11111111-1",
       usuarioObjetivoId: "22222222-2",
@@ -364,7 +364,7 @@ describe("prepareResetWithExecutor (RF59 pasos 2-21)", () => {
     expect(counts).toEqual({ contrasenas: 2, temporales: 0, auditorias: 0 });
   });
 
-  it("returns USUARIO_NO_ENCONTRADO for a missing account", async () => {
+  it("devuelve USUARIO_NO_ENCONTRADO para una cuenta inexistente", async () => {
     const response = await prepareResetWithExecutor(testDb!.db, schema, {
       usuarioId: "11111111-1",
       usuarioObjetivoId: "99999999-9",
@@ -376,7 +376,7 @@ describe("prepareResetWithExecutor (RF59 pasos 2-21)", () => {
     });
   });
 
-  it("forbids a non-owner", async () => {
+  it("prohíbe la acción a quien no sea dueno", async () => {
     const response = await prepareResetWithExecutor(testDb!.db, schema, {
       usuarioId: "22222222-2",
       usuarioObjetivoId: "11111111-1",

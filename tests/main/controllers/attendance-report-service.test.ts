@@ -30,8 +30,8 @@ const attendance = (entradaAt: string, salidaAt: string | null = null, trabajado
 const absence = (fecha: string, tipo: MonthlyAttendanceAbsenceType, trabajadorId = 2) => fixture.db.insert(schema.ausencia).values({ trabajadorId, ausenciaFecha: fecha, ausenciaTipo: tipo, usuarioRegistradorId: OWNER });
 const query = (input: AttendanceReportRequest = request) => queryAttendanceReport(database, input);
 
-describe("CU52 monthly report against libSQL", () => {
-  it("includes active workers and inactive workers with activity, matches CU33 and truncates averages over closed days", async () => {
+describe("reporte mensual CU52 contra libSQL", () => {
+  it("incluye trabajadores activos e inactivos con actividad, coincide con CU33 y trunca los promedios sobre días cerrados", async () => {
     await attendance("2026-09-01T12:00:45Z", "2026-09-01T20:01:44Z");
     await attendance("2026-09-02T12:00:00Z", "2026-09-02T20:01:00Z");
     await attendance("2026-09-03T12:00:00Z");
@@ -48,7 +48,7 @@ describe("CU52 monthly report against libSQL", () => {
     expect(report.filas.find((row) => row.trabajadorId === 3)).toMatchObject({ rol: null, diasTrabajados: 1, promedioMinutosPorDia: 120 });
     expect(report.filas.find((row) => row.trabajadorId === 4)).toMatchObject({ rol: null, diasTrabajados: 0, minutosTrabajados: 0, promedioMinutosPorDia: null });
   });
-  it("uses three batched reads within one transaction and leaves source data untouched", async () => {
+  it("usa tres lecturas agrupadas en una transacción y no modifica los datos de origen", async () => {
     await attendance("2026-09-01T12:00:00Z", "2026-09-01T20:00:00Z");
     const snapshot = async () => ({ workers: await fixture.db.select().from(schema.trabajador), users: await fixture.db.select().from(schema.usuario), attendances: await fixture.db.select().from(schema.asistencia), absences: await fixture.db.select().from(schema.ausencia), logs: await fixture.db.select().from(schema.logAuditoria) });
     const before = await snapshot();
@@ -63,33 +63,33 @@ describe("CU52 monthly report against libSQL", () => {
     expect(all).toHaveBeenCalledTimes(3);
     expect(await snapshot()).toEqual(before);
   });
-  it("returns an empty table with active workers when the filtered population has no activity", async () => {
+  it("devuelve una tabla vacía con trabajadores activos cuando la población filtrada no tiene actividad", async () => {
     expect((await query()).filas).toEqual([]);
     await attendance("2026-09-01T12:00:00Z");
     expect((await query({ ...request, rol: "dueno" })).filas).toEqual([]);
     expect((await query({ ...request, rol: "trabajador" })).filas.map((row) => row.trabajadorId)).toEqual([2]);
   });
-  it("keeps unaccounted workers only under Todos, including absence-only inactive workers", async () => {
+  it("mantiene a los trabajadores sin cuenta solo bajo Todos, incluidos los inactivos con solo ausencias", async () => {
     await absence("2026-09-01", "licencia", 3);
     const report = await query();
     expect(report.filas.map((row) => row.trabajadorId)).toEqual([1, 3, 2, 4]);
     expect(report.filas[1]).toMatchObject({ rol: null, diasTrabajados: 0, ausenciasJustificadas: 1, promedioMinutosPorDia: null });
     expect((await query({ ...request, rol: "trabajador" })).filas).toEqual([]);
   });
-  it("shows current worker names and roles despite historical versions", async () => {
+  it("muestra los nombres y roles actuales de los trabajadores pese a las versiones históricas", async () => {
     await attendance("2026-09-01T12:00:00Z");
     await fixture.db.insert(schema.usuarioVersion).values({ usuarioId: WORKER, usuarioVersionNombre: "Nombre antiguo", usuarioVersionRol: "trabajador", usuarioVersionFechaHoraVigenciaDesde: "2026-01-01T00:00:00Z", usuarioVersionFechaHoraVigenciaHasta: null });
     await fixture.db.update(schema.usuario).set({ usuarioRol: "dueno" }).where(eq(schema.usuario.usuarioId, WORKER));
     expect((await query({ ...request, rol: "dueno" })).filas).toEqual(expect.arrayContaining([expect.objectContaining({ trabajadorId: 2, nombreCompleto: "Luis Rojas", rol: "dueno" })]));
     expect((await query({ ...request, rol: "trabajador" })).filas).toEqual([]);
   });
-  it("counts pending-only activity without hours or average, and preserves a zero-minute closed average", async () => {
+  it("cuenta la actividad solo pendiente sin horas ni promedio, y conserva un promedio cerrado de cero minutos", async () => {
     await attendance("2026-09-01T12:00:00Z");
     expect((await query()).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 1, minutosTrabajados: 0, promedioMinutosPorDia: null });
     await attendance("2026-09-02T12:00:00Z", "2026-09-02T12:00:59Z");
     expect((await query()).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 2, minutosTrabajados: 0, promedioMinutosPorDia: 0 });
   });
-  it("attributes complete overnight durations to the Chilean entry month", async () => {
+  it("atribuye las duraciones nocturnas completas al mes de entrada chileno", async () => {
     await attendance("2026-09-01T03:30:00Z", "2026-09-01T03:45:00Z");
     await attendance("2026-09-01T04:00:00Z", "2026-09-01T05:00:00Z");
     await attendance("2026-10-01T02:00:00Z", "2026-10-01T05:00:00Z");
@@ -101,17 +101,17 @@ describe("CU52 monthly report against libSQL", () => {
   it.each([
     { mes: 9, entrada: "2026-09-06T03:30:00Z", salida: "2026-09-06T05:30:00Z" },
     { mes: 4, entrada: "2026-04-05T02:30:00Z", salida: "2026-04-05T04:30:00Z" },
-  ])("uses elapsed minutes over DST in month $mes", async ({ mes, entrada, salida }) => {
+  ])("usa minutos transcurridos durante el horario de verano en el mes $mes", async ({ mes, entrada, salida }) => {
     await attendance(entrada, salida);
     expect((await query({ ...request, mes })).filas.find((row) => row.trabajadorId === 2)?.minutosTrabajados).toBe(120);
   });
-  it("accepts leap days, legacy UTC timestamps, offsets and year limits", async () => {
+  it("acepta días bisiestos, marcas de tiempo UTC heredadas, desplazamientos y límites de año", async () => {
     await attendance("2024-02-29 12:00:00", "2024-02-29 20:00:00");
     await attendance("2024-02-28T08:00:00-03:00", "2024-02-28T16:00:00-03:00");
     expect((await query({ mes: 2, anio: 2024 })).filas.find((row) => row.trabajadorId === 2)).toMatchObject({ diasTrabajados: 2, minutosTrabajados: 960 });
     for (const anio of [1900, 9998]) expect((await query({ mes: 12, anio })).filas).toEqual([]);
   });
-  it.each(["duplicate", "absence", "inverted", "invalid"])("rejects %s conflicts with worker and date, without partial results", async (conflict) => {
+  it.each(["duplicate", "absence", "inverted", "invalid"])("rechaza conflictos %s por trabajador y fecha, sin resultados parciales", async (conflict) => {
     await attendance("2026-09-01T12:00:00Z", "2026-09-01T20:00:00Z", 1);
     await attendance("2026-09-08T12:00:00Z", "2026-09-08T20:00:00Z");
     if (conflict === "duplicate") await attendance("2026-09-08T21:00:00Z");
@@ -126,11 +126,11 @@ describe("CU52 monthly report against libSQL", () => {
     await expect(query()).rejects.toThrow(conflict === "duplicate" || conflict === "absence" ? "2026-09-08" : "2026-09-09");
     expect((await query({ ...request, rol: "dueno" })).filas).toHaveLength(1);
   });
-  it("ignores recognizable corruption in another month", async () => {
+  it("ignora la corrupción reconocible en otro mes", async () => {
     await attendance("2026-08-08T24:00:00Z");
     expect((await query()).filas).toEqual([]);
   });
-  it("consumes a real CU32 absence without writing a new business record", async () => {
+  it("consume una ausencia real de CU32 sin escribir un nuevo registro de negocio", async () => {
     const sesionId = "00000000-0000-4000-8000-000000000752";
     const now = new Date("2026-09-30T15:00:00Z");
     await fixture.db.insert(schema.sesionUsuario).values({ sesionUsuarioId: sesionId, usuarioId: OWNER, sesionFechaHoraInicio: now.toISOString(), sesionFechaHoraUltimoAcceso: now.toISOString(), sesionRolEfectivo: "dueno" });

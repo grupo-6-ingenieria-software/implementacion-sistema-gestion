@@ -6,8 +6,8 @@ import {
 import { isImplementedViewNodeId } from "../../../../src/renderer/src/App";
 import type { ControllerResponse } from "../../../../src/shared/controllers";
 
-describe("CU16 restock renderer helpers", () => {
-  it("loads automatically through C32 with identity only", async () => {
+describe("helpers del renderizador de reabastecimiento CU16", () => {
+  it("carga automáticamente mediante C32 solo con identidad", async () => {
     const rows = [
       {
         nombre: "Harina",
@@ -35,7 +35,7 @@ describe("CU16 restock renderer helpers", () => {
   it.each([
     ["pdf", "inventario:reabastecimiento:exportar-pdf"],
     ["xlsx", "inventario:reabastecimiento:exportar-xlsx"],
-  ] as const)("exports %s without sending rows, paths or headers", async (format, channel) => {
+  ] as const)("exporta %s sin enviar filas, rutas ni encabezados", async (format, channel) => {
     const data = {
       formato: format,
       estado: "cancelled" as const,
@@ -57,7 +57,7 @@ describe("CU16 restock renderer helpers", () => {
     expect(invoke).toHaveBeenCalledWith(channel, { usuarioId: "worker" });
   });
 
-  it("exposes backend errors and marks V25 as implemented", async () => {
+  it("expone errores del backend y marca V25 como implementado", async () => {
     const invoke = vi.fn(async (): Promise<ControllerResponse<unknown>> => ({
       ok: false,
       error: { code: "TECHNICAL_ERROR", message: "Error exportando" },

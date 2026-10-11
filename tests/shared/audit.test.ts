@@ -4,8 +4,8 @@ import {
   normalizeAuditLogQueryPayload,
 } from "../../src/shared/audit";
 
-describe("RF58 audit dates and filters", () => {
-  it("uses twelve calendar months and clamps leap day", () => {
+describe("fechas y filtros de auditoría RF58", () => {
+  it("usa doce meses calendario y ajusta el día bisiesto", () => {
     expect(getAuditLogWindow(new Date("2024-02-29T15:16:17.123Z"))).toEqual({
       desde: "2023-02-28T15:16:17.123Z", hasta: "2024-02-29T15:16:17.123Z",
     });
@@ -13,7 +13,7 @@ describe("RF58 audit dates and filters", () => {
       .toBe("2025-09-29T15:00:00.000Z");
   });
 
-  it("converts Chilean days, including both daylight saving transitions", () => {
+  it("convierte días chilenos, incluidas ambas transiciones de horario de verano", () => {
     expect(getAuditDayStart("2026-06-11")).toBe("2026-06-11T04:00:00.000Z");
     expect(getAuditDayStart("2026-06-11", true)).toBe("2026-06-12T04:00:00.000Z");
     expect(getAuditDayStart("2026-09-06")).toBe("2026-09-06T04:00:00.000Z");
@@ -23,7 +23,7 @@ describe("RF58 audit dates and filters", () => {
     expect(getAuditDateInput("2026-06-12T02:00:00.000Z")).toBe("2026-06-11");
   });
 
-  it("records Chilean time with an explicit seasonal offset", () => {
+  it("registra la hora chilena con un desfase estacional explícito", () => {
     expect(getAuditTimestamp(new Date("2026-06-11T04:00:00.123Z")))
       .toBe("2026-06-11T00:00:00.123-04:00");
     expect(getAuditTimestamp(new Date("2026-09-29T15:00:00Z")))
@@ -34,7 +34,7 @@ describe("RF58 audit dates and filters", () => {
     { fechaDesde: "2026-02-29" }, { fechaHasta: "2026-13-01" },
     { fechaDesde: "2026-09-30", fechaHasta: "2026-09-29" },
     { page: 0 }, { pageSize: 101 },
-  ])("rejects invalid query %j", (filters) => {
+  ])("rechaza consulta inválida %j", (filters) => {
     expect(() => normalizeAuditLogQueryPayload({ usuarioId: "owner", ...filters })).toThrow();
   });
 });

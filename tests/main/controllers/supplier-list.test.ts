@@ -16,7 +16,7 @@ import type { SupplierListRequest } from "../../../src/shared/suppliers";
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
 
-describe("CU15 supplier list persistence", () => {
+describe("persistencia de la lista de proveedores CU15", () => {
   beforeEach(async () => {
     testDb = await createTestDatabase();
     await seedFixture(testDb.db);
@@ -30,14 +30,14 @@ describe("CU15 supplier list persistence", () => {
   });
 
   it.each(["11111111-1", "12345670-K"])(
-    "allows the active owner/worker account %s",
+    "permite la cuenta activa de dueño/trabajador %s",
     async (usuarioId) => {
       const response = await list({ usuarioId });
       expect(response.suppliers).toHaveLength(3);
     },
   );
 
-  it("returns every field, multiple sorted categories and the complete catalog", async () => {
+  it("devuelve todos los campos, múltiples categorías ordenadas y el catálogo completo", async () => {
     const response = await list({ usuarioId: "11111111-1" });
 
     expect(response.categories).toEqual([
@@ -70,7 +70,7 @@ describe("CU15 supplier list persistence", () => {
     expect(Number(auditRows[0].total)).toBe(0);
   });
 
-  it("searches partial names without case or accents and formatted RUTs", async () => {
+  it("busca nombres parciales sin distinguir mayúsculas ni acentos y RUT con formato", async () => {
     const byName = await list({
       busqueda: "  DISTRIBUIDORA   alamo ",
       usuarioId: "11111111-1",
@@ -84,7 +84,7 @@ describe("CU15 supplier list persistence", () => {
     expect(byRut.suppliers.map(({ proveedorId }) => proveedorId)).toEqual([1]);
   });
 
-  it("filters by category and combines search and category with AND", async () => {
+  it("filtra por categoría y combina búsqueda y categoría con AND", async () => {
     const byCategory = await list({
       categoriaId: 2,
       usuarioId: "11111111-1",
@@ -111,7 +111,7 @@ describe("CU15 supplier list persistence", () => {
     expect(combinedMiss.suppliers).toEqual([]);
   });
 
-  it("returns an empty list for a category without suppliers and keeps the catalog", async () => {
+  it("devuelve una lista vacía para una categoría sin proveedores y conserva el catálogo", async () => {
     const response = await list({
       categoriaId: 3,
       usuarioId: "11111111-1",
@@ -121,7 +121,7 @@ describe("CU15 supplier list persistence", () => {
     expect(response.categories.map(({ id }) => id)).toEqual([2, 3, 1]);
   });
 
-  it("includes a legacy supplier only without a category filter", async () => {
+  it("incluye un proveedor heredado solo sin filtro de categoría", async () => {
     const all = await list({ usuarioId: "11111111-1" });
     const filtered = await list({
       categoriaId: 1,
@@ -136,13 +136,13 @@ describe("CU15 supplier list persistence", () => {
     );
   });
 
-  it("rejects missing authorization", async () => {
+  it("rechaza una autorización ausente", async () => {
     await expect(list({})).rejects.toBeInstanceOf(AccessDeniedError);
   });
 });
 
-describe("CU15 supplier list controller errors", () => {
-  it("maps authorization and persistence failures", async () => {
+describe("errores del controlador de la lista de proveedores CU15", () => {
+  it("mapea fallos de autorización y de persistencia", async () => {
     for (const [error, code] of [
       [new AccessDeniedError(), "FORBIDDEN"],
       [new Error("database unavailable"), "DATABASE_ERROR"],

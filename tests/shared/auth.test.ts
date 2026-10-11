@@ -22,47 +22,47 @@ function failuresEvery(count: number, stepMs = 1000): LoginAttempt[] {
 }
 
 describe("validatePasswordComplexity", () => {
-  it("accepts a password with upper, lower and digit and 8+ chars", () => {
+  it("acepta una contraseña con mayúscula, minúscula y dígito, y 8 o más caracteres", () => {
     expect(validatePasswordComplexity("Huascar2026").valid).toBe(true);
   });
 
-  it("rejects passwords shorter than 8 characters", () => {
+  it("rechaza contraseñas de menos de 8 caracteres", () => {
     expect(validatePasswordComplexity("Ab1cd").valid).toBe(false);
   });
 
-  it("rejects passwords without an uppercase letter", () => {
+  it("rechaza contraseñas sin letra mayúscula", () => {
     expect(validatePasswordComplexity("huascar2026").valid).toBe(false);
   });
 
-  it("rejects passwords without a lowercase letter", () => {
+  it("rechaza contraseñas sin letra minúscula", () => {
     expect(validatePasswordComplexity("HUASCAR2026").valid).toBe(false);
   });
 
-  it("rejects passwords without a digit", () => {
+  it("rechaza contraseñas sin dígito", () => {
     expect(validatePasswordComplexity("HuascarHuascar").valid).toBe(false);
   });
 });
 
 describe("isValidUsernameFormat", () => {
-  it("accepts a username without spaces under 50 chars", () => {
+  it("acepta un nombre de usuario sin espacios y de menos de 50 caracteres", () => {
     expect(isValidUsernameFormat("12345678-9")).toBe(true);
   });
 
-  it("rejects usernames with spaces", () => {
+  it("rechaza nombres de usuario con espacios", () => {
     expect(isValidUsernameFormat("mi usuario")).toBe(false);
   });
 
-  it("rejects empty usernames", () => {
+  it("rechaza nombres de usuario vacíos", () => {
     expect(isValidUsernameFormat("")).toBe(false);
   });
 
-  it("rejects usernames longer than 50 characters", () => {
+  it("rechaza nombres de usuario de más de 50 caracteres", () => {
     expect(isValidUsernameFormat("a".repeat(51))).toBe(false);
   });
 });
 
 describe("evaluateLockout", () => {
-  it("is not locked with no attempts", () => {
+  it("no queda bloqueado sin intentos", () => {
     expect(evaluateLockout([], BASE)).toEqual({
       locked: false,
       remainingMs: 0,
@@ -70,27 +70,27 @@ describe("evaluateLockout", () => {
     });
   });
 
-  it("is not locked with 4 consecutive failures", () => {
+  it("no queda bloqueado con 4 fallos consecutivos", () => {
     const state = evaluateLockout(failuresEvery(4), BASE + 5000);
     expect(state.locked).toBe(false);
     expect(state.failedCount).toBe(4);
   });
 
-  it("locks after 5 consecutive failures within the window", () => {
+  it("bloquea tras 5 fallos consecutivos dentro de la ventana", () => {
     const failures = failuresEvery(5);
     const state = evaluateLockout(failures, BASE + 5000);
     expect(state.locked).toBe(true);
     expect(state.remainingMs).toBeGreaterThan(0);
   });
 
-  it("unlocks once the 15 minute window elapsed since the 5th failure", () => {
+  it("desbloquea cuando transcurre la ventana de 15 minutos desde el quinto fallo", () => {
     const failures = failuresEvery(5);
     const state = evaluateLockout(failures, BASE + LOCKOUT_MS + 10_000);
     expect(state.locked).toBe(false);
     expect(state.failedCount).toBe(0);
   });
 
-  it("counts only failures after the last successful login", () => {
+  it("cuenta solo los fallos posteriores al último inicio de sesión exitoso", () => {
     const attempts: LoginAttempt[] = [
       ...failuresEvery(5),
       { exitoso: true, fechaHora: at(6000) },
@@ -103,11 +103,11 @@ describe("evaluateLockout", () => {
 });
 
 describe("formatRemainingLockout", () => {
-  it("rounds up to whole minutes", () => {
+  it("redondea hacia arriba a minutos completos", () => {
     expect(formatRemainingLockout(61_000)).toBe("2 minutos");
   });
 
-  it("uses singular for one minute or less", () => {
+  it("usa singular para un minuto o menos", () => {
     expect(formatRemainingLockout(30_000)).toBe("1 minuto");
   });
 });

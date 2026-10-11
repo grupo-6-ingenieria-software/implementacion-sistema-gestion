@@ -11,8 +11,8 @@ const validPayload = {
   usuarioId: "dueno",
 };
 
-describe("product delete controller", () => {
-  it("rejects channels not declared for the controller", async () => {
+describe("controlador de eliminación de productos", () => {
+  it("rechaza canales no declarados para el controlador", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async () => ({ ean13: validPayload.ean13 }),
     });
@@ -30,7 +30,7 @@ describe("product delete controller", () => {
     expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it("validates EAN-13, confirmation and authenticated user", async () => {
+  it("valida EAN-13, confirmación y usuario autenticado", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async () => ({ ean13: validPayload.ean13 }),
     });
@@ -53,7 +53,7 @@ describe("product delete controller", () => {
     });
   });
 
-  it("maps authorization failures to forbidden responses", async () => {
+  it("mapea fallos de autorización a respuestas de acceso prohibido", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async () => {
         throw new AccessDeniedError();
@@ -72,7 +72,7 @@ describe("product delete controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("maps missing products to not found responses", async () => {
+  it("mapea productos inexistentes a respuestas de no encontrado", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async () => {
         throw new ProductDeleteError(
@@ -94,7 +94,7 @@ describe("product delete controller", () => {
     expect(response.error.code).toBe("NOT_FOUND");
   });
 
-  it("blocks products with associated records", async () => {
+  it("bloquea productos con registros asociados", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async () => {
         throw new ProductDeleteError(
@@ -117,7 +117,7 @@ describe("product delete controller", () => {
     expect(response.error.message).toContain("Debe desactivarlo");
   });
 
-  it("deletes products without associated records", async () => {
+  it("elimina productos sin registros asociados", async () => {
     const controller = createProductDeleteController({
       deleteProduct: async (payload) => ({
         ean13: payload.ean13!,

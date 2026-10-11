@@ -83,7 +83,7 @@ function createContext(
 }
 
 describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
-  it("rejects unregistered IPC channels", async () => {
+  it("rechaza canales IPC no registrados", async () => {
     const deps = createMockDeps();
     const controller = createWasteReportController(deps);
     const response = await controller.handle(
@@ -102,7 +102,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     expect(deps.queryWasteReport).not.toHaveBeenCalled();
   });
 
-  it("denies access to trabajador role (CU49 restricted to dueno)", async () => {
+  it("deniega el acceso al rol trabajador (CU49 restringido a dueno)", async () => {
     const deps = createMockDeps();
     const controller = createWasteReportController(deps);
     const response = await controller.handle(
@@ -121,7 +121,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     expect(deps.queryWasteReport).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid date formats", async () => {
+  it("rechaza formatos de fecha inválidos", async () => {
     const deps = createMockDeps();
     const controller = createWasteReportController(deps);
     const response = await controller.handle(
@@ -140,7 +140,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     expect(deps.queryWasteReport).not.toHaveBeenCalled();
   });
 
-  it("blocks generation if start date is after end date (Excepción E2)", async () => {
+  it("bloquea la generación si la fecha de inicio es posterior a la fecha de término (Excepción E2)", async () => {
     const deps = createMockDeps();
     const controller = createWasteReportController(deps);
     const response = await controller.handle(
@@ -159,7 +159,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     expect(deps.queryWasteReport).not.toHaveBeenCalled();
   });
 
-  it("returns report with items and summary for valid date range (Flujo principal)", async () => {
+  it("devuelve el reporte con ítems y resumen para un rango de fechas válido (Flujo principal)", async () => {
     const deps = createMockDeps();
     const controller = createWasteReportController(deps);
     const response = await controller.handle(
@@ -178,7 +178,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     });
   });
 
-  it("returns empty items array and zero totals when no waste exists (Excepción E1)", async () => {
+  it("devuelve lista de ítems vacía y totales en cero cuando no hay mermas (Excepción E1)", async () => {
     const emptyReport: WasteReportData = {
       fechaInicio: "2026-08-01",
       fechaTermino: "2026-08-15",
@@ -211,7 +211,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
   });
 
   describe("CU49 exportacion (C61 al exportar)", () => {
-    it("exports mermas report to PDF and logs audit", async () => {
+    it("exporta el reporte de mermas a PDF y registra la auditoría", async () => {
       const loadWasteReport = vi.fn(async () => sampleReportData);
       const showSaveDialog = vi.fn(async () => ({
         canceled: false,
@@ -268,7 +268,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
       );
     });
 
-    it("exports mermas report to XLSX", async () => {
+    it("exporta el reporte de mermas a XLSX", async () => {
       const loadWasteReport = vi.fn(async () => sampleReportData);
       const showSaveDialog = vi.fn(async () => ({
         canceled: false,
@@ -315,7 +315,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
       expect(audit).toHaveBeenCalled();
     });
 
-    it("returns BUSINESS_RULE when attempting to export an empty report", async () => {
+    it("devuelve BUSINESS_RULE al intentar exportar un reporte vacío", async () => {
       const loadWasteReport = vi.fn(async () => ({
         fechaInicio: "2026-09-01",
         fechaTermino: "2026-09-15",

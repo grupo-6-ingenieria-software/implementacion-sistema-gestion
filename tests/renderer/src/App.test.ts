@@ -22,37 +22,37 @@ import {
 } from "../../../src/renderer/src/views/ShiftCreateView";
 import type { ControllerResponse } from "../../../src/shared/controllers";
 
-describe("App inventory route helpers", () => {
-  it("treats V34 as an implemented view", () => {
+describe("helpers de rutas de inventario de App", () => {
+  it("trata V34 como vista implementada", () => {
     expect(isImplementedViewNodeId("absence-create")).toBe(true);
   });
-  it("treats lot-create as an implemented view", () => {
+  it("trata lot-create como vista implementada", () => {
     expect(isImplementedViewNodeId("lot-create")).toBe(true);
   });
 
-  it("treats waste-create as an implemented view", () => {
+  it("trata waste-create como vista implementada", () => {
     expect(isImplementedViewNodeId("waste-create")).toBe(true);
   });
 
-  it("treats product-status as an implemented view", () => {
+  it("trata product-status como vista implementada", () => {
     expect(isImplementedViewNodeId("product-status")).toBe(true);
   });
 
-  it("treats product-delete as an implemented view", () => {
+  it("trata product-delete como vista implementada", () => {
     expect(isImplementedViewNodeId("product-delete")).toBe(true);
   });
 
-  it("treats audit-log as an implemented view", () => {
+  it("trata audit-log como vista implementada", () => {
     expect(isImplementedViewNodeId("audit-log")).toBe(true);
   });
 
-  it("treats both shift routes as implemented views", () => {
+  it("trata ambas rutas de turnos como vistas implementadas", () => {
     expect(isImplementedViewNodeId("shift-calendar")).toBe(true);
     expect(isImplementedViewNodeId("shift-create")).toBe(true);
     expect(isImplementedViewNodeId("shift-edit")).toBe(true);
   });
 
-  it("treats CU38 as implemented and reads the V13 sale query", () => {
+  it("trata CU38 como implementado y lee la consulta de venta V13", () => {
     expect(isImplementedViewNodeId("sale-annulment")).toBe(true);
     expect(
       getSaleAnnulmentVentaId(
@@ -61,20 +61,20 @@ describe("App inventory route helpers", () => {
     ).toBe("00000000-0000-4000-8000-000000000401");
   });
 
-  it("treats CU41 as an implemented view", () => {
+  it("trata CU41 como vista implementada", () => {
     expect(isImplementedViewNodeId("sales-query")).toBe(true);
   });
 
-  it("treats CU19 as an implemented view", () => {
+  it("trata CU19 como vista implementada", () => {
     expect(isImplementedViewNodeId("inventory-valuation")).toBe(true);
   });
 
-  it("treats the CU13 supplier routes as implemented views", () => {
+  it("trata las rutas de proveedores de CU13 como vistas implementadas", () => {
     expect(isImplementedViewNodeId("supplier-list")).toBe(true);
     expect(isImplementedViewNodeId("supplier-create")).toBe(true);
   });
 
-  it("implements CU14 and decodes the supplier RUT route parameter", () => {
+  it("implementa CU14 y decodifica el parámetro de ruta del RUT del proveedor", () => {
     expect(isImplementedViewNodeId("supplier-edit")).toBe(true);
     expect(
       getSupplierEditRut("/app/proveedores/12.345.678-5/editar"),
@@ -82,7 +82,7 @@ describe("App inventory route helpers", () => {
     expect(getSupplierEditRut("/app/proveedores/%E0%A4%A/editar")).toBeUndefined();
   });
 
-  it("provides and clears documented shift success messages", () => {
+  it("entrega y limpia los mensajes de éxito documentados de turnos", () => {
     expect(getShiftResultMessage("edit-success")).toBe(
       "Turno actualizado correctamente.",
     );
@@ -92,7 +92,7 @@ describe("App inventory route helpers", () => {
     expect(getShiftResultMessage("start-operation")).toBeNull();
   });
 
-  it("transfers the selected date and optional worker from V16 to V17", () => {
+  it("transfiere la fecha seleccionada y el trabajador opcional de V16 a V17", () => {
     const path = buildShiftCreatePath("2026-06-15", 2);
 
     expect(path).toBe(
@@ -110,7 +110,7 @@ describe("App inventory route helpers", () => {
     });
   });
 
-  it("ignores invalid or unrelated V17 query parameters", () => {
+  it("ignora parámetros de consulta V17 inválidos o no relacionados", () => {
     expect(
       getShiftCreateContext(
         "/app/personal/turnos/nuevo?fecha=31%2F02%2F2026&trabajadorId=-1&extra=1",
@@ -121,7 +121,7 @@ describe("App inventory route helpers", () => {
     });
   });
 
-  it("preselects a worker only while it remains active", () => {
+  it("preselecciona un trabajador solo mientras siga activo", () => {
     const activeWorkers = [
       {
         trabajadorId: 2,
@@ -134,12 +134,12 @@ describe("App inventory route helpers", () => {
     expect(getActivePreselectedWorkerId(activeWorkers, 3)).toBe("");
   });
 
-  it("accepts only the latest calendar response", () => {
+  it("acepta solo la respuesta más reciente del calendario", () => {
     expect(isLatestShiftCalendarRequest(1, 2)).toBe(false);
     expect(isLatestShiftCalendarRequest(2, 2)).toBe(true);
   });
 
-  it("loads workers and shifts together for calendar load and retry", async () => {
+  it("carga trabajadores y turnos juntos al cargar y reintentar el calendario", async () => {
     const invoke = vi.fn(
       async (channel: string): Promise<ControllerResponse<unknown>> => {
         if (channel === "trabajador:listar-activos") {
@@ -169,7 +169,7 @@ describe("App inventory route helpers", () => {
     ]);
   });
 
-  it("fails calendar loading when either required resource is unavailable", async () => {
+  it("falla la carga del calendario cuando cualquiera de los recursos requeridos no está disponible", async () => {
     const invoke = vi.fn(
       async (channel: string): Promise<ControllerResponse<unknown>> =>
         channel === "trabajador:listar-activos"
@@ -199,25 +199,25 @@ describe("App inventory route helpers", () => {
     expect(invoke).toHaveBeenCalledTimes(2);
   });
 
-  it("reads the product status EAN-13 route parameter", () => {
+  it("lee el parámetro de ruta EAN-13 del estado del producto", () => {
     expect(
       getProductStatusEan13("/app/inventario/productos/7802920000015/estado"),
     ).toBe("7802920000015");
   });
 
-  it("reads the contextual EAN-13 query parameter", () => {
+  it("lee el parámetro de consulta EAN-13 contextual", () => {
     expect(
       getLotCreateEan13("/app/inventario/lotes/nuevo?ean13=7802920000015"),
     ).toBe("7802920000015");
   });
 
-  it("reads the contextual EAN-13 query parameter for waste registration", () => {
+  it("lee el parámetro de consulta EAN-13 contextual para el registro de mermas", () => {
     expect(
       getWasteCreateEan13("/app/inventario/mermas/nueva?ean13=7802920000015"),
     ).toBe("7802920000015");
   });
 
-  it("reads the contextual EAN-13 query parameter for product deletion", () => {
+  it("lee el parámetro de consulta EAN-13 contextual para la eliminación de productos", () => {
     expect(
       getProductDeleteEan13(
         "/app/inventario/productos/eliminar?ean13=7802920000015",
@@ -225,7 +225,7 @@ describe("App inventory route helpers", () => {
     ).toBe("7802920000015");
   });
 
-  it("exposes a neutral fallback without internal traceability", () => {
+  it("expone un mensaje de respaldo neutro sin trazabilidad interna", () => {
     expect(VIEW_UNAVAILABLE_TITLE).toBe("Vista no disponible");
     expect(VIEW_UNAVAILABLE_MESSAGE).toBe(
       "La vista solicitada no está disponible.",

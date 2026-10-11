@@ -101,8 +101,8 @@ function createController(
   });
 }
 
-describe("stock adjustment controller — availability channel (C27)", () => {
-  it("returns availability with cost for owner", async () => {
+describe("controlador de ajuste de stock — canal de disponibilidad (C27)", () => {
+  it("devuelve disponibilidad con costo para el dueño", async () => {
     const response = (await createController().handle(
       { ean13: "7802920000015", usuarioId: "dueno" },
       { channel: "ajuste:disponibilidad" },
@@ -114,7 +114,7 @@ describe("stock adjustment controller — availability channel (C27)", () => {
     expect(response.data.lots[0].precioCosto).toBe(1200);
   });
 
-  it("returns availability without cost for worker", async () => {
+  it("devuelve disponibilidad sin costo para el trabajador", async () => {
     const response = (await createController().handle(
       { ean13: "7802920000015", usuarioId: "trabajador" },
       { channel: "ajuste:disponibilidad" },
@@ -125,7 +125,7 @@ describe("stock adjustment controller — availability channel (C27)", () => {
     expect(response.data.lots[0]).not.toHaveProperty("precioCosto");
   });
 
-  it("returns NOT_FOUND for unknown product", async () => {
+  it("devuelve NOT_FOUND para producto desconocido", async () => {
     const response = await createController().handle(
       { ean13: "0000000000000", usuarioId: "dueno" },
       { channel: "ajuste:disponibilidad" },
@@ -137,7 +137,7 @@ describe("stock adjustment controller — availability channel (C27)", () => {
     });
   });
 
-  it("rejects availability without EAN-13", async () => {
+  it("rechaza disponibilidad sin EAN-13", async () => {
     const response = await createController().handle(
       { usuarioId: "dueno" },
       { channel: "ajuste:disponibilidad" },
@@ -149,7 +149,7 @@ describe("stock adjustment controller — availability channel (C27)", () => {
     });
   });
 
-  it("rejects availability without authorized user", async () => {
+  it("rechaza disponibilidad sin usuario autorizado", async () => {
     const response = await createController().handle(
       { ean13: "7802920000015" },
       { channel: "ajuste:disponibilidad" },
@@ -162,8 +162,8 @@ describe("stock adjustment controller — availability channel (C27)", () => {
   });
 });
 
-describe("stock adjustment controller — register channel (C27)", () => {
-  it("registers a positive adjustment successfully", async () => {
+describe("controlador de ajuste de stock — canal de registro (C27)", () => {
+  it("registra un ajuste positivo correctamente", async () => {
     const response = (await createController().handle(
       {
         ean13: "7802920000015",
@@ -181,7 +181,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     expect(response.data.nuevaCantidadLote).toBe(40);
   });
 
-  it("registers a negative adjustment successfully", async () => {
+  it("registra un ajuste negativo correctamente", async () => {
     const response = (await createController().handle(
       {
         ean13: "7802920000015",
@@ -199,7 +199,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     expect(response.data.nuevaCantidadLote).toBe(25);
   });
 
-  it("rejects adjustment with cantidad zero", async () => {
+  it("rechaza ajuste con cantidad cero", async () => {
     const response = await createController().handle(
       {
         ean13: "7802920000015",
@@ -217,7 +217,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     });
   });
 
-  it("rejects adjustment with empty justificacion", async () => {
+  it("rechaza ajuste con justificacion vacía", async () => {
     const response = await createController().handle(
       {
         ean13: "7802920000015",
@@ -238,7 +238,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     }
   });
 
-  it("rejects adjustment with invalid EAN-13", async () => {
+  it("rechaza ajuste con EAN-13 inválido", async () => {
     const response = await createController().handle(
       {
         ean13: "123",
@@ -259,7 +259,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     }
   });
 
-  it("rejects adjustment with empty loteId", async () => {
+  it("rechaza ajuste con loteId vacío", async () => {
     const response = await createController().handle(
       {
         ean13: "7802920000015",
@@ -280,7 +280,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     }
   });
 
-  it("rejects adjustment that would result in negative stock", async () => {
+  it("rechaza ajuste que dejaría stock negativo", async () => {
     const controller = createController({
       executeAdjustment: async () => {
         throw new StockAdjustmentError(
@@ -311,7 +311,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     }
   });
 
-  it("rejects adjustment for non-existent product", async () => {
+  it("rechaza ajuste para producto inexistente", async () => {
     const controller = createController({
       executeAdjustment: async () => {
         throw new StockAdjustmentError(
@@ -339,7 +339,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     });
   });
 
-  it("rejects adjustment for invalid lot", async () => {
+  it("rechaza ajuste para lote inválido", async () => {
     const controller = createController({
       executeAdjustment: async () => {
         throw new StockAdjustmentError(
@@ -367,7 +367,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     });
   });
 
-  it("rejects adjustment without authorized user", async () => {
+  it("rechaza ajuste sin usuario autorizado", async () => {
     const response = await createController().handle(
       {
         ean13: "7802920000015",
@@ -384,7 +384,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     });
   });
 
-  it("returns DATABASE_ERROR for unexpected errors", async () => {
+  it("devuelve DATABASE_ERROR ante errores inesperados", async () => {
     const controller = createController({
       executeAdjustment: async () => {
         throw new Error("Connection lost");
@@ -408,7 +408,7 @@ describe("stock adjustment controller — register channel (C27)", () => {
     });
   });
 
-  it("rejects request on invalid IPC channel", async () => {
+  it("rechaza solicitud en canal IPC inválido", async () => {
     const response = await createController().handle(
       {
         ean13: "7802920000015",

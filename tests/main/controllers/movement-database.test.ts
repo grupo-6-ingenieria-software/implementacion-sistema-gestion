@@ -64,8 +64,8 @@ afterEach(async () => {
   }
 });
 
-describe("movement queries with real SQL and ISO timestamps", () => {
-  it("orders events by instant and reconstructs each product's historical balances", async () => {
+describe("consultas de movimientos con SQL real y marcas de tiempo ISO", () => {
+  it("ordena eventos por instante y reconstruye los saldos históricos de cada producto", async () => {
     const report = await queryMovementReportFromDb({ fechaInicio: "2026-10-03", fechaTermino: "2026-10-03" });
     expect(report.items.filter(item => item.productoId === 1).map(item => [item.tipo, item.cantidad, item.saldo])).toEqual([
       ["ingreso_lote", 5, 56], ["ajuste_manual", 3, 51], ["restitucion", 2, 48], ["venta", -2, 46], ["ingreso_lote", 48, 48],
@@ -74,7 +74,7 @@ describe("movement queries with real SQL and ISO timestamps", () => {
     expect(report.resumen).toMatchObject({ totalMovimientos: 6, totalEntradas: 68, totalSalidas: 2 });
   });
 
-  it("keeps earlier stock in the balance when filtering by period, type and user", async () => {
+  it("mantiene el stock anterior en el saldo al filtrar por período, tipo y usuario", async () => {
     await fixture.db.update(schema.lote).set({ loteFechaHoraIngreso: "2026-10-02 15:00:00" }).where(eq(schema.lote.loteId, initialLot));
     const report = await queryMovementReportFromDb({ fechaInicio: "2026-10-03", fechaTermino: "2026-10-03", tipo: "venta", categoriaId: 1, usuarioFiltroId: owner });
     expect(report.items).toHaveLength(1);
@@ -91,19 +91,19 @@ describe("movement queries with real SQL and ISO timestamps", () => {
     ["2026-06-12", "2026-06-12T04:00:00.000Z", true],
     ["2026-06-12", "2026-06-13T03:59:59.999Z", true],
     ["2026-06-12", "2026-06-13T04:00:00.000Z", false],
-  ])("filters Chilean day %s correctly for ISO timestamp %s", async (day, timestamp, included) => {
+  ])("filtra correctamente el día chileno %s para la marca de tiempo ISO %s", async (day, timestamp, included) => {
     await fixture.db.update(schema.venta).set({ ventaFechaHora: timestamp }).where(eq(schema.venta.ventaId, saleId));
     const report = await queryMovementReportFromDb({ fechaInicio: day, fechaTermino: day, tipo: "venta" });
     expect(report.items).toHaveLength(included ? 1 : 0);
   });
 
-  it("uses UTC for timestamps without a zone regardless of the machine timezone", async () => {
+  it("usa UTC para marcas de tiempo sin zona, independientemente de la zona horaria de la máquina", async () => {
     vi.stubEnv("TZ", "Asia/Tokyo");
     const report = await queryMovementReportFromDb({ fechaInicio: "2026-10-03", fechaTermino: "2026-10-03" });
     expect(report.items.filter(item => item.productoId === 1).map(item => item.saldo)).toEqual([56, 51, 48, 46, 48]);
   });
 
-  it("orders V22 before pagination while preserving its product filter", async () => {
+  it("ordena V22 antes de la paginación conservando su filtro de producto", async () => {
     await fixture.db.delete(schema.anulacionVenta).where(eq(schema.anulacionVenta.ventaId, saleId));
     await fixture.db.update(schema.venta).set({ ventaEstado: "completada" }).where(eq(schema.venta.ventaId, saleId));
     const first = await movementHistoryController.handle({ usuarioId: owner, ean13, page: 1, pageSize: 2 }, { channel: "movimiento:historial" });

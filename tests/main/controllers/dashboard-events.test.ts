@@ -110,8 +110,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("dashboard update events", () => {
-  it("emits the CU38 event and dashboard refresh only after annulment commit", () => {
+describe("eventos de actualización del dashboard", () => {
+  it("emite el evento CU38 y la actualización del dashboard solo después del commit de anulación", () => {
     const result = createAnnulmentResult();
 
     notifySaleAnnulled(result);
@@ -121,7 +121,7 @@ describe("dashboard update events", () => {
     expect(send).toHaveBeenNthCalledWith(2, DASHBOARD_UPDATED_EVENT);
   });
 
-  it("still requests the dashboard refresh if the specific CU38 event fails", () => {
+  it("solicita igualmente la actualización del dashboard si falla el evento específico CU38", () => {
     send.mockImplementationOnce(() => {
       throw new Error("sale event unavailable");
     });
@@ -136,14 +136,14 @@ describe("dashboard update events", () => {
     );
   });
 
-  it("emits the dashboard update event to every open window", () => {
+  it("emite el evento de actualización del dashboard a cada ventana abierta", () => {
     notifyDashboardUpdated();
 
     expect(getAllWindows).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 
-  it("continues notifying other windows when one send fails", () => {
+  it("sigue notificando a otras ventanas cuando falla un envío", () => {
     const failedSend = vi.fn(() => {
       throw new Error("window closed");
     });
@@ -163,7 +163,7 @@ describe("dashboard update events", () => {
     );
   });
 
-  it("emits an update after a sale is registered successfully", async () => {
+  it("emite una actualización después de registrar una venta con éxito", async () => {
     registerSale.mockResolvedValueOnce(createSaleReceipt());
 
     const response = await saleController.handle(
@@ -180,7 +180,7 @@ describe("dashboard update events", () => {
     expect(send).toHaveBeenCalledWith(DASHBOARD_UPDATED_EVENT);
   });
 
-  it("keeps a successful sale response when dashboard notification fails", async () => {
+  it("mantiene la respuesta exitosa de venta cuando falla la notificación del dashboard", async () => {
     send.mockImplementationOnce(() => {
       throw new Error("renderer unavailable");
     });
@@ -205,7 +205,7 @@ describe("dashboard update events", () => {
     );
   });
 
-  it("does not emit an update when sale registration fails", async () => {
+  it("no emite actualización cuando falla el registro de venta", async () => {
     registerSale.mockRejectedValueOnce(
       new SaleBusinessError("La caja se encuentra cerrada."),
     );
@@ -223,7 +223,7 @@ describe("dashboard update events", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("emits an update after cash closing succeeds", async () => {
+  it("emite una actualización después de que el cierre de caja termina con éxito", async () => {
     closeCashRegister.mockResolvedValueOnce(createCashCloseResult());
 
     const response = await cashClosingController.handle(

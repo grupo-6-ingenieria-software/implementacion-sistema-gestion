@@ -98,8 +98,8 @@ async function expectRejected(payload: Record<string, unknown>, code: string, in
   return result;
 }
 
-describe("CU27 deleting through session authorization and the shift controller", () => {
-  it("persists the DELETE, preserves unrelated shifts and audits the trusted owner identity", async () => {
+describe("eliminación de turnos CU27 mediante autorización de sesión y controlador de turnos", () => {
+  it("persiste el DELETE, conserva los turnos no relacionados y audita la identidad de confianza del dueño", async () => {
     const otherId = randomUUID();
     await fixture.db.insert(schema.turno).values({
       turnoId: otherId, trabajadorId: 1, turnoEstado: "planificado",
@@ -119,13 +119,13 @@ describe("CU27 deleting through session authorization and the shift controller",
   });
 
   it.each(["2026-06-13T11:59:59.000Z", "2026-06-13T12:00:00.000Z"])(
-    "E1 rejects a shift whose start is past or exactly now: %s", async (inicio) => {
+    "E1 rechaza un turno cuyo inicio es pasado o exactamente el momento actual: %s", async (inicio) => {
       await fixture.db.update(schema.turno).set({ turnoFechaHoraInicio: inicio });
       await expectRejected(deletion, "BUSINESS_RULE");
     },
   );
 
-  it("E1 revalidates attendance registered after loading an editable calendar", async () => {
+  it("E1 revalida la asistencia registrada después de cargar un calendario editable", async () => {
     expect(await calendar()).toMatchObject([{ turnoId, puedeModificar: true }]);
     await fixture.db.insert(schema.asistencia).values({
       asistenciaId: randomUUID(), turnoId, trabajadorId: 2, asistenciaFechaHoraEntrada: start,
@@ -135,7 +135,7 @@ describe("CU27 deleting through session authorization and the shift controller",
     expect(await fixture.db.select().from(schema.asistencia)).toEqual(attendance);
   });
 
-  it("E1 rechecks the clock when a loaded shift starts before confirmation", async () => {
+  it("E1 vuelve a verificar el reloj cuando un turno cargado inicia antes de la confirmación", async () => {
     vi.setSystemTime(new Date("2026-06-15T11:59:59.000Z"));
     await fixture.db.update(schema.sesionUsuario).set({ sesionFechaHoraUltimoAcceso: new Date().toISOString() });
     expect(await calendar()).toMatchObject([{ turnoId, puedeModificar: true }]);
@@ -143,56 +143,56 @@ describe("CU27 deleting through session authorization and the shift controller",
     await expectRejected(deletion, "BUSINESS_RULE");
   });
 
-  it("revalidates a shift changed by another writer after calendar load", async () => {
+  it("revalida un turno modificado por otro escritor tras cargar el calendario", async () => {
     expect(await calendar()).toMatchObject([{ turnoId, puedeModificar: true }]);
     await fixture.db.update(schema.turno).set({ turnoFechaHoraInicio: new Date().toISOString() });
     await expectRejected(deletion, "BUSINESS_RULE");
   });
 
-  it("rejects a shift removed after selection without recording a false deletion", async () => {
+  it("rechaza un turno eliminado tras la selección sin registrar una eliminación falsa", async () => {
     expect(await calendar()).toHaveLength(1);
     await fixture.db.delete(schema.turno).where(eq(schema.turno.turnoId, turnoId));
     expect(await expectRejected(deletion, "BUSINESS_RULE"))
       .toMatchObject({ error: { message: "El turno solicitado no existe." } });
   });
 
-  it.each([false, undefined, "true", 1])("E2 requires explicit boolean confirmation: %s", async (confirmacion) => {
+  it.each([false, undefined, "true", 1])("E2 exige una confirmación booleana explícita: %s", async (confirmacion) => {
     expect(await expectRejected({ ...deletion, confirmacion }, "VALIDATION_ERROR"))
       .toMatchObject({ error: { fieldErrors: { confirmacion: expect.any(String) } } });
   });
 
-  it("requires an identified shift", async () => {
+  it("exige un turno identificado", async () => {
     expect(await expectRejected({ confirmacion: true }, "VALIDATION_ERROR"))
       .toMatchObject({ error: { fieldErrors: { turnoId: expect.any(String) } } });
   });
 
-  it.each([false, true])("rejects a worker with spoofed owner identity = %s", async (spoof) => {
+  it.each([false, true])("rechaza a un trabajador con identidad de dueño suplantada = %s", async (spoof) => {
     await expectRejected({ ...deletion, usuarioId: users[spoof ? 0 : 1] }, "FORBIDDEN", 1);
   });
 
-  it.each([null, "invalid"])("rejects missing or invalid tokens: %s", async (__authToken) => {
+  it.each([null, "invalid"])("rechaza tokens ausentes o inválidos: %s", async (__authToken) => {
     await expectRejected({ ...deletion, __authToken }, "FORBIDDEN");
   });
 
-  it("rejects a closed owner session", async () => {
+  it("rechaza una sesión de dueño cerrada", async () => {
     await fixture.db.update(schema.sesionUsuario).set({
       sesionFechaHoraCierre: new Date().toISOString(), sesionMotivoCierre: "manual",
     }).where(eq(schema.sesionUsuario.sesionUsuarioId, sessions[0]));
     await expectRejected(deletion, "FORBIDDEN");
   });
 
-  it("rejects a session expired by inactivity", async () => {
+  it("rechaza una sesión expirada por inactividad", async () => {
     await fixture.db.update(schema.sesionUsuario).set({ sesionFechaHoraUltimoAcceso: "2026-06-12T12:00:00.000Z" });
     await expectRejected(deletion, "FORBIDDEN");
   });
 
-  it("rejects an inactive owner even when their session remains open", async () => {
+  it("rechaza a un dueño inactivo aunque su sesión siga abierta", async () => {
     await fixture.db.update(schema.trabajador).set({ trabajadorEstado: "inactivo" })
       .where(eq(schema.trabajador.trabajadorId, 1));
     await expectRejected(deletion, "FORBIDDEN");
   });
 
-  it("retains the owner session role until the next login after a database role change", async () => {
+  it("conserva el rol de dueño de la sesión hasta el próximo inicio de sesión tras un cambio de rol en la base de datos", async () => {
     await fixture.db.update(schema.usuario).set({ usuarioRol: "trabajador" })
       .where(eq(schema.usuario.usuarioId, users[0]));
     expect(await request("turno:eliminar", deletion)).toMatchObject({ ok: true });
@@ -200,13 +200,13 @@ describe("CU27 deleting through session authorization and the shift controller",
     expect(await deleteAudits()).toMatchObject([{ usuarioId: users[0] }]);
   });
 
-  it("does not promote an existing worker session when their database role becomes owner", async () => {
+  it("no eleva una sesión de trabajador existente cuando su rol en la base de datos pasa a ser dueño", async () => {
     await fixture.db.update(schema.usuario).set({ usuarioRol: "dueno" })
       .where(eq(schema.usuario.usuarioId, users[1]));
     await expectRejected({ ...deletion, usuarioId: users[0] }, "FORBIDDEN", 1);
   });
 
-  it.each(["audit", "delete"])("rolls back all mutation writes if the %s fails", async (failure) => {
+  it.each(["audit", "delete"])("revierte todas las escrituras de mutación si falla %s", async (failure) => {
     await fixture.client.execute(failure === "audit" ? `
       CREATE TRIGGER cu27_fail_audit BEFORE INSERT ON log_auditoria
       WHEN NEW.log_tipo_accion = 'eliminar_turno'
@@ -222,7 +222,7 @@ describe("CU27 deleting through session authorization and the shift controller",
     expect(consoleError).toHaveBeenCalled();
   });
 
-  it("regression CU28 -> CU26 -> CU28 -> CU27 -> CU28", async () => {
+  it("regresión CU28 -> CU26 -> CU28 -> CU27 -> CU28", async () => {
     expect(await calendar()).toMatchObject([{ turnoId, fecha: "15/06/2026", horaInicio: "08:00" }]);
     expect(await request("turno:editar", {
       turnoId, fecha: "16/06/2026", horaInicio: "09:00", horaTermino: "17:00",

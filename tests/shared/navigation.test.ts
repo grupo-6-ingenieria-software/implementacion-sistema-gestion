@@ -11,8 +11,8 @@ import {
   validateNavigationTree,
 } from "../../src/shared/navigation";
 
-describe("navigation tree", () => {
-  it("registers CU20 for both V06 roles and keeps UI06/UI07 internal", () => {
+describe("árbol de navegación", () => {
+  it("registra CU20 para ambos roles de V06 y mantiene UI06/UI07 como internos", () => {
     const route = navigationTree.find((node) => node.id === "product-list")!;
     expect(route.roles).toEqual(["dueno", "trabajador"]);
     expect(route.controllerIds).toContain("inventory-export");
@@ -23,7 +23,7 @@ describe("navigation tree", () => {
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });
-  it("traces UI01 to its consumers without declaring a scanner route", () => {
+  it("traza UI01 hasta sus consumidores sin declarar una ruta de escáner", () => {
     const component = internalComponents.find((item) => item.id === "ean-input")!;
     expect(component.usedIn).toEqual(expect.arrayContaining([
       "product-list", "product-create", "product-edit", "product-delete",
@@ -35,7 +35,7 @@ describe("navigation tree", () => {
     }
     expect(navigationTree.some((node) => (node.id as string) === "ean-reader")).toBe(false);
   });
-  it("declares every route without structural errors", () => {
+  it("declara cada ruta sin errores estructurales", () => {
     expect(validateNavigationTree()).toEqual([]);
     expect(new Set(navigationTree.map((node) => node.id))).toEqual(
       new Set([
@@ -89,7 +89,7 @@ describe("navigation tree", () => {
     );
   });
 
-  it("exposes V35 under Ventas to both roles and protects its route", () => {
+  it("expone V35 en Ventas para ambos roles y protege su ruta", () => {
     expect(navigationTree.find((node) => node.id === "sale-categories")).toMatchObject({
       path: "/app/ventas/categorias",
       roles: ["dueno", "trabajador"],
@@ -105,7 +105,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("exposes V28 once under Inventario for both roles", () => {
+  it("expone V28 una vez en Inventario para ambos roles", () => {
     const route = navigationTree.find(
       (node) => node.id === "inventory-valuation",
     );
@@ -146,7 +146,7 @@ describe("navigation tree", () => {
     expect(evaluateRouteAccess(path, { isAuthenticated: true, role: "trabajador" }).status).toBe("deny");
   });
 
-  it("delegates the audit log denial to Main for CU58-E1", () => {
+  it("delega la denegación del registro de auditoría a Main para CU58-E1", () => {
     expect(
       evaluateRouteAccess("/app/admin/auditoria", {
         isAuthenticated: true,
@@ -164,7 +164,7 @@ describe("navigation tree", () => {
     ).toMatchObject({ status: "deny", to: "/app/inicio" });
   });
 
-  it("exposes V25 once under Inventario for both roles and keeps UI05 internal", () => {
+  it("expone V25 una vez en Inventario para ambos roles y mantiene UI05 como interno", () => {
     const route = navigationTree.find((node) => node.id === "restock-list");
     expect(route).toMatchObject({
       path: "/app/inventario/reabastecimiento",
@@ -200,7 +200,7 @@ describe("navigation tree", () => {
     });
   });
 
-  it("adds V23 to both menus and keeps V24 as an internal navigation target", () => {
+  it("agrega V23 a ambos menús y mantiene V24 como destino de navegación interno", () => {
     for (const role of ["dueno", "trabajador"] as const) {
       const menuPaths = getVisibleMenu(role).map((node) => node.path);
       expect(menuPaths).toContain("/app/proveedores/listado");
@@ -214,7 +214,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("allows both roles to edit suppliers through the internal dynamic route", () => {
+  it("permite a ambos roles editar proveedores mediante la ruta dinámica interna", () => {
     const editNode = navigationTree.find((node) => node.id === "supplier-edit");
     expect(editNode).toMatchObject({
       path: "/app/proveedores/:rut/editar",
@@ -234,7 +234,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("keeps internal UI components outside routes and menus", () => {
+  it("mantiene los componentes internos de UI fuera de rutas y menús", () => {
     const routeIds = new Set<string>(navigationTree.map((node) => node.id));
     const menuLabels = new Set<string>(
       navigationTree
@@ -248,7 +248,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("filters menu groups by role", () => {
+  it("filtra los grupos de menú por rol", () => {
     expect(getVisibleGroups("dueno")).toEqual([
       "inicio",
       "inventario",
@@ -274,7 +274,7 @@ describe("navigation tree", () => {
     );
   });
 
-  it("guards session, password change and role access", () => {
+  it("protege sesión, cambio de contraseña y acceso por rol", () => {
     expect(
       evaluateRouteAccess("/app/inicio", { isAuthenticated: false }),
     ).toEqual({
@@ -315,7 +315,7 @@ describe("navigation tree", () => {
     ).toEqual({ status: "allow" });
   });
 
-  it("allows both supported roles to access daily sales", () => {
+  it("permite a ambos roles soportados acceder a las ventas diarias", () => {
     expect(
       evaluateRouteAccess("/app/ventas/dia", {
         isAuthenticated: true,
@@ -330,7 +330,7 @@ describe("navigation tree", () => {
     ).toEqual({ status: "allow" });
   });
 
-  it("opens the worker list to both roles while the create form stays dueno-only (CU24)", () => {
+  it("abre la lista de trabajadores a ambos roles mientras el formulario de creación sigue exclusivo de dueno (CU24)", () => {
     const listNode = navigationTree.find((item) => item.id === "worker-list");
     expect(listNode).toMatchObject({
       path: "/app/personal/trabajadores",
@@ -369,7 +369,7 @@ describe("navigation tree", () => {
     ).toContain("/app/personal/trabajadores");
   });
 
-  it("exposes CU38 to both roles from the sales menu", () => {
+  it("expone CU38 a ambos roles desde el menú de ventas", () => {
     const node = navigationTree.find((item) => item.id === "sale-annulment");
     expect(node).toMatchObject({
       path: "/app/ventas/anular",
@@ -387,7 +387,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("exposes CU41 to both roles from the sales menu", () => {
+  it("expone CU41 a ambos roles desde el menú de ventas", () => {
     const node = navigationTree.find((item) => item.id === "sales-query");
     expect(node).toMatchObject({
       path: "/app/ventas/consulta",
@@ -406,7 +406,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("allows both roles to access product deletion outside the menu", () => {
+  it("permite a ambos roles acceder a la eliminación de productos fuera del menú", () => {
     const productDeleteNode = navigationTree.find(
       (node) => node.id === "product-delete",
     );
@@ -432,7 +432,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("keeps shift creation exclusive to the owner (CU28 calendar is shared)", () => {
+  it("mantiene la creación de turnos exclusiva del dueño (el calendario de CU28 es compartido)", () => {
     for (const path of ["/app/personal/turnos/nuevo", "/app/personal/turnos/turno-id/editar"]) {
       expect(
         evaluateRouteAccess(path, {
@@ -452,7 +452,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("allows only the owner to access V30 and V31", () => {
+  it("permite solo al dueño acceder a V30 y V31", () => {
     for (const path of [
       "/app/personal/remuneraciones/nueva",
       "/app/personal/configuracion-previsional",
@@ -475,7 +475,7 @@ describe("navigation tree", () => {
     }
   });
 
-  it("exposes V40 ReporteMermasView exclusively to the owner under Reportes", () => {
+  it("expone V40 ReporteMermasView exclusivamente al dueño en Reportes", () => {
     const route = navigationTree.find((node) => node.id === "reporte-mermas");
     expect(route).toMatchObject({
       viewName: "ReporteMermasView",
@@ -508,7 +508,7 @@ describe("navigation tree", () => {
     expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain("reporte-mermas");
   });
 
-  it("exposes V41 ReporteLotesVencerView exclusively to the owner under Reportes", () => {
+  it("expone V41 ReporteLotesVencerView exclusivamente al dueño en Reportes", () => {
     const route = navigationTree.find(
       (node) => node.id === "reporte-lotes-vencer",
     );
@@ -547,7 +547,7 @@ describe("navigation tree", () => {
     );
   });
 
-  it("exposes V44 ReporteMovimientosView exclusively to the owner under Reportes", () => {
+  it("expone V44 ReporteMovimientosView exclusivamente al dueño en Reportes", () => {
     const route = navigationTree.find(
       (node) => node.id === "reporte-movimientos",
     );

@@ -158,8 +158,8 @@ async function invokeProductDetail(
   }) as Promise<ControllerResponse<ProductDetailResponse>>;
 }
 
-describe("product query controller", () => {
-  it("lists active products by default with stock data", async () => {
+describe("controlador de consulta de productos", () => {
+  it("lista productos activos por defecto con datos de stock", async () => {
     const response = await invokeProductList({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);
@@ -177,7 +177,7 @@ describe("product query controller", () => {
     expect(response.data.categories).toHaveLength(3);
   });
 
-  it("filters products by name and EAN-13", async () => {
+  it("filtra productos por nombre y EAN-13", async () => {
     const byName = await invokeProductList({
       search: "leche",
       usuarioId: "dueno",
@@ -201,7 +201,7 @@ describe("product query controller", () => {
     ]);
   });
 
-  it("requires an exact EAN-13 in the CU6 listing", async () => {
+  it("exige un EAN-13 exacto en el listado CU6", async () => {
     const response = await invokeProductList({
       search: "292000001",
       usuarioId: "dueno",
@@ -212,7 +212,7 @@ describe("product query controller", () => {
     expect(response.data.products).toEqual([]);
   });
 
-  it("loads products before category options", async () => {
+  it("carga los productos antes que las opciones de categoría", async () => {
     const calls: string[] = [];
     const controller = createProductQueryController({
       authorize: async (usuarioId, roles) =>
@@ -236,7 +236,7 @@ describe("product query controller", () => {
     expect(calls).toEqual(["products", "categories"]);
   });
 
-  it("returns an empty list when filters do not match products", async () => {
+  it("devuelve una lista vacía cuando los filtros no coinciden con productos", async () => {
     const response = await invokeProductList({
       search: "producto inexistente",
       usuarioId: "dueno",
@@ -250,7 +250,7 @@ describe("product query controller", () => {
     expect(response.data.products).toEqual([]);
   });
 
-  it("keeps the CU6 listing active even when another state is requested", async () => {
+  it("mantiene el listado CU6 activo aunque se solicite otro estado", async () => {
     const response = await invokeProductList({
       estado: "todos",
       sortBy: "stockActual",
@@ -268,7 +268,7 @@ describe("product query controller", () => {
     ).toBe(true);
   });
 
-  it("omits cost data for worker product lists", async () => {
+  it("omite datos de costo en las listas de productos para trabajador", async () => {
     const response = await invokeProductList({ usuarioId: "trabajador" });
 
     expect(response.ok).toBe(true);
@@ -279,7 +279,7 @@ describe("product query controller", () => {
     expect(response.data.products[0]).not.toHaveProperty("precioCosto");
   });
 
-  it("rejects product lists without an authorized user", async () => {
+  it("rechaza listas de productos sin usuario autorizado", async () => {
     const response = await invokeProductList();
 
     expect(response.ok).toBe(false);
@@ -290,7 +290,7 @@ describe("product query controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("searches active products with expiration requirement for lot registration", async () => {
+  it("busca productos activos con requisito de vencimiento para el registro de lotes", async () => {
     const response = (await createController().handle(
       {
         query: "leche",
@@ -313,7 +313,7 @@ describe("product query controller", () => {
     ]);
   });
 
-  it("requires exact EAN-13 while retaining partial name search for active products", async () => {
+  it("exige EAN-13 exacto y conserva la búsqueda parcial por nombre para productos activos", async () => {
     const response = (await createController().handle(
       {
         query: "292000001",
@@ -328,7 +328,7 @@ describe("product query controller", () => {
     expect(response.error.code).toBe("BUSINESS_RULE");
   });
 
-  it("lists active products when search is empty for sale registration", async () => {
+  it("lista productos activos cuando la búsqueda está vacía para el registro de ventas", async () => {
     const response = (await createController().handle(
       {
         query: "",
@@ -349,7 +349,7 @@ describe("product query controller", () => {
     ]);
   });
 
-  it("includes cost data in product detail for the owner", async () => {
+  it("incluye datos de costo en el detalle del producto para el dueno", async () => {
     const response = await invokeProductDetail({
       ean13: "7802920000015",
       usuarioId: "dueno",
@@ -363,7 +363,7 @@ describe("product query controller", () => {
     expect(response.data.product).toHaveProperty("precioCosto", 1000);
   });
 
-  it("omits cost data from product detail for workers", async () => {
+  it("omite datos de costo del detalle del producto para trabajadores", async () => {
     const response = await invokeProductDetail({
       ean13: "7802920000015",
       usuarioId: "trabajador",
@@ -377,7 +377,7 @@ describe("product query controller", () => {
     expect(response.data.product).not.toHaveProperty("precioCosto");
   });
 
-  it("allows workers to load product detail for status changes", async () => {
+  it("permite a trabajadores cargar el detalle del producto para cambios de estado", async () => {
     const response = await invokeProductDetail({
       ean13: "7802920000015",
       usuarioId: "trabajador",
@@ -386,7 +386,7 @@ describe("product query controller", () => {
     expect(response.ok).toBe(true);
   });
 
-  it("returns not found before categories when product detail is missing", async () => {
+  it("devuelve no encontrado antes que las categorías cuando falta el detalle del producto", async () => {
     const calls: string[] = [];
     const controller = createProductQueryController({
       authorize: async (usuarioId, roles) =>
@@ -410,7 +410,7 @@ describe("product query controller", () => {
     expect(calls).toEqual(["product"]);
   });
 
-  it("requires authorization to search active products", async () => {
+  it("exige autorización para buscar productos activos", async () => {
     const response = (await createController().handle(
       {
         query: "leche",

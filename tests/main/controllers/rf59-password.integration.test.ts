@@ -70,13 +70,13 @@ function request(channel: string, token: string, payload = {}) {
 }
 
 describe("RF59 / CU59 / CP63", () => {
-  it("generates eight cryptographically random alphanumeric characters", () => {
+  it("genera ocho caracteres alfanuméricos criptográficamente aleatorios", () => {
     const passwords = Array.from({ length: 100 }, generateTemporaryPassword);
     expect(passwords.every((password) => /^[A-Za-z0-9]{8}$/.test(password))).toBe(true);
     expect(new Set(passwords).size).toBe(100);
   });
 
-  it("stores only a bcrypt hash and expires in exactly 24 hours with owner audit identity", async () => {
+  it("almacena solo un hash bcrypt y expira exactamente a las 24 horas con identidad de auditoría del dueño", async () => {
     expect(await reset()).toMatchObject({ ok: true, data: { contrasenaTemporal: TEMPORARY, usuarioObjetivoId: WORKER } });
     const current = await loadCurrentPassword(fixture.db, schema, WORKER);
     expect(current!.contrasenaHash).toMatch(/^\$2[aby]\$/);
@@ -92,7 +92,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect(stored).not.toContain(TEMPORARY);
   });
 
-  it("revokes all target sessions and rejects still-valid JWTs without altering other or already closed sessions", async () => {
+  it("revoca todas las sesiones objetivo y rechaza JWT aún válidos sin alterar otras sesiones ni sesiones ya cerradas", async () => {
     const first = await login();
     const second = await login();
     const owner = await login(OWNER);
@@ -117,7 +117,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect((await login(WORKER, ORIGINAL)).ok).toBe(false);
   });
 
-  it("restricts temporary login to the password view and rejects direct business IPC calls", async () => {
+  it("restringe el inicio de sesión temporal a la vista de contraseña y rechaza llamadas IPC de negocio directas", async () => {
     await reset();
     const response = await login(WORKER, TEMPORARY);
     if (!response.ok) throw new Error("login failed");
@@ -135,7 +135,7 @@ describe("RF59 / CU59 / CP63", () => {
     }
   });
 
-  it("changes to a definitive password, revokes temporary sessions and unlocks business access only with a new login", async () => {
+  it("cambia a una contraseña definitiva, revoca las sesiones temporales y desbloquea el acceso de negocio solo con un nuevo inicio de sesión", async () => {
     await reset();
     const first = await login(WORKER, TEMPORARY);
     const second = await login(WORKER, TEMPORARY);
@@ -159,7 +159,7 @@ describe("RF59 / CU59 / CP63", () => {
   });
 
   it.each([TEMP_PASSWORD_MS - 1, TEMP_PASSWORD_MS, TEMP_PASSWORD_MS + 1])(
-    "enforces the expiration boundary at %i milliseconds", async (elapsed) => {
+    "verifica el límite de expiración en %i milisegundos", async (elapsed) => {
       await reset();
       vi.setSystemTime(new Date(NOW.getTime() + elapsed));
       const accepted = elapsed < TEMP_PASSWORD_MS;
@@ -168,7 +168,7 @@ describe("RF59 / CU59 / CP63", () => {
         { usuarioId: WORKER, contrasenaNueva: DEFINITIVE }, deps)).ok).toBe(accepted);
     });
 
-  it("rejects a malformed expiration", async () => {
+  it("rechaza una expiración con formato inválido", async () => {
     await reset();
     await fixture.db.update(schema.contrasenaTemporal).set({ contrasenaTemporalFechaHoraExpiracion: "fecha-invalida" });
     expect((await login(WORKER, TEMPORARY)).ok).toBe(false);
@@ -176,7 +176,7 @@ describe("RF59 / CU59 / CP63", () => {
       { usuarioId: WORKER, contrasenaNueva: DEFINITIVE }, deps)).ok).toBe(false);
   });
 
-  it("keeps sessions and credentials unchanged for invalid, same or weak passwords", async () => {
+  it("mantiene sesiones y credenciales sin cambios ante contraseñas inválidas, iguales o débiles", async () => {
     await reset();
     const session = await login(WORKER, TEMPORARY);
     if (!session.ok) throw new Error("login failed");
@@ -189,7 +189,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect((await request("auth:verificar-sesion", session.data.token)).ok).toBe(true);
   });
 
-  it("invalidates the preceding reset even when two resets have the same timestamp", async () => {
+  it("invalida el reinicio anterior incluso cuando dos reinicios tienen la misma marca de tiempo", async () => {
     await reset();
     expect((await resetPasswordWithExecutor(fixture.db, schema,
       { usuarioId: OWNER, usuarioObjetivoId: WORKER }, { ...deps, generateTempPassword: () => "SecondP9" })).ok).toBe(true);
@@ -197,7 +197,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect((await login(WORKER, "SecondP9")).ok).toBe(true);
   });
 
-  it("denies workers, effective worker sessions, inactive owners, missing targets and malformed requests", async () => {
+  it("deniega a trabajadores, sesiones efectivas de trabajador, dueños inactivos, objetivos inexistentes y solicitudes mal formadas", async () => {
     expect(await reset(WORKER, OWNER)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await reset(OWNER, WORKER, "trabajador")).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await reset(OWNER, "unknown")).toMatchObject({ ok: false, error: { code: "USUARIO_NO_ENCONTRADO", message: "Usuario no encontrado." } });
@@ -214,7 +214,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect((await fixture.db.select().from(schema.contrasena)).length).toBe(2);
   });
 
-  it.each(["expiration", "revocation", "audit"])("rolls back reset if %s persistence fails", async (stage) => {
+  it.each(["expiration", "revocation", "audit"])("revierte el reinicio si falla la persistencia de %s", async (stage) => {
     await login();
     const statement = stage === "expiration"
       ? "BEFORE INSERT ON contrasena_temporal"
@@ -230,7 +230,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect(await fixture.db.select().from(schema.contrasenaTemporal)).toEqual([]);
   });
 
-  it("rolls back a definitive change and session revocation when auditing fails", async () => {
+  it("revierte el cambio definitivo y la revocación de sesiones cuando falla la auditoría", async () => {
     await reset();
     await login(WORKER, TEMPORARY);
     await fixture.client.execute("CREATE TRIGGER rf59_failure BEFORE INSERT ON log_auditoria BEGIN SELECT RAISE(ABORT, 'rf59 failure'); END");
@@ -242,7 +242,7 @@ describe("RF59 / CU59 / CP63", () => {
     expect(await fixture.db.select().from(schema.sesionUsuario)).toEqual(sessions);
   });
 
-  it("keeps the legacy user-management reset channel on the same atomic service and trusted role", async () => {
+  it("mantiene el canal heredado de reinicio de gestión de usuarios en el mismo servicio atómico y rol de confianza", async () => {
     const requestReset = vi.fn(async (payload, role) => {
       const response = await resetPasswordWithExecutor(fixture.db, schema, payload, deps, role);
       return response.ok ? { ok: true as const, data: { ...response.data, estado: "completado" as const } } : response;

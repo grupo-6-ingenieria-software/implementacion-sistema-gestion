@@ -84,8 +84,8 @@ function createController(overrides: Partial<Dependencies> = {}) {
   return createWorkerController(dependencies);
 }
 
-describe("worker controller", () => {
-  it("lists workers for owners", async () => {
+describe("controlador de trabajadores", () => {
+  it("lista trabajadores para el dueño", async () => {
     const response = await createController().handle(
       { usuarioId: "dueno", search: "rojas" },
       { channel: "trabajador:listar" },
@@ -101,7 +101,7 @@ describe("worker controller", () => {
     ).toEqual(["23456789-0"]);
   });
 
-  it("lists the same data for worker sessions (CU24)", async () => {
+  it("lista los mismos datos para sesiones de trabajador (CU24)", async () => {
     const response = await createController().handle(
       { usuarioId: "trabajador" },
       { channel: "trabajador:listar" },
@@ -117,7 +117,7 @@ describe("worker controller", () => {
     ).toEqual(["23456789-0", "12345678-9"]);
   });
 
-  it("passes the normalized filters to the persistence layer and sorts by column", async () => {
+  it("pasa los filtros normalizados a la capa de persistencia y ordena por columna", async () => {
     const listWorkers = vi.fn(async () => [...workers].reverse());
     const response = await createController({ listWorkers }).handle(
       {
@@ -147,7 +147,7 @@ describe("worker controller", () => {
     ).toEqual(["trabajador", "dueno"]);
   });
 
-  it("still rejects worker sessions for worker administration", async () => {
+  it("sigue rechazando sesiones de trabajador para la administración de trabajadores", async () => {
     const response = await createController().handle(
       { usuarioId: "trabajador", nombreCompleto: "Ana Soto", rol: "trabajador", rut: "22222222-2", telefono: "987654321" },
       { channel: "trabajador:registrar" },
@@ -161,7 +161,7 @@ describe("worker controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("authorizes mutations with the session role attached by the guard", async () => {
+  it("autoriza mutaciones con el rol de sesión asignado por el guard", async () => {
     const createWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
@@ -181,7 +181,7 @@ describe("worker controller", () => {
     expect(createWorker).toHaveBeenCalled();
   });
 
-  it("creates worker accounts in the worker module", async () => {
+  it("crea cuentas de trabajador en el módulo de trabajadores", async () => {
     const createWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
@@ -211,7 +211,7 @@ describe("worker controller", () => {
     );
   });
 
-  it("returns field errors for invalid worker creation payloads", async () => {
+  it("devuelve errores de campo para datos de creación de trabajador inválidos", async () => {
     const response = await createController().handle(
       {
         nombreCompleto: "",
@@ -234,7 +234,7 @@ describe("worker controller", () => {
     expect(response.error.fieldErrors?.telefono).toBeDefined();
   });
 
-  it("updates workers without revalidating non-editable legacy RUT checksums", async () => {
+  it("actualiza trabajadores sin revalidar los dígitos verificadores de RUT heredados no editables", async () => {
     const updateWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
@@ -254,7 +254,7 @@ describe("worker controller", () => {
     expect(updateWorker).toHaveBeenCalled();
   });
 
-  it("changes worker status after owner authorization", async () => {
+  it("cambia el estado del trabajador tras la autorización del dueño", async () => {
     const changeStatus = vi.fn(async (payload: UserStatusChangePayload) => ({
       usuarioId: payload.usuarioObjetivoId,
     }));
@@ -281,7 +281,7 @@ describe("worker controller", () => {
   });
 
   describe("trabajador:listar-activos", () => {
-    it("returns every active worker for owners", async () => {
+    it("devuelve todos los trabajadores activos para el dueño", async () => {
       const response = await createController().handle(
         { usuarioId: "12345678-9" },
         { channel: "trabajador:listar-activos" },
@@ -295,7 +295,7 @@ describe("worker controller", () => {
       expect(response.data as AttendanceWorkerOption[]).toEqual(activeWorkers);
     });
 
-    it("returns only the calling worker for the trabajador role", async () => {
+    it("devuelve solo el trabajador que realiza la consulta para el rol trabajador", async () => {
       const response = await createController().handle(
         { usuarioId: "23456789-0" },
         { channel: "trabajador:listar-activos" },
@@ -312,7 +312,7 @@ describe("worker controller", () => {
       expect(data[0]?.nombreCompleto).toBe("Camila Rojas");
     });
 
-    it("does not leak other workers rut or names to a trabajador", async () => {
+    it("no expone el RUT ni los nombres de otros trabajadores a un trabajador", async () => {
       const response = await createController().handle(
         { usuarioId: "23456789-0" },
         { channel: "trabajador:listar-activos" },
@@ -422,7 +422,7 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
     return users.map((worker) => worker.rut);
   }
 
-  it("returns every worker with account and role, ordered by name", async () => {
+  it("devuelve todos los trabajadores con cuenta y rol, ordenados por nombre", async () => {
     await expect(ruts()).resolves.toEqual([
       "23456789-0",
       "34567890-1",
@@ -430,11 +430,11 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
     ]);
   });
 
-  it("filters by a partial RUT in SQL", async () => {
+  it("filtra por RUT parcial en SQL", async () => {
     await expect(ruts({ search: "890-1" })).resolves.toEqual(["34567890-1"]);
   });
 
-  it("matches RUTs typed with dashes or dots", async () => {
+  it("coincide con RUT escritos con guiones o puntos", async () => {
     await expect(ruts({ search: "23456789-0" })).resolves.toEqual([
       "23456789-0",
     ]);
@@ -443,12 +443,12 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
     ]);
   });
 
-  it("matches names ignoring accents and case", async () => {
+  it("coincide con nombres ignorando tildes y mayúsculas", async () => {
     await expect(ruts({ search: "jose" })).resolves.toEqual(["34567890-1"]);
     await expect(ruts({ search: "MARIA" })).resolves.toEqual(["12345678-9"]);
   });
 
-  it("applies the role filter on the second query", async () => {
+  it("aplica el filtro de rol en la segunda consulta", async () => {
     await expect(ruts({ rol: "trabajador" })).resolves.toEqual([
       "23456789-0",
       "34567890-1",
@@ -456,7 +456,7 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
     await expect(ruts({ rol: "dueno" })).resolves.toEqual(["12345678-9"]);
   });
 
-  it("applies the estado filter on the first query", async () => {
+  it("aplica el filtro de estado en la primera consulta", async () => {
     await expect(ruts({ estado: "inactivo" })).resolves.toEqual([
       "34567890-1",
     ]);
@@ -465,7 +465,7 @@ describe("listWorkersWithExecutor (CU24, D4: dos consultas en SQL)", () => {
     ).resolves.toEqual(["23456789-0"]);
   });
 
-  it("returns an empty list for a search without matches (CU24-E1)", async () => {
+  it("devuelve una lista vacía para una búsqueda sin coincidencias (CU24-E1)", async () => {
     await expect(ruts({ search: "zzzz" })).resolves.toEqual([]);
   });
 });
@@ -492,7 +492,7 @@ describe("listar no concede editar (CU24)", () => {
     testDb = undefined;
   });
 
-  it("forbids a worker invoking trabajador:actualizar directly over IPC", async () => {
+  it("prohíbe a un trabajador invocar trabajador:actualizar directamente por IPC", async () => {
     const token = signSessionToken({
       usuarioId: "23456789-0",
       rol: "trabajador",
@@ -593,7 +593,7 @@ describe("updateWorkerWithExecutor (CU22, D6)", () => {
     };
   }
 
-  it("updates worker data without touching usuario or usuario_version when the role stays", async () => {
+  it("actualiza datos del trabajador sin tocar usuario ni usuario_version cuando el rol se mantiene", async () => {
     const response = await updateWorkerWithExecutor(
       testDb!.db,
       schema,
@@ -635,7 +635,7 @@ describe("updateWorkerWithExecutor (CU22, D6)", () => {
     expect(auditoria.descripcion).toContain("campos: nombre, telefono");
   });
 
-  it("updates the account and rotates the version only when the role changes", async () => {
+  it("actualiza la cuenta y rota la versión solo cuando cambia el rol", async () => {
     const response = await updateWorkerWithExecutor(
       testDb!.db,
       schema,
@@ -673,7 +673,7 @@ describe("updateWorkerWithExecutor (CU22, D6)", () => {
     expect(auditoria.descripcion).toContain("rol");
   });
 
-  it("rejects an unregistered RUT without writing anything (E1)", async () => {
+  it("rechaza un RUT no registrado sin escribir nada (E1)", async () => {
     await expect(
       updateWorkerWithExecutor(
         testDb!.db,
@@ -686,7 +686,7 @@ describe("updateWorkerWithExecutor (CU22, D6)", () => {
     expect(auditorias).toHaveLength(0);
   });
 
-  it("authorizes before validating fields, as the diagram orders (CU22-E2)", async () => {
+  it("autoriza antes de validar campos, según el orden del diagrama (CU22-E2)", async () => {
     const updateWorker = vi.fn(async (payload: UserFormValues) => ({
       usuarioId: payload.rut,
     }));
@@ -785,7 +785,7 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     });
   }
 
-  it("closes only the target's open sessions with motivo sistema and notifies once", async () => {
+  it("cierra solo las sesiones abiertas del trabajador afectado con motivo sistema y notifica una vez", async () => {
     const notificar = vi.fn();
 
     const response = await changeStatusWithExecutor(
@@ -828,7 +828,7 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     expect(notificar).toHaveBeenCalledWith(TARGET);
   });
 
-  it("reactivating does not notify and does not reopen sessions", async () => {
+  it("la reactivación no notifica ni reabre sesiones", async () => {
     await changeStatusWithExecutor(testDb!.db, schema, payload(), "dueno", vi.fn());
 
     const notificar = vi.fn();
@@ -857,7 +857,7 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     ).toBe(true);
   });
 
-  it("rejects an unregistered RUT without auditing or notifying (E1)", async () => {
+  it("rechaza un RUT no registrado sin auditar ni notificar (E1)", async () => {
     const notificar = vi.fn();
 
     await expect(
@@ -875,7 +875,7 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     expect(auditorias).toHaveLength(0);
   });
 
-  it("requires explicit confirmation and a valid estado after authorization", async () => {
+  it("requiere confirmación explícita y un estado válido tras la autorización", async () => {
     const changeStatus = vi.fn(async (p: UserStatusChangePayload) => ({
       usuarioId: p.usuarioObjetivoId,
     }));
@@ -901,7 +901,7 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     expect(changeStatus).not.toHaveBeenCalled();
   });
 
-  it("a request with the revoked worker's old token is forbidden", async () => {
+  it("prohíbe una solicitud con el token anterior del trabajador revocado", async () => {
     await changeStatusWithExecutor(testDb!.db, schema, payload(), "dueno", vi.fn());
 
     const [sesion] = await testDb!.db

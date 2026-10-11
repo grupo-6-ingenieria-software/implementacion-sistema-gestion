@@ -37,8 +37,8 @@ afterEach(async () => {
   fixture = undefined;
 });
 
-describe("CU45 category sales integration", () => {
-  it("allocates each complete sale, uses historical prices and restricts workers in SQL", async () => {
+describe("integración de ventas por categoría de CU45", () => {
+  it("distribuye cada venta completa, usa precios históricos y restringe a trabajadores en SQL", async () => {
     const [all, own, other] = await Promise.all([
       loadSaleCategories(fixture!.db, range, owner),
       loadSaleCategories(fixture!.db, range, worker),
@@ -58,7 +58,7 @@ describe("CU45 category sales integration", () => {
     ]);
   });
 
-  it("reflects current category and includes a product deactivated after sale", async () => {
+  it("refleja la categoría vigente e incluye un producto desactivado después de la venta", async () => {
     await fixture!.db.run(sql`
       UPDATE producto SET categoria_id = 2, producto_estado = 'inactivo'
       WHERE producto_id = 1
@@ -69,7 +69,7 @@ describe("CU45 category sales integration", () => {
     ]);
   });
 
-  it("treats no eligible sales as a successful empty response and leaves data intact", async () => {
+  it("trata la ausencia de ventas elegibles como una respuesta vacía exitosa y deja los datos intactos", async () => {
     const before = await fixture!.db.all<{ count: number }>(sql`SELECT COUNT(*) AS count FROM venta`);
     const noSales = await loadSaleCategories(
       fixture!.db,
@@ -86,7 +86,7 @@ describe("CU45 category sales integration", () => {
     ]);
   });
 
-  it("returns E2 for an annulled own sale and sales owned by someone else", async () => {
+  it("devuelve E2 para una venta propia anulada y para ventas de otra persona", async () => {
     await fixture!.db.run(sql`
       INSERT INTO anulacion_venta (anulacion_venta_id, anulacion_fecha_hora,
         anulacion_razon, venta_id, usuario_id)

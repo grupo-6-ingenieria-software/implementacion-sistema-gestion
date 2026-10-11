@@ -77,12 +77,12 @@ const sampleReport: ExpiringLotsReportData = {
   },
 };
 
-describe("CU50 ReporteLotesVencerView renderer", () => {
-  it("registers reporte-lotes-vencer in isImplementedViewNodeId", () => {
+describe("CU50 renderizador de ReporteLotesVencerView", () => {
+  it("registra reporte-lotes-vencer en isImplementedViewNodeId", () => {
     expect(isImplementedViewNodeId("reporte-lotes-vencer")).toBe(true);
   });
 
-  it("invokes reporte:lotes-por-vencer and handles data and errors", async () => {
+  it("invoca reporte:lotes-por-vencer y maneja datos y errores", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<ExpiringLotsReportData>> => ({
         ok: true,
@@ -121,7 +121,7 @@ describe("CU50 ReporteLotesVencerView renderer", () => {
     ).rejects.toThrow("Ingrese un valor entre 1 y 31 días");
   });
 
-  it("invokes export channels for PDF and XLSX", async () => {
+  it("invoca los canales de exportación para PDF y XLSX", async () => {
     const invoke = vi.fn(async () => ({
       ok: true,
       data: {
@@ -163,12 +163,12 @@ describe("CU50 ReporteLotesVencerView renderer", () => {
     });
   });
 
-  it("formats Chilean currency and numbers accurately", () => {
+  it("formatea moneda y números chilenos de forma precisa", () => {
     expect(formatCurrency(32200)).toMatch(/\$32\.200/);
     expect(formatNumber(1500)).toMatch(/1\.500/);
   });
 
-  it("renders ReporteLotesVencerPrintView markup with required columns and summary", () => {
+  it("renderiza el marcado de ReporteLotesVencerPrintView con columnas requeridas y resumen", () => {
     const markup = renderToStaticMarkup(
       createElement(ReporteLotesVencerPrintView, {
         horizonte: 7,
@@ -189,7 +189,7 @@ describe("CU50 ReporteLotesVencerView renderer", () => {
     expect(markup).toContain("Total lotes por vencer");
   });
 
-  it("renders ReporteLotesVencerView initial component structure", () => {
+  it("renderiza la estructura inicial del componente ReporteLotesVencerView", () => {
     const markup = renderToStaticMarkup(
       createElement(ReporteLotesVencerView, {
         usuarioId: "user-1",

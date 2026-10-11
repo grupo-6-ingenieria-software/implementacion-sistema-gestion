@@ -91,8 +91,8 @@ async function expectRejected(payload: Record<string, unknown>, code: string, in
   return result;
 }
 
-describe("CU26 editing through session authorization and the shift controller", () => {
-  it.each([0, 1])("loads V18 by ID with current data and session permissions for role %i", async (index) => {
+describe("CU26 edición mediante autorización de sesión y controlador de turnos", () => {
+  it.each([0, 1])("carga V18 por ID con datos actuales y permisos de sesión para el rol %i", async (index) => {
     await fixture.db.update(schema.turno).set({ turnoFechaHoraInicio: "2026-07-20T13:00:00.000Z", turnoFechaHoraFin: "2026-07-20T21:00:00.000Z" });
     expect(await request("turno:listar", { consulta: "turno", turnoId, usuarioId: users[0] }, index))
       .toMatchObject({ ok: true, data: { turno: {
@@ -101,14 +101,14 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(await editAudits()).toEqual([]);
   });
 
-  it("does not expose an inactive worker through lookup by ID", async () => {
+  it("no expone un trabajador inactivo en la consulta por ID", async () => {
     await fixture.db.update(schema.trabajador).set({ trabajadorEstado: "inactivo" })
       .where(eq(schema.trabajador.trabajadorId, 2));
     expect(await request("turno:listar", { consulta: "turno", turnoId }))
       .toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
   });
 
-  it("reports a missing shift instead of loading an unrelated calendar", async () => {
+  it("informa un turno inexistente en lugar de cargar un calendario no relacionado", async () => {
     expect(await request("turno:listar", { consulta: "turno", turnoId: randomUUID() }))
       .toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
   });
@@ -118,11 +118,11 @@ describe("CU26 editing through session authorization and the shift controller", 
     { consulta: null, inicioSemana: "2026-06-15" },
     { consulta: "turno" }, { consulta: "turno", turnoId: 12 },
     { consulta: "turno", turnoId: "   " },
-  ])("rejects malformed lookup without a weekly fallback: %j", async (payload) => {
+  ])("rechaza consulta malformada sin respaldo semanal: %j", async (payload) => {
     expect(await request("turno:listar", payload)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
   });
 
-  it("blocks the editor when attendance appears after its lookup", async () => {
+  it("bloquea el editor cuando aparece asistencia después de su consulta", async () => {
     expect(await request("turno:listar", { consulta: "turno", turnoId }))
       .toMatchObject({ ok: true, data: { turno: { puedeModificar: true } } });
     await fixture.db.insert(schema.asistencia).values({
@@ -131,7 +131,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     await expectRejected(edit, "BUSINESS_RULE");
   });
 
-  it("keeps creation consistent with the owner session role", async () => {
+  it("mantiene la creación consistente con el rol de sesión del dueño", async () => {
     await fixture.db.update(schema.usuario).set({ usuarioRol: "trabajador" })
       .where(eq(schema.usuario.usuarioId, users[0]));
     expect(await request("turno:crear", {
@@ -144,7 +144,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(audit.usuarioId).toBe(users[0]);
   });
 
-  it.each([0, 1])("applies the changed database role on a new login: user %i", async (index) => {
+  it.each([0, 1])("aplica el rol modificado en la base de datos en un nuevo inicio de sesión: usuario %i", async (index) => {
     const newRole = index === 0 ? "trabajador" : "dueno";
     await fixture.db.update(schema.usuario).set({ usuarioRol: newRole })
       .where(eq(schema.usuario.usuarioId, users[index]));
@@ -157,14 +157,14 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(result).toMatchObject(index === 0 ? { ok: false, error: { code: "FORBIDDEN" } } : { ok: true });
   });
 
-  it.each(["turno:crear", "turno:editar", "turno:eliminar"])("rejects missing trusted context for %s", async (channel) => {
+  it.each(["turno:crear", "turno:editar", "turno:eliminar"])("rechaza contexto de confianza ausente para %s", async (channel) => {
     const before = await persistedShifts();
     expect(await shiftController.handle({ ...edit, trabajadorId: 2, confirmacion: true, usuarioId: users[0] }, { channel }))
       .toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await persistedShifts()).toEqual(before);
   });
 
-  it("reports a technical authorization failure without changing the shift", async () => {
+  it("informa un fallo técnico de autorización sin modificar el turno", async () => {
     const select = vi.spyOn(fixture.db, "select").mockImplementationOnce(() => { throw new Error("Account read failed"); });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(await request("turno:editar", edit)).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR" } });
@@ -173,7 +173,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(await editAudits()).toEqual([]);
   });
 
-  it("retains the owner session role until the next login after a database role change", async () => {
+  it("conserva el rol de sesión del dueño hasta el siguiente inicio de sesión tras un cambio de rol en la base de datos", async () => {
     await fixture.db.update(schema.usuario).set({ usuarioRol: "trabajador" })
       .where(eq(schema.usuario.usuarioId, users[0]));
     expect(await request("turno:editar", edit)).toMatchObject({ ok: true });
@@ -181,7 +181,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(await editAudits()).toMatchObject([{ usuarioId: users[0] }]);
   });
 
-  it("persists both timestamps, preserves the worker and audits the trusted session identity", async () => {
+  it("persiste ambas marcas de tiempo, conserva el trabajador y audita la identidad de sesión de confianza", async () => {
     expect(await request("turno:editar", { ...edit, usuarioId: users[1], trabajadorId: 1 }))
       .toMatchObject({ ok: true, data: { turnoId } });
     expect(await persistedShifts()).toMatchObject([{
@@ -203,13 +203,13 @@ describe("CU26 editing through session authorization and the shift controller", 
   });
 
   it.each(["2026-06-13T11:59:59.000Z", "2026-06-13T12:00:00.000Z"])(
-    "E1 rejects a shift that started at %s", async (start) => {
+    "E1 rechaza un turno que inició en %s", async (start) => {
       await fixture.db.update(schema.turno).set({ turnoFechaHoraInicio: start });
       await expectRejected(edit, "BUSINESS_RULE");
     },
   );
 
-  it("E1 rejects editing a future shift with recorded attendance", async () => {
+  it("E1 rechaza editar un turno futuro con asistencia registrada", async () => {
     await fixture.db.insert(schema.asistencia).values({
       asistenciaId: randomUUID(), turnoId, trabajadorId: 2,
       asistenciaFechaHoraEntrada: originalStart,
@@ -217,7 +217,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     await expectRejected(edit, "BUSINESS_RULE");
   });
 
-  it("E2 rejects an overlap with another shift of the original worker", async () => {
+  it("E2 rechaza un solapamiento con otro turno del trabajador original", async () => {
     await fixture.db.insert(schema.turno).values({
       turnoId: randomUUID(), trabajadorId: 2, turnoEstado: "planificado",
       turnoFechaHoraInicio: "2026-06-16T20:00:00.000Z",
@@ -226,7 +226,7 @@ describe("CU26 editing through session authorization and the shift controller", 
     await expectRejected({ ...edit, trabajadorId: 1 }, "BUSINESS_RULE");
   });
 
-  it("E2 allows adjacency and does not conflict with the edited shift itself", async () => {
+  it("E2 permite turnos contiguos y no entra en conflicto con el propio turno editado", async () => {
     await fixture.db.insert(schema.turno).values({
       turnoId: randomUUID(), trabajadorId: 2, turnoEstado: "planificado",
       turnoFechaHoraInicio: originalEnd,
@@ -238,12 +238,12 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(await editAudits()).toHaveLength(1);
   });
 
-  it.each(["08:00", "09:00"])("E3 rejects end time %s <= start time", async (horaTermino) => {
+  it.each(["08:00", "09:00"])("E3 rechaza hora de término %s <= hora de inicio", async (horaTermino) => {
     expect(await expectRejected({ ...edit, horaTermino }, "VALIDATION_ERROR"))
       .toMatchObject({ error: { fieldErrors: { horaTermino: expect.any(String) } } });
   });
 
-  it("rolls back the shift update when inserting the audit fails", async () => {
+  it("revierte la actualización del turno cuando falla la inserción de la auditoría", async () => {
     await fixture.client.execute(`
       CREATE TRIGGER cu26_fail_edit_audit BEFORE INSERT ON log_auditoria
       WHEN NEW.log_tipo_accion = 'editar_turno'
@@ -254,15 +254,15 @@ describe("CU26 editing through session authorization and the shift controller", 
     expect(consoleError).toHaveBeenCalled();
   });
 
-  it("rejects a worker even with a spoofed owner ID", async () => {
+  it("rechaza a un trabajador aunque use un ID de dueño falsificado", async () => {
     await expectRejected({ ...edit, usuarioId: users[0] }, "FORBIDDEN", 1);
   });
 
-  it("rejects an invalid token", async () => {
+  it("rechaza un token inválido", async () => {
     await expectRejected({ ...edit, __authToken: "invalid" }, "FORBIDDEN");
   });
 
-  it("rejects a closed session", async () => {
+  it("rechaza una sesión cerrada", async () => {
     await fixture.db.update(schema.sesionUsuario).set({
       sesionFechaHoraCierre: new Date().toISOString(), sesionMotivoCierre: "manual",
     }).where(eq(schema.sesionUsuario.sesionUsuarioId, sessions[0]));

@@ -30,8 +30,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("expiration alerts integration", () => {
-  it("loads only active lots with stock in the expiration horizon", async () => {
+describe("integración de alertas de vencimiento", () => {
+  it("carga solo lotes activos con stock dentro del horizonte de vencimiento", async () => {
     const result = await loadExpirationAlerts(
       testDb!.db as unknown as DashboardDb,
       new Date("2026-06-12T12:00:00Z"),
@@ -73,8 +73,8 @@ describe("expiration alerts integration", () => {
   });
 });
 
-describe("expiration alert controller", () => {
-  it("returns a controlled technical error when the query fails", async () => {
+describe("controlador de alertas de vencimiento", () => {
+  it("devuelve un error técnico controlado cuando falla la consulta", async () => {
     vi.resetModules();
     vi.doMock("../../../src/db/client", () => ({
       db: {

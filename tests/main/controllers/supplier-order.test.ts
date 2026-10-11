@@ -30,8 +30,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("CU17 supplier order registration", () => {
-  it("registers a valid pending order with provider, product and trusted responsible", async () => {
+describe("CU17 registro de pedidos a proveedor", () => {
+  it("registra un pedido pendiente válido con proveedor, producto y responsable de confianza", async () => {
     const result = await createOrder(10);
     const rows = await testDb!.db.all<{
       cantidad: number;
@@ -61,7 +61,7 @@ describe("CU17 supplier order registration", () => {
     ]);
   });
 
-  it("rejects a duplicated product without creating a partial order", async () => {
+  it("rechaza un producto duplicado sin crear un pedido parcial", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerSupplierOrderWithExecutor(tx, schema, {
@@ -78,7 +78,7 @@ describe("CU17 supplier order registration", () => {
   });
 
   it.each([0, -1, 1.5])(
-    "rejects invalid requested quantity %s",
+    "rechaza cantidad solicitada inválida %s",
     async (cantidad) => {
       await expect(
         testDb!.db.transaction((tx) =>
@@ -94,8 +94,8 @@ describe("CU17 supplier order registration", () => {
   );
 });
 
-describe("CU18 successive and atomic receptions", () => {
-  it("keeps a partial delivery and then completes the order with two lots", async () => {
+describe("CU18 recepciones sucesivas y atómicas", () => {
+  it("mantiene una entrega parcial y luego completa el pedido con dos lotes", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
 
@@ -120,7 +120,7 @@ describe("CU18 successive and atomic receptions", () => {
     });
   });
 
-  it("returns the previous result for the same operation without duplicating stock", async () => {
+  it("devuelve el resultado previo de la misma operación sin duplicar stock", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     const operationId = randomUUID();
@@ -142,7 +142,7 @@ describe("CU18 successive and atomic receptions", () => {
     });
   });
 
-  it("rejects an amount over the current balance without changes", async () => {
+  it("rechaza una cantidad superior al saldo actual sin cambios", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await receive(order.pedidoId, detailId, 4);
@@ -159,7 +159,7 @@ describe("CU18 successive and atomic receptions", () => {
     });
   });
 
-  it("rejects an empty delivery", async () => {
+  it("rechaza una entrega vacía", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
 
@@ -175,7 +175,7 @@ describe("CU18 successive and atomic receptions", () => {
     });
   });
 
-  it("rejects an invalid calendar expiration date without changes", async () => {
+  it("rechaza una fecha de vencimiento de calendario inválida sin cambios", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
 
@@ -205,7 +205,7 @@ describe("CU18 successive and atomic receptions", () => {
     });
   });
 
-  it("rolls back receipt, lot and accumulated quantity when a later write fails", async () => {
+  it("revierte recepción, lote y cantidad acumulada cuando falla una escritura posterior", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await testDb!.client.executeMultiple(`
@@ -229,8 +229,8 @@ describe("CU18 successive and atomic receptions", () => {
   });
 });
 
-describe("CU18b order cancellation and balance closing", () => {
-  it("cancels a pending order without lots or stock changes", async () => {
+describe("CU18b cancelación de pedidos y cierre de saldos", () => {
+  it("cancela un pedido pendiente sin cambios en lotes ni stock", async () => {
     const order = await createOrder(10);
     const result = await testDb!.db.transaction((tx) =>
       cancelSupplierOrderWithExecutor(tx, schema, {
@@ -250,7 +250,7 @@ describe("CU18b order cancellation and balance closing", () => {
     });
   });
 
-  it("rejects cancellation after a partial reception", async () => {
+  it("rechaza la cancelación después de una recepción parcial", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await receive(order.pedidoId, detailId, 4);
@@ -273,7 +273,7 @@ describe("CU18b order cancellation and balance closing", () => {
     });
   });
 
-  it("closes a partial balance while preserving delivery, lot and missing quantity", async () => {
+  it("cierra un saldo parcial conservando la entrega, el lote y la cantidad faltante", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await receive(order.pedidoId, detailId, 4);
@@ -304,7 +304,7 @@ describe("CU18b order cancellation and balance closing", () => {
     expect(history[0]?.nota).toContain("Faltante conservado: 6");
   });
 
-  it("rejects closing a balance without a reason", async () => {
+  it("rechaza cerrar un saldo sin motivo", async () => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await receive(order.pedidoId, detailId, 4);
@@ -328,7 +328,7 @@ describe("CU18b order cancellation and balance closing", () => {
     });
   });
 
-  it("rejects new receipts for received, cancelled and partial-closed orders", async () => {
+  it("rechaza nuevas recepciones para pedidos recibidos, cancelados y con cierre parcial", async () => {
     const received = await createOrder(10);
     const receivedLine = await getDetailId(received.pedidoId);
     await receive(received.pedidoId, receivedLine, 10);

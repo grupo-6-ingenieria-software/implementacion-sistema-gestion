@@ -6,8 +6,8 @@ import { evaluateRouteAccess, getVisibleGroups, navigationTree } from "../../../
 import { isImplementedViewNodeId } from "../../../../src/renderer/src/App";
 import type { MonthlySalesReport } from "../../../../src/shared/monthly-sales";
 
-describe("V38 monthly sales", () => {
-  it("adds only the documented monthly route and restricts it to the owner", () => {
+describe("ventas mensuales V38", () => {
+  it("registra solo la ruta mensual documentada y la restringe al dueno", () => {
     const route = navigationTree.find((node) => node.id === "monthly-sales")!;
     expect(route).toMatchObject({ path: "/app/reportes/ventas-mensuales", viewName: "ReporteMensualVentasView", group: "reportes", roles: ["dueno"] });
     expect(getVisibleGroups("trabajador")).not.toContain("reportes");
@@ -16,7 +16,7 @@ describe("V38 monthly sales", () => {
     expect(isImplementedViewNodeId("monthly-sales")).toBe(true);
   });
 
-  it("renders daily zero values, payment summaries and N/A", () => {
+  it("muestra valores diarios en cero, resúmenes de pagos y N/A", () => {
     const report: MonthlySalesReport = {
       periodo: { mes: 9, anio: 2026 }, dias: [{ fecha: "2026-09-01", transacciones: 1, monto: 2000 }, { fecha: "2026-09-02", transacciones: 0, monto: 0 }],
       metodos: [{ metodo: "debito", transacciones: 1, monto: 2000 }], transacciones: 1, montoTotal: 2000, montoMesAnterior: 0, variacionPorcentual: null,

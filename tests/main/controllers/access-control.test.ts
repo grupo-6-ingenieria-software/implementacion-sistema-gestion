@@ -44,7 +44,7 @@ afterEach(async () => {
 });
 
 describe("validateAccessWithExecutor (RF56/CU57)", () => {
-  it("forbids access without a valid token", async () => {
+  it("prohíbe el acceso sin un token válido", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
@@ -58,7 +58,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     }
   });
 
-  it("allows a route permitted for the role and audits the grant in Main", async () => {
+  it("permite una ruta autorizada para el rol y audita la concesión en Main", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -84,7 +84,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     expect(Number(rows[0]?.total)).toBe(1);
   });
 
-  it("decides with the session role over the JWT role (D2)", async () => {
+  it("decide con el rol de sesión por sobre el rol JWT (D2)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -132,7 +132,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     });
   });
 
-  it("falls back to the JWT role when the guard did not attach a session role", async () => {
+  it("usa el rol JWT como alternativa cuando el guard no adjuntó un rol de sesión", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -150,7 +150,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     expect(response.ok).toBe(true);
   });
 
-  it("denies a route not permitted for the role and audits it", async () => {
+  it("deniega una ruta no permitida para el rol y la audita", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -176,7 +176,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     expect(Number(rows[0]?.total)).toBe(1);
   });
 
-  it("validates the route is present", async () => {
+  it("valida que la ruta esté presente", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,
@@ -190,7 +190,7 @@ describe("validateAccessWithExecutor (RF56/CU57)", () => {
     }
   });
 
-  it("returns not found for an unknown route", async () => {
+  it("devuelve no encontrado para una ruta desconocida", async () => {
     const response = await validateAccessWithExecutor(
       testDb!.db,
       schema,

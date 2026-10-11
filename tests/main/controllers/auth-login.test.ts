@@ -45,7 +45,7 @@ afterEach(async () => {
 });
 
 describe("authenticateWithExecutor (CU56)", () => {
-  it("queries user → attempts → worker → password and signs before inserting the session", async () => {
+  it("consulta usuario → intentos → trabajador → contraseña y firma antes de insertar la sesión", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -88,7 +88,7 @@ describe("authenticateWithExecutor (CU56)", () => {
       ),
     );
   });
-  it("unlocks at the fifteen minute boundary", async () => {
+  it("desbloquea al cumplirse el límite de quince minutos", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -109,7 +109,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     );
     expect(result.ok).toBe(true);
   });
-  it("shares lockout between equivalent RUT spellings and keeps the generic message", async () => {
+  it("comparte el bloqueo entre escrituras equivalentes del RUT y mantiene el mensaje genérico", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -152,7 +152,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     });
   });
 
-  it("resolves lowercase K to the same stored account and lockout", async () => {
+  it("resuelve la K minúscula a la misma cuenta almacenada y al mismo bloqueo", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-K",
       trabajadorId: 1,
@@ -187,7 +187,7 @@ describe("authenticateWithExecutor (CU56)", () => {
       },
     });
   });
-  it("rolls back successful attempts when signing fails before session persistence", async () => {
+  it("revierte los intentos exitosos cuando la firma falla antes de persistir la sesión", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -213,7 +213,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     );
     expect(await testDb!.db.select().from(schema.intentoLogin)).toHaveLength(0);
   });
-  it("rejects missing credentials with a validation error", async () => {
+  it("rechaza credenciales faltantes con un error de validación", async () => {
     const response = await authenticateWithExecutor(
       testDb!.db,
       schema,
@@ -227,7 +227,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("authenticates a valid owner and creates a session, attempt and audit log", async () => {
+  it("autentica a un dueño válido y crea sesión, intento y registro de auditoría", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -273,7 +273,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     expect(sesion?.rol).toBe("dueno");
   });
 
-  it("returns the generic error and records a failed attempt on wrong password (e1)", async () => {
+  it("devuelve el error genérico y registra un intento fallido ante contraseña incorrecta (e1)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -298,7 +298,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     expect(Number(failed[0]?.total)).toBe(1);
   });
 
-  it("returns the generic error for an unknown user (e1)", async () => {
+  it("devuelve el error genérico para un usuario desconocido (e1)", async () => {
     const response = await authenticateWithExecutor(
       testDb!.db,
       schema,
@@ -312,7 +312,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("blocks the 5th consecutive failure (e1b)", async () => {
+  it("bloquea al 5.º fallo consecutivo (e1b)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -342,7 +342,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("rejects login while the account is already locked (e2)", async () => {
+  it("rechaza el inicio de sesión mientras la cuenta ya está bloqueada (e2)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -372,7 +372,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("rejects an inactive worker account (e3)", async () => {
+  it("rechaza la cuenta de un trabajador inactivo (e3)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -394,7 +394,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("forces a password change for a valid temporal password", async () => {
+  it("exige cambio de contraseña ante una contraseña temporal válida", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -416,7 +416,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("rejects an expired temporal password (RF58)", async () => {
+  it("rechaza una contraseña temporal vencida (RF58)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,
@@ -438,7 +438,7 @@ describe("authenticateWithExecutor (CU56)", () => {
     }
   });
 
-  it("matches the stored RUT ignoring the dash (digit-only input)", async () => {
+  it("coincide con el RUT almacenado ignorando el guion (entrada solo con dígitos)", async () => {
     await seedUser(testDb!.db, {
       usuarioId: "12345678-9",
       trabajadorId: 1,

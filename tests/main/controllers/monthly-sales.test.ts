@@ -30,7 +30,7 @@ async function sale(id: string, fecha: string, options: { amount?: number; perce
 }
 
 describe("RF47 CU47 CP54", () => {
-  it("uses historical prices, one transaction per sale and net totals without annulled sales", async () => {
+  it("usa precios históricos, una transacción por venta y totales netos sin ventas anuladas", async () => {
     await sale("previous", "2026-08-15 16:00:00", { quantity: 2 });
     await sale("cash", "2026-09-01 04:00:00", { quantity: 3, amount: 500 });
     await client.execute("INSERT INTO detalle_venta VALUES ('cash', 1, 'historico')");
@@ -47,7 +47,7 @@ describe("RF47 CU47 CP54", () => {
     expect(report.metodos.reduce((sum, item) => sum + item.monto, 0)).toBe(report.montoTotal);
   });
 
-  it("uses Chilean month boundaries across the daylight saving change", async () => {
+  it("usa los límites de mes en hora chilena durante el cambio de horario de verano", async () => {
     await sale("last-august", "2026-09-01T03:59:59Z");
     await sale("first-september", "2026-09-01T04:00:00Z");
     await sale("last-september", "2026-10-01T02:59:59Z");
@@ -57,13 +57,13 @@ describe("RF47 CU47 CP54", () => {
     expect(report.dias[29].transacciones).toBe(1);
   });
 
-  it("compares January to December of the previous year", async () => {
+  it("compara enero con diciembre del año anterior", async () => {
     await sale("december", "2025-12-15T15:00:00Z", { quantity: 2 });
     await sale("january", "2026-01-15T15:00:00Z");
     expect(await queryMonthlySales(drizzle(client), { mes: 1, anio: 2026 })).toMatchObject({ montoMesAnterior: 2000, montoTotal: 1000, variacionPorcentual: -50 });
   });
 
-  it("includes leap day and returns N/A for a zero previous total", async () => {
+  it("incluye el día bisiesto y devuelve N/A cuando el total anterior es cero", async () => {
     await sale("free-previous", "2024-01-15T15:00:00Z", { amount: 1000 });
     await sale("leap-day", "2024-02-29T15:00:00Z");
     const report = await queryMonthlySales(drizzle(client), { mes: 2, anio: 2024 });
@@ -72,27 +72,27 @@ describe("RF47 CU47 CP54", () => {
     expect(report.variacionPorcentual).toBeNull();
   });
 
-  it("does not confuse a completed zero-value sale with an empty month", async () => {
+  it("no confunde una venta completada de valor cero con un mes vacío", async () => {
     await sale("free", "2026-02-15T15:00:00Z", { amount: 1000 });
     const report = await queryMonthlySales(drizzle(client), { mes: 2, anio: 2026 });
     expect(report).toMatchObject({ transacciones: 1, montoTotal: 0 });
     expect(report.dias).toHaveLength(28);
   });
 
-  it("returns the exact E1 message when there are only annulled sales", async () => {
+  it("devuelve el mensaje exacto E1 cuando solo hay ventas anuladas", async () => {
     await sale("previous", "2026-08-15T15:00:00Z");
     await sale("void", "2026-09-15T15:00:00Z", { state: "anulada" });
     const controller = createMonthlySalesController(async (period) => ({ report: await queryMonthlySales(drizzle(client), period as { mes: number; anio: number }), user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
     expect(await controller.handle({ mes: 9, anio: 2026 }, ownerContext)).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE", message: MONTHLY_SALES_EMPTY_MESSAGE } });
   });
 
-  it.each([{ mes: 0, anio: 2026 }, { mes: 13, anio: 2026 }, { mes: 2.5, anio: 2026 }, { mes: 2, anio: "2026" }, null])("rejects invalid periods before querying: %j", async (period) => {
+  it.each([{ mes: 0, anio: 2026 }, { mes: 13, anio: 2026 }, { mes: 2.5, anio: 2026 }, { mes: 2, anio: "2026" }, null])("rechaza períodos inválidos antes de consultar: %j", async (period) => {
     const load = vi.fn();
     expect(await createMonthlySalesController(load).handle(period, ownerContext)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(load).not.toHaveBeenCalled();
   });
 
-  it("audits an authorized report query", async () => {
+  it("audita una consulta de reporte autorizada", async () => {
     await sale("sale", "2026-09-15T15:00:00Z");
     const report = await queryMonthlySales(drizzle(client), { mes: 9, anio: 2026 });
     const controller = createMonthlySalesController(async () => ({ report, user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
@@ -101,7 +101,7 @@ describe("RF47 CU47 CP54", () => {
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "consulta", modulo: "reportes", usuarioId: "owner" }));
   });
 
-  it("denies and audits worker query/export attempts but preserves restock exports", async () => {
+  it("rechaza y audita los intentos de consulta y exportación de trabajador, pero conserva las exportaciones de reabastecimiento", async () => {
     const audit = vi.fn(async () => undefined);
     const claims = { ...ownerContext.claims!, rol: "trabajador" as const };
     const deps = { verifyToken: () => claims, audit };
@@ -113,7 +113,7 @@ describe("RF47 CU47 CP54", () => {
     expect((await guardChannel("inventario:reabastecimiento:exportar-pdf", {}, deps)).ok).toBe(true);
   });
 
-  it("rejects revoked sessions before loading the report", async () => {
+  it("rechaza sesiones revocadas antes de cargar el reporte", async () => {
     const result = await authorizeRequest("reporte:ventas-mensuales", { mes: 9, anio: 2026 }, undefined, {
       identity: async () => ({ ok: true, context: ownerContext, payload: {} }),
       session: async () => ({ active: false, reason: "sistema" }),

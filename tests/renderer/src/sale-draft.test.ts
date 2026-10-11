@@ -12,8 +12,8 @@ import {
   type SaleDraft,
 } from "../../../src/renderer/src/sale-draft";
 
-describe("CU43 sale draft storage", () => {
-  it("round-trips the full versioned sale draft", () => {
+describe("almacenamiento de borradores de venta CU43", () => {
+  it("preserva en ida y vuelta el borrador de venta versionado completo", () => {
     const storage = createStorage();
     const draft: SaleDraft = {
       version: SALE_DRAFT_VERSION,
@@ -52,7 +52,7 @@ describe("CU43 sale draft storage", () => {
       montoRecibido: "",
       descuento: null,
     }),
-  ])("drops corrupted or incompatible storage: %s", (raw) => {
+  ])("descarta almacenamiento corrupto o incompatible: %s", (raw) => {
     const storage = createStorage();
     storage.setItem(SALE_DRAFT_STORAGE_KEY, raw);
 
@@ -60,7 +60,7 @@ describe("CU43 sale draft storage", () => {
     expect(storage.getItem(SALE_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
-  it("stores and clears the pending same-user return independently", () => {
+  it("guarda y limpia de forma independiente la devolución pendiente del mismo usuario", () => {
     const storage = createStorage();
     markSaleDraftForResume("12345678-9", storage);
     expect(readPendingSaleUserId(storage)).toBe("12345678-9");

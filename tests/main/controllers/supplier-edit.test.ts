@@ -32,8 +32,8 @@ const validEdit: SupplierEditPayload = {
   usuarioId: "11111111-1",
 };
 
-describe("CU14 supplier controllers", () => {
-  it("serves list, detail and edit through their documented channels", async () => {
+describe("CU14 controladores de proveedores", () => {
+  it("sirve listado, detalle y edición a través de sus canales documentados", async () => {
     const listSuppliers = vi.fn(async () => ({
       suppliers: [
         {
@@ -92,7 +92,7 @@ describe("CU14 supplier controllers", () => {
     expect(editSupplier).toHaveBeenCalledWith(validEdit);
   });
 
-  it("normalizes validation, not-found, authorization and database errors", async () => {
+  it("normaliza errores de validación, no encontrado, autorización y base de datos", async () => {
     const query = createSupplierQueryController({
       listSuppliers: async () => {
         throw new AccessDeniedError();
@@ -173,9 +173,9 @@ describe("CU14 supplier controllers", () => {
   });
 });
 
-describe("CU14 protected channels", () => {
+describe("CU14 canales protegidos", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "allows role %s on query and edit channels",
+    "permite el rol %s en canales de consulta y edición",
     async (rol) => {
       for (const channel of [
         "proveedor:listar",
@@ -197,7 +197,7 @@ describe("CU14 protected channels", () => {
     },
   );
 
-  it("rejects CU14 without a session", async () => {
+  it("rechaza CU14 sin sesión", async () => {
     const result = await guardChannel(
       "proveedor:editar",
       {},
@@ -213,7 +213,7 @@ describe("CU14 protected channels", () => {
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
 
-describe("CU14 transactional persistence", () => {
+describe("CU14 persistencia transaccional", () => {
   beforeEach(async () => {
     testDb = await createTestDatabase();
     await seedFixture(testDb.db);
@@ -226,7 +226,7 @@ describe("CU14 transactional persistence", () => {
     testDb = undefined;
   });
 
-  it("loads detail and searches case-insensitive names and formatted RUTs", async () => {
+  it("carga el detalle y busca nombres sin distinguir mayúsculas y RUT con formato", async () => {
     const detail = await testDb!.db.transaction((tx) =>
       findSupplierWithExecutor(tx, schema, {
         rut: "12345678-5",
@@ -249,7 +249,7 @@ describe("CU14 transactional persistence", () => {
     expect(byRut.suppliers.map(({ proveedorId }) => proveedorId)).toEqual([1]);
   });
 
-  it("updates every editable field, replaces categories and preserves stored RUT", async () => {
+  it("actualiza cada campo editable, reemplaza las categorías y conserva el RUT almacenado", async () => {
     const result = await edit(validEdit);
     expect(result).toEqual({ proveedorId: 1, rut: "12.345.678-5" });
 
@@ -297,7 +297,7 @@ describe("CU14 transactional persistence", () => {
     expect(snapshot.auditDescription).not.toContain(validEdit.correoElectronico);
   });
 
-  it("allows a worker and audits a valid save without effective changes", async () => {
+  it("permite a un trabajador y audita un guardado válido sin cambios efectivos", async () => {
     const result = await edit({
       rut: "12.345.678-5",
       nombreRazonSocial: "Distribuidora Álamo",
@@ -316,7 +316,7 @@ describe("CU14 transactional persistence", () => {
     expect(descriptions[0].description).toContain("12345670-K");
   });
 
-  it("rejects missing suppliers and categories without partial writes", async () => {
+  it("rechaza proveedores y categorías inexistentes sin escrituras parciales", async () => {
     const before = await databaseSnapshot();
     await expect(
       edit({ ...validEdit, rut: "11111111-1" }),
@@ -343,7 +343,7 @@ describe("CU14 transactional persistence", () => {
        WHEN NEW.log_tipo_accion = 'edicion_proveedor'
        BEGIN SELECT RAISE(ABORT, 'controlled audit failure'); END;`,
     ],
-  ])("rolls back the full edit after a late %s failure", async (_stage, trigger) => {
+  ])("revierte la edición completa tras un fallo tardío en %s", async (_stage, trigger) => {
     const before = await databaseSnapshot();
     await testDb!.client.executeMultiple(trigger);
     await expect(edit(validEdit)).rejects.toThrow();

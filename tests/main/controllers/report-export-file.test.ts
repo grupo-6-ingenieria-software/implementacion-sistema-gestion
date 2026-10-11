@@ -13,8 +13,8 @@ const filename = "VentasMensuales_2026-09_30-09-2026.pdf";
 beforeEach(async () => { directory = await fs.mkdtemp(join(tmpdir(), "cu54-file-")); });
 afterEach(async () => { await fs.rm(directory, { recursive: true, force: true }); });
 
-describe("CU54 filesystem failures preserve preexisting files", () => {
-  it.each(["open", "write", "close", "backup", "publish"])("reverts %s failure and cleans only its own artifacts", async (fault) => {
+describe("fallos de sistema de archivos de CU54 preservan archivos preexistentes", () => {
+  it.each(["open", "write", "close", "backup", "publish"])("revierte fallo de %s y limpia solo sus propios artefactos", async (fault) => {
     const path = join(directory, filename); await fs.writeFile(path, "original");
     const operations = { ...fs,
       open: async (...args: Parameters<typeof fs.open>) => {
@@ -43,7 +43,7 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
     expect((await fs.readdir(directory)).filter((name) => /\.(tmp|bak)$/.test(name))).toEqual([]);
     expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
   });
-  it.each(["pdf", "xlsx", "empty"])("handles %s generation failure before filesystem or audit", async (fault) => {
+  it.each(["pdf", "xlsx", "empty"])("maneja fallo de generación de %s antes del sistema de archivos o la auditoría", async (fault) => {
     const fail = async () => { if (fault === "empty") return Buffer.alloc(0); throw new Error("generation failure"); };
     const deps = reportDependencies(directory, { registry: createReportRegistry([createMonthlySalesReportAdapter(async () => ({ report, user }), fail, fail)]) });
     const finalize = vi.spyOn(deps.audit, "finalize");
@@ -51,7 +51,7 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
       .toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });
     expect(finalize).not.toHaveBeenCalled(); expect(await fs.readdir(directory)).toEqual([]);
   });
-  it("detects a changed destination after overwrite confirmation and keeps the external file", async () => {
+  it("detecta un destino cambiado después de confirmar la sobrescritura y conserva el archivo externo", async () => {
     const path = join(directory, filename); await fs.writeFile(path, "original");
     const deps = reportDependencies(directory, { confirmOverwrite: async () => { await fs.writeFile(path, "external"); return true; } });
     const finalize = vi.spyOn(deps.audit, "finalize");
@@ -59,12 +59,12 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
     expect(await fs.readFile(path, "utf8")).toBe("external"); expect(finalize).not.toHaveBeenCalled();
     expect(await fs.readdir(join(directory, "evidence"))).toEqual([]);
   });
-  it("refuses a directory as the final file", async () => {
+  it("rechaza un directorio como archivo final", async () => {
     await fs.mkdir(join(directory, filename));
     expect(await createReportExportHandler(reportDependencies(directory))(request, context)).toMatchObject({ ok: false });
     expect((await fs.lstat(join(directory, filename))).isDirectory()).toBe(true);
   });
-  it("does not turn confirmed export into E1 when backup cleanup fails", async () => {
+  it("no convierte la exportación confirmada en E1 cuando falla la limpieza del respaldo", async () => {
     const path = join(directory, filename); await fs.writeFile(path, "original"); const log = vi.fn();
     const operations = { ...fs, unlink: async (...args: Parameters<typeof fs.unlink>) => {
       if (String(args[0]).endsWith(".bak")) throw new Error("locked backup");
@@ -75,7 +75,7 @@ describe("CU54 filesystem failures preserve preexisting files", () => {
     expect(await fs.readFile(path, "utf8")).toBe("pdf"); expect(log).toHaveBeenCalled();
     expect((await fs.readdir(join(directory, "evidence"))).filter((name) => name.endsWith(".json"))).toHaveLength(1);
   });
-  it("keeps evidence and the original backup when restoration fails, then restores explicitly", async () => {
+  it("conserva la evidencia y el respaldo original cuando falla la restauración, y luego restaura explícitamente", async () => {
     const path = join(directory, filename); await fs.writeFile(path, "original");
     const operations = { ...fs, link: async (...args: Parameters<typeof fs.link>) => {
       if (String(args[0]).endsWith(".bak")) throw new Error("restore blocked");

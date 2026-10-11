@@ -109,12 +109,12 @@ const sampleReport: MovementReportData = {
   },
 };
 
-describe("CU53 ReporteMovimientosView renderer", () => {
-  it("registers reporte-movimientos in isImplementedViewNodeId", () => {
+describe("CU53 renderizador de ReporteMovimientosView", () => {
+  it("registra reporte-movimientos en isImplementedViewNodeId", () => {
     expect(isImplementedViewNodeId("reporte-movimientos")).toBe(true);
   });
 
-  it("invokes reporte:movimientos-inventario and handles data and errors", async () => {
+  it("invoca reporte:movimientos-inventario y maneja datos y errores", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<MovementReportData>> => ({
         ok: true,
@@ -156,7 +156,7 @@ describe("CU53 ReporteMovimientosView renderer", () => {
     ).rejects.toThrow("La fecha de inicio no puede ser posterior a la de término.");
   });
 
-  it("invokes export channels for PDF and XLSX", async () => {
+  it("invoca los canales de exportación para PDF y XLSX", async () => {
     const invoke = vi.fn(async () => ({
       ok: true,
       data: {
@@ -202,12 +202,12 @@ describe("CU53 ReporteMovimientosView renderer", () => {
     });
   });
 
-  it("formats numbers accurately for Chilean locale", () => {
+  it("formatea números de forma precisa para la configuración regional chilena", () => {
     expect(formatNumber(1500)).toMatch(/1\.500/);
     expect(formatNumber(0)).toBe("0");
   });
 
-  it("renders ReporteMovimientosPrintView markup with required columns and summary", () => {
+  it("renderiza el marcado de ReporteMovimientosPrintView con columnas requeridas y resumen", () => {
     const markup = renderToStaticMarkup(
       createElement(ReporteMovimientosPrintView, {
         fechaInicio: "2026-09-01",
@@ -231,7 +231,7 @@ describe("CU53 ReporteMovimientosView renderer", () => {
     expect(markup).toContain("Total salidas");
   });
 
-  it("renders ReporteMovimientosView initial component structure", () => {
+  it("renderiza la estructura inicial del componente ReporteMovimientosView", () => {
     const markup = renderToStaticMarkup(
       createElement(ReporteMovimientosView, {
         usuarioId: "user-1",
