@@ -45,4 +45,5 @@ npm run typecheck   # tsc --noEmit
 npm test            # corre la suite agrupada por RF (tests/rf/rf-map.json)
 npm test -- RF36    # solo los tests de un RF
 npm run test:vitest # suite completa con Vitest directo, sin agrupar
+npm run test:ui     # scripts de UI (Playwright), Chromium y exportación en Electron
 ```
