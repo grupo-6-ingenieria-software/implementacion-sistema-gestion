@@ -37,7 +37,7 @@ const color = (style, text) => styleText(style, text, { stream: process.stdout }
 const ms = (n) => (n >= 1000 ? `${(n / 1000).toFixed(2)}s` : `${Math.round(n)}ms`);
 
 // Una línea por test, al estilo del reporter de Vitest, recortada al ancho de
-// la terminal para que nunca ocupe más de una línea.
+// La terminal para que nunca ocupe más de una línea.
 function printTest(test) {
   const { state, errors } = test.result();
   if (state === "skipped" || state === "pending") return;

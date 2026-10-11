@@ -6,8 +6,8 @@ describe("registro de controladores", () => {
   it("declara una entrada de metadatos por id de controlador", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(53);
-    expect(new Set(ids)).toHaveProperty("size", 53);
+    expect(controllers).toHaveLength(54);
+    expect(new Set(ids)).toHaveProperty("size", 54);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -62,6 +62,7 @@ describe("registro de controladores", () => {
       "absence",
       "attendance-monthly-summary",
       "attendance-report",
+      "receipt-print",
     ]);
   });
 

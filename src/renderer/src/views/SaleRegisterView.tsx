@@ -24,6 +24,7 @@ import {
   type SaleRegisterRequest,
 } from "../../../shared/sales";
 import type { Role } from "../../../shared/navigation";
+import type { ReceiptPrintResult } from "../../../shared/receipt-print";
 import {
   SALE_DRAFT_VERSION,
   clearSaleDraft,
@@ -51,6 +52,12 @@ type CartItem = ActiveProduct & {
   cantidad: number;
 };
 
+// Estado de la impresión de la boleta de la última venta.
+export type ReceiptPrintStatus =
+  | { state: "printing"; copia: boolean }
+  | { state: "printed"; copia: boolean }
+  | { state: "failed"; copia: boolean; message: string };
+
 type SaleRegisterViewProps = {
   session: SessionForSale;
   onAuthenticationRequired?: (message: string) => void;
@@ -76,6 +83,9 @@ export function SaleRegisterView({
   const [isValidatingCart, setIsValidatingCart] = useState(false);
   const [cartRevision, setCartRevision] = useState(0);
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const [printStatus, setPrintStatus] = useState<ReceiptPrintStatus | null>(
+    null,
+  );
   const [draftReady, setDraftReady] = useState(false);
   const cartRef = useRef<CartItem[]>([]);
   const pendingCartRef = useRef<CartItem[] | null>(null);
@@ -193,6 +203,7 @@ export function SaleRegisterView({
     setError(null);
     setMessage(null);
     setReceipt(null);
+    setPrintStatus(null);
 
     if (!isValidEan13(code)) {
       setError("Ingrese un código EAN-13 válido.");
@@ -217,6 +228,7 @@ export function SaleRegisterView({
 
   function addToCart(product: ActiveProduct): void {
     setReceipt(null);
+    setPrintStatus(null);
     const current = pendingCartRef.current ?? cartRef.current;
     const existing = current.find(
       (item) => item.productoId === product.productoId,
@@ -400,6 +412,8 @@ export function SaleRegisterView({
 
       clearSaleDraft();
       setReceipt(response.data);
+      // La boleta se imprime después de registrar; una falla no revierte la venta.
+      void printReceipt(response.data.ventaId, false);
       setMessage(
         `Venta registrada por ${formatCurrency(response.data.total)}.`,
       );
@@ -421,6 +435,27 @@ export function SaleRegisterView({
     } finally {
       savingRef.current = false;
       setIsSaving(false);
+    }
+  }
+
+  async function printReceipt(ventaId: string, copia: boolean): Promise<void> {
+    setPrintStatus({ state: "printing", copia });
+    try {
+      const response = await window.appApi.invoke<ReceiptPrintResult>(
+        "boleta:imprimir",
+        { ventaId, copia },
+      );
+      setPrintStatus(
+        response.ok
+          ? { state: "printed", copia }
+          : { state: "failed", copia, message: response.error.message },
+      );
+    } catch {
+      setPrintStatus({
+        state: "failed",
+        copia,
+        message: "No fue posible comunicarse con la impresora.",
+      });
     }
   }
 
@@ -661,7 +696,13 @@ export function SaleRegisterView({
               </div>
             </section>
 
-            {receipt ? <ComprobanteVentaCategoria receipt={receipt} /> : null}
+            {receipt ? (
+              <ComprobanteVentaCategoria
+                receipt={receipt}
+                printStatus={printStatus}
+                onPrint={(copia) => void printReceipt(receipt.ventaId, copia)}
+              />
+            ) : null}
           </aside>
         </div>
       </fieldset>
@@ -749,12 +790,49 @@ function SummaryLine({
 
 export function ComprobanteVentaCategoria({
   receipt,
+  printStatus = null,
+  onPrint,
 }: {
   receipt: SaleReceipt;
+  printStatus?: ReceiptPrintStatus | null;
+  onPrint?: (copia: boolean) => void;
 }): ReactElement {
+  const failedOriginal = printStatus?.state === "failed" && !printStatus.copia;
   return (
     <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-      <h3 className="text-lg font-semibold text-[#17202a]">Comprobante</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-[#17202a]">Comprobante</h3>
+        {printStatus ? <PrintBadge status={printStatus} /> : null}
+      </div>
+      {printStatus?.state === "failed" ? (
+        <div
+          role="alert"
+          className="mt-3 rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]"
+        >
+          <p className="break-words">
+            {printStatus.copia
+              ? printStatus.message
+              : `La venta fue registrada. ${printStatus.message}`}
+          </p>
+          {failedOriginal && onPrint ? (
+            <button
+              type="button"
+              className="mt-2 rounded-md bg-[#b42318] px-3 py-1.5 text-xs font-semibold text-white"
+              onClick={() => onPrint(false)}
+            >
+              Reintentar impresión
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {printStatus?.state === "printed" && printStatus.copia ? (
+        <p
+          role="status"
+          className="mt-3 rounded-md border border-[#b8e6cc] bg-[#effaf3] px-3 py-2 text-sm font-medium text-[#255a43]"
+        >
+          Copia de la boleta enviada a la impresora.
+        </p>
+      ) : null}
       <dl className="mt-4 grid gap-2 text-sm">
         <Info label="Venta" value={receipt.ventaId} />
         <Info
@@ -797,7 +875,31 @@ export function ComprobanteVentaCategoria({
           <SummaryLine label="Vuelto" value={receipt.vuelto} />
         ) : null}
       </dl>
+      {onPrint && !failedOriginal ? (
+        <button
+          type="button"
+          className="mt-4 w-full rounded-md border border-[#244d61] px-3 py-2 text-sm font-semibold text-[#244d61] transition hover:bg-[#eef4f7] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={printStatus?.state === "printing"}
+          onClick={() => onPrint(true)}
+        >
+          Reimprimir boleta
+        </button>
+      ) : null}
     </section>
+  );
+}
+
+function PrintBadge({ status }: { status: ReceiptPrintStatus }): ReactElement {
+  const [text, className] =
+    status.state === "printing"
+      ? ["Imprimiendo...", "bg-[#eef2f5] text-[#526574]"]
+      : status.state === "printed"
+        ? [status.copia ? "Copia impresa" : "Boleta impresa", "bg-[#e3f4ea] text-[#255a43]"]
+        : ["No impresa", "bg-[#fff3f1] text-[#b42318]"];
+  return (
+    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${className}`}>
+      {text}
+    </span>
   );
 }
 

@@ -63,6 +63,7 @@ import { dailySalesReportController } from "./daily-sales-report";
 import { wasteReportController } from "./waste-report";
 import { expiringLotsReportController } from "./expiring-lots-report";
 import { movementReportController } from "./movement-report";
+import { receiptPrintController } from "./receipt-print";
 import type { RegisteredController } from "./base";
 
 const workerController = createWorkerController({
@@ -134,6 +135,7 @@ export const registeredControllers: readonly RegisteredController<any, any>[] =
     absenceController,
     monthlyAttendanceController,
     attendanceReportController,
+    receiptPrintController,
   ];
 
 /**
