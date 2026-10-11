@@ -6,8 +6,8 @@ import {
   type AuditLogFilters,
 } from "../../../../src/renderer/src/views/AuditLogView";
 
-describe("AuditLogView helpers", () => {
-  it("builds a compact query payload from visible filters", () => {
+describe("helpers de AuditLogView", () => {
+  it("construye un payload de consulta compacto a partir de los filtros visibles", () => {
     const filters: AuditLogFilters = {
       fechaDesde: "2026-06-01",
       fechaHasta: "",
@@ -26,7 +26,7 @@ describe("AuditLogView helpers", () => {
     });
   });
 
-  it("formats audit timestamps without throwing during table render", () => {
+  it("formatea las marcas de tiempo de auditoría sin lanzar excepciones durante el renderizado de la tabla", () => {
     expect(() => formatDateTime("2026-06-13T00:58:41.932Z")).not.toThrow();
     expect(formatDateTime("fecha sin formato")).toBe("fecha sin formato");
   });

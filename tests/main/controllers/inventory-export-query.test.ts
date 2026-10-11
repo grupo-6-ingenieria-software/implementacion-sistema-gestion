@@ -21,8 +21,8 @@ afterEach(async () => {
   await removeAuthTempDir(fixture.dir);
 });
 
-describe("CU20 complete inventory snapshot (T03/T04)", () => {
-  it("includes inactive products and expired lots without multiplying stock by histories", async () => {
+describe("instantánea completa de inventario CU20 (T03/T04)", () => {
+  it("incluye productos inactivos y lotes vencidos sin multiplicar el stock por históricos", async () => {
     await seedInventoryExport(fixture);
     const rows = await queryInventoryExportWithExecutor(fixture.db);
     expect(rows).toEqual([
@@ -50,7 +50,7 @@ describe("CU20 complete inventory snapshot (T03/T04)", () => {
       },
     ]);
   });
-  it("returns empty only when the product master is empty", async () => {
+  it("devuelve vacío solo cuando el maestro de productos está vacío", async () => {
     expect(await queryInventoryExportWithExecutor(fixture.db)).toEqual([]);
     await seedInventoryExport(fixture);
     await fixture.db
@@ -58,7 +58,7 @@ describe("CU20 complete inventory snapshot (T03/T04)", () => {
       .set({ productoEstado: "inactivo" });
     expect(await queryInventoryExportWithExecutor(fixture.db)).toHaveLength(2);
   });
-  it("rejects a missing history even when the master has a sale price", async () => {
+  it("rechaza un histórico ausente aunque el maestro tenga precio de venta", async () => {
     await seedInventoryExport(fixture);
     await fixture.db
       .delete(schema.historialPrecioProducto)
@@ -69,7 +69,7 @@ describe("CU20 complete inventory snapshot (T03/T04)", () => {
       productos: [{ productoId: 2, motivo: "historial_vigente_no_unico" }],
     });
   });
-  it("rejects multiple open histories instead of choosing the latest", async () => {
+  it("rechaza múltiples históricos abiertos en lugar de elegir el más reciente", async () => {
     await seedInventoryExport(fixture);
     await fixture.db
       .insert(schema.historialPrecioProducto)
@@ -82,7 +82,7 @@ describe("CU20 complete inventory snapshot (T03/T04)", () => {
       queryInventoryExportWithExecutor(fixture.db),
     ).rejects.toBeInstanceOf(InventoryExportDataError);
   });
-  it("does not silently omit a product with a broken category relationship", async () => {
+  it("no omite silenciosamente un producto con una relación de categoría rota", async () => {
     await seedInventoryExport(fixture);
     await fixture.client.execute("PRAGMA foreign_keys = OFF");
     await fixture.db.run(
@@ -94,7 +94,7 @@ describe("CU20 complete inventory snapshot (T03/T04)", () => {
       productos: [{ productoId: 2, motivo: "categoria_ausente" }],
     });
   });
-  it("orders deterministically and re-reads persisted stock on each invocation", async () => {
+  it("ordena de forma determinista y vuelve a leer el stock persistido en cada invocación", async () => {
     await seedInventoryExport(fixture);
     await fixture.db
       .insert(schema.producto)

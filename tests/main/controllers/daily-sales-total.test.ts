@@ -14,8 +14,8 @@ beforeEach(() => {
   allMock.mockReset().mockResolvedValue([]);
 });
 
-describe("daily sales total controller (CU44/C09)", () => {
-  it("returns zero indicators when there are no sales in the Chilean day", async () => {
+describe("controlador de total diario de ventas (CU44/C09)", () => {
+  it("devuelve indicadores en cero cuando no hay ventas en el día chileno", async () => {
     await expect(
       dailySalesTotalController.handle(
         {},
@@ -32,7 +32,7 @@ describe("daily sales total controller (CU44/C09)", () => {
     });
   });
 
-  it("returns a generic technical error without exposing database details", async () => {
+  it("devuelve un error técnico genérico sin exponer detalles de la base de datos", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);

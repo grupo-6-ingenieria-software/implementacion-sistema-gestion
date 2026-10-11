@@ -36,8 +36,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("waste controller", () => {
-  it("maps authorization failures to forbidden responses", async () => {
+describe("controlador de merma", () => {
+  it("mapea fallos de autorización a respuestas prohibidas", async () => {
     const controller = createWasteController({
       register: async () => {
         throw new AccessDeniedError();
@@ -62,7 +62,7 @@ describe("waste controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejects channels not declared for the waste controller", async () => {
+  it("rechaza canales no declarados para el controlador de merma", async () => {
     const controller = createWasteController({
       register: async () => ({
         mermaId: "00000000-0000-4000-8000-000000000001",
@@ -82,7 +82,7 @@ describe("waste controller", () => {
     expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it("loads stock availability through the dedicated C15 operation", async () => {
+  it("carga la disponibilidad de stock mediante la operación dedicada C15", async () => {
     const controller = createWasteController({
       availability: async (payload) => ({
         ean13: payload.ean13,
@@ -109,7 +109,7 @@ describe("waste controller", () => {
     });
   });
 
-  it("rejects waste observations longer than 200 characters", () => {
+  it("rechaza observaciones de merma de más de 200 caracteres", () => {
     const errors = validateWasteRegisterPayload(
       normalizeWasteRegisterPayload({
         ean13: "7802920000015",
@@ -126,7 +126,7 @@ describe("waste controller", () => {
     );
   });
 
-  it("accepts 200 observation characters and rejects 201 in the backend", async () => {
+  it("acepta 200 caracteres de observación y rechaza 201 en el backend", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerWasteWithExecutor(tx, schema, {
@@ -154,7 +154,7 @@ describe("waste controller", () => {
     } satisfies Partial<WasteError>);
   });
 
-  it("rejects zero, negative and decimal waste quantities in the backend", async () => {
+  it("rechaza cantidades de merma cero, negativas y decimales en el backend", async () => {
     for (const cantidad of [0, -1, 1.5]) {
       await expect(
         testDb!.db.transaction((tx) =>
@@ -171,7 +171,7 @@ describe("waste controller", () => {
     }
   });
 
-  it("registers waste and discounts perishable lots using FEFO", async () => {
+  it("registra merma y descuenta lotes perecederos usando FEFO", async () => {
     testDb!.queries.length = 0;
     const result = await testDb!.db.transaction((tx) =>
       registerWasteWithExecutor(tx, schema, {
@@ -233,7 +233,7 @@ describe("waste controller", () => {
     ]);
   });
 
-  it("discounts non-perishable lots by entry date", async () => {
+  it("descuenta lotes no perecederos por fecha de ingreso", async () => {
     const result = await testDb!.db.transaction((tx) =>
       registerWasteWithExecutor(tx, schema, {
         ean13: "7802920000022",
@@ -255,7 +255,7 @@ describe("waste controller", () => {
     ]);
   });
 
-  it("rejects inactive products and insufficient stock without partial writes", async () => {
+  it("rechaza productos inactivos y stock insuficiente sin escrituras parciales", async () => {
     await expect(
       testDb!.db.transaction((tx) =>
         registerWasteWithExecutor(tx, schema, {
@@ -300,7 +300,7 @@ describe("waste controller", () => {
     });
   });
 
-  it("rolls back lot updates when a later merma_lote insert fails", async () => {
+  it("revierte las actualizaciones de lotes cuando falla una inserción posterior en merma_lote", async () => {
     await testDb!.client.execute(`
       CREATE TRIGGER fail_merma_lote_insert
       BEFORE INSERT ON merma_lote

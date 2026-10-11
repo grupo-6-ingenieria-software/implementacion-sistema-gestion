@@ -32,7 +32,7 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("product write persistence", () => {
+describe("persistencia de escritura de productos", () => {
   it.each([
     ["CU1 E2 nombre obligatorio", { nombre: "" }, "nombre"],
     [
@@ -42,7 +42,7 @@ describe("product write persistence", () => {
     ],
     ["CU1 E4 valor decimal", { precioCosto: 700.5 }, "precioCosto"],
   ] as const)(
-    "rejects %s in parameterized SQL without writes",
+    "rechaza %s en SQL parametrizado sin escrituras",
     async (_scenario, override, field) => {
       testDb!.queries.length = 0;
       await expect(
@@ -81,7 +81,7 @@ describe("product write persistence", () => {
     ],
     ["CU2 E4 valor decimal", { stockMinimo: 2.5 }, "stockMinimo"],
   ] as const)(
-    "rejects %s after product, category and history reads",
+    "rechaza %s después de leer producto, categoría e historial",
     async (_scenario, override, field) => {
       await testDb!.db.transaction((tx) =>
         createProductWithExecutor(tx, schema, {
@@ -126,7 +126,7 @@ describe("product write persistence", () => {
     },
   );
 
-  it("checks EAN and category before field validation without partial writes", async () => {
+  it("valida EAN y categoría antes de validar campos sin escrituras parciales", async () => {
     testDb!.queries.length = 0;
     const invalid = {
       usuarioId: "12345678-9",
@@ -176,7 +176,7 @@ describe("product write persistence", () => {
     expect(rows[0]).toEqual({ products: 0, prices: 0 });
   });
 
-  it("creates product, current price, user version and audit atomically", async () => {
+  it("crea producto, precio vigente, versión de usuario y auditoría de forma atómica", async () => {
     testDb!.queries.length = 0;
     await testDb!.db.transaction((tx) =>
       createProductWithExecutor(tx, schema, {
@@ -219,7 +219,7 @@ describe("product write persistence", () => {
     ]);
   });
 
-  it("checks product, category and current price before editing the normalized history", async () => {
+  it("valida producto, categoría y precio vigente antes de editar el historial normalizado", async () => {
     await testDb!.db.transaction((tx) =>
       createProductWithExecutor(tx, schema, {
         usuarioId: "12345678-9",
@@ -274,7 +274,7 @@ describe("product write persistence", () => {
     expect(prices[0]).toEqual({ current: 1, closed: 1 });
   });
 
-  it("filters active products, requires exact EAN and orders the SQL result", async () => {
+  it("filtra productos activos, exige EAN exacto y ordena el resultado SQL", async () => {
     await testDb!.db.run(sql`
       INSERT INTO producto
         (producto_id, producto_ean_13, producto_nombre, producto_precio_venta,
@@ -330,7 +330,7 @@ describe("product write persistence", () => {
     expect(exactEan.map((product) => product.ean13)).toEqual(["7802920000015"]);
   });
 
-  it("resolves active product, category, stock and current price in separate ordered queries", async () => {
+  it("resuelve producto activo, categoría, stock y precio vigente en consultas separadas y ordenadas", async () => {
     await testDb!.db.run(sql`INSERT INTO producto
       (producto_id, producto_ean_13, producto_nombre, producto_precio_venta,
        producto_stock_minimo, producto_estado, producto_fecha_registro, categoria_id)
@@ -362,7 +362,7 @@ describe("product write persistence", () => {
     expect(partial).toEqual([]);
   });
 
-  it("loads product detail, current history and category options sequentially", async () => {
+  it("carga detalle de producto, historial vigente y opciones de categoría de forma secuencial", async () => {
     await testDb!.db.transaction((tx) =>
       createProductWithExecutor(tx, schema, {
         usuarioId: "12345678-9",

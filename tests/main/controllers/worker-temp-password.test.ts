@@ -42,7 +42,7 @@ afterEach(async () => {
 });
 
 describe("createWorkerWithExecutor (alta de trabajador)", () => {
-  it("generates a 24h temporary password and returns it once", async () => {
+  it("genera una contraseña temporal de 24 h y la devuelve una sola vez", async () => {
     const response = await createWorkerWithExecutor(
       testDb!.db,
       schema,
@@ -88,7 +88,7 @@ describe("createWorkerWithExecutor (alta de trabajador)", () => {
     );
   });
 
-  it("rolls back the whole alta when the RUT is already registered", async () => {
+  it("revierte el alta completa cuando el RUT ya está registrado", async () => {
     await createWorkerWithExecutor(
       testDb!.db,
       schema,

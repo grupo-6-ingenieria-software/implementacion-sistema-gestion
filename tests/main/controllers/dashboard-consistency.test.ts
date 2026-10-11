@@ -40,8 +40,8 @@ afterEach(async () => {
   await removeAuthTempDir(fixture.dir);
 });
 
-describe("CU55 integration", () => {
-  it("returns only the authenticated worker, while the owner sees the global summary", async () => {
+describe("integración de CU55", () => {
+  it("devuelve solo el trabajador autenticado, mientras el dueño ve el resumen global", async () => {
     const database = fixture.db as unknown as DashboardDb;
     const own = await loadAttendanceIndicator(
       database,
@@ -64,7 +64,7 @@ describe("CU55 integration", () => {
       workersWithoutAttendance: 1,
     });
   });
-  it("delegates C07 → C08 → C09 → C23 and stops at the first failure", async () => {
+  it("delega C07 → C08 → C09 → C23 y se detiene en el primer fallo", async () => {
     const sequence: string[] = [];
     const operations: typeof dashboardOperations = {
       stock: async (database) => {

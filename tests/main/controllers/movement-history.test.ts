@@ -151,8 +151,8 @@ async function invokeHistory(
   }) as Promise<ControllerResponse<MovementHistoryResponse>>;
 }
 
-describe("movement history controller (C28)", () => {
-  it("returns all movements sorted by date descending", async () => {
+describe("controlador de historial de movimientos (C28)", () => {
+  it("devuelve todos los movimientos ordenados por fecha descendente", async () => {
     const response = await invokeHistory({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);
@@ -163,7 +163,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.movements[4].fecha).toBe("2026-07-15T08:00:00");
   });
 
-  it("returns movements from all four sources", async () => {
+  it("devuelve movimientos de las cuatro fuentes", async () => {
     const response = await invokeHistory({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);
@@ -175,7 +175,7 @@ describe("movement history controller (C28)", () => {
     );
   });
 
-  it("filters by EAN-13", async () => {
+  it("filtra por EAN-13", async () => {
     const response = await invokeHistory({
       ean13: "7802345600012",
       usuarioId: "dueno",
@@ -188,7 +188,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.movements[0].productoNombre).toBe("Leche Soprole 1L");
   });
 
-  it("filters by movement type", async () => {
+  it("filtra por tipo de movimiento", async () => {
     const response = await invokeHistory({
       tipo: "merma",
       usuarioId: "trabajador",
@@ -201,7 +201,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.total).toBe(1);
   });
 
-  it("filters by date range", async () => {
+  it("filtra por rango de fechas", async () => {
     const response = await invokeHistory({
       fechaDesde: "2026-08-05",
       fechaHasta: "2026-08-10",
@@ -217,7 +217,7 @@ describe("movement history controller (C28)", () => {
     }
   });
 
-  it("filters by lot ID", async () => {
+  it("filtra por ID de lote", async () => {
     const response = await invokeHistory({
       loteId: "lote-002",
       usuarioId: "dueno",
@@ -230,7 +230,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.movements[0].loteId).toBe("lote-002");
   });
 
-  it("paginates results", async () => {
+  it("pagina los resultados", async () => {
     const response = (await createController().handle(
       { pageSize: 2, page: 1, usuarioId: "dueno" },
       { channel: "movimiento:historial" },
@@ -255,7 +255,7 @@ describe("movement history controller (C28)", () => {
     expect(page2.data.page).toBe(2);
   });
 
-  it("returns empty list when no movements match filters", async () => {
+  it("devuelve lista vacía cuando ningún movimiento cumple los filtros", async () => {
     const response = await invokeHistory({
       ean13: "0000000000000",
       usuarioId: "dueno",
@@ -268,7 +268,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.total).toBe(0);
   });
 
-  it("rejects request without authorized user", async () => {
+  it("rechaza solicitud sin usuario autorizado", async () => {
     const response = await invokeHistory({
       ean13: "7802920000015",
     });
@@ -279,7 +279,7 @@ describe("movement history controller (C28)", () => {
     });
   });
 
-  it("rejects request on invalid IPC channel", async () => {
+  it("rechaza solicitud en canal IPC inválido", async () => {
     const response = await createController().handle(
       { usuarioId: "dueno" },
       { channel: "canal:invalido" },
@@ -291,7 +291,7 @@ describe("movement history controller (C28)", () => {
     });
   });
 
-  it("returns DATABASE_ERROR for unexpected errors", async () => {
+  it("devuelve DATABASE_ERROR ante errores inesperados", async () => {
     const controller = createController({
       queryMovements: async () => {
         throw new Error("Connection lost");
@@ -309,7 +309,7 @@ describe("movement history controller (C28)", () => {
     });
   });
 
-  it("allows worker to access movement history", async () => {
+  it("permite al trabajador acceder al historial de movimientos", async () => {
     const response = await invokeHistory({ usuarioId: "trabajador" });
 
     expect(response.ok).toBe(true);
@@ -317,7 +317,7 @@ describe("movement history controller (C28)", () => {
     expect(response.data.total).toBe(5);
   });
 
-  it("shows negative quantities for merma and venta", async () => {
+  it("muestra cantidades negativas para merma y venta", async () => {
     const response = await invokeHistory({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);
@@ -329,7 +329,7 @@ describe("movement history controller (C28)", () => {
     expect(venta?.cantidad).toBeLessThan(0);
   });
 
-  it("shows positive quantities for ingreso_lote and positive ajuste_manual", async () => {
+  it("muestra cantidades positivas para ingreso_lote y ajuste_manual positivo", async () => {
     const response = await invokeHistory({ usuarioId: "dueno" });
 
     expect(response.ok).toBe(true);

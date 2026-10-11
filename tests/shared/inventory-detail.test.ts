@@ -7,8 +7,8 @@ import {
   movementTypeLabels,
 } from "../../src/shared/inventory-detail";
 
-describe("stock adjustment payload normalization", () => {
-  it("normalizes a valid payload", () => {
+describe("normalización del payload de ajuste de stock", () => {
+  it("normaliza un payload válido", () => {
     const result = normalizeStockAdjustmentPayload({
       ean13: "  7802920000015  ",
       loteId: " lote-abc ",
@@ -26,7 +26,7 @@ describe("stock adjustment payload normalization", () => {
     });
   });
 
-  it("returns defaults for null or undefined payload", () => {
+  it("devuelve valores por defecto para payload nulo o indefinido", () => {
     expect(normalizeStockAdjustmentPayload(null)).toEqual({
       ean13: "",
       loteId: "",
@@ -44,7 +44,7 @@ describe("stock adjustment payload normalization", () => {
     });
   });
 
-  it("truncates justificacion to 200 characters", () => {
+  it("trunca justificacion a 200 caracteres", () => {
     const longText = "A".repeat(250);
     const result = normalizeStockAdjustmentPayload({
       ean13: "7802920000015",
@@ -56,7 +56,7 @@ describe("stock adjustment payload normalization", () => {
     expect(result.justificacion).toHaveLength(200);
   });
 
-  it("parses cantidad from string", () => {
+  it("convierte cantidad desde texto", () => {
     const result = normalizeStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-1",
@@ -67,7 +67,7 @@ describe("stock adjustment payload normalization", () => {
     expect(result.cantidad).toBe(3);
   });
 
-  it("returns NaN for non-numeric cantidad", () => {
+  it("devuelve NaN para cantidad no numérica", () => {
     const result = normalizeStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-1",
@@ -79,8 +79,8 @@ describe("stock adjustment payload normalization", () => {
   });
 });
 
-describe("stock adjustment payload validation", () => {
-  it("returns no errors for a valid payload", () => {
+describe("validación del payload de ajuste de stock", () => {
+  it("no devuelve errores para un payload válido", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-abc",
@@ -92,7 +92,7 @@ describe("stock adjustment payload validation", () => {
     expect(hasStockAdjustmentFieldErrors(errors)).toBe(false);
   });
 
-  it("rejects an invalid EAN-13", () => {
+  it("rechaza un EAN-13 inválido", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "123",
       loteId: "lote-1",
@@ -104,7 +104,7 @@ describe("stock adjustment payload validation", () => {
     expect(hasStockAdjustmentFieldErrors(errors)).toBe(true);
   });
 
-  it("rejects an empty loteId", () => {
+  it("rechaza un loteId vacío", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "",
@@ -115,7 +115,7 @@ describe("stock adjustment payload validation", () => {
     expect(errors.loteId).toBeDefined();
   });
 
-  it("rejects cantidad zero", () => {
+  it("rechaza cantidad cero", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-1",
@@ -126,7 +126,7 @@ describe("stock adjustment payload validation", () => {
     expect(errors.cantidad).toBeDefined();
   });
 
-  it("rejects non-integer cantidad", () => {
+  it("rechaza cantidad no entera", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-1",
@@ -137,7 +137,7 @@ describe("stock adjustment payload validation", () => {
     expect(errors.cantidad).toBeDefined();
   });
 
-  it("rejects empty justificacion", () => {
+  it("rechaza justificacion vacía", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "7802920000015",
       loteId: "lote-1",
@@ -148,7 +148,7 @@ describe("stock adjustment payload validation", () => {
     expect(errors.justificacion).toBeDefined();
   });
 
-  it("reports all field errors simultaneously", () => {
+  it("informa todos los errores de campo simultáneamente", () => {
     const errors = validateStockAdjustmentPayload({
       ean13: "",
       loteId: "",
@@ -160,8 +160,8 @@ describe("stock adjustment payload validation", () => {
   });
 });
 
-describe("movement history filters normalization", () => {
-  it("returns defaults for empty payload", () => {
+describe("normalización de filtros del historial de movimientos", () => {
+  it("devuelve valores por defecto para payload vacío", () => {
     const result = normalizeMovementHistoryFilters({});
 
     expect(result).toEqual({
@@ -176,7 +176,7 @@ describe("movement history filters normalization", () => {
     });
   });
 
-  it("normalizes valid filters", () => {
+  it("normaliza filtros válidos", () => {
     const result = normalizeMovementHistoryFilters({
       ean13: " 7802920000015 ",
       fechaDesde: "2026-01-01",
@@ -200,18 +200,18 @@ describe("movement history filters normalization", () => {
     });
   });
 
-  it("caps pageSize at 100", () => {
+  it("limita pageSize a 100", () => {
     const result = normalizeMovementHistoryFilters({ pageSize: 500 });
     expect(result.pageSize).toBe(100);
   });
 
-  it("defaults page to 1 for invalid values", () => {
+  it("usa page 1 por defecto ante valores inválidos", () => {
     expect(normalizeMovementHistoryFilters({ page: 0 }).page).toBe(1);
     expect(normalizeMovementHistoryFilters({ page: -1 }).page).toBe(1);
     expect(normalizeMovementHistoryFilters({ page: 1.5 }).page).toBe(1);
   });
 
-  it("ignores invalid date formats", () => {
+  it("ignora formatos de fecha inválidos", () => {
     const result = normalizeMovementHistoryFilters({
       fechaDesde: "01/01/2026",
       fechaHasta: "not-a-date",
@@ -221,7 +221,7 @@ describe("movement history filters normalization", () => {
     expect(result.fechaHasta).toBeUndefined();
   });
 
-  it("ignores invalid movement type", () => {
+  it("ignora tipo de movimiento inválido", () => {
     const result = normalizeMovementHistoryFilters({
       tipo: "tipo_invalido",
     });
@@ -229,14 +229,14 @@ describe("movement history filters normalization", () => {
     expect(result.tipo).toBeUndefined();
   });
 
-  it("accepts all valid movement types", () => {
+  it("acepta todos los tipos de movimiento válidos", () => {
     for (const tipo of Object.keys(movementTypeLabels)) {
       const result = normalizeMovementHistoryFilters({ tipo });
       expect(result.tipo).toBe(tipo);
     }
   });
 
-  it("ignores empty strings for optional filters", () => {
+  it("ignora cadenas vacías en filtros opcionales", () => {
     const result = normalizeMovementHistoryFilters({
       ean13: "  ",
       loteId: "",

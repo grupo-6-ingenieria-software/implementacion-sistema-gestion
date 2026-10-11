@@ -48,7 +48,7 @@ async function line(ventaId: string, id: string, productoId: number, lots: [stri
 const query = () => queryCategoryProfitability(drizzle(client), periodo);
 
 describe("RF51 CU51 V42 C58", () => {
-  it("prorates the entire sale, sums consumed lots once and orders profit on cost", async () => {
+  it("prorratea la venta completa, suma los lotes consumidos una sola vez y ordena la utilidad por costo", async () => {
     await sale("s1", undefined, "monto", 1);
     await line("s1", "a", 1, [["pan-1", 1], ["pan-2", 1]]);
     await line("s1", "b", 2, [["bebida", 1]]);
@@ -62,7 +62,7 @@ describe("RF51 CU51 V42 C58", () => {
     expect(report.categorias.reduce((sum, row) => sum + row.ingresoNeto, 0)).toBe(399);
   });
 
-  it("rounds discount ties by line id and keeps zero income and negative profitability", async () => {
+  it("redondea empates de descuento por id de línea y mantiene ingreso cero y rentabilidad negativa", async () => {
     await sale("s1", undefined, "monto", 1);
     await line("s1", "a", 1, [["pan-1", 1]]);
     await line("s1", "b", 2, [["bebida", 1]]);
@@ -71,7 +71,7 @@ describe("RF51 CU51 V42 C58", () => {
     expect((await query()).categorias.map((row) => [row.ingresoNeto, row.gananciaPorcentual])).toEqual([[0, -100], [0, -100]]);
   });
 
-  it("uses the current master category for both historical income and lot costs", async () => {
+  it("usa la categoría maestra vigente tanto para el ingreso histórico como para los costos de lote", async () => {
     await sale("s1");
     await line("s1", "a", 1, [["pan-1", 1], ["pan-2", 1]]);
     await line("s1", "b", 2, [["bebida", 1]]);
@@ -81,7 +81,7 @@ describe("RF51 CU51 V42 C58", () => {
     ]);
   });
 
-  it("excludes both forms of annulment and respects Santiago boundaries across DST", async () => {
+  it("excluye ambas formas de anulación y respeta los límites de Santiago durante el cambio de horario", async () => {
     const dates = ["2026-09-01T03:59:59Z", "2026-09-01T04:00:00Z", "2026-10-01T02:59:59Z", "2026-10-01T03:00:00Z", "2026-09-20T12:00:00Z", "2026-09-21T12:00:00Z"];
     for (const [i, date] of dates.entries()) {
       await sale(`s${i}`, date);
@@ -92,20 +92,20 @@ describe("RF51 CU51 V42 C58", () => {
     expect((await query()).categorias[0]).toMatchObject({ unidadesVendidas: 2, costoTotal: 40, ingresoNeto: 200 });
   });
 
-  it("returns an empty successful table for E1 without mutating sales", async () => {
+  it("devuelve una tabla vacía exitosa para E1 sin modificar las ventas", async () => {
     const controller = createCategoryProfitabilityController(async () => ({ report: await query(), user }));
     expect(await controller.handle(periodo, context)).toEqual({ ok: true, data: { periodo, categorias: [] } });
     expect((await client.execute("SELECT COUNT(*) AS count FROM venta")).rows[0].count).toBe(0);
   });
 
-  it("does not mistake missing lot consumption for a zero-cost category", async () => {
+  it("no confunde un consumo de lote faltante con una categoría de costo cero", async () => {
     await sale("s1");
     await line("s1", "a", 1, [["pan-1", 1]]);
     await client.execute("DELETE FROM venta_lote");
     await expect(query()).rejects.toThrow("incoherentes");
   });
 
-  it("rejects E3 before consulting data and preserves the exact message", async () => {
+  it("rechaza E3 antes de consultar datos y conserva el mensaje exacto", async () => {
     const load = vi.fn();
     const controller = createCategoryProfitabilityController(load);
     expect(await controller.handle({ fechaInicio: "2026-09-30", fechaTermino: "2026-09-01" }, context)).toMatchObject({
@@ -117,7 +117,7 @@ describe("RF51 CU51 V42 C58", () => {
     }
   });
 
-  it("allows only the owner through navigation, IPC and the controller", async () => {
+  it("permite solo al dueño en la navegación, IPC y el controlador", async () => {
     const load = vi.fn();
     const audit = vi.fn(async () => undefined);
     const worker = { ...context.claims!, rol: "trabajador" as const };
@@ -130,7 +130,7 @@ describe("RF51 CU51 V42 C58", () => {
     expect(load).not.toHaveBeenCalled();
   });
 
-  it("preserves temporary password and revoked-session restrictions", async () => {
+  it("mantiene las restricciones de contraseña temporal y de sesión revocada", async () => {
     expect(await guardChannel(context.channel, periodo, { verifyToken: () => ({ ...context.claims!, passwordTemporal: true }), audit: vi.fn(async () => undefined) })).toMatchObject({ ok: false, response: { error: { code: "FORBIDDEN" } } });
     expect(await authorizeRequest(context.channel, periodo, undefined, {
       identity: async () => ({ ok: true, context, payload: periodo }),
@@ -138,7 +138,7 @@ describe("RF51 CU51 V42 C58", () => {
     })).toMatchObject({ ok: false, response: { error: { code: "FORBIDDEN" } } });
   });
 
-  it("audits successful queries using the authenticated owner", async () => {
+  it("audita las consultas exitosas usando el dueño autenticado", async () => {
     const audit = vi.fn();
     const controller = createCategoryProfitabilityController(async () => ({ report: await query(), user }));
     await handleWithAudit(controller, { ...periodo, usuarioId: "fake" }, context, audit);

@@ -51,7 +51,7 @@ async function datedRecord(fechaHora: string, action: string, versionId: string)
 }
 
 describe("RF58 / CU58 / CP62", () => {
-  it("records a successful login with a version of the authenticated user", async () => {
+  it("registra un inicio de sesión exitoso con versión del usuario autenticado", async () => {
     const response = await authenticateWithExecutor(fixture.db, schema, {
       usuario: OWNER, contrasena: "test-secret",
     }, {
@@ -69,7 +69,7 @@ describe("RF58 / CU58 / CP62", () => {
     expect(rows[0].descripcion).not.toContain("test-secret");
   });
 
-  it("limits entries, totals and options to records younger than twelve months", async () => {
+  it("limita entradas, totales y opciones a registros de menos de doce meses", async () => {
     const row = await record();
     const version = row.usuarioVersionId;
     await datedRecord("2025-09-29T14:59:59.999Z", "old-only", version);
@@ -95,7 +95,7 @@ describe("RF58 / CU58 / CP62", () => {
     expect(oldResponse).toMatchObject({ ok: true, data: { entries: [], total: 0, totalPages: 1 } });
   });
 
-  it("applies Chilean whole-day filters with milliseconds and stable pagination", async () => {
+  it("aplica filtros de día completo chileno con milisegundos y paginación estable", async () => {
     const { usuarioVersionId } = await record();
     for (const date of ["2026-06-11T03:59:59.999Z", "2026-06-11T04:00:00.000Z",
       "2026-06-12T03:59:59.998Z", "2026-06-11T23:59:59.999-04:00", "2026-06-12T04:00:00.000Z"]) {
@@ -114,7 +114,7 @@ describe("RF58 / CU58 / CP62", () => {
     expect(new Set([...first.data.entries, ...second.data.entries].map((entry) => entry.id)).size).toBe(3);
   });
 
-  it("keeps the original identity when the user name and role change", async () => {
+  it("mantiene la identidad original cuando cambian el nombre y el rol del usuario", async () => {
     const old = await record("edicion", WORKER);
     await fixture.db.run(sql`UPDATE usuario_version SET usuario_version_fecha_hora_vigencia_hasta = ${NOW.toISOString()} WHERE usuario_version_id = ${old.usuarioVersionId}`);
     await fixture.db.run(sql`UPDATE trabajador SET trabajador_nombre = 'Carolina' WHERE trabajador_id = 2`);
@@ -129,7 +129,7 @@ describe("RF58 / CU58 / CP62", () => {
     ]));
   });
 
-  it("denies a worker query using the effective session role and records it once", async () => {
+  it("deniega consulta de trabajador usando el rol efectivo de la sesión y la registra una vez", async () => {
     const response = await queryAuditLog(fixture.db, schema, { usuarioId: OWNER }, "trabajador");
     expect(response).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await fixture.db.select().from(schema.logAuditoria)).toEqual([
@@ -137,7 +137,7 @@ describe("RF58 / CU58 / CP62", () => {
     ]);
   });
 
-  it("persists denied IPC and direct navigation attempts with the trusted user", async () => {
+  it("persiste intentos denegados de IPC y navegación directa con el usuario de confianza", async () => {
     const claims = { usuarioId: WORKER, rol: "trabajador" as const, usuarioRol: "trabajador", passwordTemporal: false, sesionId: "00000000-0000-4000-8000-000000000777" };
     const guarded = await guardChannel("auditoria:consultar", { usuarioId: OWNER, __authToken: "token" }, {
       verifyToken: () => claims, audit: (event) => registerAuditLog(fixture.db, schema, event),
@@ -156,7 +156,7 @@ describe("RF58 / CU58 / CP62", () => {
     ]);
   });
 
-  it("rejects incomplete registrations and reports persistence failures", async () => {
+  it("rechaza registros incompletos e informa fallos de persistencia", async () => {
     expect(await registerAuditEvent(fixture.db, schema, { usuarioId: OWNER }))
       .toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     const failingDatabase = { ...fixture.db, all: async () => { throw new Error("unavailable"); },
@@ -165,7 +165,7 @@ describe("RF58 / CU58 / CP62", () => {
       .toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 
-  it("blocks UPDATE, DELETE, REPLACE and UPSERT without changing the record", async () => {
+  it("bloquea UPDATE, DELETE, REPLACE y UPSERT sin modificar el registro", async () => {
     const row = await record();
     for (const statement of [
       sql`UPDATE log_auditoria SET log_descripcion = 'alterado' WHERE log_auditoria_id = ${row.logAuditoriaId}`,

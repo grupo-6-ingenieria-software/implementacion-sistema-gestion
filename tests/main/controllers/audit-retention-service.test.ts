@@ -6,8 +6,8 @@ import {
 
 afterEach(() => vi.useRealTimers());
 
-describe("RF58 automatic retention maintenance", () => {
-  it("runs on startup, every 24 hours and stops on shutdown", async () => {
+describe("mantenimiento automático de retención RF58", () => {
+  it("se ejecuta al iniciar, cada 24 horas, y se detiene al apagar", async () => {
     vi.useFakeTimers();
     const purge = vi.fn(async () => 2);
     const reportError = vi.fn();
@@ -23,7 +23,7 @@ describe("RF58 automatic retention maintenance", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it("reports persistence failures and retries on the next cycle", async () => {
+  it("informa fallos de persistencia y reintenta en el siguiente ciclo", async () => {
     vi.useFakeTimers();
     const error = new Error("database unavailable");
     const purge = vi.fn<() => Promise<number>>()
@@ -38,7 +38,7 @@ describe("RF58 automatic retention maintenance", () => {
     stop();
   });
 
-  it("does not overlap a purge that is still running", async () => {
+  it("no superpone una purga que aún está en ejecución", async () => {
     vi.useFakeTimers();
     let finish: (count: number) => void = () => undefined;
     const pending = new Promise<number>((resolve) => { finish = resolve; });

@@ -29,8 +29,8 @@ const validEditPayload: ProductEditPayload = {
   originalEan13: validCreatePayload.ean13,
 };
 
-describe("product write controllers", () => {
-  it("creates a valid product payload", async () => {
+describe("controladores de escritura de productos", () => {
+  it("crea un payload de producto válido", async () => {
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
@@ -53,7 +53,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("maps authorization failures to forbidden errors", async () => {
+  it("traduce fallos de autorización a errores de acceso prohibido", async () => {
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
@@ -82,7 +82,7 @@ describe("product write controllers", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejects invalid EAN-13 and price rules", async () => {
+  it("rechaza reglas inválidas de EAN-13 y precio", async () => {
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
@@ -123,7 +123,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("rejects decimal inventory values instead of truncating them", async () => {
+  it("rechaza valores decimales de inventario en lugar de truncarlos", async () => {
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
@@ -153,7 +153,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("maps duplicated EAN-13 errors to field validation", async () => {
+  it("traduce errores de EAN-13 duplicado a validación de campo", async () => {
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
@@ -183,7 +183,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("edits a valid product payload with locked EAN-13", async () => {
+  it("edita un payload de producto válido con EAN-13 bloqueado", async () => {
     const controller = createProductWriteController({
       channel: "producto:editar",
       controllerId: "product-edit",
@@ -206,7 +206,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("rejects empty names, invalid prices and decimal values when editing", async () => {
+  it("rechaza nombres vacíos, precios inválidos y valores decimales al editar", async () => {
     const controller = createProductWriteController({
       channel: "producto:editar",
       controllerId: "product-edit",
@@ -253,7 +253,7 @@ describe("product write controllers", () => {
     });
   });
 
-  it("rejects product edit when EAN-13 changes or product does not exist", async () => {
+  it("rechaza la edición de producto cuando cambia el EAN-13 o el producto no existe", async () => {
     const controller = createProductWriteController({
       channel: "producto:editar",
       controllerId: "product-edit",

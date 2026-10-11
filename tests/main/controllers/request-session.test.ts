@@ -62,7 +62,7 @@ function request(channel = "producto:listar", expired = vi.fn()) {
       ),
   });
 }
-describe("C03 → C05 before dispatch", () => {
+describe("C03 → C05 antes del despacho", () => {
   it.each([
     "producto:listar",
     "inventario:exportar-productos",
@@ -71,18 +71,18 @@ describe("C03 → C05 before dispatch", () => {
     "ausencia:registrar",
     "trabajador:registrar",
   ])(
-    "rejects missing persisted sessions for %s despite a signed JWT",
+    "rechaza sesiones persistidas ausentes para %s aunque el JWT esté firmado",
     async (channel) => {
       expect((await request(channel)).ok).toBe(false);
     },
   );
-  it("rejects closed sessions without renewing them", async () => {
+  it("rechaza sesiones cerradas sin renovarlas", async () => {
     await seedSession(1, true);
     expect((await request()).ok).toBe(false);
     const [row] = await fixture.db.select().from(schema.sesionUsuario);
     expect(row.sesionFechaHoraUltimoAcceso).toBe("2026-09-08T11:59:00.000Z");
   });
-  it("expires exactly at 30 minutes and sends the event", async () => {
+  it("expira exactamente a los 30 minutos y envía el evento", async () => {
     await seedSession(30);
     let persistedAtEvent: Promise<Array<{ motivo: string | null }>> | undefined;
     const expired = vi.fn(() => {
@@ -99,7 +99,7 @@ describe("C03 → C05 before dispatch", () => {
     expect(row.sesionMotivoCierre).toBe("inactividad");
     expect(row.sesionFechaHoraUltimoAcceso).toBe("2026-09-08T11:30:00.000Z");
   });
-  it("preserves millisecond precision at the inactivity boundary and renews the valid action", async () => {
+  it("conserva la precisión de milisegundos en el límite de inactividad y renueva la acción válida", async () => {
     await fixture.db.insert(schema.sesionUsuario).values({
       sesionUsuarioId: SESSION,
       usuarioId: USER,
@@ -122,7 +122,7 @@ describe("C03 → C05 before dispatch", () => {
     expect(row.sesionMotivoCierre).toBe("inactividad");
     expect(expired).toHaveBeenCalledOnce();
   });
-  it("fails closed without reporting inactivity when ultimo acceso is malformed", async () => {
+  it("deniega el acceso sin reportar inactividad cuando el último acceso es malformado", async () => {
     await seedSession(1);
     await fixture.db.update(schema.sesionUsuario).set({
       sesionFechaHoraUltimoAcceso: "fecha-invalida",
@@ -134,7 +134,7 @@ describe("C03 → C05 before dispatch", () => {
     expect(row.sesionMotivoCierre).toBeNull();
     expect(expired).not.toHaveBeenCalled();
   });
-  it("accepts and renews a valid SQLite default timestamp without milliseconds", async () => {
+  it("acepta y renueva una marca de tiempo por defecto de SQLite sin milisegundos", async () => {
     await seedSession(1);
     await fixture.db.update(schema.sesionUsuario).set({
       sesionFechaHoraUltimoAcceso: "2026-09-08 11:59:00",
@@ -145,7 +145,7 @@ describe("C03 → C05 before dispatch", () => {
     expect(row.sesionFechaHoraUltimoAcceso).toBe(NOW.toISOString());
     expect(row.sesionFechaHoraCierre).toBeNull();
   });
-  it("checks without renewing a heartbeat, then renews real activity", async () => {
+  it("verifica sin renovar el latido y luego renueva la actividad real", async () => {
     await seedSession(29);
     expect((await request("auth:verificar-sesion")).ok).toBe(true);
     let [row] = await fixture.db.select().from(schema.sesionUsuario);
@@ -154,7 +154,7 @@ describe("C03 → C05 before dispatch", () => {
     [row] = await fixture.db.select().from(schema.sesionUsuario);
     expect(row.sesionFechaHoraUltimoAcceso).toBe(NOW.toISOString());
   });
-  it("fails closed when session persistence fails", async () => {
+  it("deniega el acceso cuando falla la persistencia de la sesión", async () => {
     const errorLog = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);

@@ -5,8 +5,8 @@ import {
   validateWasteRegisterPayload,
 } from "../../src/shared/waste";
 
-describe("waste helpers", () => {
-  it("normalizes waste registration payloads", () => {
+describe("helpers de merma", () => {
+  it("normaliza los payloads de registro de merma", () => {
     expect(
       normalizeWasteRegisterPayload({
         ean13: " 7802920000015 ",
@@ -24,7 +24,7 @@ describe("waste helpers", () => {
     });
   });
 
-  it("drops blank observations and invalid reasons during normalization", () => {
+  it("descarta observaciones vacías y motivos inválidos durante la normalización", () => {
     expect(
       normalizeWasteRegisterPayload({
         ean13: "7802920000015",
@@ -38,7 +38,7 @@ describe("waste helpers", () => {
     });
   });
 
-  it("validates required fields and stock bounds", () => {
+  it("valida campos obligatorios y límites de stock", () => {
     const errors = validateWasteRegisterPayload(
       {
         ean13: "780292",
@@ -58,7 +58,7 @@ describe("waste helpers", () => {
     expect(hasWasteFieldErrors(errors)).toBe(true);
   });
 
-  it("rejects non-integer quantities instead of truncating them", () => {
+  it("rechaza cantidades no enteras en lugar de truncarlas", () => {
     const payload = normalizeWasteRegisterPayload({
       ean13: "7802920000015",
       cantidad: "4.9",
@@ -70,7 +70,7 @@ describe("waste helpers", () => {
     );
   });
 
-  it("accepts a valid payload with optional observation omitted", () => {
+  it("acepta un payload válido con la observación opcional omitida", () => {
     expect(
       validateWasteRegisterPayload(
         {

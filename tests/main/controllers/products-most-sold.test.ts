@@ -35,8 +35,8 @@ async function detail(id: string, saleId: string, productId: number, quantity: n
   await client.execute({ sql: "INSERT INTO detalle_venta VALUES (?, ?, ?, ?, ?)", args: [id, saleId, productId, quantity, priceId] });
 }
 
-describe("CU48 C55 products most sold", () => {
-  it("uses historical price, current category, inactive products and proportional net amounts", async () => {
+describe("productos más vendidos CU48 C55", () => {
+  it("usa precio histórico, categoría actual, productos inactivos y montos netos proporcionales", async () => {
     await sale("one", "2026-09-15 15:00:00", "completada", "monto", 500);
     await detail("d1", "one", 1, 1);
     await detail("d2", "one", 2, 2);
@@ -52,7 +52,7 @@ describe("CU48 C55 products most sold", () => {
     expect(report.filas.reduce((sum, row) => sum + row.ingresoNeto, 0)).toBe(4500);
   });
 
-  it("includes Chilean date endpoints across daylight saving and excludes both annulment forms", async () => {
+  it("incluye los límites de fecha chilenos a través del cambio de horario y excluye ambas formas de anulación", async () => {
     await sale("before", "2026-09-01T03:59:59Z"); await detail("d1", "before", 1, 1);
     await sale("start", "2026-09-01T04:00:00Z"); await detail("d2", "start", 1, 2);
     await sale("end", "2026-10-01T02:59:59Z"); await detail("d3", "end", 1, 3);
@@ -65,7 +65,7 @@ describe("CU48 C55 products most sold", () => {
     expect(report.filas[0]).toMatchObject({ unidadesVendidas: 5, ingresoNeto: 5000, porcentajeUnidades: 100 });
   });
 
-  it("uses all products in the denominator before top 20 and orders EAN ties", async () => {
+  it("usa todos los productos en el denominador antes del top 20 y ordena los empates por EAN", async () => {
     for (let productId = 3; productId <= 21; productId += 1) {
       await client.execute({ sql: "INSERT INTO producto VALUES (?, ?, ?, 1, 'activo', 1000)", args: [productId, String(productId).padStart(13, "0"), `Product ${productId}`] });
       await client.execute({ sql: "INSERT INTO historial_precio_producto VALUES (?, ?, 1000)", args: [`p${productId}`, productId] });
@@ -79,13 +79,13 @@ describe("CU48 C55 products most sold", () => {
     expect(report.filas.reduce((sum, row) => sum + row.porcentajeUnidades, 0)).toBeLessThan(100);
   });
 
-  it("keeps zero-income sales with positive units", async () => {
+  it("conserva las ventas sin ingreso con unidades positivas", async () => {
     await sale("free", "2026-09-15T12:00:00Z", "completada", "porcentaje", 100);
     await detail("d1", "free", 1, 3);
     expect(await queryProductsMostSold(drizzle(client), period)).toMatchObject({ status: "ready", totalUnidadesPeriodo: 3, filas: [{ ingresoNeto: 0, unidadesVendidas: 3 }] });
   });
 
-  it("allocates a legacy percentage discount exactly across products", async () => {
+  it("distribuye exactamente un descuento porcentual heredado entre productos", async () => {
     await sale("percent", "2026-09-15T12:00:00Z", "completada", "porcentaje", 25);
     await detail("d1", "percent", 1, 1);
     await detail("d2", "percent", 2, 1);
@@ -94,7 +94,7 @@ describe("CU48 C55 products most sold", () => {
     expect(report.filas.map((item) => item.ingresoNeto)).toEqual([750, 1500]);
   });
 
-  it("returns an auditable empty result for no eligible lines", async () => {
+  it("devuelve un resultado vacío auditable cuando no hay líneas elegibles", async () => {
     await sale("void", "2026-09-15T12:00:00Z", "anulada"); await detail("d1", "void", 1, 1);
     const controller = createProductsMostSoldController(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
     const audit = vi.fn(async () => undefined);
@@ -103,7 +103,7 @@ describe("CU48 C55 products most sold", () => {
     expect(PRODUCTS_MOST_SOLD_EMPTY_MESSAGE).toBe("No se encontraron productos vendidos para el período indicado");
   });
 
-  it("validates before the query and does not disguise database errors as empty", async () => {
+  it("valida antes de la consulta y no disfraza errores de base de datos como resultado vacío", async () => {
     const load = vi.fn(async () => { throw new Error("DB down"); });
     const controller = createProductsMostSoldController(load);
     expect(await controller.handle({ fechaInicio: "2026-10-01", fechaTermino: "2026-09-30" }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
@@ -111,14 +111,14 @@ describe("CU48 C55 products most sold", () => {
     expect(await controller.handle(period, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 
-  it("treats an impossible recorded discount as inconsistent data", async () => {
+  it("trata un descuento registrado imposible como dato inconsistente", async () => {
     await sale("bad", "2026-09-15T12:00:00Z", "completada", "monto", 2000);
     await detail("d1", "bad", 1, 1);
     const controller = createProductsMostSoldController(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
     expect(await controller.handle(period, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 
-  it("denies worker, temporary-password and revoked sessions before consultation", async () => {
+  it("deniega sesiones de trabajador, de contraseña temporal y revocadas antes de la consulta", async () => {
     const load = vi.fn();
     expect(await createProductsMostSoldController(load).handle(period, { ...context, claims: { ...context.claims!, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(load).not.toHaveBeenCalled();

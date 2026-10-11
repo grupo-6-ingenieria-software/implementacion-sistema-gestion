@@ -69,15 +69,15 @@ const readyState: DashboardState = {
   isRefreshing: false,
 };
 
-describe("DashboardView CU44 refresh states", () => {
-  it("keeps the last valid data visible while refreshing", () => {
+describe("estados de actualización de DashboardView CU44", () => {
+  it("mantiene visibles los últimos datos válidos mientras se actualiza", () => {
     const next = getDashboardLoadingState(readyState, true);
 
     expect(next).toMatchObject({ status: "ready", isRefreshing: true });
     expect(next.status === "ready" && next.data).toBe(dashboardData);
   });
 
-  it("keeps exactly the same data and exposes retry after a refresh failure", () => {
+  it("mantiene exactamente los mismos datos y expone reintento tras un fallo de actualización", () => {
     const next = getDashboardFailureState(
       readyState,
       "No fue posible actualizar.",
@@ -101,7 +101,7 @@ describe("DashboardView CU44 refresh states", () => {
     expect(markup).toContain("Reintentar");
   });
 
-  it("uses a full error state only when there are no valid values to preserve", () => {
+  it("usa un estado de error completo solo cuando no hay valores válidos que conservar", () => {
     expect(
       getDashboardFailureState(
         { status: "loading" },
@@ -111,14 +111,14 @@ describe("DashboardView CU44 refresh states", () => {
     ).toEqual({ status: "error", message: "No fue posible cargar." });
   });
 
-  it("accepts only the most recent concurrent request", () => {
+  it("acepta solo la solicitud concurrente más reciente", () => {
     expect(isLatestDashboardRequest(1, 2)).toBe(false);
     expect(isLatestDashboardRequest(2, 2)).toBe(true);
   });
 });
 
 describe("ResumenVentasDashboard CU44", () => {
-  it("formats current and voided totals in CLP", () => {
+  it("formatea los totales vigentes y anulados en CLP", () => {
     const markup = renderToStaticMarkup(
       createElement(ResumenVentasDashboard, {
         total: 12_000,
@@ -134,7 +134,7 @@ describe("ResumenVentasDashboard CU44", () => {
     expect(markup).toContain("$4.500");
   });
 
-  it("shows the documented zero state without an annulment block", () => {
+  it("muestra el estado cero documentado sin bloque de anulación", () => {
     const markup = renderToStaticMarkup(
       createElement(ResumenVentasDashboard, {
         total: 0,

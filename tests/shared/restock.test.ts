@@ -5,8 +5,8 @@ import {
   RESTOCK_EXPORT_ERROR_MESSAGE,
 } from "../../src/shared/restock";
 
-describe("CU16 shared restock contract", () => {
-  it("accepts only the optional authenticated identity", () => {
+describe("contrato compartido de reposición CU16", () => {
+  it("acepta solo la identidad autenticada opcional", () => {
     expect(
       normalizeRestockListRequest({
         usuarioId: " owner ",
@@ -18,7 +18,7 @@ describe("CU16 shared restock contract", () => {
     expect(normalizeRestockListRequest(null)).toEqual({});
   });
 
-  it("keeps the specified empty and export failure messages", () => {
+  it("mantiene los mensajes especificados para estado vacío y fallo de exportación", () => {
     expect(RESTOCK_EMPTY_MESSAGE).toBe(
       "No hay productos que requieran reabastecimiento",
     );

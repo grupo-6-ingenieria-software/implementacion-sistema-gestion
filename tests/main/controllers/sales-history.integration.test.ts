@@ -33,8 +33,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("CU41 sales history integration", () => {
-  it("lists a Chilean range with historical totals, separated summary and eligibility", async () => {
+describe("CU41 integración del historial de ventas", () => {
+  it("lista un rango de fechas chileno con totales históricos, resumen separado y elegibilidad", async () => {
     const result = await searchSalesHistory(
       testDb!.db,
       {
@@ -79,7 +79,7 @@ describe("CU41 sales history integration", () => {
     });
   });
 
-  it("finds an annulled sale by number and preserves its historical detail", async () => {
+  it("encuentra una venta anulada por número y conserva su detalle histórico", async () => {
     const search = await searchSalesHistory(
       testDb!.db,
       { criterio: "numero", ventaId: previousAnnulledId.toUpperCase() },
@@ -109,7 +109,7 @@ describe("CU41 sales history integration", () => {
     });
   });
 
-  it("represents fixed discounts and electronic payments without cash fields", async () => {
+  it("representa descuentos fijos y pagos electrónicos sin campos de efectivo", async () => {
     await expect(
       loadSaleDetail(testDb!.db, { ventaId: currentOpenId }),
     ).resolves.toMatchObject({
@@ -126,7 +126,7 @@ describe("CU41 sales history integration", () => {
     expect(electronic.descuento).toEqual({ tipo: "ninguno", valor: 0 });
   });
 
-  it("keeps V13, V32 and V33 on the sale snapshot after current identity changes", async () => {
+  it("mantiene V13, V32 y V33 en la instantánea de la venta después de cambios actuales de identidad", async () => {
     await testDb!.db.run(sql`
       UPDATE trabajador
       SET trabajador_nombre = 'Nombre', trabajador_apellido = 'Actualizado'
@@ -157,7 +157,7 @@ describe("CU41 sales history integration", () => {
     expect(detail.responsable).toEqual(expectedResponsible);
   });
 
-  it("returns a successful empty response", async () => {
+  it("devuelve una respuesta vacía exitosa", async () => {
     await expect(
       searchSalesHistory(
         testDb!.db,

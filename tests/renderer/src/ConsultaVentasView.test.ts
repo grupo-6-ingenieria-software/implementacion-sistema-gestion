@@ -9,8 +9,8 @@ import {
 
 const saleId = "00000000-0000-4000-8000-000000000401";
 
-describe("CU41 route and filter helpers", () => {
-  it("validates both exclusive search modes", () => {
+describe("helpers de ruta y filtros de CU41", () => {
+  it("valida ambos modos de búsqueda excluyentes", () => {
     expect(validateSearch("rango", "2026-09-10", "2026-09-11", "")).toEqual({
       request: {
         criterio: "rango",
@@ -25,7 +25,7 @@ describe("CU41 route and filter helpers", () => {
     });
   });
 
-  it("reports invalid dates and UUIDs next to their fields", () => {
+  it("informa fechas y UUID inválidos junto a sus campos", () => {
     expect(
       validateSearch("rango", "2026-09-12", "2026-09-11", "").errors,
     ).toHaveProperty("fechaTermino");
@@ -38,7 +38,7 @@ describe("CU41 route and filter helpers", () => {
     );
   });
 
-  it("round-trips applied filters and the selected detail in the URL", () => {
+  it("serializa y recupera en la URL los filtros aplicados y el detalle seleccionado", () => {
     const request = {
       criterio: "rango" as const,
       fechaInicio: "2026-09-10",
@@ -55,7 +55,7 @@ describe("CU41 route and filter helpers", () => {
     expect(getSafeSalesQueryReturnPath(annulmentPath)).toBe(path);
   });
 
-  it("rejects invalid or external return paths", () => {
+  it("rechaza rutas de retorno inválidas o externas", () => {
     expect(
       getSafeSalesQueryReturnPath(
         `/app/ventas/anular?ventaId=${saleId}&returnTo=${encodeURIComponent("https://example.com")}`,

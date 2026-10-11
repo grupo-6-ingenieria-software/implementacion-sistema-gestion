@@ -14,15 +14,15 @@ const report: AttendanceReport = { periodo: { mes: 9, anio: 2026 }, rol: "trabaj
 const user = { role: "dueno" as const, usuarioId: claims.usuarioId, usuarioRol: "dueno", trabajadorNombre: "Ana Soto" };
 afterEach(() => vi.restoreAllMocks());
 
-describe("C59 controller, access and audit", () => {
-  it("passes only validated filters and trusted context to the loader, including empty results", async () => {
+describe("controlador, acceso y auditoría de C59", () => {
+  it("pasa al cargador solo filtros validados y contexto confiable, incluidos resultados vacíos", async () => {
     const load = vi.fn(async () => ({ report, user }));
     const controller = createAttendanceReportController(load);
     expect(await controller.handle({ ...request, usuarioId: "fake", filas: [{ nombreCompleto: "Fake" }] }, context)).toEqual({ ok: true, data: report });
     expect(load).toHaveBeenCalledExactlyOnceWith(request, context);
     expect(controller.metadata).toMatchObject({ id: "attendance-report", name: "ReporteAsistenciaHandler", module: "reportes", channels: ["reporte:asistencia"] });
   });
-  it("rejects wrong channels, invalid filters and unauthorized callers before loading", async () => {
+  it("rechaza canales incorrectos, filtros inválidos y llamadores no autorizados antes de cargar", async () => {
     const load = vi.fn(async () => ({ report, user }));
     const controller = createAttendanceReportController(load);
     expect(await controller.handle(request, { ...context, channel: "asistencia:entrada" })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
@@ -32,13 +32,13 @@ describe("C59 controller, access and audit", () => {
     }
     expect(load).not.toHaveBeenCalled();
   });
-  it("propagates conflicts and authorization errors, without exposing database details", async () => {
+  it("propaga conflictos y errores de autorización, sin exponer detalles de la base de datos", async () => {
     expect(await createAttendanceReportController(async () => { throw new MonthlyAttendanceError("BUSINESS_RULE", "Luis: 2026-09-08"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE", message: "Luis: 2026-09-08" } });
     expect(await createAttendanceReportController(async () => { throw new AccessDeniedError(); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(await createAttendanceReportController(async () => { throw new Error("Secret details"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR", message: "No fue posible consultar el reporte de asistencia. Intente nuevamente." } });
   });
-  it("requires valid identity, an active session and the effective owner role", async () => {
+  it("exige identidad válida, sesión activa y el rol de dueño efectivo", async () => {
     expect([...CHANNEL_ROLES.get(context.channel)!]).toEqual(["dueno"]);
     const audit = vi.fn(async () => undefined);
     expect((await guardChannel(context.channel, {}, { verifyToken: () => null, audit })).ok).toBe(false);
@@ -51,7 +51,7 @@ describe("C59 controller, access and audit", () => {
     if (!allowed.ok) throw Error("Owner should be authorized");
     expect(allowed.payload).toMatchObject({ usuarioId: claims.usuarioId, __rolSesion: "dueno" });
   });
-  it("audits empty successes once and reports audit failure; unsuccessful queries do not become successes", async () => {
+  it("audita los éxitos vacíos una sola vez y reporta fallos de auditoría; las consultas no exitosas no se convierten en éxitos", async () => {
     const controller = createAttendanceReportController(async () => ({ report, user }));
     const audit = vi.fn(async () => undefined);
     expect((await handleWithAudit(controller, request, context, audit)).ok).toBe(true);

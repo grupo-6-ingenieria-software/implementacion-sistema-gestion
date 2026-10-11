@@ -23,8 +23,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("RF59 migration to the physical password model", () => {
-  it("drops the ISA flags, keeps every password and gives each temporal its own id", async () => {
+describe("migración de RF59 al modelo físico de contraseñas", () => {
+  it("elimina las banderas ISA, conserva cada contraseña y asigna a cada temporal su propio ID", async () => {
     await testDb!.client.executeMultiple(`
       INSERT INTO trabajador (
         trabajador_id, trabajador_rut, trabajador_nombre, trabajador_apellido,

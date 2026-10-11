@@ -14,26 +14,26 @@ import {
 } from "../../src/shared/users";
 
 describe("formatRutInput", () => {
-  it("inserts the dash before the verifier digit automatically", () => {
+  it("inserta el guion antes del dígito verificador automáticamente", () => {
     expect(formatRutInput("226024395")).toBe("22602439-5");
   });
 
-  it("ignores a dash typed by the user and re-inserts it", () => {
+  it("ignora el guion escrito por el usuario y lo vuelve a insertar", () => {
     expect(formatRutInput("22602439-5")).toBe("22602439-5");
     expect(formatRutInput("2-2-6")).toBe("22-6");
   });
 
-  it("moves the dash dynamically as more digits are typed", () => {
+  it("mueve el guion dinámicamente a medida que se escriben más dígitos", () => {
     expect(formatRutInput("1")).toBe("1");
     expect(formatRutInput("12")).toBe("1-2");
     expect(formatRutInput("123")).toBe("12-3");
   });
 
-  it("keeps a K verifier and uppercases it", () => {
+  it("mantiene el verificador K y lo convierte a mayúscula", () => {
     expect(formatRutInput("12345670k")).toBe("12345670-K");
   });
 
-  it("drops dots, spaces and other characters", () => {
+  it("elimina puntos, espacios y otros caracteres", () => {
     expect(formatRutInput("22.602.439-5")).toBe("22602439-5");
   });
 });
@@ -70,8 +70,8 @@ const users: UserListItem[] = [
   },
 ];
 
-describe("user list helpers", () => {
-  it("normalizes legacy roles into the two-role model", () => {
+describe("auxiliares de listado de usuarios", () => {
+  it("normaliza los roles heredados al modelo de dos roles", () => {
     expect(normalizeUserRole("dueño")).toBe("dueno");
     expect(normalizeUserRole("dueÃ±o")).toBe("dueno");
     expect(normalizeUserRole("cajero")).toBe("trabajador");
@@ -79,7 +79,7 @@ describe("user list helpers", () => {
     expect(formatRoleLabel("dueno")).toBe("Dueño");
   });
 
-  it("filters by search, role and status", () => {
+  it("filtra por búsqueda, rol y estado", () => {
     const filters = normalizeUserListPayload({
       search: "rojas",
       rol: "trabajador",
@@ -91,7 +91,7 @@ describe("user list helpers", () => {
     ).toEqual(["23456789-0"]);
   });
 
-  it("sorts users by admission date descending", () => {
+  it("ordena los usuarios por fecha de ingreso descendente", () => {
     const filters = normalizeUserListPayload({
       sortBy: "fechaIngreso",
       sortDirection: "desc",
@@ -102,7 +102,7 @@ describe("user list helpers", () => {
     ).toEqual(["23456789-0", "12345678-9", "34567890-1"]);
   });
 
-  it("normalizes and validates RF21 worker account form values", () => {
+  it("normaliza y valida los valores del formulario de cuenta de trabajador RF21", () => {
     const payload = normalizeUserFormPayload({
       correoElectronico: " ana@huascar.cl ",
       nombreCompleto: " Ana   Soto ",
@@ -122,7 +122,7 @@ describe("user list helpers", () => {
     expect(normalizeRut("12.345.678-k")).toBe("12345678-K");
   });
 
-  it("returns field errors for invalid RF21 values", () => {
+  it("devuelve errores de campo para valores RF21 inválidos", () => {
     const errors = validateUserFormValues({
       correoElectronico: "correo-invalido",
       nombreCompleto: "",
@@ -138,7 +138,7 @@ describe("user list helpers", () => {
     expect(errors.correoElectronico).toBeDefined();
   });
 
-  it("allows legacy non-editable RUT values during RF22 updates", () => {
+  it("permite valores de RUT heredados no editables durante actualizaciones RF22", () => {
     const errors = validateUserFormValues(
       {
         nombreCompleto: "Maria Huascar",
@@ -154,7 +154,7 @@ describe("user list helpers", () => {
 });
 
 describe("normalizeUserStatusChangePayload", () => {
-  it("keeps an explicit confirmation and defaults it to false", () => {
+  it("mantiene la confirmación explícita y la establece en false por defecto", () => {
     expect(
       normalizeUserStatusChangePayload({
         confirmacion: true,

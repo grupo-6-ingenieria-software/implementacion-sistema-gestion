@@ -11,8 +11,8 @@ const result: AbsenceResult = { ausenciaId: "created", trabajadorId: 2, trabajad
 const database = {} as DbExecutor;
 afterEach(() => vi.restoreAllMocks());
 
-describe("C51 absence controller and channel access", () => {
-  it("passes claims separately from payload identity and returns the standard contract", async () => {
+describe("controlador de ausencias y acceso a canales C51", () => {
+  it("pasa los claims por separado de la identidad del payload y devuelve el contrato estándar", async () => {
     const register = vi.fn(async () => result);
     const controller = createAbsenceController(register, database);
     const payload = { trabajadorId: 2, usuarioId: "spoofed", rol: "dueno" };
@@ -20,7 +20,7 @@ describe("C51 absence controller and channel access", () => {
     expect(register).toHaveBeenCalledWith(database, payload, claims);
     expect(controller.metadata).toMatchObject({ id: "absence", name: "AusenciaHandler" });
   });
-  it("rejects direct calls without an owner session before executing the service", async () => {
+  it("rechaza llamadas directas sin sesión de dueño antes de ejecutar el servicio", async () => {
     const register = vi.fn(async () => result);
     const controller = createAbsenceController(register, database);
     for (const identity of [undefined, { ...claims, rol: "trabajador" as const }]) {
@@ -28,17 +28,17 @@ describe("C51 absence controller and channel access", () => {
     }
     expect(register).not.toHaveBeenCalled();
   });
-  it.each(["VALIDATION_ERROR", "NOT_FOUND", "BUSINESS_RULE", "FORBIDDEN"] as const)("returns %s with field detail", async (code) => {
+  it.each(["VALIDATION_ERROR", "NOT_FOUND", "BUSINESS_RULE", "FORBIDDEN"] as const)("devuelve %s con detalle de campo", async (code) => {
     const controller = createAbsenceController(async () => { throw new AbsenceError(code, "Domain error", { fecha: "Fecha inválida" }); }, database);
     expect(await controller.handle({}, { channel: "ausencia:registrar", claims })).toMatchObject({ ok: false, error: { code, controllerId: "absence", fieldErrors: { fecha: "Fecha inválida" } } });
   });
-  it("returns a safe technical error and handles an unknown channel", async () => {
+  it("devuelve un error técnico seguro y maneja un canal desconocido", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const controller = createAbsenceController(async () => { throw new Error("internal failure"); }, database);
     expect(await controller.handle({}, { channel: "ausencia:registrar", claims })).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR", message: "No fue posible registrar la ausencia. Intente nuevamente." } });
     expect(await controller.handle({}, { channel: "invalid", claims })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
   });
-  it("enforces owner-only IPC access and overwrites a spoofed account", async () => {
+  it("aplica acceso IPC solo para el dueño y sobrescribe una cuenta suplantada", async () => {
     expect([...CHANNEL_ROLES.get("ausencia:registrar")!]).toEqual(["dueno"]);
     const audit = vi.fn(async () => undefined);
     const denied = await guardChannel("ausencia:registrar", { usuarioId: "spoofed" }, { verifyToken: () => ({ ...claims, rol: "trabajador" }), audit });

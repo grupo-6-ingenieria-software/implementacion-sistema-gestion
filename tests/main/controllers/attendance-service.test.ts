@@ -37,8 +37,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("attendance service", () => {
-  it("lists active workers for the owner", async () => {
+describe("servicio de asistencia", () => {
+  it("lista los trabajadores activos para el dueño", async () => {
     const workers = await listActiveWorkers(
       testDb!.db as unknown as DbExecutor,
       {
@@ -65,7 +65,7 @@ describe("attendance service", () => {
     ]);
   });
 
-  it("registers an entry with the worker shift", async () => {
+  it("registra una entrada con el turno del trabajador", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
 
     const preview = await registerAttendanceEntry(
@@ -114,7 +114,7 @@ describe("attendance service", () => {
     expect(Number(rows[0].count)).toBe(1);
   });
 
-  it("revalidates an absence added between entry preview and confirmation", async () => {
+  it("revalida una ausencia agregada entre la vista previa de entrada y la confirmación", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
       usuarioId: "12345678-9",
@@ -140,7 +140,7 @@ describe("attendance service", () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it("revalidates a shift removed between entry preview and confirmation", async () => {
+  it("revalida un turno eliminado entre la vista previa de entrada y la confirmación", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
       usuarioId: "12345678-9",
@@ -166,7 +166,7 @@ describe("attendance service", () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it("revalidates worker state changed between entry preview and confirmation", async () => {
+  it("revalida el estado del trabajador modificado entre la vista previa de entrada y la confirmación", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     const request = {
       usuarioId: "12345678-9",
@@ -194,7 +194,7 @@ describe("attendance service", () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it("registers an entry when the stored worker rut has dots", async () => {
+  it("registra una entrada cuando el RUT almacenado del trabajador tiene puntos", async () => {
     await testDb!.db.run(sql`
       UPDATE trabajador
       SET trabajador_rut = '23.456.789-0'
@@ -219,7 +219,7 @@ describe("attendance service", () => {
     expect(result.trabajador.rut).toBe("23456789-0");
   });
 
-  it("asks for confirmation when the worker has no shift", async () => {
+  it("solicita confirmación cuando el trabajador no tiene turno", async () => {
     const result = await registerAttendanceEntry(
       testDb!.db as unknown as DbExecutor,
       { usuarioId: "12345678-9", trabajadorRut: "23456789-0" },
@@ -240,7 +240,7 @@ describe("attendance service", () => {
     expect(Number(rows[0].count)).toBe(0);
   });
 
-  it("registers an entry without shift after confirmation", async () => {
+  it("registra una entrada sin turno tras la confirmación", async () => {
     const result = await registerAttendanceEntryWithoutShift(
       testDb!.db as unknown as DbExecutor,
       {
@@ -267,7 +267,7 @@ describe("attendance service", () => {
     expect(Number(auditRows[0].count)).toBe(1);
   });
 
-  it("blocks duplicate entries", async () => {
+  it("bloquea entradas duplicadas", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 2);
 
     await expect(
@@ -279,7 +279,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it("blocks inactive workers", async () => {
+  it("bloquea a los trabajadores inactivos", async () => {
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
@@ -289,7 +289,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it("blocks workers from registering another worker attendance", async () => {
+  it("bloquea que un trabajador registre la asistencia de otro trabajador", async () => {
     await expect(
       registerAttendanceEntry(
         testDb!.db as unknown as DbExecutor,
@@ -299,7 +299,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceAccessError);
   });
 
-  it("blocks entries when the worker has an absence for the day", async () => {
+  it("bloquea entradas cuando el trabajador tiene una ausencia en el día", async () => {
     await seedAbsence(testDb!.db as unknown as DbExecutor, 2);
 
     await expect(
@@ -311,7 +311,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it("registers an exit and calculates worked hours", async () => {
+  it("registra una salida y calcula las horas trabajadas", async () => {
     const asistenciaId = await seedAttendance(
       testDb!.db as unknown as DbExecutor,
       2,
@@ -355,7 +355,7 @@ describe("attendance service", () => {
     });
   });
 
-  it("rolls back an entry when the audit insert fails", async () => {
+  it("revierte una entrada cuando falla la inserción de auditoría", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, 2);
     await abortAttendanceAuditWrites(testDb!.db as unknown as DbExecutor);
 
@@ -374,7 +374,7 @@ describe("attendance service", () => {
     await expect(countAttendanceRows()).resolves.toBe(0);
   });
 
-  it("rolls back an exit when the audit insert fails", async () => {
+  it("revierte una salida cuando falla la inserción de auditoría", async () => {
     const asistenciaId = await seedAttendance(
       testDb!.db as unknown as DbExecutor,
       2,
@@ -401,7 +401,7 @@ describe("attendance service", () => {
     expect(rows).toEqual([{ salidaAt: null }]);
   });
 
-  it("blocks exits without a previous entry", async () => {
+  it("bloquea salidas sin una entrada previa", async () => {
     await expect(
       registerAttendanceExit(
         testDb!.db as unknown as DbExecutor,
@@ -411,7 +411,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it("blocks duplicate exits", async () => {
+  it("bloquea salidas duplicadas", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 2, {
       salidaAt: "2026-06-12T20:00:00.000Z",
     });
@@ -425,7 +425,7 @@ describe("attendance service", () => {
     ).rejects.toBeInstanceOf(AttendanceBusinessError);
   });
 
-  it("blocks a worker from registering another worker exit", async () => {
+  it("bloquea que un trabajador registre la salida de otro trabajador", async () => {
     await seedAttendance(testDb!.db as unknown as DbExecutor, 4);
 
     await expect(

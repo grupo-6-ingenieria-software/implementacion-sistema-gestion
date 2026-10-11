@@ -32,7 +32,7 @@ describe("notifySessionInvalidated (CU23, D10)", () => {
     logError.mockReset();
   });
 
-  it("broadcasts the usuarioId to every window with the fixed event name", () => {
+  it("envía el usuarioId a cada ventana con el nombre fijo del evento", () => {
     getAllWindows.mockReturnValue([windowWithSend(), windowWithSend()]);
 
     notifySessionInvalidated("23456789-0");
@@ -43,7 +43,7 @@ describe("notifySessionInvalidated (CU23, D10)", () => {
     });
   });
 
-  it("keeps notifying the remaining windows when one send fails", () => {
+  it("sigue notificando a las ventanas restantes cuando falla un envío", () => {
     getAllWindows.mockReturnValue([
       windowWithSend(() => {
         throw new Error("sender destroyed");
@@ -57,7 +57,7 @@ describe("notifySessionInvalidated (CU23, D10)", () => {
     expect(logError).toHaveBeenCalledTimes(1);
   });
 
-  it("logs and returns when the window list cannot be read", () => {
+  it("registra en el log y retorna cuando no se puede leer la lista de ventanas", () => {
     getAllWindows.mockImplementation(() => {
       throw new Error("app not ready");
     });

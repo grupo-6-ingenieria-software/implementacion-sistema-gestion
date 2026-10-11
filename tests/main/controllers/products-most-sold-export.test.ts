@@ -35,8 +35,8 @@ function dependencies(overrides: Partial<ProductsMostSoldExportDependencies> = {
   };
 }
 
-describe("CU48 PDF/XLSX export", () => {
-  it.each(["pdf", "xlsx"] as const)("recalculates in Main, ignores renderer rows and saves %s", async (format) => {
+describe("exportación PDF/XLSX de CU48", () => {
+  it.each(["pdf", "xlsx"] as const)("recalcula en Main, ignora las filas del renderer y guarda %s", async (format) => {
     const deps = dependencies();
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
     const result = await createProductsMostSoldExportHandler(deps)({ ...request, filas: [{ ingresoNeto: 999999 }], usuario: "Fake", ruta: "Fake" }, ctx);
@@ -46,7 +46,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(deps.showSaveDialog).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: expect.stringContaining(`ProductosMasVendidos_2026-09-01_a_2026-09-30_30-09-2026.${format}`) }));
   });
 
-  it.each(["pdf", "xlsx"] as const)("routes daily, monthly, CU48 and inventory exports through %s", async (format) => {
+  it.each(["pdf", "xlsx"] as const)("enruta las exportaciones diaria, mensual, CU48 e inventario por %s", async (format) => {
     const reports = vi.fn(async (payload: unknown) => {
       if ((payload as { tipo?: unknown } | null)?.tipo === "unknown") {
         return { ok: false as const, error: { code: "VALIDATION_ERROR" as const, message: "Tipo de reporte no válido." } };
@@ -82,7 +82,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(legacy.handle).toHaveBeenCalledTimes(4);
   });
 
-  it("denies workers and invalid periods before recalculating", async () => {
+  it("deniega a trabajadores y periodos inválidos antes de recalcular", async () => {
     const deps = dependencies();
     const handler = createProductsMostSoldExportHandler(deps);
     expect(await handler(request, { ...context, claims: { ...context.claims!, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
@@ -96,7 +96,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(audit).toHaveBeenCalledTimes(1);
   });
 
-  it("does not save or audit empty, cancelled, or failed exports", async () => {
+  it("no guarda ni audita exportaciones vacías, canceladas o fallidas", async () => {
     for (const variant of ["empty", "cancel", "error"] as const) {
       const deps = dependencies(variant === "empty"
         ? { load: async () => ({ report: { ...report, status: "empty", filas: [], totalUnidadesPeriodo: 0 }, user }) }
@@ -111,7 +111,7 @@ describe("CU48 PDF/XLSX export", () => {
     }
   });
 
-  it("audits exactly one successfully saved CU48 export", async () => {
+  it("audita exactamente una exportación CU48 guardada con éxito", async () => {
     const audit = vi.fn(async () => undefined);
     const controller = createReportExportController(undefined, undefined, createProductsMostSoldExportHandler(dependencies()));
     expect(await handleWithAudit(controller, request, context, audit)).toMatchObject({ ok: true, data: { estado: "saved" } });
@@ -119,7 +119,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "exportacion", modulo: "reportes", usuarioId: "owner" }));
   });
 
-  it("renders escaped PDF contents with six columns and two decimal percentages", () => {
+  it("renderiza el contenido PDF escapado con seis columnas y porcentajes de dos decimales", () => {
     const html = renderProductsMostSoldPrintHtml(input);
     expect(html).toContain("Reporte de productos más vendidos");
     expect(html).toContain("01/09/2026 al 30/09/2026");
@@ -129,7 +129,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(html).toContain("0000000000001");
   });
 
-  it("writes numeric CLP and percentage cells into the XLSX", async () => {
+  it("escribe celdas numéricas de CLP y porcentaje en el XLSX", async () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(await createProductsMostSoldXlsx(input) as any);
     const sheet = workbook.getWorksheet("Productos más vendidos")!;
@@ -142,7 +142,7 @@ describe("CU48 PDF/XLSX export", () => {
     expect(sheet.getCell("F8").numFmt).toBe("0.00%");
   });
 
-  it("closes its hidden PDF window after printing failure", async () => {
+  it("cierra su ventana PDF oculta tras fallar la impresión", async () => {
     const destroy = vi.fn();
     await expect(createProductsMostSoldPdf(input, () => ({ loadURL: async () => undefined, isDestroyed: () => false, destroy, webContents: { printToPDF: async () => { throw new Error("Print failed"); } } }))).rejects.toThrow("Print failed");
     expect(destroy).toHaveBeenCalledOnce();

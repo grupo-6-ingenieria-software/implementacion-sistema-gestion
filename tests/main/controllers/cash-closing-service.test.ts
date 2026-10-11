@@ -40,8 +40,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("cash closing service", () => {
-  it("loads a daily summary for an open cash register", async () => {
+describe("servicio de cierre de caja", () => {
+  it("carga el resumen diario de una caja abierta", async () => {
     await seedSales(testDb!.db as unknown as DbExecutor);
 
     const summary = await getCashClosingSummary(
@@ -60,7 +60,7 @@ describe("cash closing service", () => {
     expect(summary.payments.credito.voidedAmount).toBe(1000);
   });
 
-  it("does not close when confirmation is cancelled", async () => {
+  it("no cierra cuando se cancela la confirmación", async () => {
     await expect(
       closeCashRegister(
         testDb!.db as unknown as DbExecutor,
@@ -87,7 +87,7 @@ describe("cash closing service", () => {
     expect(Number(auditRows[0].count)).toBe(0);
   });
 
-  it("closes the open cash register and registers audit data", async () => {
+  it("cierra la caja abierta y registra los datos de auditoría", async () => {
     await seedSales(testDb!.db as unknown as DbExecutor);
 
     const result = await closeCashRegister(
@@ -127,7 +127,7 @@ describe("cash closing service", () => {
     expect(Number(auditRows[0].count)).toBe(1);
   });
 
-  it("blocks a second close when the cash register is already closed", async () => {
+  it("bloquea un segundo cierre cuando la caja ya está cerrada", async () => {
     await closeCashRegister(
       testDb!.db as unknown as DbExecutor,
       { confirmacion: true, usuarioId: "12345678-9" },
@@ -157,7 +157,7 @@ describe("cash closing service", () => {
     ).resolves.toMatchObject({ status: "cerrada", closedAt: now.toISOString() });
   });
 
-  it.each(["dueno", "trabajador"])("allows %s to reread a closed summary without changing totals or audit", async (role) => {
+  it.each(["dueno", "trabajador"])("permite a %s releer un resumen cerrado sin cambiar totales ni auditoría", async (role) => {
     const db = testDb!.db as unknown as DbExecutor;
     await db.run(sql`UPDATE usuario SET usuario_rol = ${role} WHERE usuario_id = '12345678-9'`);
     await seedSales(db);
@@ -175,7 +175,7 @@ describe("cash closing service", () => {
     }, { usuarioId: "12345678-9", sesionId: TEST_SESSION_ID, rol: role as "dueno" | "trabajador" }, now)).rejects.toThrow(/cerrad/i);
   });
 
-  it("returns an empty summary without opening a cash register when none exists", async () => {
+  it("devuelve un resumen vacío sin abrir una caja cuando no existe ninguna", async () => {
     const db = testDb!.db as unknown as DbExecutor;
     await db.run(sql`DELETE FROM cierre_caja`);
     await expect(getCashClosingSummary(db, { usuarioId: "12345678-9" }, now)).resolves.toMatchObject({
@@ -185,7 +185,7 @@ describe("cash closing service", () => {
     expect(Number(rows[0].count)).toBe(0);
   });
 
-  it.each(["missing", "inactive"])("rejects a %s user reading a closed cash register", async (state) => {
+  it.each(["missing", "inactive"])("rechaza la lectura de una caja cerrada por un usuario %s", async (state) => {
     const db = testDb!.db as unknown as DbExecutor;
     await closeCashRegister(db, { confirmacion: true, usuarioId: "12345678-9" }, now);
     if (state === "inactive") await db.run(sql`UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 1`);

@@ -61,8 +61,8 @@ function queueExpiration(rows: any[]) {
     );
 }
 
-describe("daily sales calculation", () => {
-  it("queries only the half-open UTC range for the Chilean civil day", async () => {
+describe("cálculo de ventas diarias", () => {
+  it("consulta solo el rango UTC semiabierto del día civil chileno", async () => {
     allMock.mockResolvedValueOnce([]);
 
     await loadDailySalesSummary(
@@ -80,7 +80,7 @@ describe("daily sales calculation", () => {
     ]);
   });
 
-  it("returns every CU44 indicator at zero when the day has no sales", () => {
+  it("devuelve todos los indicadores CU44 en cero cuando el día no tiene ventas", () => {
     expect(summarizeDailySales([])).toEqual({
       currentAmount: 0,
       currentTransactions: 0,
@@ -89,7 +89,7 @@ describe("daily sales calculation", () => {
     });
   });
 
-  it("keeps a discounted voided sale separate from current sales", () => {
+  it("mantiene una venta anulada con descuento separada de las ventas vigentes", () => {
     expect(
       summarizeDailySales([
         {
@@ -108,7 +108,7 @@ describe("daily sales calculation", () => {
     });
   });
 
-  it("keeps the subtotal when there is no discount", () => {
+  it("mantiene el subtotal cuando no hay descuento", () => {
     expect(
       calculateSaleAmount({
         state: "completada",
@@ -119,7 +119,7 @@ describe("daily sales calculation", () => {
     ).toBe(12_500);
   });
 
-  it("applies and rounds a percentage discount to whole CLP", () => {
+  it("aplica y redondea un descuento porcentual a CLP entero", () => {
     expect(
       calculateSaleAmount({
         state: "completada",
@@ -130,7 +130,7 @@ describe("daily sales calculation", () => {
     ).toBe(851);
   });
 
-  it("does not produce a negative amount for a fixed discount", () => {
+  it("no produce un monto negativo con un descuento fijo", () => {
     expect(
       calculateSaleAmount({
         state: "anulada",
@@ -142,8 +142,8 @@ describe("daily sales calculation", () => {
   });
 });
 
-describe("dashboard query mapping", () => {
-  it("returns no stock alerts when every active product has sufficient stock (CU8-E1)", async () => {
+describe("mapeo de consultas del panel", () => {
+  it("no devuelve alertas de stock cuando todo producto activo tiene stock suficiente (CU8-E1)", async () => {
     allMock
       .mockResolvedValueOnce([
         { productId: 1, productName: "Leche", categoryId: 1, minimumStock: 5 },
@@ -153,7 +153,7 @@ describe("dashboard query mapping", () => {
     expect(await loadStockAlerts(database)).toEqual([]);
     expect(allMock).toHaveBeenCalledTimes(3);
   });
-  it("returns no expiration alerts when no relevant lot exists (CU9-E1)", async () => {
+  it("no devuelve alertas de vencimiento cuando no existe lote relevante (CU9-E1)", async () => {
     allMock
       .mockResolvedValueOnce([
         { lotId: "lote", productId: 1, availableQuantity: 4 },
@@ -166,7 +166,7 @@ describe("dashboard query mapping", () => {
     });
     expect(allMock).toHaveBeenCalledTimes(3);
   });
-  it("maps stock totals returned by SQLite to numbers", async () => {
+  it("convierte a números los totales de stock devueltos por SQLite", async () => {
     allMock.mockResolvedValueOnce([
       {
         productId: 1,
@@ -193,7 +193,7 @@ describe("dashboard query mapping", () => {
     ]);
   });
 
-  it("separates expired lots from the fixed seven-day horizon", async () => {
+  it("separa los lotes vencidos del horizonte fijo de siete días", async () => {
     queueExpiration([
       {
         lotId: "expired",
@@ -232,7 +232,7 @@ describe("dashboard query mapping", () => {
     ]);
   });
 
-  it("separates current and voided daily sales", async () => {
+  it("separa las ventas diarias vigentes y anuladas", async () => {
     queueSales([
       {
         state: "completada",
@@ -267,7 +267,7 @@ describe("dashboard query mapping", () => {
     });
   });
 
-  it("lists active workers without an attendance record", async () => {
+  it("lista los trabajadores activos sin registro de asistencia", async () => {
     allMock.mockResolvedValueOnce([
       { workerId: 1, fullName: "Ana Perez", hasAttendance: 1 },
       { workerId: 2, fullName: "Luis Soto", hasAttendance: 0 },
@@ -284,7 +284,7 @@ describe("dashboard query mapping", () => {
     });
   });
 
-  it("builds a read-only cash summary without a cash register for the day", async () => {
+  it("construye un resumen de caja de solo lectura sin registro de caja para el día", async () => {
     allMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
     await expect(
@@ -298,7 +298,7 @@ describe("dashboard query mapping", () => {
     });
   });
 
-  it("builds an open cash summary from current and voided sales", async () => {
+  it("construye un resumen de caja abierta a partir de ventas vigentes y anuladas", async () => {
     queueSales([
       {
         state: "completada",
@@ -355,7 +355,7 @@ describe("dashboard query mapping", () => {
     });
   });
 
-  it("builds a closed cash summary when the daily register is closed", async () => {
+  it("construye un resumen de caja cerrada cuando el registro diario está cerrado", async () => {
     allMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
         status: "cerrado",
@@ -374,7 +374,7 @@ describe("dashboard query mapping", () => {
   });
 });
 
-describe("dashboard presentation by role", () => {
+describe("presentación del panel por rol", () => {
   const globalAttendance = {
     activeWorkers: 2,
     workersWithAttendance: 1,
@@ -382,7 +382,7 @@ describe("dashboard presentation by role", () => {
     pendingWorkers: [{ workerId: 2, fullName: "Luis Soto" }],
   };
 
-  it("requires the authenticated user in worker dashboard requests", () => {
+  it("exige el usuario autenticado en las solicitudes del panel de trabajador", () => {
     expect(createDashboardRequest("trabajador")).toBeNull();
     expect(createDashboardRequest("trabajador", " usuario-luis ")).toEqual({
       role: "trabajador",
@@ -390,7 +390,7 @@ describe("dashboard presentation by role", () => {
     });
   });
 
-  it("shows the global attendance summary when workers are pending", () => {
+  it("muestra el resumen global de asistencia cuando hay trabajadores pendientes", () => {
     expect(getAttendanceDisplay(globalAttendance)).toEqual({
       alert: true,
       description: "trabajadores activos con entrada registrada",
@@ -400,7 +400,7 @@ describe("dashboard presentation by role", () => {
     });
   });
 
-  it("shows a positive global attendance message when all workers attended", () => {
+  it("muestra un mensaje positivo de asistencia global cuando todos los trabajadores asistieron", () => {
     expect(
       getAttendanceDisplay({
         activeWorkers: 2,
@@ -417,7 +417,7 @@ describe("dashboard presentation by role", () => {
     });
   });
 
-  it("hides expiration alerts only when both lists are empty", () => {
+  it("oculta las alertas de vencimiento solo cuando ambas listas están vacías", () => {
     expect(shouldShowExpirationAlerts({ expired: [], expiringSoon: [] })).toBe(
       false,
     );

@@ -43,8 +43,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("CU38 sale annulment service", () => {
-  it("loads the historical price, discount, payment and associated cash", async () => {
+describe("CU38 servicio de anulación de ventas", () => {
+  it("carga el precio histórico, descuento, pago y caja asociada", async () => {
     const detail = await loadSaleDetail(testDb!.db, { ventaId: saleId });
 
     expect(detail).toMatchObject({
@@ -74,7 +74,7 @@ describe("CU38 sale annulment service", () => {
     });
   });
 
-  it("restores every consumed lot exactly once and preserves sale history", async () => {
+  it("restituye cada lote consumido exactamente una vez y conserva el historial de la venta", async () => {
     const result = await annulSale(
       testDb!.db as unknown as DbExecutor,
       {
@@ -156,7 +156,7 @@ describe("CU38 sale annulment service", () => {
     ).toEqual(state.lots);
   });
 
-  it("accepts an active worker and records that worker as responsible", async () => {
+  it("acepta un trabajador activo y registra a ese trabajador como responsable", async () => {
     await testDb!.db.run(sql`
       UPDATE usuario SET usuario_rol = 'trabajador'
       WHERE usuario_id = '12345678-9'
@@ -177,7 +177,7 @@ describe("CU38 sale annulment service", () => {
     });
   });
 
-  it("rejects malformed input before starting any write", async () => {
+  it("rechaza entradas mal formadas antes de iniciar cualquier escritura", async () => {
     await expect(
       annulSale(
         testDb!.db as unknown as DbExecutor,
@@ -199,7 +199,7 @@ describe("CU38 sale annulment service", () => {
     ).toBe(0);
   });
 
-  it("distinguishes a missing sale and a previous-day sale", async () => {
+  it("distingue una venta inexistente de una venta del día anterior", async () => {
     await expect(
       annulSale(
         testDb!.db as unknown as DbExecutor,
@@ -229,7 +229,7 @@ describe("CU38 sale annulment service", () => {
     ).rejects.toThrow("día actual");
   });
 
-  it("rejects a closed associated cash register without partial changes", async () => {
+  it("rechaza una caja asociada cerrada sin cambios parciales", async () => {
     await closeAssociatedCash(testDb!.db as unknown as DbExecutor);
 
     await expect(
@@ -251,7 +251,7 @@ describe("CU38 sale annulment service", () => {
     expect(state.counts.auditorias).toBe(0);
   });
 
-  it("rolls back stock, state and annulment when auditing fails", async () => {
+  it("revierte stock, estado y anulación cuando falla la auditoría", async () => {
     const base = testDb!.db as unknown as DbExecutor;
     const failingDatabase: DbExecutor = {
       all: base.all.bind(base),
@@ -290,7 +290,7 @@ describe("CU38 sale annulment service", () => {
     expect(state.counts.auditorias).toBe(0);
   });
 
-  it("serializes two concurrent annulments so stock is restored once", async () => {
+  it("serializa dos anulaciones concurrentes para que el stock se restituya una sola vez", async () => {
     const secondClient = createClient({ url: testDb!.url });
     await secondClient.execute("PRAGMA foreign_keys = ON");
     await secondClient.execute("PRAGMA busy_timeout = 3000");
@@ -334,7 +334,7 @@ describe("CU38 sale annulment service", () => {
     }
   });
 
-  it("keeps a coherent outcome when cash closing and annulment compete", async () => {
+  it("mantiene un resultado coherente cuando el cierre de caja y la anulación compiten", async () => {
     const secondClient = createClient({ url: testDb!.url });
     await secondClient.execute("PRAGMA foreign_keys = ON");
     await secondClient.execute("PRAGMA busy_timeout = 3000");

@@ -57,12 +57,12 @@ const sampleReport: WasteReportData = {
   },
 };
 
-describe("CU49 ReporteMermasView renderer", () => {
-  it("registers reporte-mermas in isImplementedViewNodeId", () => {
+describe("CU49 renderizador de ReporteMermasView", () => {
+  it("registra reporte-mermas en isImplementedViewNodeId", () => {
     expect(isImplementedViewNodeId("reporte-mermas")).toBe(true);
   });
 
-  it("invokes reporte:mermas and handles data and errors", async () => {
+  it("invoca reporte:mermas y maneja datos y errores", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<WasteReportData>> => ({
         ok: true,
@@ -101,7 +101,7 @@ describe("CU49 ReporteMermasView renderer", () => {
     ).rejects.toThrow("Error de rango");
   });
 
-  it("invokes export channels for PDF and XLSX", async () => {
+  it("invoca los canales de exportación para PDF y XLSX", async () => {
     const invoke = vi.fn(async (): Promise<ControllerResponse<unknown>> => ({
       ok: true,
       data: {
@@ -150,12 +150,12 @@ describe("CU49 ReporteMermasView renderer", () => {
     });
   });
 
-  it("formats Chilean currency and numbers correctly", () => {
+  it("formatea correctamente moneda y números chilenos", () => {
     expect(formatCurrency(8400)).toContain("8.400");
     expect(formatNumber(1250)).toContain("1.250");
   });
 
-  it("renders ReporteMermasPrintView with metadata, summary and items", () => {
+  it("renderiza ReporteMermasPrintView con metadatos, resumen e ítems", () => {
     const markup = renderToStaticMarkup(
       createElement(ReporteMermasPrintView, {
         fechaInicio: "2026-09-01",
@@ -176,7 +176,7 @@ describe("CU49 ReporteMermasView renderer", () => {
     expect(markup).toContain("Daño");
   });
 
-  it("renders initial ReporteMermasView markup", () => {
+  it("renderiza el marcado inicial de ReporteMermasView", () => {
     // Mock window.appApi before rendering
     (globalThis as unknown as { window: { appApi: { invoke: unknown } } }).window = {
       appApi: {

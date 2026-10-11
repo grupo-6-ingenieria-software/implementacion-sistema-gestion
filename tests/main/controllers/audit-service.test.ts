@@ -37,7 +37,7 @@ afterAll(async () => {
 });
 
 describe("queryAuditLog", () => {
-  it("returns recent audit entries in descending order and registers the query", async () => {
+  it("devuelve las entradas de auditoría recientes en orden descendente y registra la consulta", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
       page: 1,
       pageSize: 2,
@@ -69,7 +69,7 @@ describe("queryAuditLog", () => {
     expect(Number(queryRows[0].count)).toBe(1);
   });
 
-  it("filters by user, action type and date range", async () => {
+  it("filtra por usuario, tipo de acción y rango de fechas", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
       fechaDesde: "2026-06-11",
       fechaHasta: "2026-06-11",
@@ -94,7 +94,7 @@ describe("queryAuditLog", () => {
     });
   });
 
-  it("rejects invalid date filters", async () => {
+  it("rechaza filtros de fecha inválidos", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
       fechaDesde: "2026-06-12",
       fechaHasta: "2026-06-11",
@@ -110,7 +110,7 @@ describe("queryAuditLog", () => {
     });
   });
 
-  it("denies workers and registers the denied attempt", async () => {
+  it("deniega a trabajadores y registra el intento denegado", async () => {
     const response = await queryAuditLog(testDb!.db, schema, {
       usuarioId: "23456789-0",
     });

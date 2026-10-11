@@ -139,14 +139,14 @@ function createContext(
 }
 
 describe("C60 ReporteMovimientosHandler", () => {
-  it("registers metadata and handles channel reporte:movimientos-inventario", () => {
+  it("registra metadatos y atiende el canal reporte:movimientos-inventario", () => {
     const controller = createMovementReportController(createMockDeps());
     expect(controller.metadata.id).toBe("movement-report");
     expect(controller.metadata.channels).toContain("reporte:movimientos-inventario");
     expect(controller.metadata.module).toBe("reportes");
   });
 
-  it("denies access when session role is not dueno", async () => {
+  it("deniega el acceso cuando el rol de la sesión no es dueno", async () => {
     const controller = createMovementReportController(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" },
@@ -163,7 +163,7 @@ describe("C60 ReporteMovimientosHandler", () => {
     });
   });
 
-  it("returns validation error (E2) when start date is after end date", async () => {
+  it("devuelve error de validación (E2) cuando la fecha de inicio es posterior a la fecha de término", async () => {
     const controller = createMovementReportController(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "2026-09-30", fechaTermino: "2026-09-01" },
@@ -180,7 +180,7 @@ describe("C60 ReporteMovimientosHandler", () => {
     });
   });
 
-  it("returns validation error when dates are invalid or malformed", async () => {
+  it("devuelve error de validación cuando las fechas son inválidas o mal formadas", async () => {
     const controller = createMovementReportController(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "fecha-invalida", fechaTermino: "2026-09-30" },
@@ -197,7 +197,7 @@ describe("C60 ReporteMovimientosHandler", () => {
     });
   });
 
-  it("executes query and returns movement report data with filters", async () => {
+  it("ejecuta la consulta y devuelve los datos del reporte de movimientos con filtros", async () => {
     const mockQuery = vi.fn(async () => sampleMovementData);
     const controller = createMovementReportController({
       queryMovementReport: mockQuery,
@@ -230,7 +230,7 @@ describe("C60 ReporteMovimientosHandler", () => {
 });
 
 describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
-  it("denies export when user is not dueno", async () => {
+  it("deniega la exportación cuando el usuario no es dueno", async () => {
     const controller = createRestockReportExportController({
       load: vi.fn(),
       showSaveDialog: vi.fn(),
@@ -260,7 +260,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
     });
   });
 
-  it("validates date range before exporting", async () => {
+  it("valida el rango de fechas antes de exportar", async () => {
     const controller = createRestockReportExportController({
       load: vi.fn(),
       showSaveDialog: vi.fn(),
@@ -290,7 +290,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
     });
   });
 
-  it("blocks export if report has no items (E1)", async () => {
+  it("bloquea la exportación si el reporte no tiene ítems (E1)", async () => {
     const controller = createRestockReportExportController({
       load: vi.fn(),
       showSaveDialog: vi.fn(),
@@ -324,7 +324,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
     });
   });
 
-  it("exports Excel successfully and logs audit", async () => {
+  it("exporta a Excel correctamente y registra auditoría", async () => {
     const saveMock = vi.fn(async () => {});
     const auditMock = vi.fn(async () => {});
     const createXlsxMock = vi.fn(async () => Buffer.from("excel-content"));
@@ -375,7 +375,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
     });
   });
 
-  it("exports PDF successfully and logs audit", async () => {
+  it("exporta a PDF correctamente y registra auditoría", async () => {
     const saveMock = vi.fn(async () => {});
     const auditMock = vi.fn(async () => {});
     const createPdfMock = vi.fn(async () => Buffer.from("pdf-content"));
@@ -426,7 +426,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
     });
   });
 
-  it("returns cancelled state when user cancels save dialog without auditing", async () => {
+  it("devuelve estado cancelado cuando el usuario cancela el diálogo de guardado sin auditar", async () => {
     const auditMock = vi.fn(async () => {});
     const controller = createRestockReportExportController({
       load: vi.fn(),

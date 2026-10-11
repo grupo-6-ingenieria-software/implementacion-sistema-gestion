@@ -23,9 +23,9 @@ const owner: AuthenticatedUser = {
   trabajadorNombre: "Dueña Prueba",
 };
 
-describe("CU19 inventory valuation controller (C36)", () => {
+describe("controlador de valorización de inventario CU19 (C36)", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "authorizes and returns the valuation for %s",
+    "autoriza y devuelve la valorización para %s",
     async (role) => {
       const result = { categorias: [], totalInventario: 0 };
       const load = vi.fn(async () => ({
@@ -47,7 +47,7 @@ describe("CU19 inventory valuation controller (C36)", () => {
     },
   );
 
-  it("rejects missing or invalid sessions and invalid channels", async () => {
+  it("rechaza sesiones faltantes o inválidas y canales inválidos", async () => {
     const controller = createInventoryValuationController({
       load: async () => {
         throw new AccessDeniedError("Sesión requerida");
@@ -68,7 +68,7 @@ describe("CU19 inventory valuation controller (C36)", () => {
     });
   });
 
-  it("maps database failures and performs no audit or write operation", async () => {
+  it("traduce fallos de base de datos y no realiza auditoría ni escritura", async () => {
     const authorize = vi.fn(async () => owner);
     const query = vi.fn(async () => {
       throw new Error("database unavailable");
@@ -94,7 +94,7 @@ describe("CU19 inventory valuation controller (C36)", () => {
     expect(query).toHaveBeenCalledOnce();
   });
 
-  it("uses the JWT identity instead of an identity sent by the renderer", async () => {
+  it("usa la identidad del JWT en lugar de la identidad enviada por el renderizador", async () => {
     const result = await guardChannel(
       "inventario:valorizacion",
       { usuarioId: "spoofed", __authToken: "token" },
@@ -113,7 +113,7 @@ describe("CU19 inventory valuation controller (C36)", () => {
   });
 });
 
-describe("CU19 persistent inventory valuation query", () => {
+describe("consulta persistente de valorización de inventario CU19", () => {
   let client: Client;
   let tempDirectory: string;
 
@@ -169,7 +169,7 @@ describe("CU19 persistent inventory valuation query", () => {
     await removeTempDirectory(tempDirectory);
   });
 
-  it("aggregates positive stock by category without filtering product status, expiry or zero cost", async () => {
+  it("agrega stock positivo por categoría sin filtrar por estado de producto, vencimiento ni costo cero", async () => {
     const database = drizzle(client);
     const result = await queryInventoryValuationWithExecutor(database);
 
@@ -205,7 +205,7 @@ describe("CU19 persistent inventory valuation query", () => {
     expect(Number(auditRows.rows[0]?.total)).toBe(0);
   });
 
-  it("returns an empty result and zero total when no lot has stock", async () => {
+  it("devuelve un resultado vacío y total cero cuando ningún lote tiene stock", async () => {
     const emptyDirectory = await mkdtemp(join(tmpdir(), "huascar-valuation-empty-"));
     const emptyClient = createClient({
       url: `file:${join(emptyDirectory, "empty.db")}`,

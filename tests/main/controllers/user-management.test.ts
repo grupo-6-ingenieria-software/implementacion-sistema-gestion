@@ -61,8 +61,8 @@ function createController() {
   });
 }
 
-describe("user management controller", () => {
-  it("lists users for owner sessions", async () => {
+describe("controlador de gestión de usuarios", () => {
+  it("lista usuarios para sesiones de dueño", async () => {
     const response = await createController().handle(
       { usuarioId: "dueno" },
       { channel: "usuario:listar" },
@@ -76,7 +76,7 @@ describe("user management controller", () => {
     expect((response.data as UserListResponse).users).toHaveLength(2);
   });
 
-  it("rejects worker sessions", async () => {
+  it("rechaza sesiones de trabajador", async () => {
     const response = await createController().handle(
       { usuarioId: "trabajador" },
       { channel: "usuario:listar" },
@@ -90,7 +90,7 @@ describe("user management controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("applies user list filters", async () => {
+  it("aplica filtros al listado de usuarios", async () => {
     const response = await createController().handle(
       {
         usuarioId: "dueno",
@@ -111,7 +111,7 @@ describe("user management controller", () => {
     expect(data.users.map((user) => user.usuarioId)).toEqual(["23456789-0"]);
   });
 
-  it("generates a temporary password through the auth reset generator", async () => {
+  it("genera una contraseña temporal mediante el generador de restablecimiento de autenticación", async () => {
     const response = await createController().handle(
       {
         usuarioId: "dueno",
@@ -131,7 +131,7 @@ describe("user management controller", () => {
     expect(data.usuarioObjetivoId).toBe("23456789-0");
   });
 
-  it("does not expose worker creation through the user module", async () => {
+  it("no expone la creación de trabajadores a través del módulo de usuarios", async () => {
     const response = await createController().handle(
       { usuarioId: "dueno" },
       { channel: "usuario:crear-trabajador" },
@@ -146,7 +146,7 @@ describe("user management controller", () => {
   });
 });
 
-describe("user management password reset wiring (RF58)", () => {
+describe("conexión del restablecimiento de contraseña de usuarios (RF58)", () => {
   const NOW = new Date("2026-06-13T12:00:00.000Z");
   const deps: PasswordDeps = {
     hashPassword: async (plain: string) => `hash:${plain}`,
@@ -215,7 +215,7 @@ describe("user management password reset wiring (RF58)", () => {
     });
   }
 
-  it("lets a dueno requester create a 24h temporary password row", async () => {
+  it("permite que un solicitante dueno cree un registro de contraseña temporal de 24h", async () => {
     const response = await createDbBackedController().handle(
       { usuarioId: "11111111-1", usuarioObjetivoId: "22222222-2" },
       { channel: "usuario:solicitar-restablecimiento" },
@@ -247,7 +247,7 @@ describe("user management password reset wiring (RF58)", () => {
     expect(rows[0].expiracion).toBe("2026-06-14T12:00:00.000Z");
   });
 
-  it("rejects a non-dueno requester", async () => {
+  it("rechaza a un solicitante que no sea dueno", async () => {
     const response = await createDbBackedController().handle(
       { usuarioId: "22222222-2", usuarioObjetivoId: "11111111-1" },
       { channel: "usuario:solicitar-restablecimiento" },

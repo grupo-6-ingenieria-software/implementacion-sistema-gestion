@@ -10,8 +10,8 @@ import {
 } from "../../../../src/renderer/src/views/ValorizacionInventarioView";
 import type { ControllerResponse } from "../../../../src/shared/controllers";
 
-describe("CU19 inventory valuation renderer", () => {
-  it("loads C36 with the session identity and propagates errors", async () => {
+describe("renderizador de valorización de inventario CU19", () => {
+  it("carga C36 con la identidad de la sesión y propaga errores", async () => {
     const data = {
       categorias: [],
       totalInventario: 0,
@@ -42,7 +42,7 @@ describe("CU19 inventory valuation renderer", () => {
     ).rejects.toThrow("Consulta fallida");
   });
 
-  it("formats CLP values and Chilean thousands separators", () => {
+  it("formatea valores en CLP y separadores de miles chilenos", () => {
     expect(formatInventoryCurrency(1_234_567)).toBe(
       new Intl.NumberFormat("es-CL", {
         style: "currency",
@@ -55,7 +55,7 @@ describe("CU19 inventory valuation renderer", () => {
     );
   });
 
-  it("renders the grand total and normal category breakdown", () => {
+  it("renderiza el total general y el desglose normal por categoría", () => {
     const markup = renderToStaticMarkup(
       createElement(InventoryValuationContent, {
         result: {
@@ -80,7 +80,7 @@ describe("CU19 inventory valuation renderer", () => {
     expect(markup).toContain(formatInventoryCurrency(1_500_000));
   });
 
-  it("keeps headers visible and shows a zero total for an empty result", () => {
+  it("mantiene los encabezados visibles y muestra total cero para un resultado vacío", () => {
     const markup = renderToStaticMarkup(
       createElement(InventoryValuationContent, {
         result: { categorias: [], totalInventario: 0 },

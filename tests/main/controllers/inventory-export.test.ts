@@ -70,9 +70,9 @@ function dependencies(
   };
 }
 
-describe("CU20 C50 orchestration", () => {
+describe("orquestación de C50 de CU20", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "exports prices and all rows for %s using trusted claims (T01/T04)",
+    "exporta precios y todas las filas para %s usando claims confiables (T01/T04)",
     async (role) => {
       expect(CHANNEL_ROLES.get(INVENTORY_EXPORT_CHANNEL)).toEqual(
         new Set(["dueno", "trabajador"]),
@@ -108,7 +108,7 @@ describe("CU20 C50 orchestration", () => {
       );
     },
   );
-  it("generates only XLSX when selected", async () => {
+  it("genera solo XLSX cuando se selecciona", async () => {
     const deps = dependencies();
     await createInventoryExportController(deps).handle(
       { formato: "xlsx" },
@@ -122,7 +122,7 @@ describe("CU20 C50 orchestration", () => {
     );
   });
   it.each(["pdf", "xlsx"])(
-    "returns exact E1 before dialog for %s (T08)",
+    "devuelve E1 exacto antes del diálogo para %s (T08)",
     async (formato) => {
       const deps = dependencies({ query: vi.fn(async () => []) });
       expect(
@@ -145,7 +145,7 @@ describe("CU20 C50 orchestration", () => {
     },
   );
   it.each(["native", "overwrite"])(
-    "handles %s cancellation without generation (T11)",
+    "maneja la cancelación %s sin generación (T11)",
     async (kind) => {
       const deps = dependencies(
         kind === "native"
@@ -168,7 +168,7 @@ describe("CU20 C50 orchestration", () => {
     },
   );
   it.each(["csv", "", undefined, 42])(
-    "rejects invalid format %s",
+    "rechaza formato inválido %s",
     async (formato) => {
       const deps = dependencies();
       expect(
@@ -180,7 +180,7 @@ describe("CU20 C50 orchestration", () => {
       expect(deps.query).not.toHaveBeenCalled();
     },
   );
-  it("rejects missing claims and inactive users without querying", async () => {
+  it("rechaza claims ausentes y usuarios inactivos sin consultar", async () => {
     const deps = dependencies({
       authorize: vi.fn(async () => {
         throw new AccessDeniedError();
@@ -206,7 +206,7 @@ describe("CU20 C50 orchestration", () => {
     "showSaveDialog",
     "confirmDestination",
   ] as const)(
-    "maps %s failure to exact E2 and never audits (T09)",
+    "mapea el fallo de %s a E2 exacto y nunca registra auditoría (T09)",
     async (action) => {
       const deps = dependencies();
       vi.mocked(deps[action]).mockRejectedValueOnce(
@@ -227,7 +227,7 @@ describe("CU20 C50 orchestration", () => {
       expect(deps.logError).toHaveBeenCalledOnce();
     },
   );
-  it("maps invalid prices to E2 without asking for a destination", async () => {
+  it("mapea precios inválidos a E2 sin pedir un destino", async () => {
     const deps = dependencies({
       query: vi.fn(async () => {
         throw new InventoryExportDataError([
@@ -246,7 +246,7 @@ describe("CU20 C50 orchestration", () => {
     });
     expect(deps.showSaveDialog).not.toHaveBeenCalled();
   });
-  it("keeps saved success with an audit warning, even if the logger also fails (T10)", async () => {
+  it("mantiene el éxito guardado con advertencia de auditoría, aunque el logger también falle (T10)", async () => {
     const deps = dependencies({
       audit: vi.fn(async () => {
         throw new Error("audit failure");
@@ -270,7 +270,7 @@ describe("CU20 C50 orchestration", () => {
     });
     expect(deps.save).toHaveBeenCalledOnce();
   });
-  it("does not report success for an empty buffer or a wrong channel", async () => {
+  it("no informa éxito ante un buffer vacío o un canal incorrecto", async () => {
     const deps = dependencies({
       createPdf: vi.fn(async () => Buffer.alloc(0)),
     });
@@ -289,8 +289,8 @@ describe("CU20 C50 orchestration", () => {
   });
 });
 
-describe("CU20 dispatch guard (T01)", () => {
-  it("rejects invalid tokens and revoked sessions before C50", async () => {
+describe("guard de despacho de CU20 (T01)", () => {
+  it("rechaza tokens inválidos y sesiones revocadas antes de C50", async () => {
     const audit = vi.fn(async () => undefined);
     expect(
       (

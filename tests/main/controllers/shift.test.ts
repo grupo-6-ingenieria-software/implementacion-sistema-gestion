@@ -41,8 +41,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("shift service", () => {
-  it("creates a shift for an active worker and audits it", async () => {
+describe("servicio de turnos", () => {
+  it("crea un turno para un trabajador activo y lo audita", async () => {
     const result = await createShift(
       testDb!.db as unknown as DbExecutor,
       {
@@ -73,7 +73,7 @@ describe("shift service", () => {
     });
   });
 
-  it("rejects non-owner actors and inactive workers", async () => {
+  it("rechaza actores que no son dueno y trabajadores inactivos", async () => {
     await expect(
       createShift(
         testDb!.db as unknown as DbExecutor,
@@ -108,7 +108,7 @@ describe("shift service", () => {
     });
   });
 
-  it("rejects overlaps and accepts contiguous shifts", async () => {
+  it("rechaza superposiciones y acepta turnos contiguos", async () => {
     await createShift(
       testDb!.db as unknown as DbExecutor,
       {
@@ -147,7 +147,7 @@ describe("shift service", () => {
     ).resolves.toHaveProperty("turnoId");
   });
 
-  it("validates date, time and ordering through the SQL-backed create flow", async () => {
+  it("valida fecha, hora y orden mediante el flujo de creación respaldado por SQL", async () => {
     await expect(
       createShift(
         testDb!.db as unknown as DbExecutor,
@@ -190,7 +190,7 @@ describe("shift service", () => {
     expect(Number(total)).toBe(0);
   });
 
-  it("lists only the selected week and worker", async () => {
+  it("lista solo la semana y el trabajador seleccionados", async () => {
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: "00000000-0000-4000-8000-000000000101",
       trabajadorId: 2,
@@ -232,7 +232,7 @@ describe("shift service", () => {
     expect(result.turnos[0]).not.toHaveProperty("trabajadorRut");
   });
 
-  it("edits a future shift without conflicting with itself", async () => {
+  it("edita un turno futuro sin entrar en conflicto consigo mismo", async () => {
     const turnoId = "00000000-0000-4000-8000-000000000104";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
@@ -266,7 +266,7 @@ describe("shift service", () => {
     });
   });
 
-  it("rejects an edit that conflicts with another shift", async () => {
+  it("rechaza una edición que entra en conflicto con otro turno", async () => {
     const editedId = "00000000-0000-4000-8000-000000000108";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId: editedId,
@@ -296,7 +296,7 @@ describe("shift service", () => {
     ).rejects.toBeInstanceOf(ShiftBusinessError);
   });
 
-  it("returns an empty calendar without modifying data", async () => {
+  it("devuelve un calendario vacío sin modificar datos", async () => {
     const result = await listShifts(
       testDb!.db as unknown as DbExecutor,
       { inicioSemana: "2026-06-15" },
@@ -311,7 +311,7 @@ describe("shift service", () => {
     });
   });
 
-  it("blocks edits and deletes after start or with attendance", async () => {
+  it("bloquea ediciones y eliminaciones después del inicio o con asistencia registrada", async () => {
     const startedId = "00000000-0000-4000-8000-000000000105";
     const attendedId = "00000000-0000-4000-8000-000000000106";
     await seedShift(testDb!.db as unknown as DbExecutor, {
@@ -354,7 +354,7 @@ describe("shift service", () => {
     ).rejects.toBeInstanceOf(ShiftBusinessError);
   });
 
-  it("physically deletes an eligible shift and audits the action", async () => {
+  it("elimina físicamente un turno elegible y audita la acción", async () => {
     const turnoId = "00000000-0000-4000-8000-000000000107";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
@@ -381,7 +381,7 @@ describe("shift service", () => {
     expect(rows[0]).toEqual({ shifts: 0, audits: 1 });
   });
 
-  it("does not delete a shift when confirmation is cancelled", async () => {
+  it("no elimina un turno cuando se cancela la confirmación", async () => {
     const turnoId = "00000000-0000-4000-8000-000000000110";
     await seedShift(testDb!.db as unknown as DbExecutor, {
       turnoId,
@@ -414,7 +414,7 @@ describe("shift service", () => {
     expect(rows[0].count).toBe(1);
   });
 
-  it("makes a created shift available to attendance registration", async () => {
+  it("deja disponible un turno creado para el registro de asistencia", async () => {
     const attendanceNow = new Date("2026-06-15T13:00:00.000Z");
     const shift = await createShift(
       testDb!.db as unknown as DbExecutor,

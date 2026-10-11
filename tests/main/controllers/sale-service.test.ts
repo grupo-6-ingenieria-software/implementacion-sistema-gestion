@@ -68,7 +68,7 @@ afterEach(async () => {
 
 describe("registerSale", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "CU37 preserves discounted registration for %s",
+    "CU37 conserva el registro con descuento para %s",
     async (rol) => {
       await testDb!.db.run(
         sql`UPDATE usuario SET usuario_rol = ${rol} WHERE usuario_id = '12345678-9'`,
@@ -91,7 +91,7 @@ describe("registerSale", () => {
     },
   );
 
-  it("persists the signed session role and current worker name as an immutable snapshot", async () => {
+  it("persiste el rol firmado de la sesión y el nombre actual del trabajador como instantánea inmutable", async () => {
     await testDb!.db.run(sql`
       UPDATE usuario SET usuario_rol = 'trabajador'
       WHERE usuario_id = '12345678-9'
@@ -133,7 +133,7 @@ describe("registerSale", () => {
   });
 
   it.each(["cerrada", "ajena", "expirada", "trabajador-inactivo"] as const)(
-    "rejects %s identity/session state without sale-side writes",
+    "rechaza estado de identidad/sesión %s sin escrituras de venta",
     async (scenario) => {
       if (scenario === "cerrada") {
         await testDb!.db.run(sql`
@@ -199,7 +199,7 @@ describe("registerSale", () => {
     [0, "Razón descartada", "ninguno", null, null, 3000],
     [3000, "Cortesía", "monto", 3000, "Cortesía", 0],
   ] as const)(
-    "CU37 persists discount %s and calculates authoritative totals",
+    "CU37 persiste el descuento %s y calcula totales autoritativos",
     async (monto, razon, tipo, valor, storedReason, total) => {
       const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
         usuarioId: "12345678-9",
@@ -232,7 +232,7 @@ describe("registerSale", () => {
     { monto: Number.MAX_SAFE_INTEGER + 1, razon: "Inválido" },
     { monto: "500", razon: "Tipo incorrecto" },
     { monto: "1.500", razon: "Texto IPC" },
-  ])("CU37 rejects invalid discount %j without writes", async (descuento) => {
+  ])("CU37 rechaza descuento inválido %j sin escrituras", async (descuento) => {
     await expect(
       registerSale(testDb!.db as unknown as DbExecutor, {
         usuarioId: "12345678-9",
@@ -259,7 +259,7 @@ describe("registerSale", () => {
     ]);
   });
 
-  it("CU37 revalidates against a price changed after cart preview", async () => {
+  it("CU37 revalida contra un precio modificado después de la vista previa del carrito", async () => {
     const database = testDb!.db as unknown as DbExecutor;
     expect(
       (
@@ -283,7 +283,7 @@ describe("registerSale", () => {
       await testDb!.db.all(sql`SELECT COUNT(*) AS cantidad FROM venta`),
     ).toEqual([{ cantidad: 0 }]);
   });
-  it("validates the cart with SQL reads and performs no writes", async () => {
+  it("valida el carrito con lecturas SQL y no realiza escrituras", async () => {
     const result = await validateSaleCart(testDb!.db as unknown as DbExecutor, {
       items: [{ productoId: 1, ean13: "7802920000015", cantidad: 2 }],
     });
@@ -298,7 +298,7 @@ describe("registerSale", () => {
     expect(counts[0]).toEqual({ ventas: 0, cajas: 1 });
   });
 
-  it("returns available stock from read-only cart validation", async () => {
+  it("devuelve el stock disponible desde la validación de carrito de solo lectura", async () => {
     await expect(
       validateSaleCart(testDb!.db as unknown as DbExecutor, {
         items: [{ productoId: 1, cantidad: 7 }],
@@ -323,7 +323,7 @@ describe("registerSale", () => {
     },
   );
 
-  it("rechecks a closed cash register at transaction start before malformed payload rules", async () => {
+  it("vuelve a verificar la caja cerrada al inicio de la transacción antes de las reglas de payload malformado", async () => {
     const outerAll = vi.fn().mockResolvedValueOnce([]);
     const transactionAll = vi
       .fn()
@@ -364,7 +364,7 @@ describe("registerSale", () => {
     expect(tx.run).not.toHaveBeenCalled();
   });
 
-  it("registers a cash sale, creates details and consumes FEFO lots", async () => {
+  it("registra una venta en efectivo, crea detalles y consume lotes FEFO", async () => {
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: "12345678-9",
       metodoPago: "efectivo",
@@ -412,7 +412,7 @@ describe("registerSale", () => {
     ]);
   });
 
-  it("registers an electronic sale without venta_efectivo", async () => {
+  it("registra una venta electrónica sin venta_efectivo", async () => {
     await registerSale(testDb!.db as unknown as DbExecutor, {
       usuarioId: "12345678-9",
       metodoPago: "debito",
@@ -426,7 +426,7 @@ describe("registerSale", () => {
     expect(Number(efectivoRows[0].count)).toBe(0);
   });
 
-  it("rolls back when cash payment is insufficient", async () => {
+  it("revierte la operación cuando el pago en efectivo es insuficiente", async () => {
     await expect(
       registerSale(testDb!.db as unknown as DbExecutor, {
         usuarioId: "12345678-9",
@@ -636,7 +636,7 @@ describe("registerSale", () => {
     "UPDATE lote",
     "INSERT INTO venta_lote",
     "INSERT INTO log_auditoria",
-  ])("rolls back every sale-side write when %s fails", async (sqlFragment) => {
+  ])("revierte todas las escrituras de venta cuando falla %s", async (sqlFragment) => {
     const faultyDb = failWhenWriting(
       testDb!.db as unknown as DbExecutor,
       sqlFragment,
@@ -676,7 +676,7 @@ describe("registerSale", () => {
     expect(Number(counts[0].stock)).toBe(6);
   });
 
-  it("rolls back an automatically opened cash register when a later write fails", async () => {
+  it("revierte la caja abierta automáticamente cuando falla una escritura posterior", async () => {
     await testDb!.db.run(sql`DELETE FROM cierre_caja`);
     const faultyDb = failWhenWriting(
       testDb!.db as unknown as DbExecutor,

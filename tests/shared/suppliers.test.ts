@@ -9,8 +9,8 @@ import {
   validateSupplierEditPayload,
 } from "../../src/shared/suppliers";
 
-describe("CU13 supplier registration contract", () => {
-  it("normalizes RUT, whitespace, phone, email and duplicate categories", () => {
+describe("contrato de registro de proveedores CU13", () => {
+  it("normaliza RUT, espacios, teléfono, correo y categorías duplicadas", () => {
     expect(
       normalizeSupplierRegistrationPayload({
         rut: " 12.345.670-k ",
@@ -32,7 +32,7 @@ describe("CU13 supplier registration contract", () => {
     });
   });
 
-  it("reports every required field", () => {
+  it("informa cada campo obligatorio", () => {
     const input = normalizeSupplierRegistrationPayload({});
     expect(validateSupplierRegistrationPayload(input)).toEqual({
       rut: "Ingrese un RUT chileno válido.",
@@ -48,7 +48,7 @@ describe("CU13 supplier registration contract", () => {
     ["12345678-9", "912345678", "ventas@sur.cl", "rut"],
     ["12345678-5", "12345", "ventas@sur.cl", "telefono"],
     ["12345678-5", "912345678", "correo-invalido", "correoElectronico"],
-  ])("rejects invalid field data", (rut, telefono, correo, field) => {
+  ])("rechaza datos de campo inválidos", (rut, telefono, correo, field) => {
     const input = normalizeSupplierRegistrationPayload({
       rut,
       nombreRazonSocial: "Distribuidora",
@@ -62,7 +62,7 @@ describe("CU13 supplier registration contract", () => {
     expect(hasSupplierFieldErrors(errors)).toBe(true);
   });
 
-  it("accepts a complete valid payload", () => {
+  it("acepta un payload completo y válido", () => {
     const input = normalizeSupplierRegistrationPayload({
       rut: "12345678-5",
       nombreRazonSocial: "Distribuidora",
@@ -75,8 +75,8 @@ describe("CU13 supplier registration contract", () => {
   });
 });
 
-describe("CU14 supplier edit and query contracts", () => {
-  it("normalizes the edit fields using the CU13 rules", () => {
+describe("contratos de edición y consulta de proveedores CU14", () => {
+  it("normaliza los campos de edición usando las reglas de CU13", () => {
     const input = normalizeSupplierEditPayload({
       rut: " 12.345.670-k ",
       nombreRazonSocial: "  Nueva   razón ",
@@ -97,7 +97,7 @@ describe("CU14 supplier edit and query contracts", () => {
     expect(validateSupplierEditPayload(input)).toEqual({});
   });
 
-  it("normalizes list search and rejects an invalid lookup RUT", () => {
+  it("normaliza la búsqueda de listado y rechaza un RUT de consulta inválido", () => {
     expect(
       normalizeSupplierListRequest({
         busqueda: "  Distribuidora   SUR ",

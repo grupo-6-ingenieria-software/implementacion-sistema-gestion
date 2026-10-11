@@ -12,8 +12,8 @@ const validPayload = {
   usuarioId: "12345678-9",
 };
 
-describe("lot validation helpers", () => {
-  it("rejects invalid quantity, cost and provider", () => {
+describe("helpers de validación de lotes", () => {
+  it("rechaza cantidad, costo y proveedor inválidos", () => {
     const errors = validateLotRegisterPayload(
       normalizeLotRegisterPayload({
         ...validPayload,
@@ -30,7 +30,7 @@ describe("lot validation helpers", () => {
     });
   });
 
-  it("rejects decimal quantity and cost instead of truncating them", () => {
+  it("rechaza cantidad y costo decimales en lugar de truncarlos", () => {
     const errors = validateLotRegisterPayload(
       normalizeLotRegisterPayload({
         ...validPayload,
@@ -45,7 +45,7 @@ describe("lot validation helpers", () => {
     });
   });
 
-  it("rejects a missing product selection", () => {
+  it("rechaza una selección de producto ausente", () => {
     expect(
       validateLotRegisterPayload({
         ...validPayload,
@@ -56,7 +56,7 @@ describe("lot validation helpers", () => {
     });
   });
 
-  it("requires a future expiration date when the category needs it", () => {
+  it("exige una fecha de vencimiento futura cuando la categoría lo requiere", () => {
     const missingDate = validateLotRegisterPayload(validPayload, {
       productRequiresExpiration: true,
       today: "2026-06-12",

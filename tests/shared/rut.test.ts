@@ -6,13 +6,13 @@ import {
   isValidRut,
 } from "../../src/shared/rut";
 
-describe("shared Chilean RUT utility", () => {
+describe("utilidad compartida de RUT chileno", () => {
   it.each([
     ["12.345.678-5", "12345678-5"],
     [" 12 345 678 - 5 ", "12345678-5"],
     ["123456785", "12345678-5"],
     ["12.345.670-k", "12345670-K"],
-  ])("canonicalizes equivalent RUT %s", (value, expected) => {
+  ])("canonicaliza RUT equivalente %s", (value, expected) => {
     expect(canonicalizeRut(value)).toBe(expected);
     expect(isValidChileanRut(value)).toBe(true);
   });
@@ -24,19 +24,19 @@ describe("shared Chilean RUT utility", () => {
     "12345678-X",
     "1-2-3-4-5-6-7-8-5",
   ])(
-    "rejects invalid RUT %s",
+    "rechaza RUT inválido %s",
     (value) => {
       expect(canonicalizeRut(value)).toBe("");
       expect(isValidChileanRut(value)).toBe(false);
     },
   );
 
-  it("calculates numeric and K verifier digits", () => {
+  it("calcula dígitos verificadores numéricos y K", () => {
     expect(calculateRutVerifier("12345678")).toBe("5");
     expect(calculateRutVerifier("12345670")).toBe("K");
   });
 
-  it("preserves the historical user validation contract", () => {
+  it("mantiene el contrato histórico de validación de usuarios", () => {
     expect(isValidRut("12.345.678-5")).toBe(true);
     expect(isValidRut("123456785")).toBe(false);
   });

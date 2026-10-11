@@ -5,8 +5,8 @@ import {
   ProductStatusError,
 } from "../../../src/main/controllers/product-status";
 
-describe("product status controller", () => {
-  it("rejects channels not declared for the controller", async () => {
+describe("controlador de estado de productos", () => {
+  it("rechaza canales no declarados para el controlador", async () => {
     const controller = createProductStatusController({
       changeStatus: async () => ({
         ean13: "7802920000015",
@@ -27,7 +27,7 @@ describe("product status controller", () => {
     expect(response.error.code).toBe("INVALID_CHANNEL");
   });
 
-  it("validates the requested status payload", async () => {
+  it("valida el payload del estado solicitado", async () => {
     const controller = createProductStatusController({
       changeStatus: async () => ({
         ean13: "7802920000015",
@@ -53,7 +53,7 @@ describe("product status controller", () => {
     });
   });
 
-  it("maps authorization failures to forbidden responses", async () => {
+  it("mapea fallos de autorización a respuestas prohibidas", async () => {
     const controller = createProductStatusController({
       changeStatus: async () => {
         throw new AccessDeniedError();
@@ -77,7 +77,7 @@ describe("product status controller", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("changes the product status", async () => {
+  it("cambia el estado del producto", async () => {
     const controller = createProductStatusController({
       changeStatus: async (payload) => ({
         ean13: payload.ean13!,
@@ -105,7 +105,7 @@ describe("product status controller", () => {
     });
   });
 
-  it("maps missing products to not found responses", async () => {
+  it("mapea productos inexistentes a respuestas no encontrado", async () => {
     const controller = createProductStatusController({
       changeStatus: async () => {
         throw new ProductStatusError(

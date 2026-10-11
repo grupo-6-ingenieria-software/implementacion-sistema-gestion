@@ -69,8 +69,8 @@ async function calendar(payload: Record<string, unknown>, index = 1) {
   return result.data as ShiftListResponse;
 }
 
-describe("CU28 persisted calendar through the request guard and controller", () => {
-  it.each([0, 1])("returns every active worker's shifts to role %i", async (index) => {
+describe("calendario persistido de CU28 a través del guard de solicitudes y el controlador", () => {
+  it.each([0, 1])("devuelve los turnos de todos los trabajadores activos al rol %i", async (index) => {
     await seedShift("owner", 1, "2099-01-05T12:00:00Z");
     await seedShift("worker", 2, "2099-01-06T12:00:00Z");
     await seedShift("inactive", 3, "2099-01-07T12:00:00Z");
@@ -81,7 +81,7 @@ describe("CU28 persisted calendar through the request guard and controller", () 
     expect(await fixture.db.select().from(schema.turno)).toEqual(before);
   });
 
-  it("filters by another active worker, supports numeric strings and keeps empty results", async () => {
+  it("filtra por otro trabajador activo, admite cadenas numéricas y mantiene resultados vacíos", async () => {
     await seedShift("one", 1, "2026-09-07T12:00:00Z");
     await seedShift("two", 2, "2026-09-07T13:00:00Z");
     expect((await calendar({ inicioSemana: "2026-09-07", trabajadorId: "1" })).turnos.map((s) => s.turnoId)).toEqual([shiftId("one")]);
@@ -97,7 +97,7 @@ describe("CU28 persisted calendar through the request guard and controller", () 
     ["2026-08-31", "2026-08-31T04:00:00Z", "2026-09-07T03:00:00Z"],
     ["2026-03-30", "2026-03-30T03:00:00Z", "2026-04-06T04:00:00Z"],
     ["2025-12-29", "2025-12-29T03:00:00Z", "2026-01-05T03:00:00Z"],
-  ])("respects Chile week boundaries across DST or year changes: %s", async (week, start, end) => {
+  ])("respeta los límites de semana de Chile ante cambios de horario de verano o de año: %s", async (week, start, end) => {
     await seedShift("before", 1, new Date(Date.parse(start) - 60000).toISOString());
     await seedShift("first", 1, start);
     await seedShift("last", 1, new Date(Date.parse(end) - 60000).toISOString());
@@ -105,7 +105,7 @@ describe("CU28 persisted calendar through the request guard and controller", () 
     expect((await calendar({ inicioSemana: week })).turnos.map((s) => s.turnoId)).toEqual(["first", "last"].map(shiftId));
   });
 
-  it("displays repeated Chile autumn hours without dropping either shift", async () => {
+  it("muestra las horas repetidas del otoño chileno sin descartar ningún turno", async () => {
     await seedShift("first-2330", 1, "2026-04-05T02:30:00Z");
     await seedShift("second-2330", 2, "2026-04-05T03:30:00Z");
     const { turnos } = await calendar({ inicioSemana: "2026-03-30" });
@@ -114,35 +114,35 @@ describe("CU28 persisted calendar through the request guard and controller", () 
     ]);
   });
 
-  it("returns no shifts when no active workers remain (service query)", async () => {
+  it("no devuelve turnos cuando no quedan trabajadores activos (consulta de servicio)", async () => {
     await fixture.db.update(schema.trabajador).set({ trabajadorEstado: "inactivo" });
     const result = await listShifts(fixture.db as unknown as DbExecutor, { inicioSemana: "2026-09-07" }, { role: "trabajador", usuarioId: users[1] });
     expect(result.turnos).toEqual([]);
   });
 
-  it.each([0, -1, 1.5, "garbage", null])("rejects malformed filters at the controller: %j", async (trabajadorId) => {
+  it.each([0, -1, 1.5, "garbage", null])("rechaza filtros malformados en el controlador: %j", async (trabajadorId) => {
     expect(await request("turno:listar", { inicioSemana: "2026-09-07", trabajadorId })).toMatchObject({
       ok: false, error: { code: "VALIDATION_ERROR", fieldErrors: { trabajadorId: expect.any(String) } },
     });
   });
 
-  it.each(["turno:crear", "turno:editar", "turno:eliminar"])("denies direct mutation %s even with a spoofed owner ID", async (channel) => {
+  it.each(["turno:crear", "turno:editar", "turno:eliminar"])("deniega la mutación directa %s incluso con un ID de dueño falsificado", async (channel) => {
     expect(await request(channel, { usuarioId: users[0] })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await fixture.db.select().from(schema.turno)).toEqual([]);
   });
 
-  it.each(["turno:listar", "trabajador:listar-activos"])("rejects invalid tokens and closed sessions for %s", async (channel) => {
+  it.each(["turno:listar", "trabajador:listar-activos"])("rechaza tokens inválidos y sesiones cerradas para %s", async (channel) => {
     const input = { inicioSemana: "2026-09-07", contexto: "calendario" };
     expect(await request(channel, { ...input, __authToken: "invalid" })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     await fixture.db.update(schema.sesionUsuario).set({ sesionFechaHoraCierre: new Date().toISOString(), sesionMotivoCierre: "manual" });
     expect(await request(channel, input)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
-  it("rejects an inactive caller even with an open session", async () => {
+  it("rechaza a un solicitante inactivo incluso con sesión abierta", async () => {
     expect(await request("turno:listar", { inicioSemana: "2026-09-07" }, 2)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
-  it("keeps a worker session read-only even if the database role changes", async () => {
+  it("mantiene la sesión de trabajador en solo lectura aunque cambie el rol de la base de datos", async () => {
     await seedShift("future", 1, "2099-01-05T12:00:00Z");
     await fixture.db.update(schema.usuario).set({ usuarioRol: "dueno" }).where(eq(schema.usuario.usuarioId, users[1]));
     const result = await calendar({ inicioSemana: "2099-01-05" });
@@ -151,13 +151,13 @@ describe("CU28 persisted calendar through the request guard and controller", () 
   });
 });
 
-describe("CU28 active worker context preserves attendance", () => {
-  it.each([0, 1])("returns every active option in calendar context to role %i", async (index) => {
+describe("contexto de trabajador activo de CU28 conserva la asistencia", () => {
+  it.each([0, 1])("devuelve todas las opciones activas del contexto de calendario al rol %i", async (index) => {
     const result = await request("trabajador:listar-activos", { contexto: "calendario" }, index);
     expect(result.ok).toBe(true);
     if (result.ok) expect((result.data as AttendanceWorkerOption[]).map((w) => w.trabajadorId)).toEqual([1, 2]);
   });
-  it("keeps the legacy scope for attendance and ignores a spoofed owner ID", async () => {
+  it("mantiene el alcance heredado de asistencia e ignora un ID de dueño falsificado", async () => {
     const result = await request("trabajador:listar-activos", { usuarioId: users[0] });
     expect(result.ok).toBe(true);
     if (result.ok) expect((result.data as AttendanceWorkerOption[]).map((w) => w.trabajadorId)).toEqual([2]);
@@ -165,7 +165,7 @@ describe("CU28 active worker context preserves attendance", () => {
     if (!owner.ok) throw new Error(owner.error.message);
     expect(owner.data).toHaveLength(2);
   });
-  it.each(["asistencia", "", null, true, {}])("rejects unknown context %j", async (contexto) => {
+  it.each(["asistencia", "", null, true, {}])("rechaza contexto desconocido %j", async (contexto) => {
     expect(await request("trabajador:listar-activos", { contexto })).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
   });
 });

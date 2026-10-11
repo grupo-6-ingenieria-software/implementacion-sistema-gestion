@@ -31,7 +31,7 @@ function dependencies(overrides: Partial<ProfitabilityExportDependencies> = {}):
 }
 
 describe("CU51 exportación C61 UI06 UI07", () => {
-  it("routes CU46, CU47, CU48, CU51 and legacy exports to their own handlers", async () => {
+  it("enruta las exportaciones CU46, CU47, CU48, CU51 y heredadas a sus propios manejadores", async () => {
     const reports = vi.fn(async (payload: unknown) => {
       if ((payload as { tipo?: unknown } | null)?.tipo === "unknown") {
         return { ok: false as const, error: { code: "VALIDATION_ERROR" as const, message: "Tipo de reporte no válido." } };
@@ -56,7 +56,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     for (const handler of [products, profitability, legacy.handle, daily.handle]) expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["pdf", "xlsx"] as const)("recalculates %s in Main instead of trusting rows or identity from the renderer", async (format) => {
+  it.each(["pdf", "xlsx"] as const)("recalcula %s en Main en lugar de confiar en las filas o la identidad del renderer", async (format) => {
     const deps = dependencies();
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
     const controller = createReportExportController(undefined, undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
@@ -69,14 +69,14 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     expect(audit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ tipoAccion: "exportacion", modulo: "reportes", usuarioId: "owner" }));
   });
 
-  it("rejects empty recalculations without opening a save dialog", async () => {
+  it("rechaza recálculos vacíos sin abrir el diálogo de guardado", async () => {
     const deps = dependencies({ load: async () => ({ report: { ...report, categorias: [] }, user }) });
     expect(await createCategoryProfitabilityExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });
     expect(deps.showSaveDialog).not.toHaveBeenCalled();
     expect(deps.save).not.toHaveBeenCalled();
   });
 
-  it("does not save cancelled exports or audit failed exports as successes", async () => {
+  it("no guarda exportaciones canceladas ni audita como exitosas las fallidas", async () => {
     for (const fail of [false, true]) {
       const deps = dependencies(fail ? { save: vi.fn(async () => { throw new Error("Disk full"); }) } : { showSaveDialog: async () => ({ canceled: true }) });
       const audit = vi.fn();
@@ -91,7 +91,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     }
   });
 
-  it("rejects workers and invalid ranges before loading report data", async () => {
+  it("rechaza a trabajadores y rangos inválidos antes de cargar los datos del reporte", async () => {
     const deps = dependencies();
     const handler = createCategoryProfitabilityExportHandler(deps);
     expect(await handler(request, { ...context, claims: { ...context.claims!, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
@@ -99,7 +99,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     expect(deps.load).not.toHaveBeenCalled();
   });
 
-  it("includes escaped labels, two decimal percentages and N/A in the PDF composition", () => {
+  it("incluye etiquetas escapadas, porcentajes de dos decimales y N/A en la composición del PDF", () => {
     const html = renderProfitabilityPrintHtml(input);
     expect(html).toContain("01/09/2026 al 30/09/2026");
     expect(html).toContain("Ana &lt;Dueña&gt;");
@@ -108,7 +108,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     expect(html).toContain("N/A");
   });
 
-  it("writes numeric CLP and percentage cells, preserving N/A in Excel", async () => {
+  it("escribe celdas numéricas de CLP y porcentaje, conservando N/A en Excel", async () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(await createProfitabilityXlsx(input) as any);
     const sheet = workbook.getWorksheet("Rentabilidad")!;
@@ -121,7 +121,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     expect(sheet.getCell("E9").value).toBe("N/A");
   });
 
-  it.each([false, true])("closes the hidden PDF window after rendering (failure=%s)", async (fail) => {
+  it.each([false, true])("cierra la ventana PDF oculta tras renderizar (failure=%s)", async (fail) => {
     const destroy = vi.fn();
     const result = createProfitabilityPdf(input, () => ({
       loadURL: async () => undefined, isDestroyed: () => false, destroy,

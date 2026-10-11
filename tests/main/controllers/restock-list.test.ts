@@ -21,9 +21,9 @@ const owner: AuthenticatedUser = {
   trabajadorNombre: "Dueña Prueba",
 };
 
-describe("CU16 restock list controller (C32)", () => {
+describe("controlador de lista de reabastecimiento CU16 (C32)", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "authorizes and returns the list for %s",
+    "autoriza y devuelve la lista para %s",
     async (role) => {
       const load = vi.fn(async () => ({ items: [], user: { ...owner, role } }));
       const controller = createRestockListController({ load });
@@ -41,7 +41,7 @@ describe("CU16 restock list controller (C32)", () => {
     },
   );
 
-  it("rejects unauthenticated access and invalid channels", async () => {
+  it("rechaza acceso no autenticado y canales inválidos", async () => {
     const controller = createRestockListController({
       load: async () => {
         throw new AccessDeniedError("Sesión requerida");
@@ -62,7 +62,7 @@ describe("CU16 restock list controller (C32)", () => {
     });
   });
 
-  it("maps query failures without producing audit or write activity", async () => {
+  it("mapea fallos de consulta sin producir auditoría ni escrituras", async () => {
     const query = vi.fn(async () => {
       throw new Error("database unavailable");
     });
@@ -86,7 +86,7 @@ describe("CU16 restock list controller (C32)", () => {
   });
 });
 
-describe("CU16 persistent restock query", () => {
+describe("consulta persistente de reabastecimiento CU16", () => {
   let client: Client;
   let tempDirectory: string;
 
@@ -139,7 +139,7 @@ describe("CU16 persistent restock query", () => {
     await removeTempDirectory(tempDirectory);
   });
 
-  it("includes inactive and lotless products, all lots and the exact boundary", async () => {
+  it("incluye productos inactivos y sin lote, todos los lotes y el límite exacto", async () => {
     const database = drizzle(client);
     const items = await queryRestockListWithExecutor(database);
 

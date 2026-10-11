@@ -57,8 +57,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("remuneracion service", () => {
-  it("registers a remuneracion for an active worker with RF34 default rates", async () => {
+describe("servicio de remuneracion", () => {
+  it("registra una remuneracion para un trabajador activo con tasas por defecto de RF34", async () => {
     const result = await registerRemuneracion(
       testDb!.db as unknown as DbExecutor,
       { trabajadorId: 2, mes: 6, anio: 2026, montoBruto: 500000 },
@@ -88,7 +88,7 @@ describe("remuneracion service", () => {
     expect(rows[0]).toMatchObject({ bruto: 500000, tasas: 3, auditoria: 1 });
   });
 
-  it("rejects a duplicate trabajador/periodo", async () => {
+  it("rechaza un trabajador/periodo duplicado", async () => {
     await registerRemuneracion(
       testDb!.db as unknown as DbExecutor,
       { trabajadorId: 2, mes: 6, anio: 2026, montoBruto: 500000 },
@@ -104,7 +104,7 @@ describe("remuneracion service", () => {
     ).rejects.toBeInstanceOf(RemuneracionBusinessError);
   });
 
-  it("rejects inactive workers without activity in the period", async () => {
+  it("rechaza trabajadores inactivos sin actividad en el periodo", async () => {
     await expect(
       registerRemuneracion(
         testDb!.db as unknown as DbExecutor,
@@ -114,7 +114,7 @@ describe("remuneracion service", () => {
     ).rejects.toBeInstanceOf(RemuneracionValidationError);
   });
 
-  it("accepts inactive workers with shift activity in the period", async () => {
+  it("acepta trabajadores inactivos con actividad de turnos en el periodo", async () => {
     await testDb!.db.run(sql`
       INSERT INTO turno (
         turno_id, turno_fecha_hora_inicio, turno_fecha_hora_fin,
@@ -136,7 +136,7 @@ describe("remuneracion service", () => {
   });
 
   describe("listEligibleWorkers", () => {
-    it("lists an inactive worker only for the month/year they had a shift", async () => {
+    it("lista un trabajador inactivo solo para el mes/año en que tuvo un turno", async () => {
       await testDb!.db.run(sql`
         INSERT INTO turno (
           turno_id, turno_fecha_hora_inicio, turno_fecha_hora_fin,
@@ -167,7 +167,7 @@ describe("remuneracion service", () => {
       expect(julyRuts).not.toContain("33333333-3");
     });
 
-    it("always lists active workers regardless of the period", async () => {
+    it("siempre lista trabajadores activos sin importar el periodo", async () => {
       const rows = await listEligibleWorkers(
         testDb!.db as unknown as DbExecutor,
         { mes: 1, anio: 2020 },
@@ -176,7 +176,7 @@ describe("remuneracion service", () => {
       expect(rows.map((worker) => worker.rut)).toContain("22222222-2");
     });
 
-    it("never lists an inactive worker with no activity at all", async () => {
+    it("nunca lista un trabajador inactivo sin actividad alguna", async () => {
       const rows = await listEligibleWorkers(
         testDb!.db as unknown as DbExecutor,
         { mes: 6, anio: 2026 },
@@ -185,7 +185,7 @@ describe("remuneracion service", () => {
       expect(rows.map((worker) => worker.rut)).not.toContain("33333333-3");
     });
 
-    it("rejects non-owner sessions through the IPC channel", async () => {
+    it("rechaza sesiones que no son de rol dueno a través del canal IPC", async () => {
       const response = await remuneracionController.handle(
         { usuarioId: "22222222-2", mes: 6, anio: 2026 },
         { channel: "remuneracion:trabajadores-elegibles" },
@@ -200,7 +200,7 @@ describe("remuneracion service", () => {
     });
   });
 
-  it("rejects non-owner sessions through the IPC channel", async () => {
+  it("rechaza sesiones que no son de rol dueno a través del canal IPC", async () => {
     const response = await remuneracionController.handle(
       {
         usuarioId: "22222222-2",
@@ -220,7 +220,7 @@ describe("remuneracion service", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejects a non positive gross amount", async () => {
+  it("rechaza un monto bruto no positivo", async () => {
     const response = await remuneracionController.handle(
       {
         usuarioId: "11111111-1",
@@ -241,7 +241,7 @@ describe("remuneracion service", () => {
     expect(response.error.fieldErrors?.montoBruto).toBeDefined();
   });
 
-  it("keeps historical remuneracion_tasa unchanged after the rate is updated later", async () => {
+  it("mantiene sin cambios la remuneracion_tasa histórica después de actualizar la tasa", async () => {
     const first = await registerRemuneracion(
       testDb!.db as unknown as DbExecutor,
       { trabajadorId: 2, mes: 6, anio: 2026, montoBruto: 500000 },
@@ -277,7 +277,7 @@ describe("remuneracion service", () => {
     );
   });
 
-  it("rejects unknown channels", async () => {
+  it("rechaza canales desconocidos", async () => {
     const response = await remuneracionController.handle(
       { usuarioId: "11111111-1" },
       { channel: "remuneracion:otro" },

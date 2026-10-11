@@ -5,8 +5,8 @@ import {
   validateWorkerFormValues,
 } from "../../src/shared/workers";
 
-describe("worker form contract", () => {
-  it("normalizes the fields required to register a worker", () => {
+describe("contrato del formulario de trabajador", () => {
+  it("normaliza los campos requeridos para registrar un trabajador", () => {
     expect(
       normalizeWorkerFormValues({
         rut: "12.345.678-9",
@@ -24,7 +24,7 @@ describe("worker form contract", () => {
     });
   });
 
-  it("reports the RF21 field errors before saving", () => {
+  it("informa los errores de campos de RF21 antes de guardar", () => {
     expect(
       validateWorkerFormValues({
         rut: "123",
@@ -41,7 +41,7 @@ describe("worker form contract", () => {
     });
   });
 
-  it("uses system role labels for the worker list and form", () => {
+  it("usa las etiquetas de rol del sistema en la lista y el formulario de trabajadores", () => {
     expect(roleLabel("dueno")).toBe("Dueno");
     expect(roleLabel("trabajador")).toBe("Trabajador");
   });

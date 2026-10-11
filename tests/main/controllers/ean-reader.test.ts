@@ -21,8 +21,8 @@ function fixture() {
   return { findProduct, report, controller: createEanReaderController({ findProduct, report }) };
 }
 
-describe("ean reader controller", () => {
-  it("accepts a valid EAN-13 capture", async () => {
+describe("controlador del lector EAN", () => {
+  it("acepta una captura EAN-13 válida", async () => {
     const response = await eanReaderController.handle(
       { value: "7802920000015" },
       context,
@@ -34,7 +34,7 @@ describe("ean reader controller", () => {
     });
   });
 
-  it("rejects an EAN-13 capture with invalid length", async () => {
+  it("rechaza una captura EAN-13 con longitud inválida", async () => {
     const response = await eanReaderController.handle(
       { value: "780292000001" },
       context,
@@ -52,7 +52,7 @@ describe("ean reader controller", () => {
   });
 
   it.each(["", "78029200000155", "780292000001a", "x7802920000015", "780-2920000015", "7802920000017"])(
-    "rejects malformed capture without sanitizing it into a valid code: %s", async (value) => {
+    "rechaza captura malformada sin sanitizarla como código válido: %s", async (value) => {
       const { controller, findProduct } = fixture();
       expect(await controller.handle({ value, mode: "buscar-producto" }, context))
         .toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR", message: "Código inválido, intente escanear nuevamente" } });
@@ -60,21 +60,21 @@ describe("ean reader controller", () => {
     },
   );
 
-  it("accepts surrounding scanner whitespace and preserves validation-only mode for new products", async () => {
+  it("acepta espacios alrededor del escaneo y conserva el modo de solo validación para productos nuevos", async () => {
     const { controller, findProduct } = fixture();
     expect(await controller.handle({ value: " 4006381333931\r\n", mode: "validar" }, context))
       .toEqual({ ok: true, data: { ean13: "4006381333931" } });
     expect(findProduct).not.toHaveBeenCalled();
   });
 
-  it("uses the product dependency only in lookup mode", async () => {
+  it("usa la dependencia de producto solo en modo de búsqueda", async () => {
     const { controller, findProduct } = fixture();
     expect(await controller.handle({ value: product.ean13, mode: "buscar-producto" }, context))
       .toEqual({ ok: true, data: { ean13: product.ean13, producto: product } });
     expect(findProduct).toHaveBeenCalledExactlyOnceWith(product.ean13);
   });
 
-  it("reports an unknown product and database failure without treating either as a capture success", async () => {
+  it("informa producto desconocido y fallo de base de datos sin tratar ninguno como captura exitosa", async () => {
     const controller = createEanReaderController({
       findProduct: async () => null, report: fixture().report,
     });
@@ -87,12 +87,12 @@ describe("ean reader controller", () => {
       .toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 
-  it.each(["ean:validar-captura", "ean:registrar-fallo"])("requires trusted claims for %s", async (channel) => {
+  it.each(["ean:validar-captura", "ean:registrar-fallo"])("requiere claims de confianza para %s", async (channel) => {
     expect(await eanReaderController.handle({ value: product.ean13, modulo: "ventas", usuarioId: "spoofed" }, { channel }))
       .toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
-  it("rejects unknown channels, modes and module contexts", async () => {
+  it("rechaza canales, modos y contextos de módulo desconocidos", async () => {
     const { controller, report } = fixture();
     expect(await controller.handle({}, { ...context, channel: "ean:otro" }))
       .toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
@@ -104,7 +104,7 @@ describe("ean reader controller", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it.each(["dueno", "trabajador"] as const)("reports failure using trusted %s identity and server description, without EAN", async (rol) => {
+  it.each(["dueno", "trabajador"] as const)("informa fallo con la identidad de confianza de %s y la descripción del servidor, sin EAN", async (rol) => {
     const { controller, report } = fixture();
     expect(CHANNEL_ROLES.get("ean:registrar-fallo")?.has(rol)).toBe(true);
     const response = await controller.handle({
@@ -118,7 +118,7 @@ describe("ean reader controller", () => {
     });
   });
 
-  it("propagates audit failure and permits a later retry", async () => {
+  it("propaga el fallo de auditoría y permite un reintento posterior", async () => {
     const report = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: { code: "DATABASE_ERROR", controllerId: "audit", message: "No fue posible registrar la auditoria." } })
       .mockRejectedValueOnce(new Error("offline"))
@@ -131,7 +131,7 @@ describe("ean reader controller", () => {
     expect(await controller.handle({ modulo: "ventas" }, failureContext)).toMatchObject({ ok: true });
   });
 
-  it.each(["ean:validar-captura", "ean:registrar-fallo"])("the dispatcher rejects missing or invalid JWT for %s", async (channel) => {
+  it.each(["ean:validar-captura", "ean:registrar-fallo"])("el despachador rechaza JWT ausente o inválido para %s", async (channel) => {
     const session = vi.fn();
     for (const __authToken of [undefined, "invalid-token"]) {
       const result = await authorizeRequest(channel, { __authToken, usuarioId: "spoofed", modulo: "ventas" }, undefined, {
@@ -142,7 +142,7 @@ describe("ean reader controller", () => {
     expect(session).not.toHaveBeenCalled();
   });
 
-  it.each(["ean:validar-captura", "ean:registrar-fallo"])("the dispatcher rejects expired persisted sessions for %s", async (channel) => {
+  it.each(["ean:validar-captura", "ean:registrar-fallo"])("el despachador rechaza sesiones persistidas expiradas para %s", async (channel) => {
     const identity = vi.fn(async () => ({ ok: true as const, context: { ...context, channel }, payload: { modulo: "ventas" } }));
     const result = await authorizeRequest(channel, {}, undefined, {
       identity, session: async () => ({ active: false, reason: "inactividad" }),
@@ -150,7 +150,7 @@ describe("ean reader controller", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("records the explicit failure once without duplicating it in the audit dispatcher", async () => {
+  it("registra el fallo explícito una sola vez sin duplicarlo en el despachador de auditoría", async () => {
     const { controller, report } = fixture();
     const audit = vi.fn(async () => undefined);
     expect(await handleWithAudit(controller, { modulo: "ventas" }, failureContext, audit)).toMatchObject({ ok: true });

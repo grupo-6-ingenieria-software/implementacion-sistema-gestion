@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { controllers, ipcChannels } from "../../src/shared/controllers";
 import { registeredControllers } from "../../src/main/controllers";
 
-describe("controller registry", () => {
-  it("declares one metadata entry per controller id", () => {
+describe("registro de controladores", () => {
+  it("declara una entrada de metadatos por id de controlador", () => {
     const ids = controllers.map((controller) => controller.id);
 
     expect(controllers).toHaveLength(53);
@@ -65,13 +65,13 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("registers the same controllers in the main process", () => {
+  it("registra los mismos controladores en el proceso principal", () => {
     expect(
       registeredControllers.map((controller) => controller.metadata.id),
     ).toEqual(controllers.map((controller) => controller.id));
   });
 
-  it("appends C50 without reusing C33 channels", () => {
+  it("agrega C50 sin reutilizar canales de C33", () => {
     expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
       id: "inventory-export", name: "ExportacionInventarioHandler",
       channels: ["inventario:exportar-productos"],
@@ -79,7 +79,7 @@ describe("controller registry", () => {
     expect(new Set(ipcChannels.map(({ channel }) => channel)).size).toBe(ipcChannels.length);
   });
 
-  it("assigns at least one IPC channel to every controller", () => {
+  it("asigna al menos un canal IPC a cada controlador", () => {
     expect(ipcChannels.length).toBeGreaterThanOrEqual(37);
     expect(
       controllers.every((controller) => controller.channels.length > 0),
@@ -87,7 +87,7 @@ describe("controller registry", () => {
     expect(new Set(ipcChannels.map((item) => item.channel)).size).toBe(ipcChannels.length);
   });
 
-  it("appends the CU13 supplier controller without changing prior indices", () => {
+  it("agrega el controlador de proveedores de CU13 sin cambiar los índices previos", () => {
     expect(controllers.at(34)).toMatchObject({
       id: "supplier-create",
       name: "RegistrarProveedorHandler",
@@ -95,7 +95,7 @@ describe("controller registry", () => {
     });
   });
 
-  it("registers the CU14 query and edit channels", () => {
+  it("registra los canales de consulta y edición de CU14", () => {
     expect(controllers.slice(35, 37)).toMatchObject([
       {
         id: "supplier-query",
@@ -105,7 +105,7 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("appends the CU16 controllers without changing inherited indices", () => {
+  it("agrega los controladores de CU16 sin cambiar los índices heredados", () => {
     expect(controllers.slice(37, 39)).toMatchObject([
       {
         id: "restock-list",
@@ -120,7 +120,7 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("appends the CU19 read-only controller", () => {
+  it("agrega el controlador de solo lectura de CU19", () => {
     expect(controllers.at(39)).toMatchObject({
       id: "inventory-valuation",
       name: "ValorizacionHandler",
@@ -128,7 +128,7 @@ describe("controller registry", () => {
     });
   });
 
-  it("registers the CU45 query after inherited controllers", () => {
+  it("registra la consulta de CU45 después de los controladores heredados", () => {
     expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
       id: "sale-categories",
       name: "VentasCategoriaHandler",
@@ -136,7 +136,7 @@ describe("controller registry", () => {
     });
   });
 
-  it("appends the CU49 waste report controller", () => {
+  it("agrega el controlador del reporte de mermas de CU49", () => {
     expect(controllers.find((c) => c.id === "waste-report")).toMatchObject({
       id: "waste-report",
       name: "ReporteMermasHandler",
@@ -144,18 +144,18 @@ describe("controller registry", () => {
     });
   });
 
-  it("appends C51 without changing inherited indices", () => {
+  it("agrega C51 sin cambiar los índices heredados", () => {
     expect(controllers.at(50)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
   });
 
-  it("keeps remuneracion scoped to its documented channels", () => {
+  it("mantiene remuneracion acotada a sus canales documentados", () => {
     expect(
       controllers.find((controller) => controller.id === "remuneracion")
         ?.channels,
     ).toEqual(["remuneracion:registrar", "remuneracion:trabajadores-elegibles"]);
   });
 
-  it("keeps configuracion previsional scoped to its documented channels", () => {
+  it("mantiene configuracion previsional acotada a sus canales documentados", () => {
     expect(
       controllers.find(
         (controller) => controller.id === "configuracion-previsional",
@@ -166,26 +166,26 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("keeps the lot controller scoped to lot registration support channels", () => {
+  it("mantiene el controlador de lotes acotado a los canales de soporte del registro de lotes", () => {
     expect(
       controllers.find((controller) => controller.id === "lot")?.channels,
     ).toEqual(["lote:registrar", "lote:proveedores"]);
   });
 
-  it("registers waste registration and availability channels", () => {
+  it("registra los canales de registro y disponibilidad de mermas", () => {
     expect(
       controllers.find((controller) => controller.id === "waste")?.channels,
     ).toEqual(["merma:registrar", "merma:disponibilidad"]);
   });
 
-  it("keeps product deletion scoped to its documented channel", () => {
+  it("mantiene la eliminación de productos acotada a su canal documentado", () => {
     expect(
       controllers.find((controller) => controller.id === "product-delete")
         ?.channels,
     ).toEqual(["producto:eliminar"]);
   });
 
-  it("keeps the shared CU38/CU41 query channels and CU38 annulment channel", () => {
+  it("mantiene los canales de consulta compartidos de CU38/CU41 y el canal de anulación de CU38", () => {
     expect(
       controllers.find((controller) => controller.id === "sales-history")
         ?.channels,
@@ -196,7 +196,7 @@ describe("controller registry", () => {
     ).toEqual(["venta:anular"]);
   });
 
-  it("keeps the worker operations provided by the current main scope", () => {
+  it("mantiene las operaciones de trabajador provistas por el alcance principal actual", () => {
     expect(
       controllers.find((controller) => controller.id === "worker")?.channels,
     ).toEqual([
@@ -209,7 +209,7 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("keeps all turn operations in the documented shift controller", () => {
+  it("mantiene todas las operaciones de turno en el controlador de turnos documentado", () => {
     expect(
       controllers.find((controller) => controller.id === "shift")?.channels,
     ).toEqual([
@@ -220,7 +220,7 @@ describe("controller registry", () => {
     ]);
   });
 
-  it("registers the CU53 movement report controller", () => {
+  it("registra el controlador del reporte de movimientos de CU53", () => {
     expect(
       controllers.find((controller) => controller.id === "movement-report"),
     ).toMatchObject({

@@ -26,8 +26,8 @@ beforeEach(() => {
 
 const saleId = "00000000-0000-4000-8000-000000000401";
 
-describe("CU38 sale lookup and detail", () => {
-  it("finds a current valid sale using Chilean day boundaries", async () => {
+describe("búsqueda y detalle de venta CU38", () => {
+  it("encuentra una venta vigente válida usando los límites del día chileno", async () => {
     allMock.mockResolvedValueOnce([
       {
         ventaId: saleId,
@@ -52,7 +52,7 @@ describe("CU38 sale lookup and detail", () => {
     ]);
   });
 
-  it("distinguishes invalid, missing, previous-day and annulled sales", async () => {
+  it("distingue ventas inválidas, inexistentes, de día anterior y anuladas", async () => {
     await expect(
       findSaleForAnnulment(database, { ventaId: "venta-1" }),
     ).rejects.toBeInstanceOf(SaleLookupValidationError);
@@ -87,7 +87,7 @@ describe("CU38 sale lookup and detail", () => {
     ).rejects.toBeInstanceOf(SaleLookupBusinessError);
   });
 
-  it("builds detail from historical prices, discount, cash and state", async () => {
+  it("construye el detalle con precios históricos, descuento, caja y estado", async () => {
     allMock
       .mockResolvedValueOnce([
         {
@@ -173,8 +173,8 @@ describe("CU38 sale lookup and detail", () => {
   });
 });
 
-describe("CU41 sales history search", () => {
-  it("uses an inclusive Chilean range and maps historical totals and eligibility", async () => {
+describe("búsqueda de historial de ventas CU41", () => {
+  it("usa un rango chileno inclusivo y mapea totales históricos y elegibilidad", async () => {
     allMock.mockResolvedValueOnce([
       {
         ventaId: "00000000-0000-4000-8000-000000000403",
@@ -273,7 +273,7 @@ describe("CU41 sales history search", () => {
     );
   });
 
-  it("searches a full UUID exactly without a date restriction", async () => {
+  it("busca un UUID completo de forma exacta sin restricción de fecha", async () => {
     allMock.mockResolvedValueOnce([]);
 
     await expect(
@@ -301,7 +301,7 @@ describe("CU41 sales history search", () => {
     { criterio: "rango", fechaInicio: "2026-02-29", fechaTermino: "2026-03-01" },
     { criterio: "rango", fechaInicio: "2026-06-13", fechaTermino: "2026-06-12" },
     { criterio: "desconocido" },
-  ])("rejects invalid direct requests before querying: $criterio", async (payload) => {
+  ])("rechaza solicitudes directas inválidas antes de consultar: $criterio", async (payload) => {
     await expect(
       searchSalesHistory(database, payload as never),
     ).rejects.toBeInstanceOf(SaleHistoryValidationError);
@@ -309,8 +309,8 @@ describe("CU41 sales history search", () => {
   });
 });
 
-describe("daily sales history query", () => {
-  it("uses Chile winter boundaries and orders newest sales first", async () => {
+describe("consulta del historial de ventas diarias", () => {
+  it("usa los límites de invierno de Chile y ordena primero las ventas más recientes", async () => {
     allMock.mockResolvedValueOnce([]);
 
     await loadDailySalesHistory(database, new Date("2026-06-11T12:00:00Z"));
@@ -326,7 +326,7 @@ describe("daily sales history query", () => {
     );
   });
 
-  it("uses Chile summer boundaries", async () => {
+  it("usa los límites de verano de Chile", async () => {
     allMock.mockResolvedValueOnce([]);
 
     await loadDailySalesHistory(database, new Date("2026-01-15T12:00:00Z"));
@@ -337,7 +337,7 @@ describe("daily sales history query", () => {
     ]);
   });
 
-  it("maps sales and excludes voided sales from current totals", async () => {
+  it("mapea las ventas y excluye las anuladas de los totales vigentes", async () => {
     allMock
       .mockResolvedValueOnce([
         {
@@ -455,7 +455,7 @@ describe("daily sales history query", () => {
     });
   });
 
-  it("returns an empty list and zeroed summary when the day has no sales", async () => {
+  it("devuelve una lista vacía y un resumen en cero cuando el día no tiene ventas", async () => {
     allMock.mockResolvedValueOnce([]);
 
     await expect(loadDailySalesHistory(database)).resolves.toEqual({
@@ -477,8 +477,8 @@ describe("daily sales history query", () => {
   });
 });
 
-describe("sales history controller", () => {
-  it("routes CU41 searches without changing the legacy CU38 request shape", async () => {
+describe("controlador del historial de ventas", () => {
+  it("enruta búsquedas CU41 sin cambiar la forma de solicitud heredada de CU38", async () => {
     const controller = createSalesHistoryController(
       database,
       () => new Date("2026-06-12T18:00:00.000Z"),
@@ -515,7 +515,7 @@ describe("sales history controller", () => {
     ).resolves.toEqual({ ok: true, data: { ventaId: saleId } });
   });
 
-  it("maps invalid CU41 filters to a public validation error", async () => {
+  it("mapea filtros CU41 inválidos a un error de validación público", async () => {
     const controller = createSalesHistoryController(database);
     await expect(
       controller.handle(
@@ -533,7 +533,7 @@ describe("sales history controller", () => {
     expect(allMock).not.toHaveBeenCalled();
   });
 
-  it("returns a technical error without exposing database details", async () => {
+  it("devuelve un error técnico sin exponer detalles de la base de datos", async () => {
     const error = new Error("database connection details");
     const failingDatabase: SalesHistoryDb = {
       all: vi.fn().mockRejectedValue(error),
@@ -561,7 +561,7 @@ describe("sales history controller", () => {
     consoleError.mockRestore();
   });
 
-  it("returns a generic technical error for CU41 searches", async () => {
+  it("devuelve un error técnico genérico para búsquedas CU41", async () => {
     const error = new Error("database connection details");
     const failingDatabase: SalesHistoryDb = {
       all: vi.fn().mockRejectedValue(error),

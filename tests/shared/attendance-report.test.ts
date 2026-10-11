@@ -7,25 +7,25 @@ import { findControllerByChannel } from "../../src/shared/controllers";
 import { evaluateRouteAccess, getVisibleMenu, internalComponents, navigationTree } from "../../src/shared/navigation";
 
 const valid = { mes: 9, anio: 2026 };
-describe("CU52 contract and navigation", () => {
+describe("contrato y navegación de CU52", () => {
   it.each([null, [], {}, { ...valid, mes: 0 }, { ...valid, mes: 13 }, { ...valid, mes: 1.5 },
     { ...valid, anio: 1899 }, { ...valid, anio: 9999 }, { ...valid, anio: "2026" },
-    { ...valid, rol: "todos" }, { ...valid, rol: null }])("rejects invalid input %j", (payload) => {
+    { ...valid, rol: "todos" }, { ...valid, rol: null }])("rechaza entrada inválida %j", (payload) => {
     expect(() => parseAttendanceReportRequest(payload)).toThrow(RangeError);
   });
-  it("normalizes optional roles and ignores untrusted extra fields", () => {
+  it("normaliza roles opcionales e ignora campos extra no confiables", () => {
     expect(parseAttendanceReportRequest({ ...valid, usuarioId: "fake", filas: [] })).toEqual(valid);
     for (const rol of ["dueno", "trabajador"]) expect(parseAttendanceReportRequest({ ...valid, rol })).toEqual({ ...valid, rol });
     for (const anio of [1900, 9998]) expect(parseAttendanceReportRequest({ ...valid, anio }).anio).toBe(anio);
   });
-  it("formats totals over 24 hours, N/A, zero and missing accounts", () => {
+  it("formatea totales de más de 24 horas, N/A, cero y cuentas faltantes", () => {
     const row = { trabajadorId: 1, nombreCompleto: "Inés Pérez", rol: null, diasTrabajados: 3,
       ausenciasJustificadas: 2, ausenciasInjustificadas: 1, minutosTrabajados: 6001, promedioMinutosPorDia: null };
     expect(attendanceReportValues(row)).toEqual(["Inés Pérez", "Sin usuario", 3, 2, 1, "100:01", "N/A"]);
     expect(attendanceReportValues({ ...row, promedioMinutosPorDia: 0 }).at(-1)).toBe("00:00");
     expect(attendanceFilterLabel(null)).toBe("Todos");
   });
-  it("registers V43, C59 and the internal export components exclusively for the owner", () => {
+  it("registra V43, C59 y los componentes internos de exportación exclusivamente para el dueño", () => {
     expect(navigationTree.find((node) => node.id === "attendance-report")).toMatchObject({
       path: ATTENDANCE_REPORT_PATH, viewName: "ReporteAsistenciaView", roles: ["dueno"], group: "reportes", showInMenu: true,
       controllerIds: expect.arrayContaining(["session", "attendance-report", "report-export", "audit"]),

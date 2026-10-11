@@ -27,8 +27,8 @@ function dependencies() {
   };
 }
 
-describe("CU38 sale annulment controller", () => {
-  it("notifies only after the annulment transaction resolves", async () => {
+describe("CU38 controlador de anulación de ventas", () => {
+  it("notifica solo después de que se resuelve la transacción de anulación", async () => {
     const deps = dependencies();
     let finish!: (value: SaleAnnulmentResult) => void;
     deps.annul.mockImplementationOnce(
@@ -52,7 +52,7 @@ describe("CU38 sale annulment controller", () => {
     [new SaleAnnulmentNotFoundError("No encontrada"), "NOT_FOUND"],
     [new SaleAnnulmentBusinessError("Caja cerrada"), "BUSINESS_RULE"],
     [new AccessDeniedError("Sin permiso"), "FORBIDDEN"],
-  ])("maps domain error %# without notifying", async (error, code) => {
+  ])("mapea el error de dominio %# sin notificar", async (error, code) => {
     const deps = dependencies();
     deps.annul.mockRejectedValueOnce(error);
 
@@ -65,7 +65,7 @@ describe("CU38 sale annulment controller", () => {
     expect(deps.notify).not.toHaveBeenCalled();
   });
 
-  it("hides unexpected persistence details", async () => {
+  it("oculta los detalles inesperados de persistencia", async () => {
     const deps = dependencies();
     deps.annul.mockRejectedValueOnce(new Error("database secret"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});

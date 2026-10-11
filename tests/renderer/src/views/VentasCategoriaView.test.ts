@@ -10,8 +10,8 @@ import {
 import { navigationTree } from "../../../../src/shared/navigation";
 import type { SaleReceipt } from "../../../../src/shared/sales";
 
-describe("CU45 renderer", () => {
-  it("mounts V35 for both roles with only dates as input", () => {
+describe("renderizado de CU45", () => {
+  it("monta V35 para ambos roles con solo fechas como entrada", () => {
     const node = navigationTree.find((item) => item.id === "sale-categories");
     expect(node).toMatchObject({
       path: "/app/ventas/categorias",
@@ -26,7 +26,7 @@ describe("CU45 renderer", () => {
     expect(markup).not.toContain("Exportar");
   });
 
-  it("shows category rows, exact totals and a successful empty result", () => {
+  it("muestra filas por categoría, totales exactos y un resultado vacío exitoso", () => {
     const filled = renderToStaticMarkup(createElement(SaleCategoryBreakdown, {
       result: {
         categorias: [
@@ -49,7 +49,7 @@ describe("CU45 renderer", () => {
     expect(empty).toContain("$ 0");
   });
 
-  it("shows the confirmed category on every receipt line", () => {
+  it("muestra la categoría confirmada en cada línea del comprobante", () => {
     const receipt: SaleReceipt = {
       ventaId: "00000000-0000-4000-8000-000000000401",
       fechaHora: "2026-06-12T17:00:00.000Z",

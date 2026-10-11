@@ -98,14 +98,14 @@ function createContext(
 }
 
 describe("C57 ReporteLotesVencerHandler", () => {
-  it("registers metadata and handles channel reporte:lotes-por-vencer", () => {
+  it("registra metadatos y atiende el canal reporte:lotes-por-vencer", () => {
     const controller = createExpiringLotsReportController(createMockDeps());
     expect(controller.metadata.id).toBe("expiring-lots-report");
     expect(controller.metadata.channels).toContain("reporte:lotes-por-vencer");
     expect(controller.metadata.module).toBe("reportes");
   });
 
-  it("denies access when session role is not dueno", async () => {
+  it("deniega el acceso cuando el rol de la sesión no es dueno", async () => {
     const controller = createExpiringLotsReportController(createMockDeps());
     const response = await controller.handle(
       { horizonte: 7 },
@@ -122,7 +122,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
     });
   });
 
-  it("executes the main flow and queries expiring lots with default horizon 7", async () => {
+  it("ejecuta el flujo principal y consulta lotes por vencer con horizonte predeterminado 7", async () => {
     const deps = createMockDeps();
     const controller = createExpiringLotsReportController(deps);
 
@@ -138,7 +138,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
     });
   });
 
-  it("queries with custom horizon and category filter", async () => {
+  it("consulta con horizonte personalizado y filtro de categoría", async () => {
     const deps = createMockDeps();
     const controller = createExpiringLotsReportController(deps);
 
@@ -157,7 +157,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
     });
   });
 
-  it("rejects invalid horizon values with E1 validation error message", async () => {
+  it("rechaza valores de horizonte inválidos con el mensaje de error de validación E1", async () => {
     const controller = createExpiringLotsReportController(createMockDeps());
 
     const invalidCases = [0, 32, -5, 100, "abc"];
@@ -179,7 +179,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
     }
   });
 
-  it("handles empty results correctly (E1 empty state)", async () => {
+  it("maneja correctamente los resultados vacíos (estado vacío E1)", async () => {
     const emptyData: ExpiringLotsReportData = {
       horizonte: 7,
       categoriaId: null,
@@ -211,8 +211,8 @@ describe("C57 ReporteLotesVencerHandler", () => {
   });
 });
 
-describe("C61 Expiring Lots Report Export Integration", () => {
-  it("exports PDF with expiring lots data and audits operation", async () => {
+describe("integración de exportación del reporte de lotes por vencer C61", () => {
+  it("exporta PDF con datos de lotes por vencer y audita la operación", async () => {
     const mockAudit = vi.fn(async () => undefined);
     const mockSave = vi.fn(async () => undefined);
     const mockCreatePdf = vi.fn(async () => Buffer.from("fake-pdf"));
@@ -259,7 +259,7 @@ describe("C61 Expiring Lots Report Export Integration", () => {
     );
   });
 
-  it("exports XLSX with expiring lots data", async () => {
+  it("exporta XLSX con datos de lotes por vencer", async () => {
     const mockSave = vi.fn(async () => undefined);
     const mockCreateXlsx = vi.fn(async () => Buffer.from("fake-xlsx"));
 
@@ -297,7 +297,7 @@ describe("C61 Expiring Lots Report Export Integration", () => {
     expect(mockCreateXlsx).toHaveBeenCalled();
   });
 
-  it("rejects export when report has 0 items with empty message", async () => {
+  it("rechaza la exportación cuando el reporte tiene 0 ítems con mensaje vacío", async () => {
     const exportController = createRestockReportExportController({
       load: vi.fn(),
       showSaveDialog: vi.fn(),

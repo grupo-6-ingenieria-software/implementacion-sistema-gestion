@@ -40,8 +40,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("inventory view payloads reach SQL validation", () => {
-  it("forwards blank product numeric fields without converting them to zero", async () => {
+describe("payloads de la vista de inventario llegan a la validación SQL", () => {
+  it("reenvía campos numéricos de producto vacíos sin convertirlos a cero", async () => {
     const formValues = buildProductFormValues({
       ean13: "7802920000046",
       nombre: "Producto nuevo",
@@ -84,7 +84,7 @@ describe("inventory view payloads reach SQL validation", () => {
     expect(testDb!.queries.some(isScalarValidation)).toBe(true);
   });
 
-  it("forwards blank lot quantity and cost to the lot SQL validator", async () => {
+  it("reenvía cantidad y costo de lote vacíos al validador SQL de lotes", async () => {
     const payload = buildLotRegisterPayload(
       {
         ean13: "7802920000015",
@@ -119,7 +119,7 @@ describe("inventory view payloads reach SQL validation", () => {
     expect(testDb!.queries.some(isScalarValidation)).toBe(true);
   });
 
-  it("forwards blank waste quantity after product and lot lookups", async () => {
+  it("reenvía la cantidad de merma vacía después de las búsquedas de producto y lote", async () => {
     const payload = buildWasteRegisterPayload(
       {
         ean13: "7802920000015",

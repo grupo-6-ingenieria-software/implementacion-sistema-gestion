@@ -18,8 +18,8 @@ afterEach(async () => { await rm(directory, { recursive: true, force: true }); }
 const filename = "VentasMensuales_2026-09_30-09-2026.pdf";
 const verifyContext = { ...context, channel: REPORT_RECONCILE_CHANNEL };
 
-describe("CU54 main flow, E1 and reconciliation", () => {
-  it.each(["pdf", "xlsx"] as const)("recalculates trusted data and publishes fixed-name %s with one audit", async (format) => {
+describe("flujo principal CU54, E1 y reconciliación", () => {
+  it.each(["pdf", "xlsx"] as const)("recalcula datos de confianza y publica %s de nombre fijo con una sola auditoría", async (format) => {
     const load = vi.fn(async () => ({ report, user }));
     const pdf = vi.fn(async () => Buffer.from("pdf")); const xlsx = vi.fn(async () => Buffer.from("xlsx"));
     const deps = reportDependencies(directory, { registry: createReportRegistry([createMonthlySalesReportAdapter(load, pdf, xlsx)]) });
@@ -35,7 +35,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(finalize.mock.calls[0][0]).toMatchObject({ usuarioId: "owner", request });
     expect(duplicateAudit).not.toHaveBeenCalled(); expect(await readdir(join(directory, "evidence"))).toEqual([]);
   });
-  it.each([0, 1])("uses transaction count for emptiness, including zero amounts (%i)", async (transacciones) => {
+  it.each([0, 1])("usa el conteo de transacciones para detectar reportes vacíos, incluidos montos en cero (%i)", async (transacciones) => {
     const selectDirectory = vi.fn(async () => directory);
     const deps = reportDependencies(directory, { selectDirectory,
       registry: createReportRegistry([createMonthlySalesReportAdapter(async () => ({ report: { ...report, transacciones, montoTotal: 0 }, user }), async () => Buffer.from("free"))]),
@@ -48,7 +48,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     }
   });
   it.each([["2026-10-01T02:59:59Z", "30-09-2026"], ["2026-10-01T03:00:00Z", "01-10-2026"],
-    ["2026-09-06T03:59:59Z", "05-09-2026"], ["2026-09-06T04:00:00Z", "06-09-2026"]])("uses one Chilean clock for filename, header and audit at %s", async (timestamp, expectedDate) => {
+    ["2026-09-06T03:59:59Z", "05-09-2026"], ["2026-09-06T04:00:00Z", "06-09-2026"]])("usa un único reloj chileno para el nombre de archivo, el encabezado y la auditoría en %s", async (timestamp, expectedDate) => {
     const now = vi.fn(() => new Date(timestamp)); const pdf = vi.fn(async () => Buffer.from("pdf"));
     const deps = reportDependencies(directory, { now, registry: createReportRegistry([createMonthlySalesReportAdapter(async () => ({ report, user }), pdf)]) });
     const finalize = vi.spyOn(deps.audit, "finalize");
@@ -58,36 +58,36 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(new Date(finalize.mock.calls[0][0].auditFechaHora).toISOString()).toBe(new Date(timestamp).toISOString());
     expect(now).toHaveBeenCalledOnce();
   });
-  it("refuses an incomplete trusted institutional header before opening the destination dialog", async () => {
+  it("rechaza un encabezado institucional de confianza incompleto antes de abrir el diálogo de destino", async () => {
     const deps = reportDependencies(directory, { registry: createReportRegistry([createMonthlySalesReportAdapter(async () => ({ report, user: { ...user, trabajadorNombre: "" } }))]) });
     const dialog = vi.spyOn(deps, "selectDirectory"); const audit = vi.spyOn(deps.audit, "finalize");
     expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { message: REPORT_EXPORT_ERROR_MESSAGE } });
     expect(dialog).not.toHaveBeenCalled(); expect(audit).not.toHaveBeenCalled();
   });
-  it.each([{ tipo: "unknown", periodo: {} }, { periodo: report.periodo }, { filtros: {} }, [], { tipo: "ventas-mensuales", periodo: { mes: 13, anio: 2026 } }, { ...request, filtros: { usuario: "other" } }])("rejects malformed descriptors without legacy fallback: %j", async (payload) => {
+  it.each([{ tipo: "unknown", periodo: {} }, { periodo: report.periodo }, { filtros: {} }, [], { tipo: "ventas-mensuales", periodo: { mes: 13, anio: 2026 } }, { ...request, filtros: { usuario: "other" } }])("rechaza descriptores mal formados sin respaldo heredado: %j", async (payload) => {
     const legacy = { metadata: createReportExportController().metadata, handle: vi.fn() };
     const controller = createReportExportController(createReportExportHandler(reportDependencies(directory)), legacy);
     expect(await controller.handle(payload, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(legacy.handle).not.toHaveBeenCalled(); expect(await readdir(directory)).toEqual([]);
   });
-  it("rejects documented reports without a producer", async () => {
+  it("rechaza reportes documentados sin productor", async () => {
     expect(await createReportExportHandler(reportDependencies(directory))({ tipo: "ventas-diarias", periodo: "2026-09-30" }, context))
       .toMatchObject({ ok: false, error: { code: "NOT_IMPLEMENTED", message: REPORT_EXPORT_ERROR_MESSAGE } });
     expect(await readdir(directory)).toEqual([]);
   });
-  it("keeps legacy identity-only requests on C33", async () => {
+  it("mantiene en C33 las solicitudes heredadas que solo traen identidad", async () => {
     const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
     expect(await createReportExportController(createReportExportHandler(reportDependencies(directory)), legacy)
       .handle({ usuarioId: "worker", __authToken: "token", __rolSesion: "trabajador" }, context)).toEqual({ ok: true, data: "legacy" });
   });
-  it.each(["trabajador", "temporary", "missing"])("rejects %s before loading, including reconciliation", async (mode) => {
+  it.each(["trabajador", "temporary", "missing"])("rechaza %s antes de cargar, incluida la reconciliación", async (mode) => {
     const load = vi.fn(); const deps = reportDependencies(directory, { registry: createReportRegistry([createMonthlySalesReportAdapter(load)]) });
     const claims = mode === "missing" ? undefined : { ...context.claims!, rol: mode === "trabajador" ? "trabajador" as const : "dueno" as const, passwordTemporal: mode === "temporary" };
     expect(await createReportExportHandler(deps)(request, { ...context, claims })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await createReportExportHandler(deps)({ operacionId: "invalid" }, { ...verifyContext, claims })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(load).not.toHaveBeenCalled();
   });
-  it.each(["directory", "overwrite"])("treats %s cancellation as normal without generating or auditing", async (kind) => {
+  it.each(["directory", "overwrite"])("trata la cancelación de %s como caso normal, sin generar ni auditar", async (kind) => {
     if (kind === "overwrite") await writeFile(join(directory, filename), "old");
     const pdf = vi.fn(); const finalize = vi.fn();
     const deps = reportDependencies(directory, { selectDirectory: async () => kind === "directory" ? null : directory, confirmOverwrite: async () => false,
@@ -96,13 +96,13 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(pdf).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
     if (kind === "overwrite") expect(await readFile(join(directory, filename), "utf8")).toBe("old");
   });
-  it("rechecks session after the destination dialog and never publishes after revocation", async () => {
+  it("vuelve a verificar la sesión tras el diálogo de destino y nunca publica después de una revocación", async () => {
     const finalize = vi.fn();
     const deps = reportDependencies(directory, { revalidate: async () => { throw new AccessDeniedError(); }, audit: { finalize, confirmed: async () => true } });
     expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(finalize).not.toHaveBeenCalled(); expect(await readdir(directory)).toEqual([]);
   });
-  it("restores an overwritten file after a known finalization failure", async () => {
+  it("restaura un archivo sobrescrito tras una falla de finalización conocida", async () => {
     await writeFile(join(directory, filename), "old");
     const deps = reportDependencies(directory, { audit: { finalize: async (_op, publish) => { await publish(); throw new Error("known rollback"); }, confirmed: async () => false } });
     expect(await createReportExportHandler(deps)(request, context)).toMatchObject({ ok: false, error: { message: REPORT_EXPORT_ERROR_MESSAGE } });
@@ -110,7 +110,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(await readdir(join(directory, "evidence"))).toEqual([]);
     expect((await readdir(directory)).filter((name) => /\.(tmp|bak)$/.test(name))).toEqual([]);
   });
-  it.each([true, false])("persists uncertain evidence and reconciles confirmed=%s without a new export", async (confirmed) => {
+  it.each([true, false])("persiste evidencia incierta y reconcilia confirmed=%s sin una nueva exportación", async (confirmed) => {
     await writeFile(join(directory, filename), "old");
     const deps = reportDependencies(directory, { audit: {
       finalize: async (_op, publish) => { await publish(); throw new ReportCommitUncertainError(); }, confirmed: async () => confirmed,
@@ -127,7 +127,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(await readFile(join(directory, filename), "utf8")).toBe(confirmed ? "pdf" : "old");
     expect(await readdir(join(directory, "evidence"))).toEqual([]); expect(finalize).toHaveBeenCalledOnce();
   });
-  it.each(["offline", "altered"])("keeps %s reconciliation pending and preserves evidence", async (kind) => {
+  it.each(["offline", "altered"])("mantiene pendiente la reconciliación (%s) y preserva la evidencia", async (kind) => {
     const deps = reportDependencies(directory, { audit: {
       finalize: async (_op, publish) => { await publish(); throw new ReportCommitUncertainError(); },
       confirmed: async () => { if (kind === "offline") throw new Error("network"); return true; },
@@ -139,7 +139,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(await readFile(join(directory, filename), "utf8")).toBe(kind === "altered" ? "external" : "pdf");
     expect((await readdir(join(directory, "evidence"))).filter((name) => name.endsWith(".json"))).toHaveLength(1);
   });
-  it("does not reconcile a live operation before its audit completes", async () => {
+  it("no reconcilia una operación en curso antes de completar su auditoría", async () => {
     let unblock!: () => void; let operationId!: string;
     const barrier = new Promise<void>((resolve) => { unblock = resolve; }); const entered = vi.fn();
     const deps = reportDependencies(directory, { audit: {
@@ -153,7 +153,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(deps.audit.confirmed).not.toHaveBeenCalled(); unblock();
     expect(await running).toMatchObject({ ok: true, data: { estado: "saved" } });
   });
-  it("recovers explicitly after a verifier process ended without deleting its stale lease", async () => {
+  it("se recupera de forma explícita tras terminar un proceso verificador, sin eliminar su lease obsoleto", async () => {
     const deps = reportDependencies(directory, { audit: {
       finalize: async (_op, publish) => { await publish(); throw new ReportCommitUncertainError(); }, confirmed: async () => true,
     } });
@@ -170,7 +170,7 @@ describe("CU54 main flow, E1 and reconciliation", () => {
     expect(await createReportExportHandler({ ...deps, audit: { finalize: async (_op, publish) => publish(), confirmed: async () => true } })(request, context))
       .toMatchObject({ ok: true, data: { estado: "saved" } });
   });
-  it("serializes explicit verifications across store instances", async () => {
+  it("serializa las verificaciones explícitas entre instancias del almacén", async () => {
     const deps = reportDependencies(directory, { audit: {
       finalize: async (_op, publish) => { await publish(); throw new ReportCommitUncertainError(); }, confirmed: async () => true,
     } });

@@ -25,8 +25,8 @@ const inactiveProduct: ProductListItem = {
   estado: "inactivo",
 };
 
-describe("ProductListView actions", () => {
-  it("shows administrative product actions to the owner", () => {
+describe("acciones de ProductListView", () => {
+  it("muestra las acciones administrativas de producto al dueño", () => {
     expect(
       getProductActionsForRole("dueno", product).map((action) => action.label),
     ).toEqual([
@@ -39,7 +39,7 @@ describe("ProductListView actions", () => {
     ]);
   });
 
-  it("shows only operational product actions to a worker", () => {
+  it("muestra solo las acciones operativas de producto al trabajador", () => {
     expect(
       getProductActionsForRole("trabajador", product).map(
         (action) => action.label,
@@ -47,7 +47,7 @@ describe("ProductListView actions", () => {
     ).toEqual(["Ver detalle", "Cambiar estado", "Eliminar", "Registrar merma"]);
   });
 
-  it("hides active-product operations for inactive products", () => {
+  it("oculta las operaciones de producto activo en productos inactivos", () => {
     expect(
       getProductActionsForRole("dueno", inactiveProduct).map(
         (action) => action.label,
@@ -60,7 +60,7 @@ describe("ProductListView actions", () => {
     ).toEqual(["Ver detalle", "Cambiar estado", "Eliminar"]);
   });
 
-  it("keeps inactive products at the end of the list", () => {
+  it("mantiene los productos inactivos al final de la lista", () => {
     expect(orderProductsForList([inactiveProduct, product])).toEqual([
       product,
       inactiveProduct,

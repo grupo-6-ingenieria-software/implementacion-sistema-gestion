@@ -14,8 +14,8 @@ const claims: SessionTokenClaims = {
 };
 const validRange = { fechaInicio: "2026-06-12", fechaTermino: "2026-06-12" };
 
-describe("CU45 category controller and authorization", () => {
-  it("grants both documented roles but rejects a missing session", async () => {
+describe("controlador de categorías y autorización CU45", () => {
+  it("concede ambos roles documentados pero rechaza una sesión ausente", async () => {
     expect(CHANNEL_ROLES.get("venta:por-categoria")).toEqual(new Set(["dueno", "trabajador"]));
     const denied = await guardChannel("venta:por-categoria", validRange, {
       verifyToken: () => null,
@@ -27,7 +27,7 @@ describe("CU45 category controller and authorization", () => {
     }
   });
 
-  it("checks E1 after identity and before any sale read", async () => {
+  it("verifica E1 después de la identidad y antes de cualquier lectura de venta", async () => {
     const all = vi.fn(async () => []);
     const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
     const noSession = await controller.handle(validRange, { channel: "venta:por-categoria" });
@@ -46,7 +46,7 @@ describe("CU45 category controller and authorization", () => {
     expect(all).not.toHaveBeenCalled();
   });
 
-  it("rejects impossible dates and reports E2 as a successful zero result", async () => {
+  it("rechaza fechas imposibles y reporta E2 como resultado exitoso en cero", async () => {
     const all = vi.fn(async () => []);
     const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
     expect(await controller.handle(
@@ -62,7 +62,7 @@ describe("CU45 category controller and authorization", () => {
     });
   });
 
-  it("uses the claim identity even if the payload spoofs a user", async () => {
+  it("usa la identidad del claim aunque el payload suplante a un usuario", async () => {
     const all = vi.fn(async (_query: SQL) => []);
     const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
     await controller.handle({ ...validRange, usuarioId: "other-user" }, {
@@ -73,7 +73,7 @@ describe("CU45 category controller and authorization", () => {
     expect(JSON.stringify(query)).not.toContain("other-user");
   });
 
-  it("hides database details in technical errors", async () => {
+  it("oculta detalles de la base de datos en errores técnicos", async () => {
     const controller = createSaleCategoriesController({
       all: vi.fn(async () => { throw new Error("SQL table and secret"); }),
     } as unknown as SaleCategoryDb);

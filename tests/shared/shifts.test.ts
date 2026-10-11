@@ -11,8 +11,8 @@ import {
   validateShiftListPayload,
 } from "../../src/shared/shifts";
 
-describe("shift contracts", () => {
-  it("validates documented date and time formats", () => {
+describe("contratos de turnos", () => {
+  it("valida los formatos de fecha y hora documentados", () => {
     expect(
       validateShiftCreatePayload({
         trabajadorId: 1,
@@ -27,7 +27,7 @@ describe("shift contracts", () => {
     expect(displayDateToIso("13/06/2026")).toBe("2026-06-13");
   });
 
-  it("rejects invalid times and shifts that cross midnight", () => {
+  it("rechaza horas inválidas y turnos que cruzan la medianoche", () => {
     expect(
       validateShiftCreatePayload({
         trabajadorId: 1,
@@ -51,7 +51,7 @@ describe("shift contracts", () => {
     });
   });
 
-  it("requires a shift id and confirmation before deletion", () => {
+  it("exige identificador de turno y confirmación antes de eliminar", () => {
     expect(
       validateShiftDeletePayload({
         turnoId: "",
@@ -63,7 +63,7 @@ describe("shift contracts", () => {
     });
   });
 
-  it("applies the same date and time validation when editing", () => {
+  it("aplica la misma validación de fecha y hora al editar", () => {
     expect(
       validateShiftEditPayload({
         turnoId: "turno-1",
@@ -78,7 +78,7 @@ describe("shift contracts", () => {
   });
 
   it.each(["13/13/2026", "00/01/2026", "31/02/2026", "01/00/2026"])(
-    "rejects impossible display date %s without throwing",
+    "rechaza la fecha de visualización imposible %s sin lanzar excepciones",
     (fecha) => {
       expect(() => displayDateToIso(fecha)).not.toThrow();
       expect(displayDateToIso(fecha)).toBeNull();
@@ -96,7 +96,7 @@ describe("shift contracts", () => {
   );
 
   it.each(["2026-13-01", "2026-00-01", "2026-02-31"])(
-    "rejects impossible ISO date %s without throwing",
+    "rechaza la fecha ISO imposible %s sin lanzar excepciones",
     (inicioSemana) => {
       expect(() =>
         validateShiftListPayload({
@@ -113,7 +113,7 @@ describe("shift contracts", () => {
     },
   );
 
-  it("converts Chile local hours to UTC timestamps", () => {
+  it("convierte horas locales de Chile a marcas de tiempo UTC", () => {
     expect(
       parseShiftRange({
         fecha: "13/06/2026",
@@ -127,13 +127,13 @@ describe("shift contracts", () => {
     });
   });
 
-  it("calculates Monday-based weeks", () => {
+  it("calcula semanas que comienzan el lunes", () => {
     expect(getWeekStartForDateKey("2026-06-13")).toBe("2026-06-08");
     expect(getWeekStartForDateKey("2026-06-14")).toBe("2026-06-08");
     expect(addDaysToDateKey("2026-06-08", 6)).toBe("2026-06-14");
   });
 
-  it("maps the persisted initial state to the documented Pendiente label", () => {
+  it("asigna el estado inicial persistido a la etiqueta Pendiente documentada", () => {
     expect(shiftStateLabel("planificado")).toBe("Pendiente");
   });
 });

@@ -52,7 +52,7 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("caja autoabrir (#29)", () => {
+describe("autoapertura de caja (#29)", () => {
   it("auto-abre exactamente una caja en una BD sin cierre_caja", async () => {
     await expectOpenCashRegisters(0);
 

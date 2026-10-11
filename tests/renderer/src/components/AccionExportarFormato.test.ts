@@ -22,9 +22,9 @@ const base = {
   cantidadFilas: 2,
   fechaGeneracion: "2026-09-12T23:30:00Z",
 };
-describe("CU20 UI06 helpers and V06 integration", () => {
+describe("utilidades de CU20 UI06 e integración V06", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "exposes export even before a visible catalog exists for %s",
+    "expone la exportación incluso antes de que exista un catálogo visible para %s",
     (role) => {
       const html = renderToStaticMarkup(
         createElement(ProductListView, {
@@ -37,7 +37,7 @@ describe("CU20 UI06 helpers and V06 integration", () => {
       expect(html).not.toContain("Formato de exportación");
     },
   );
-  it("renders an accessible internal action without a separate route", () => {
+  it("renderiza una acción interna accesible sin una ruta separada", () => {
     const html = renderToStaticMarkup(createElement(AccionExportarFormato));
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-busy="false"');
@@ -46,7 +46,7 @@ describe("CU20 UI06 helpers and V06 integration", () => {
     { disabled: false, exporting: false, label: "Exportar" },
     { disabled: true, exporting: false, label: "Exportar" },
     { disabled: false, exporting: true, label: "Exportando..." },
-  ])("preserves the daily report export controls for $label (disabled: $disabled)", ({ disabled, exporting, label }) => {
+  ])("conserva los controles de exportación del reporte diario para $label (deshabilitado: $disabled)", ({ disabled, exporting, label }) => {
     const html = renderToStaticMarkup(createElement(AccionExportarFormato, {
       format: "xlsx",
       disabled,
@@ -61,7 +61,7 @@ describe("CU20 UI06 helpers and V06 integration", () => {
     expect((html.match(/disabled=""/g) ?? []).length).toBe(disabled || exporting ? 2 : 0);
   });
   it.each(["pdf", "xlsx"] as const)(
-    "sends only format %s through IPC",
+    "envía solo el formato %s por IPC",
     async (formato) => {
       const result: InventoryExportResult = {
         ...base,
@@ -85,7 +85,7 @@ describe("CU20 UI06 helpers and V06 integration", () => {
       });
     },
   );
-  it("preserves backend messages and normalizes transport failure to E2", async () => {
+  it("conserva los mensajes del backend y normaliza el fallo de transporte a E2", async () => {
     const invoke = vi.fn(
       async (): Promise<ControllerResponse<unknown>> => ({
         ok: false,
@@ -103,7 +103,7 @@ describe("CU20 UI06 helpers and V06 integration", () => {
       exportInventoryList(invoke as typeof window.appApi.invoke, "pdf"),
     ).rejects.toThrow(INVENTORY_EXPORT_ERROR_MESSAGE);
   });
-  it("distinguishes cancellation, saved and saved-with-warning notices", () => {
+  it("distingue los avisos de cancelación, guardado y guardado con advertencia", () => {
     expect(inventoryExportNotice({ ...base, estado: "cancelled" }).tone).toBe(
       "neutral",
     );
@@ -130,19 +130,19 @@ describe("CU20 UI06 helpers and V06 integration", () => {
   });
 });
 
-describe("CU54 UI06 report mode", () => {
+describe("modo reporte de CU54 UI06", () => {
   const request = { tipo: "ventas-mensuales", periodo: { mes: 9, anio: 2026 } };
-  it("uses the common internal action and supports disabling before data is available", () => {
+  it("usa la acción interna común y permite deshabilitarla antes de que haya datos disponibles", () => {
     const html = renderToStaticMarkup(createElement(AccionExportarFormato, { mode: "report", request, disabled: true }));
     expect(html).toContain("Exportar reporte"); expect(html).toContain("disabled");
     expect(html).not.toContain("Exportar listado");
   });
-  it.each(["pdf", "xlsx"] as const)("sends only the generated descriptor for %s", async (format) => {
+  it.each(["pdf", "xlsx"] as const)("envía solo el descriptor generado para %s", async (format) => {
     const invoke = vi.fn(async () => ({ ok: true as const, data: { ...base, formato: format, estado: "saved" } }));
     await exportGeneratedReport(invoke as typeof window.appApi.invoke, format, { ...request, filas: [], ruta: "fake" } as typeof request);
     expect(invoke).toHaveBeenCalledWith(`reporte:exportar-${format}`, request);
   });
-  it("preserves uncertain operation IDs and forbidden responses for the interface", async () => {
+  it("conserva los identificadores de operación inciertos y las respuestas prohibidas para la interfaz", async () => {
     const id = "00000000-0000-4000-8000-000000000054";
     const invoke = vi.fn(async () => ({ ok: false as const, error: { code: "EXPORT_RECONCILIATION_REQUIRED" as const, message: "No fue posible generar el archivo", operacionId: id } }));
     await expect(exportGeneratedReport(invoke as typeof window.appApi.invoke, "pdf", request)).rejects.toMatchObject({ code: "EXPORT_RECONCILIATION_REQUIRED", operacionId: id });

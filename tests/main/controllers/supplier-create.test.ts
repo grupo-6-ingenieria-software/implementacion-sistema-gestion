@@ -29,7 +29,7 @@ const validPayload: SupplierRegistrationPayload = {
 };
 
 describe("RegistrarProveedorHandler", () => {
-  it("serves categories and registration through its two channels", async () => {
+  it("atiende las categorías y el registro a través de sus dos canales", async () => {
     const registerSupplier = vi.fn(async () => ({
       proveedorId: 8,
       rut: "12345678-5",
@@ -58,7 +58,7 @@ describe("RegistrarProveedorHandler", () => {
     expect(registerSupplier).toHaveBeenCalledWith(validPayload);
   });
 
-  it("returns field errors without invoking persistence", async () => {
+  it("devuelve errores de campo sin invocar la persistencia", async () => {
     const registerSupplier = vi.fn(async () => ({
       proveedorId: 1,
       rut: "12345678-5",
@@ -80,7 +80,7 @@ describe("RegistrarProveedorHandler", () => {
     expect(registerSupplier).not.toHaveBeenCalled();
   });
 
-  it("maps invalid categories and duplicate RUT to validation fields", async () => {
+  it("asigna categorías inválidas y RUT duplicado a campos de validación", async () => {
     for (const domainError of [
       new SupplierRegistrationError(
         "invalid-categories",
@@ -105,7 +105,7 @@ describe("RegistrarProveedorHandler", () => {
     }
   });
 
-  it("maps authorization, persistence and unknown channels", async () => {
+  it("asigna errores de autorización, persistencia y canales desconocidos", async () => {
     const forbidden = createSupplierCreateController({
       listCategories: async () => {
         throw new AccessDeniedError();
@@ -145,7 +145,7 @@ describe("RegistrarProveedorHandler", () => {
     });
   });
 
-  it("recognizes the SQLite supplier RUT unique constraint", () => {
+  it("reconoce la restricción única de RUT de proveedor en SQLite", () => {
     expect(
       isSupplierRutUniqueConstraintError(
         new Error("SQLITE_CONSTRAINT_UNIQUE: proveedor.proveedor_rut"),
@@ -154,9 +154,9 @@ describe("RegistrarProveedorHandler", () => {
   });
 });
 
-describe("CU13 protected channels", () => {
+describe("canales protegidos de CU13", () => {
   it.each(["dueno", "trabajador"] as const)(
-    "allows role %s on both supplier channels",
+    "permite el rol %s en ambos canales de proveedor",
     async (rol) => {
       for (const channel of ["proveedor:categorias", "proveedor:registrar"]) {
         const result = await guardChannel(
@@ -177,7 +177,7 @@ describe("CU13 protected channels", () => {
     },
   );
 
-  it("rejects a missing session", async () => {
+  it("rechaza una sesión ausente", async () => {
     const result = await guardChannel(
       "proveedor:registrar",
       {},
@@ -193,7 +193,7 @@ describe("CU13 protected channels", () => {
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
 
-describe("CU13 transactional persistence", () => {
+describe("persistencia transaccional de CU13", () => {
   beforeEach(async () => {
     testDb = await createTestDatabase();
     await seedFixture(testDb.db);
@@ -207,7 +207,7 @@ describe("CU13 transactional persistence", () => {
   });
 
   it.each(["11111111-1", "12345670-K"])(
-    "lets an active %s account register a supplier",
+    "permite que una cuenta activa %s registre un proveedor",
     async (usuarioId) => {
       const result = await register({ ...validPayload, usuarioId });
       expect(result).toEqual({ proveedorId: 1, rut: "12345678-5" });
@@ -244,7 +244,7 @@ describe("CU13 transactional persistence", () => {
     },
   );
 
-  it("lists categories alphabetically after authorization", async () => {
+  it("lista las categorías en orden alfabético tras la autorización", async () => {
     const categories = await testDb!.db.transaction((tx) =>
       listSupplierCategoriesWithExecutor(tx, schema, "12345670-K"),
     );
@@ -254,7 +254,7 @@ describe("CU13 transactional persistence", () => {
     ]);
   });
 
-  it("rejects an equivalent legacy RUT without partial information", async () => {
+  it("rechaza un RUT legado equivalente sin información parcial", async () => {
     await testDb!.db.run(sql`
       INSERT INTO proveedor
         (proveedor_rut, proveedor_nombre_razon_social,
@@ -274,7 +274,7 @@ describe("CU13 transactional persistence", () => {
     expect(await count("log_auditoria")).toBe(0);
   });
 
-  it("rejects missing categories without writing a supplier", async () => {
+  it("rechaza categorías inexistentes sin escribir un proveedor", async () => {
     await expect(
       register({ ...validPayload, categoriaIds: [1, 99] }),
     ).rejects.toMatchObject({ reason: "invalid-categories" });
@@ -295,7 +295,7 @@ describe("CU13 transactional persistence", () => {
        WHEN NEW.log_tipo_accion = 'registro_proveedor'
        BEGIN SELECT RAISE(ABORT, 'controlled audit failure'); END;`,
     ],
-  ])("rolls everything back on a late %s failure", async (_stage, trigger) => {
+  ])("revierte todo ante un fallo tardío en %s", async (_stage, trigger) => {
     await testDb!.client.executeMultiple(trigger);
     await expect(register(validPayload)).rejects.toThrow();
     await expectNoSupplierWrite();

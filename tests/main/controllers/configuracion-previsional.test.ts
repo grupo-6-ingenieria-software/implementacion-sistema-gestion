@@ -46,8 +46,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("configuracion previsional service", () => {
-  it("initializes the RF35 default rates on first read", async () => {
+describe("servicio de configuración previsional", () => {
+  it("inicializa las tasas por defecto de RF35 en la primera lectura", async () => {
     const rates = await getPrevisionalRates(
       testDb!.db as unknown as DbExecutor,
       ownerActor,
@@ -63,7 +63,7 @@ describe("configuracion previsional service", () => {
     expect(rows[0]?.count).toBe(3);
   });
 
-  it("rejects actors without an authenticated owner session", async () => {
+  it("rechaza actores sin sesión autenticada de dueño", async () => {
     await expect(
       getPrevisionalRates(testDb!.db as unknown as DbExecutor, {
         role: "dueno",
@@ -72,7 +72,7 @@ describe("configuracion previsional service", () => {
     ).rejects.toBeInstanceOf(PrevisionalAccessError);
   });
 
-  it("closes the previous vigencia and keeps only the changed rate current", async () => {
+  it("cierra la vigencia anterior y mantiene vigente solo la tasa modificada", async () => {
     await ensureVigentTasas(testDb!.db as unknown as DbExecutor);
 
     const updated = await updatePrevisionalRates(
@@ -106,7 +106,7 @@ describe("configuracion previsional service", () => {
     expect(auditRows[0]?.count).toBe(1);
   });
 
-  it("does not create a new vigencia when nothing changed", async () => {
+  it("no crea una nueva vigencia cuando no hay cambios", async () => {
     await ensureVigentTasas(testDb!.db as unknown as DbExecutor);
 
     await updatePrevisionalRates(
@@ -122,7 +122,7 @@ describe("configuracion previsional service", () => {
     expect(rows[0]?.count).toBe(3);
   });
 
-  it("returns FORBIDDEN through the IPC channel for non-owner sessions", async () => {
+  it("devuelve FORBIDDEN por el canal IPC para sesiones que no son de dueño", async () => {
     const response = await configPrevisionalController.handle(
       { usuarioId: "22222222-2" },
       { channel: "configuracion:previsional-obtener" },
@@ -136,7 +136,7 @@ describe("configuracion previsional service", () => {
     expect(response.error.code).toBe("FORBIDDEN");
   });
 
-  it("returns VALIDATION_ERROR for out-of-range percentages", async () => {
+  it("devuelve VALIDATION_ERROR para porcentajes fuera de rango", async () => {
     const response = await configPrevisionalController.handle(
       { usuarioId: "11111111-1", afp: 150, salud: 7, cesantia: -1 },
       { channel: "configuracion:previsional-actualizar" },
@@ -152,7 +152,7 @@ describe("configuracion previsional service", () => {
     expect(response.error.fieldErrors?.cesantia).toBeDefined();
   });
 
-  it("rejects unknown channels", async () => {
+  it("rechaza canales desconocidos", async () => {
     const response = await configPrevisionalController.handle(
       { usuarioId: "11111111-1" },
       { channel: "configuracion:otro" },

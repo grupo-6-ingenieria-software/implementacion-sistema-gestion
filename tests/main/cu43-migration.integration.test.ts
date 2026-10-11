@@ -23,8 +23,8 @@ afterEach(async () => {
   testDb = undefined;
 });
 
-describe("CU43 migration and sale snapshot integrity", () => {
-  it("backfills deterministic historical identities, falls back to current data and preserves children", async () => {
+describe("integridad de migración y snapshot de venta de CU43", () => {
+  it("rellena identidades históricas deterministas, recurre a los datos actuales y conserva los hijos", async () => {
     await seedWorkersUsersAndCash(testDb!.client);
     await testDb!.client.executeMultiple(`
       INSERT INTO usuario_version (
@@ -99,7 +99,7 @@ describe("CU43 migration and sale snapshot integrity", () => {
     );
   });
 
-  it("aborts instead of inventing an identity when the applicable version is invalid", async () => {
+  it("aborta en lugar de inventar una identidad cuando la versión aplicable es inválida", async () => {
     await seedWorkersUsersAndCash(testDb!.client);
     await testDb!.client.executeMultiple(`
       INSERT INTO usuario_version (
@@ -134,7 +134,7 @@ describe("CU43 migration and sale snapshot integrity", () => {
     );
   });
 
-  it("rejects invalid snapshots and makes the responsible fields immutable while allowing annulment state", async () => {
+  it("rechaza snapshots inválidos y vuelve inmutables los campos responsables, permitiendo el estado de anulación", async () => {
     await seedWorkersUsersAndCash(testDb!.client);
     await applyCu43Migration(testDb!.client);
     await testDb!.client.executeMultiple(

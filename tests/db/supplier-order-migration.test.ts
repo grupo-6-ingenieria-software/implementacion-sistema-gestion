@@ -14,8 +14,8 @@ afterEach(async () => {
   databaseDir = undefined;
 });
 
-describe("supplier order migration", () => {
-  it("preserves legacy orders and normalizes their state and received quantity", async () => {
+describe("migración de órdenes de proveedor", () => {
+  it("preserva las órdenes heredadas y normaliza su estado y cantidad recibida", async () => {
     databaseDir = await mkdtemp(join(tmpdir(), "huascar-order-migration-"));
     client = createClient({
       url: `file:${join(databaseDir, "test.db").replace(/\\/g, "/")}`,

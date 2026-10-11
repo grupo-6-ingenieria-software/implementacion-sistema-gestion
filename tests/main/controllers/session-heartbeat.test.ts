@@ -62,8 +62,8 @@ function heartbeatPayload(): Record<string, unknown> {
   return { __authToken: token };
 }
 
-describe("heartbeat end-to-end (preload → guard → session)", () => {
-  it("reports a fresh session as active", async () => {
+describe("heartbeat de extremo a extremo (preload → guard → sesión)", () => {
+  it("reporta una sesión reciente como activa", async () => {
     await seedOpenSession();
 
     const guard = await guardChannel(
@@ -88,7 +88,7 @@ describe("heartbeat end-to-end (preload → guard → session)", () => {
     }
   });
 
-  it("rejects a heartbeat without a token before reaching the controller", async () => {
+  it("rechaza un heartbeat sin token antes de llegar al controlador", async () => {
     const guard = await guardChannel("auth:verificar-sesion", {
       __authToken: null,
     });
@@ -139,7 +139,7 @@ describe("actividad de sesión a nivel del dispatcher (RF55)", () => {
     return false;
   }
 
-  it("(a) the heartbeat alone never resets inactivity", async () => {
+  it("(a) el heartbeat por sí solo nunca reinicia la inactividad", async () => {
     await seedSessionAt(ULTIMO_ACCESO);
 
     // Varios latidos seguidos: el dispatcher NO refresca y el verify es de sólo
@@ -154,7 +154,7 @@ describe("actividad de sesión a nivel del dispatcher (RF55)", () => {
     expect(await readUltimoAcceso()).toBe(ULTIMO_ACCESO);
   });
 
-  it("(b) an action IPC through the dispatcher refreshes ultimo_acceso", async () => {
+  it("(b) una acción IPC a través del dispatcher actualiza ultimo_acceso", async () => {
     await seedSessionAt(ULTIMO_ACCESO);
 
     const refreshed = await dispatchActivity("venta:registrar");
@@ -163,7 +163,7 @@ describe("actividad de sesión a nivel del dispatcher (RF55)", () => {
     expect(await readUltimoAcceso()).toBe(ACCION_NOW.toISOString());
   });
 
-  it("(c) auth:verificar-sesion and auth:logout do NOT refresh ultimo_acceso", async () => {
+  it("(c) auth:verificar-sesion y auth:logout NO actualizan ultimo_acceso", async () => {
     await seedSessionAt(ULTIMO_ACCESO);
 
     expect(NON_ACTIVITY_CHANNELS.has("auth:verificar-sesion")).toBe(true);

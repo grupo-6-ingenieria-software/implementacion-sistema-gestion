@@ -5,8 +5,8 @@ import {
   StockDiscountBusinessError,
 } from "../../../src/main/controllers/stock-discount";
 
-describe("C17 stock discount service", () => {
-  it("plans FEFO before persistence and applies UPDATE before venta_lote", async () => {
+describe("servicio de descuento de stock C17", () => {
+  it("planifica FEFO antes de la persistencia y aplica UPDATE antes de venta_lote", async () => {
     const all = vi
       .fn()
       .mockResolvedValueOnce([{ available: 7, sufficient: 1 }])

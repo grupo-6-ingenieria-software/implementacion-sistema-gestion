@@ -5,8 +5,8 @@ import { MONTHLY_SALES_EMPTY_MESSAGE } from "../../../src/shared/monthly-sales";
 import { report, user } from "./report-export-fixture";
 const input = { report, usuario: user.trabajadorNombre, fecha: "30-09-2026 10:00" };
 
-describe("CU47 builders reused by CU54", () => {
-  it("includes the chart as an image, all days and escaped identity in print HTML", () => {
+describe("constructores de CU47 reutilizados por CU54", () => {
+  it("incluye el gráfico como imagen, todos los días e identidad escapada en el HTML de impresión", () => {
     const html = renderMonthlySalesPrintHtml(input);
     expect(html).toContain('src="data:image/svg+xml');
     expect(html).toContain("30/09/2026");
@@ -15,7 +15,7 @@ describe("CU47 builders reused by CU54", () => {
     expect(html).not.toContain(MONTHLY_SALES_EMPTY_MESSAGE);
   });
 
-  it("creates a workbook with all daily values, payment methods and no embedded image", async () => {
+  it("crea un libro con todos los valores diarios y métodos de pago, sin imagen incrustada", async () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(await createMonthlySalesXlsx(input) as any);
     const sheet = workbook.getWorksheet("Ventas mensuales")!;
@@ -28,7 +28,7 @@ describe("CU47 builders reused by CU54", () => {
     expect(sheet.getImages()).toEqual([]);
   });
 
-  it("closes its hidden PDF window on rendering failure", async () => {
+  it("cierra su ventana PDF oculta ante un fallo de renderizado", async () => {
     const destroy = vi.fn();
     await expect(createMonthlySalesPdf(input, () => ({ loadURL: async () => undefined, isDestroyed: () => false, destroy, webContents: { printToPDF: async () => { throw new Error("Print failed"); } } }))).rejects.toThrow("Print failed");
     expect(destroy).toHaveBeenCalledTimes(1);

@@ -6,8 +6,8 @@ import {
   validatePrevisionalRates,
 } from "../../src/shared/previsional";
 
-describe("previsional shared module", () => {
-  it("exposes the RF35 default rates", () => {
+describe("módulo compartido previsional", () => {
+  it("expone las tasas predeterminadas de RF35", () => {
     expect(DEFAULT_PREVISIONAL_RATES).toEqual({
       afp: 11.5,
       salud: 7,
@@ -15,7 +15,7 @@ describe("previsional shared module", () => {
     });
   });
 
-  it("normalizes numeric and string payloads", () => {
+  it("normaliza payloads numéricos y de texto", () => {
     expect(
       normalizePrevisionalUpdatePayload({
         usuarioId: "dueno",
@@ -31,7 +31,7 @@ describe("previsional shared module", () => {
     });
   });
 
-  it("rejects out-of-range or non numeric percentages", () => {
+  it("rechaza porcentajes fuera de rango o no numéricos", () => {
     const errors = validatePrevisionalRates({
       afp: -1,
       salud: 101,
@@ -44,7 +44,7 @@ describe("previsional shared module", () => {
     expect(errors.cesantia).toBeDefined();
   });
 
-  it("accepts boundary values 0 and 100", () => {
+  it("acepta los valores límite 0 y 100", () => {
     const errors = validatePrevisionalRates({
       afp: 0,
       salud: 100,

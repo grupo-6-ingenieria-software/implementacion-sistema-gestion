@@ -47,8 +47,8 @@ const input: InventoryReportInput = {
   ],
 };
 
-describe("CU20 files and presentation (T05/T06/T07)", () => {
-  it("writes all eight columns with text EAN, real numbers and inert strings", async () => {
+describe("archivos y presentación de CU20 (T05/T06/T07)", () => {
+  it("escribe las ocho columnas con EAN como texto, números reales y cadenas inertes", async () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(
       (await createInventoryXlsxBuffer(input)) as unknown as ExcelJS.Buffer,
@@ -80,7 +80,7 @@ describe("CU20 files and presentation (T05/T06/T07)", () => {
       input.fechaGeneracion.replace("Z", ".000Z"),
     );
   });
-  it("escapes HTML, preserves EAN and provides repeating print headers", () => {
+  it("escapa HTML, conserva el EAN y proporciona encabezados de impresión repetidos", () => {
     const html = renderInventoryPrintHtml(input);
     for (const header of INVENTORY_EXPORT_COLUMNS)
       expect(html).toContain(header);
@@ -92,7 +92,7 @@ describe("CU20 files and presentation (T05/T06/T07)", () => {
     expect(html).toContain("A4 landscape");
   });
   it.each(["success", "load", "print"])(
-    "destroys the isolated PDF window after %s",
+    "destruye la ventana PDF aislada tras %s",
     async (mode) => {
       const window = {
         destroy: vi.fn(),
@@ -122,7 +122,7 @@ describe("CU20 files and presentation (T05/T06/T07)", () => {
       expect(window.destroy).toHaveBeenCalledOnce();
     },
   );
-  it("uses Santiago dates across midnight and summer/winter offsets", () => {
+  it("usa fechas de Santiago a través de la medianoche y desfases de verano/invierno", () => {
     expect(formatDateTimeInSantiago(new Date("2026-07-01T03:30:00Z"))).toBe(
       "30-06-2026 23:30",
     );
@@ -137,7 +137,7 @@ describe("CU20 files and presentation (T05/T06/T07)", () => {
       ).defaultPath,
     ).toContain("listado-inventario-2026-09-12_20-30.xlsx");
   });
-  it("does not leak driver messages or credentials to technical logs", () => {
+  it("no filtra mensajes del driver ni credenciales a los registros técnicos", () => {
     const error = Object.assign(
       new Error("token=secret https://private-driver"),
       { code: "EACCES" },
@@ -149,8 +149,8 @@ describe("CU20 files and presentation (T05/T06/T07)", () => {
   });
 });
 
-describe("CU20 destination and atomic save (T11)", () => {
-  it("confirms a different normalized target when it already exists", async () => {
+describe("destino y guardado atómico de CU20 (T11)", () => {
+  it("confirma un destino normalizado distinto cuando ya existe", async () => {
     const dependencies = {
       exists: vi.fn(async () => true),
       confirm: vi.fn(async () => false),
@@ -169,7 +169,7 @@ describe("CU20 destination and atomic save (T11)", () => {
     ).toBe(true);
   });
   it.each(["success", "write", "replace"])(
-    "preserves/commits the destination and cleans temporary files on %s",
+    "conserva/confirma el destino y limpia los archivos temporales tras %s",
     async (mode) => {
       const directory = await mkdtemp(join(tmpdir(), "cu20-save-"));
       try {
@@ -208,7 +208,7 @@ describe("CU20 destination and atomic save (T11)", () => {
       }
     },
   );
-  it("does not delete a temporary file owned by someone else when exclusive open fails", async () => {
+  it("no elimina un archivo temporal ajeno cuando falla la apertura exclusiva", async () => {
     const remove = vi.fn();
     await expect(
       saveInventoryFile("inventory.pdf", Buffer.from("pdf"), {
@@ -223,7 +223,7 @@ describe("CU20 destination and atomic save (T11)", () => {
     ).rejects.toThrow("EEXIST");
     expect(remove).not.toHaveBeenCalled();
   });
-  it("logs cleanup failures while preserving the original export failure", async () => {
+  it("registra los fallos de limpieza conservando el fallo original de exportación", async () => {
     const logCleanup = vi.fn();
     await expect(
       saveInventoryFile("inventory.pdf", Buffer.from("pdf"), {

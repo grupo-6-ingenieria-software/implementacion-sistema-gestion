@@ -9,14 +9,14 @@ import {
   validateRemuneracionPeriodo,
 } from "../../src/shared/remuneraciones";
 
-describe("remuneraciones shared module", () => {
-  it("rounds each discount half up to the nearest peso", () => {
+describe("módulo compartido de remuneraciones", () => {
+  it("redondea cada descuento al peso más cercano, con mitad hacia arriba", () => {
     expect(roundToNearestPeso(100.5)).toBe(101);
     expect(roundToNearestPeso(100.49)).toBe(100);
     expect(roundToNearestPeso(0.5)).toBe(1);
   });
 
-  it("calculates discounts and net pay with the RF34 default rates", () => {
+  it("calcula descuentos y sueldo líquido con las tasas por defecto de RF34", () => {
     const result = calculateRemuneracion(500000, [
       { tipo: "afp", porcentaje: 11.5 },
       { tipo: "salud", porcentaje: 7 },
@@ -31,7 +31,7 @@ describe("remuneraciones shared module", () => {
     expect(result.montoLiquido).toBe(500000 - 57500 - 35000 - 3000);
   });
 
-  it("normalizes text payloads into numeric fields", () => {
+  it("normaliza payloads de texto a campos numéricos", () => {
     expect(
       normalizeRemuneracionCreatePayload({
         usuarioId: "dueno",
@@ -51,7 +51,7 @@ describe("remuneraciones shared module", () => {
     });
   });
 
-  it("rejects invalid periods and non positive gross amounts", () => {
+  it("rechaza periodos inválidos y montos brutos no positivos", () => {
     const errors = validateRemuneracionCreatePayload({
       trabajadorId: 0,
       mes: 13,
@@ -66,7 +66,7 @@ describe("remuneraciones shared module", () => {
     expect(errors.montoBruto).toBeDefined();
   });
 
-  it("accepts a valid payload", () => {
+  it("acepta un payload válido", () => {
     const errors = validateRemuneracionCreatePayload({
       trabajadorId: 2,
       mes: 6,
@@ -77,7 +77,7 @@ describe("remuneraciones shared module", () => {
     expect(hasRemuneracionFieldErrors(errors)).toBe(false);
   });
 
-  it("normalizes and validates a period payload independently of trabajador/bruto", () => {
+  it("normaliza y valida un payload de periodo de forma independiente de trabajador/bruto", () => {
     const normalized = normalizeRemuneracionPeriodoPayload({
       usuarioId: "dueno",
       mes: "13",

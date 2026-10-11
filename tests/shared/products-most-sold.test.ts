@@ -7,8 +7,8 @@ import {
   parseProductsMostSoldPeriod,
 } from "../../src/shared/products-most-sold";
 
-describe("CU48 shared contract and integer discount allocation", () => {
-  it("validates real Chilean display dates and inclusive period order", () => {
+describe("contrato compartido de CU48 y asignación entera de descuentos", () => {
+  it("valida fechas de visualización chilenas reales y el orden inclusivo del periodo", () => {
     expect(parseProductsMostSoldDisplayDate("29/02/2024")).toBe("2024-02-29");
     expect(parseProductsMostSoldDisplayDate("29/02/2026")).toBeNull();
     expect(parseProductsMostSoldDisplayDate("2026-09-30")).toBeNull();
@@ -19,7 +19,7 @@ describe("CU48 shared contract and integer discount allocation", () => {
     expect(formatProductsMostSoldPercentage(100 / 3)).toBe("33,33 %");
   });
 
-  it("distributes residual pesos by largest remainder and stable detail id", () => {
+  it("distribuye los pesos residuales por mayor resto e ID de detalle estable", () => {
     const input = [{ id: "b", subtotal: 100 }, { id: "a", subtotal: 100 }, { id: "c", subtotal: 100 }];
     const result = allocateRecordedSaleNetAmounts({ discountType: "monto", discountValue: 1 }, input);
     expect(result).toEqual([
@@ -32,7 +32,7 @@ describe("CU48 shared contract and integer discount allocation", () => {
     expect(allocateRecordedSaleNetAmounts({ discountType: "monto", discountValue: 300 }, input).every((line) => line.montoNeto === 0)).toBe(true);
   });
 
-  it("rejects incoherent monetary data", () => {
+  it("rechaza datos monetarios incoherentes", () => {
     expect(() => allocateRecordedSaleNetAmounts({ discountType: "monto", discountValue: 11 }, [{ id: "a", subtotal: 10 }])).toThrow();
     expect(() => allocateRecordedSaleNetAmounts({ discountType: "monto", discountValue: 10 }, [{ id: "a", subtotal: 10 }, { id: "a", subtotal: 10 }])).toThrow();
     expect(() => allocateRecordedSaleNetAmounts({ discountType: "monto", discountValue: 1 }, [{ id: "a", subtotal: 0 }])).toThrow();

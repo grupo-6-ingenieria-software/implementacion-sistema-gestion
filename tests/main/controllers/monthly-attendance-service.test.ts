@@ -26,8 +26,8 @@ const attendance = (entradaAt: string, salidaAt: string | null = null, trabajado
 const absence = (fecha: string, tipo: MonthlyAttendanceAbsenceType, trabajadorId = 2) => fixture.db.insert(schema.ausencia).values({ trabajadorId, ausenciaFecha: fecha, ausenciaTipo: tipo, usuarioRegistradorId: OWNER });
 const query = (input = request) => queryMonthlyAttendance(database, input);
 
-describe("CU33 monthly attendance queries against libSQL", () => {
-  it("combines attendance and all absence types, counts pending days and leaves domain data untouched", async () => {
+describe("consultas de asistencia mensual CU33 contra libSQL", () => {
+  it("combina asistencia y todos los tipos de ausencia, cuenta días pendientes y no modifica los datos del dominio", async () => {
     await attendance("2026-09-01T12:00:45Z", "2026-09-01T20:01:44Z");
     await attendance("2026-09-02T12:00:00Z");
     await attendance("2026-09-03T12:00:00Z", "2026-09-03T20:00:59Z");
@@ -45,7 +45,7 @@ describe("CU33 monthly attendance queries against libSQL", () => {
     expect(report.semanas.map((week) => week.minutosTrabajados)).toEqual([960, 0, 0, 0, 0]);
     expect(await snapshot()).toEqual(before);
   });
-  it("returns an empty successful summary and every clipped week with zero hours", async () => {
+  it("devuelve un resumen exitoso vacío y cada semana recortada con cero horas", async () => {
     const report = await query();
     expect(report.dias).toEqual([]);
     expect(Object.values(report.totales)).toEqual([0, 0, 0, 0]);
@@ -57,7 +57,7 @@ describe("CU33 monthly attendance queries against libSQL", () => {
       { desde: "2026-09-28", hasta: "2026-09-30", minutosTrabajados: 0 },
     ]);
   });
-  it("lists and consults inactive workers who have no user account", async () => {
+  it("lista y consulta trabajadores inactivos que no tienen cuenta de usuario", async () => {
     expect(await listSummaryWorkersWithExecutor(fixture.db, schema)).toEqual([
       { trabajadorId: 1, rut: OWNER, nombreCompleto: "Ana Soto", estado: "activo" },
       { trabajadorId: 3, rut: "33333333-3", nombreCompleto: "Inés Pérez", estado: "inactivo" },
@@ -66,7 +66,7 @@ describe("CU33 monthly attendance queries against libSQL", () => {
     await attendance("2026-09-08T12:00:00Z", "2026-09-08T20:00:00Z", 3);
     expect(await query({ ...request, trabajadorId: 3 })).toMatchObject({ trabajador: { estado: "inactivo" }, totales: { diasTrabajados: 1, minutosTrabajados: 480 } });
   });
-  it("uses Chilean entry dates at both month boundaries and excludes the next month", async () => {
+  it("usa fechas de entrada chilenas en ambos límites del mes y excluye el mes siguiente", async () => {
     await attendance("2026-09-01T03:30:00Z", "2026-09-01T03:45:00Z");
     await attendance("2026-09-01T04:00:00Z", "2026-09-01T05:00:00Z");
     await attendance("2026-10-01T02:00:00Z", "2026-10-01T05:00:00Z");
@@ -80,30 +80,30 @@ describe("CU33 monthly attendance queries against libSQL", () => {
   it.each([
     { mes: 9, entrada: "2026-09-06T03:30:00Z", salida: "2026-09-06T05:30:00Z", fecha: "2026-09-05" },
     { mes: 4, entrada: "2026-04-05T02:30:00Z", salida: "2026-04-05T04:30:00Z", fecha: "2026-04-04" },
-  ])("uses elapsed minutes across the Chilean DST change in month $mes", async ({ mes, entrada, salida, fecha }) => {
+  ])("usa minutos transcurridos durante el cambio de horario de verano chileno en el mes $mes", async ({ mes, entrada, salida, fecha }) => {
     await attendance(entrada, salida);
     expect((await query({ ...request, mes })).dias).toMatchObject([{ fecha, minutosTrabajados: 120 }]);
   });
-  it("preserves UTC semantics for SQLite timestamps and explicit offsets", async () => {
+  it("preserva la semántica UTC para marcas de tiempo de SQLite y desplazamientos explícitos", async () => {
     await attendance("2026-09-08 12:00:00", "2026-09-08 20:00:00");
     await attendance("2026-09-09T08:00:00-03:00", "2026-09-09T16:00:00-03:00");
     const report = await query();
     expect(report.dias[0]).toMatchObject({ entradaAt: "2026-09-08T12:00:00.000Z", minutosTrabajados: 480 });
     expect(report.dias[1]).toMatchObject({ entradaAt: "2026-09-09T11:00:00.000Z", minutosTrabajados: 480 });
   });
-  it("includes February 29 and weeks that start or end outside a leap month", async () => {
+  it("incluye el 29 de febrero y las semanas que comienzan o terminan fuera de un mes bisiesto", async () => {
     await attendance("2024-02-29T12:00:00Z", "2024-02-29T20:00:00Z");
     const report = await query({ ...request, mes: 2, anio: 2024 });
     expect(report.dias[0].fecha).toBe("2024-02-29");
     expect(report.semanas[0]).toMatchObject({ desde: "2024-02-01", hasta: "2024-02-04" });
     expect(report.semanas.at(-1)).toEqual({ desde: "2024-02-26", hasta: "2024-02-29", minutosTrabajados: 480 });
   });
-  it.each([1900, 9998])("allows a future/empty year boundary %s", async (anio) => {
+  it.each([1900, 9998])("permite un límite de año futuro/vacío %s", async (anio) => {
     const report = await query({ ...request, mes: 12, anio });
     expect(report.dias).toEqual([]);
     expect(report.semanas.at(-1)?.hasta).toBe(`${anio}-12-31`);
   });
-  it("rejects duplicate attendance and attendance/absence conflicts together without returning partial totals", async () => {
+  it("rechaza asistencias duplicadas y conflictos asistencia/ausencia juntos sin devolver totales parciales", async () => {
     await attendance("2026-09-08T12:00:00Z", "2026-09-08T13:00:00Z");
     await attendance("2026-09-08T14:00:00Z", "2026-09-08T15:00:00Z");
     await attendance("2026-09-09T12:00:00Z");
@@ -116,20 +116,20 @@ describe("CU33 monthly attendance queries against libSQL", () => {
     ["2026-09-08T12:00:00Z", "invalid", "2026-09-08"],
     ["2026-09-08T12:00:00Z", "2026-09-08T11:00:00Z", "2026-09-08"],
     ["invalid", null, "fecha desconocida"],
-  ])("rejects inconsistent timestamps %s / %s", async (entrada, salida, fecha) => {
+  ])("rechaza marcas de tiempo inconsistentes %s / %s", async (entrada, salida, fecha) => {
     await fixture.client.execute("PRAGMA ignore_check_constraints = ON");
     await attendance(entrada, salida);
     await fixture.client.execute("PRAGMA ignore_check_constraints = OFF");
     await expect(query()).rejects.toMatchObject({ code: "BUSINESS_RULE", message: expect.stringContaining(fecha) });
   });
-  it("keeps recognizably corrupt timestamps outside the requested period out of the summary", async () => {
+  it("excluye del resumen las marcas de tiempo claramente corruptas fuera del período solicitado", async () => {
     await attendance("2026-08-08T24:00:00Z");
     expect((await query()).dias).toEqual([]);
   });
-  it("reports a missing worker", async () => {
+  it("informa un trabajador faltante", async () => {
     await expect(query({ ...request, trabajadorId: 999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
-  it("reflects a real absence registered by CU32 with its original worker, date and type", async () => {
+  it("refleja una ausencia real registrada por CU32 con su trabajador, fecha y tipo originales", async () => {
     await fixture.db.insert(schema.sesionUsuario).values({ sesionUsuarioId: SESSION, usuarioId: OWNER, sesionFechaHoraInicio: NOW.toISOString(), sesionFechaHoraUltimoAcceso: NOW.toISOString(), sesionRolEfectivo: "dueno" });
     await registerAbsence(database, { trabajadorId: 2, fecha: "2026-09-08", tipo: "justificada" }, { usuarioId: OWNER, sesionId: SESSION, rol: "dueno" }, () => NOW);
     const report = await query();

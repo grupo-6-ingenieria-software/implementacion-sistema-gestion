@@ -7,7 +7,7 @@ import { isImplementedViewNodeId } from "../../../../src/renderer/src/App";
 import type { ProductsMostSoldReport } from "../../../../src/shared/products-most-sold";
 
 describe("CU48 V39", () => {
-  it("mounts the documented route only for the owner", () => {
+  it("monta la ruta documentada solo para el dueno", () => {
     const route = navigationTree.find((node) => node.id === "products-most-sold")!;
     expect(route).toMatchObject({ path: "/app/reportes/mas-vendidos", viewName: "ReporteProductosVendidosView", roles: ["dueno"], group: "reportes" });
     expect(getVisibleMenu("trabajador").map((node) => node.id)).not.toContain("products-most-sold");
@@ -16,7 +16,7 @@ describe("CU48 V39", () => {
     expect(isImplementedViewNodeId("products-most-sold")).toBe(true);
   });
 
-  it("renders all six columns, net pesos, unit percentages and the top rows", () => {
+  it("muestra las seis columnas, pesos netos, porcentajes por unidad y las primeras filas", () => {
     const report: ProductsMostSoldReport = {
       status: "ready", periodo: { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" }, totalUnidadesPeriodo: 3,
       filas: [{ productoId: 1, ean13: "0000000000001", nombre: "Marraqueta", categoria: "Pan", unidadesVendidas: 1, ingresoNeto: 900, porcentajeUnidades: 100 / 3 }],

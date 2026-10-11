@@ -7,8 +7,8 @@ import {
 } from "../../../../src/renderer/src/views/SupplierListView";
 import type { ControllerResponse } from "../../../../src/shared/controllers";
 
-describe("CU15 supplier list helpers", () => {
-  it("loads the enriched response with normalized combined filters", async () => {
+describe("helpers de la lista de proveedores de CU15", () => {
+  it("carga la respuesta enriquecida con filtros combinados normalizados", async () => {
     const data = {
       suppliers: [
         {
@@ -44,7 +44,7 @@ describe("CU15 supplier list helpers", () => {
     });
   });
 
-  it("normalizes an empty payload and fixes the debounce at 250 ms", () => {
+  it("normaliza un payload vacío y fija el debounce en 250 ms", () => {
     expect(
       buildSupplierListPayload(" user ", {
         busqueda: "   ",
@@ -54,7 +54,7 @@ describe("CU15 supplier list helpers", () => {
     expect(SUPPLIER_SEARCH_DEBOUNCE_MS).toBe(250);
   });
 
-  it("builds an encoded edit route and exposes backend errors", async () => {
+  it("construye una ruta de edición codificada y expone los errores del backend", async () => {
     expect(buildSupplierEditPath("12 345 678-5")).toBe(
       "/app/proveedores/12%20345%20678-5/editar",
     );
