@@ -1,5 +1,5 @@
 // Ejecuta la suite de Vitest agrupada por requisito funcional, en orden
-// RF01 → RF62 y al final TRANSVERSAL. El mapeo test → RF vive en rf-map.json.
+// RF01 → RF63 y al final TRANSVERSAL. El mapeo test → RF vive en rf-map.json.
 //
 // Uso:
 //   npm test                 todos los RF en orden

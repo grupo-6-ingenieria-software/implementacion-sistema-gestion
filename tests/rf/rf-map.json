@@ -1,5 +1,5 @@
 {
-  "fuente": "Documento 0, Tabla 8.1 (RF01-RF62). Cada test aparece una vez, bajo su RF principal; \"tambien\" lista RF secundarios.",
+  "fuente": "Documento 0, Tabla 8.1 (RF01-RF63). Cada test aparece una vez, bajo su RF principal; \"tambien\" lista RF secundarios.",
   "rf": {
     "RF01": [
       {
@@ -8200,6 +8200,152 @@
         "tambien": [
           "RF58"
         ]
+      }
+    ],
+    "RF63": [
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > ninguna línea supera las 48 columnas del papel de 80 mm"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > ninguna línea supera las 32 columnas del papel de 58 mm"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > replica el formato de la boleta del local sin elementos tributarios ni rol"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > marca la reimpresión como copia con su fecha y hora"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > en pago electrónico informa el total pagado y omite el vuelto"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > en 58 mm corta el número de venta solo en guiones y separa EAN y cálculo"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 composición de la boleta térmica UI10 > normaliza a mayúsculas sin tildes"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 codificación ESC/POS > inicializa, alterna negrita, mapea el símbolo de grado y termina con corte"
+      },
+      {
+        "file": "tests/main/controllers/receipt-escpos.test.ts",
+        "test": "RF63 codificación ESC/POS > reemplaza caracteres no imprimibles por signo de interrogación"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.integration.test.ts",
+        "test": "RF63 integración de impresión de boletas con base de datos y transporte TCP > imprime la boleta desde la venta persistida y no audita la impresión automática"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.integration.test.ts",
+        "test": "RF63 integración de impresión de boletas con base de datos y transporte TCP > reimprime la copia y deja la reimpresión en log_auditoria"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.integration.test.ts",
+        "test": "RF63 integración de impresión de boletas con base de datos y transporte TCP > no reimprime ventas anuladas"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.integration.test.ts",
+        "test": "RF63 integración de impresión de boletas con base de datos y transporte TCP > con la impresora apagada conserva la venta, registra la falla y no audita"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > imprime la boleta de la venta registrada sin auditar la impresión automática"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > reimprime como copia y registra la reimpresión en el log de auditoría"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > rechaza reimprimir una venta anulada sin enviar nada a la impresora (CU63b-E1)"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > registra la falla técnica y no audita cuando la impresora no responde (CU63-E1, CU63b-E2)"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > informa cuando la copia se imprimió pero la auditoría falló"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > valida el número de venta 0"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > valida el número de venta 1"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > rechaza llamadas directas sin sesión y canales desconocidos"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > permite imprimir y reimprimir a ambos roles"
+      },
+      {
+        "file": "tests/main/controllers/receipt-print.test.ts",
+        "test": "RF63 C62 ImpresionBoletaHandler > por defecto usa la térmica USB de Windows y solo usa escpresso si se pide por variable de entorno"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > envía los bytes ESC/POS completos por TCP, como recibe escpresso"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > informa impresora no disponible cuando el puerto TCP rechaza la conexión"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > envía por USB en Windows mediante la cola de impresión en modo RAW"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > usa la cola CUPS en modo raw fuera de Windows"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > convierte una falla de la cola en impresora no disponible"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > delega la conexión TCP según la configuración"
+      },
+      {
+        "file": "tests/main/controllers/receipt-printer-transport.test.ts",
+        "test": "RF63 transporte de la boleta > sin nombre de impresora usa la predeterminada del equipo"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 estado de impresión en el comprobante de V12 > muestra la boleta impresa y la acción de reimprimir"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 estado de impresión en el comprobante de V12 > si la impresora falla conserva la venta y ofrece reintentar en vez de reimprimir"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 estado de impresión en el comprobante de V12 > deshabilita la reimpresión mientras imprime"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 estado de impresión en el comprobante de V12 > confirma la copia enviada a la impresora"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 estado de impresión en el comprobante de V12 > sin estado de impresión conserva el comprobante existente con rol del responsable"
+      },
+      {
+        "file": "tests/renderer/src/views/impresion-boletas.test.ts",
+        "test": "RF63 navegación > Registrar venta y Consulta de ventas usan C62 y no existe vista de configuración"
       }
     ],
     "TRANSVERSAL": [

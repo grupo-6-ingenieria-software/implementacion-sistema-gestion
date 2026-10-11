@@ -393,7 +393,7 @@ describe("árbol de navegación", () => {
       path: "/app/ventas/consulta",
       showInMenu: true,
       roles: ["dueno", "trabajador"],
-      controllerIds: ["access-control", "sales-history"],
+      controllerIds: ["access-control", "sales-history", "receipt-print"],
     });
 
     for (const role of ["dueno", "trabajador"] as const) {

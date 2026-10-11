@@ -64,7 +64,8 @@ export type ControllerId =
   | "movement-report"
   | "monthly-sales"
   | "products-most-sold"
-  | "category-profitability";
+  | "category-profitability"
+  | "receipt-print";
 
 export type NavNode = {
   id: string;
@@ -397,6 +398,7 @@ export const navigationTree = [
       "cash-check",
       "audit",
       "ean-reader",
+      "receipt-print",
     ],
   },
   {
@@ -430,7 +432,7 @@ export const navigationTree = [
     group: "ventas",
     showInMenu: true,
     entryFrom: "Menu Ventas > Consulta de ventas.",
-    controllerIds: ["access-control", "sales-history"],
+    controllerIds: ["access-control", "sales-history", "receipt-print"],
   },
   {
     id: "sale-annulment",

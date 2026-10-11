@@ -19,6 +19,7 @@ import {
   type SaleHistorySearchResult,
   type SaleState,
 } from "../../../shared/sales";
+import type { ReceiptPrintResult } from "../../../shared/receipt-print";
 
 const SALES_QUERY_PATH = "/app/ventas/consulta";
 
@@ -418,6 +419,7 @@ export function ConsultaVentasView({
       {isLoadingDetail ? <ViewMessage message="Cargando detalle de la venta..." /> : null}
       {detail && !isLoadingDetail ? (
         <SaleDetailPanel
+          key={detail.ventaId}
           detail={detail}
           headingRef={detailHeadingRef}
           onClose={() => {
@@ -580,6 +582,35 @@ function SaleDetailPanel({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onClose: () => void;
 }): ReactElement {
+  const [reprint, setReprint] = useState<
+    | { state: "printing" }
+    | { state: "printed" }
+    | { state: "failed"; message: string }
+    | null
+  >(null);
+  const isAnnulled = detail.estado === "anulada";
+
+  // CU63b: la copia se imprime en la impresora de este equipo y se audita en Main.
+  async function reprintReceipt(): Promise<void> {
+    setReprint({ state: "printing" });
+    try {
+      const response = await window.appApi.invoke<ReceiptPrintResult>(
+        "boleta:imprimir",
+        { ventaId: detail.ventaId, copia: true },
+      );
+      setReprint(
+        response.ok
+          ? { state: "printed" }
+          : { state: "failed", message: response.error.message },
+      );
+    } catch {
+      setReprint({
+        state: "failed",
+        message: "No fue posible comunicarse con la impresora.",
+      });
+    }
+  }
+
   const discountAmount = detail.subtotal - detail.total;
   const discountLabel =
     detail.descuento.tipo === "porcentaje"
@@ -598,6 +629,15 @@ function SaleDetailPanel({
         <div className="flex items-center gap-3">
           <StatusBadge state={detail.estado} />
           <button
+            className="rounded-md border border-[#244d61] px-3 py-2 text-xs font-semibold text-[#244d61] hover:bg-[#eef4f7] disabled:cursor-not-allowed disabled:border-[#cbd5df] disabled:text-[#9ba9b5] disabled:hover:bg-transparent"
+            type="button"
+            disabled={isAnnulled || reprint?.state === "printing"}
+            title={isAnnulled ? "No se reimprimen boletas de ventas anuladas" : undefined}
+            onClick={() => void reprintReceipt()}
+          >
+            {reprint?.state === "printing" ? "Imprimiendo..." : "Reimprimir boleta"}
+          </button>
+          <button
             className="rounded-md border border-[#9ba9b5] px-3 py-2 text-xs font-semibold text-[#24313d] hover:bg-[#f0f3f6]"
             type="button"
             onClick={onClose}
@@ -606,6 +646,22 @@ function SaleDetailPanel({
           </button>
         </div>
       </div>
+      {reprint?.state === "printed" ? (
+        <p
+          role="status"
+          className="mt-4 rounded-md border border-[#b8e6cc] bg-[#effaf3] px-3 py-2 text-sm font-medium text-[#255a43]"
+        >
+          Copia de la boleta enviada a la impresora.
+        </p>
+      ) : null}
+      {reprint?.state === "failed" ? (
+        <p
+          role="alert"
+          className="mt-4 break-words rounded-md border border-[#fecdca] bg-[#fff3f1] px-3 py-2 text-sm font-medium text-[#b42318]"
+        >
+          {reprint.message}
+        </p>
+      ) : null}
 
       <dl className="mt-5 grid gap-4 rounded-md bg-[#f6f8fa] p-4 sm:grid-cols-2">
         <Info
