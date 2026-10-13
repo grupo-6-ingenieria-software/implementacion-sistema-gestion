@@ -43,6 +43,13 @@
       "when": 1790741519303,
       "tag": "0005_rf59_contrasena_modelo_fisico",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791861350925,
+      "tag": "0006_retira_trigger_contrasena_temporal_legado",
+      "breakpoints": true
     }
   ]
 }
