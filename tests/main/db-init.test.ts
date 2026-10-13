@@ -250,7 +250,7 @@ describe("initializeDatabase", () => {
           )
         ).rows[0]?.count,
       ),
-    ).toBe(6);
+    ).toBe(7);
   });
 });
 
