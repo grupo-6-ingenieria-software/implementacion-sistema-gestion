@@ -126,6 +126,54 @@ describe("migración de RF59 al modelo físico de contraseñas", () => {
       ),
     ).resolves.toBeUndefined();
   });
+
+  it("retira el trigger legado si un cliente anterior lo recreó tras la migración", async () => {
+    await applyMigration(testDb!.client);
+    await testDb!.client.executeMultiple(`
+      INSERT INTO trabajador (
+        trabajador_id, trabajador_rut, trabajador_nombre, trabajador_apellido,
+        trabajador_telefono, trabajador_fecha_ingreso, trabajador_estado
+      ) VALUES (1, '12345678-9', 'Maria', 'Rojas', '987654321', '2024-01-01', 'activo');
+      INSERT INTO usuario (usuario_id, usuario_rol, usuario_fecha_creacion, trabajador_id)
+      VALUES ('12345678-9', 'dueno', '2026-01-01T00:00:00.000Z', 1);
+      INSERT INTO contrasena (
+        contrasena_id, contrasena_hash, usuario_id, generada_por_usuario_id
+      ) VALUES ('${temporalId}', 'hash-temporal', '12345678-9', '12345678-9');
+      CREATE TRIGGER trg_contrasena_temporal_flag_coherente
+      BEFORE INSERT ON contrasena_temporal
+      FOR EACH ROW
+      WHEN (SELECT es_contrasena_temporal FROM contrasena
+             WHERE contrasena_id = NEW.contrasena_id) <> 1
+      BEGIN
+        SELECT RAISE(ABORT, 'flag');
+      END;
+    `);
+    const insertTemporal = `
+      INSERT INTO contrasena_temporal (
+        contrasena_temporal_id, contrasena_temporal_fecha_hora_expiracion,
+        contrasena_id
+      ) VALUES (
+        '00000000-0000-4000-8000-000000000503', '2026-01-04T00:00:00.000Z',
+        '${temporalId}'
+      )
+    `;
+
+    await expect(testDb!.client.execute(insertTemporal)).rejects.toThrow(
+      /no such column: es_contrasena_temporal/,
+    );
+
+    await testDb!.client.executeMultiple(
+      await readFile(
+        join(
+          process.cwd(),
+          "drizzle/migrations/0006_retira_trigger_contrasena_temporal_legado.sql",
+        ),
+        "utf8",
+      ),
+    );
+
+    await expect(testDb!.client.execute(insertTemporal)).resolves.toBeDefined();
+  });
 });
 
 async function createLegacyDatabase() {
