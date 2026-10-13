@@ -22,6 +22,7 @@ import { ATTENDANCE_REPORT_TYPE } from "../../shared/attendance-report";
 import { createAttendanceReportExportHandler } from "./attendance-report-export";
 import { PRODUCTS_MOST_SOLD_REPORT_TYPE } from "../../shared/products-most-sold";
 import { createProductsMostSoldExportHandler } from "./products-most-sold-export";
+import { formatDisplayDateTime } from "../../shared/date-time";
 
 type Format = "pdf" | "xlsx";
 type SaveDialogResult = { canceled: boolean; filePath?: string };
@@ -129,7 +130,7 @@ export async function createDailySalesXlsxBuffer({ report, generatedAt, usuario 
   sheet.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF1B4332" } };
   sheet.addRow(["Reporte diario de ventas"]);
   sheet.addRow(["Período", report.fecha.split("-").reverse().join("/")]);
-  sheet.addRow(["Fecha y hora de generación", generatedAt]);
+  sheet.addRow(["Fecha y hora de generación", formatDisplayDateTime(generatedAt)]);
   sheet.addRow(["Usuario", usuario]);
   sheet.addRow([]);
   const section = (label: string, headers: string[]) => { sheet.addRow([label]).font = { bold: true, color: { argb: "FF1B4332" } }; sheet.addRow(headers).font = { bold: true }; };
@@ -145,10 +146,10 @@ export async function createDailySalesXlsxBuffer({ report, generatedAt, usuario 
   section("Top 5 productos por unidades", ["Producto", "EAN-13", "Unidades", "Ingreso neto"]);
   report.topProductos.forEach((item) => sheet.addRow([item.nombre, item.ean13, item.unidades, item.montoNeto]));
   sheet.addRow([]);
-  sheet.addRow(["Estado de caja", report.caja.estado, report.caja.fechaHoraCierre ?? ""]);
+  sheet.addRow(["Estado de caja", report.caja.estado, report.caja.fechaHoraCierre ? formatDisplayDateTime(report.caja.fechaHoraCierre) : ""]);
   sheet.addRow([]);
   section("Listado de ventas", ["Número", "Fecha y hora", "Responsable", "Estado", "Método de pago", "Total"]);
-  report.ventas.forEach((sale) => sheet.addRow([sale.ventaId, sale.fechaHora, sale.responsable.nombre, sale.estado, sale.metodoPago, sale.total]));
+  report.ventas.forEach((sale) => sheet.addRow([sale.ventaId, formatDisplayDateTime(sale.fechaHora), sale.responsable.nombre, sale.estado, sale.metodoPago, sale.total]));
   const result = await workbook.xlsx.writeBuffer();
   return Buffer.from(result);
 }

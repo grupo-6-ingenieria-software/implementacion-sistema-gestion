@@ -15,6 +15,7 @@ import {
   EXPIRING_LOTS_HORIZON_ERROR,
 } from "../../../shared/report-expiring-lots";
 import type { RestockExportFormat, RestockExportResult } from "../../../shared/restock";
+import { formatDisplayDate } from "../../../shared/date-time";
 
 type Props = {
   usuarioId: string;
@@ -480,7 +481,7 @@ export function ReporteLotesVencerView({
                             {formatNumber(item.cantidad)}
                           </td>
                           <td className="px-4 py-2.5 font-medium text-[#1e293b]">
-                            {item.fechaVencimiento}
+                            {formatDisplayDate(item.fechaVencimiento)}
                           </td>
                           <td className="px-4 py-2.5 text-center">
                             <span

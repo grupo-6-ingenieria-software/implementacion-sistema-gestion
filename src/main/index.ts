@@ -61,6 +61,8 @@ function createMainWindow(): void {
   }
 }
 
+app.commandLine.appendSwitch("lang", "es-419");
+
 app.whenReady().then(async () => {
   try {
     await initializeDatabase(

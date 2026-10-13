@@ -426,9 +426,27 @@ export function formatDateTime(value: string): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
-    dateStyle: "short",
-    timeStyle: "short",
+  const formatter = new Intl.DateTimeFormat("es-CL", {
     timeZone: "America/Santiago",
-  }).format(date);
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const findPart = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const day = findPart("day");
+  const month = findPart("month");
+  const year = findPart("year");
+  const hour = findPart("hour");
+  const minute = findPart("minute");
+
+  if (day && month && year && hour && minute) {
+    return `${day}/${month}/${year} ${hour}:${minute}`;
+  }
+
+  return formatter.format(date);
 }

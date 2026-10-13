@@ -60,6 +60,10 @@ import {
   loadAuthorizedRestockList,
   type AuthorizedRestockList,
 } from "./restock-list";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "../../shared/date-time";
 
 type SaveDialogResult = {
   canceled: boolean;
@@ -601,7 +605,7 @@ export async function createWasteXlsxBuffer(
     fgColor: { argb: "FF1B4332" },
   };
   sheet.mergeCells("A2:I2");
-  sheet.getCell("A2").value = `Período: ${input.fechaInicio} al ${input.fechaTermino} | Generado: ${input.fechaGeneracion} | Usuario: ${input.usuario}`;
+  sheet.getCell("A2").value = `Período: ${formatDisplayDate(input.fechaInicio)} al ${formatDisplayDate(input.fechaTermino)} | Generado: ${formatDisplayDateTime(input.fechaGeneracion)} | Usuario: ${input.usuario}`;
   sheet.mergeCells("A3:I3");
   sheet.getCell("A3").value = `Resumen: ${input.resumen.totalUnidades} unidades mermadas | Costo total: $${input.resumen.costoTotal.toLocaleString("es-CL")} (Vencimiento: ${input.resumen.unidadesPorMotivo.vencimiento}, Daño: ${input.resumen.unidadesPorMotivo.dano}, Robo: ${input.resumen.unidadesPorMotivo.robo}, Error registro: ${input.resumen.unidadesPorMotivo.error_registro})`;
 
@@ -634,7 +638,7 @@ export async function createWasteXlsxBuffer(
 
   for (const item of input.items) {
     sheet.addRow([
-      item.fechaHora,
+      formatDisplayDateTime(item.fechaHora),
       item.productoNombre,
       item.productoEan13,
       item.categoriaNombre,
@@ -862,7 +866,7 @@ export async function createExpiringLotsXlsxBuffer(
 
   sheet.mergeCells("A3:I3");
   sheet.getCell("A3").value =
-    `Fecha de generación: ${input.fechaGeneracion} | Generado por: ${input.usuario}`;
+    `Fecha de generación: ${formatDisplayDateTime(input.fechaGeneracion)} | Generado por: ${input.usuario}`;
   sheet.getCell("A3").font = { italic: true, size: 10 };
 
   sheet.addRow([]);
@@ -903,7 +907,7 @@ export async function createExpiringLotsXlsxBuffer(
       item.proveedorNombre ?? "Sin proveedor",
       item.loteId.slice(0, 8),
       item.cantidad,
-      item.fechaVencimiento,
+      formatDisplayDate(item.fechaVencimiento),
       item.diasRestantes,
       item.precioCosto,
       item.costoEnRiesgo,
@@ -1133,12 +1137,12 @@ export async function createMovementXlsxBuffer(
 
   sheet.mergeCells("A2:J2");
   sheet.getCell("A2").value =
-    `Reporte de Auditoría de Movimientos de Inventario — Período: ${input.fechaInicio} al ${input.fechaTermino} | Tipo: ${input.tipoNombre ?? "Todos"} | Categoría: ${input.categoriaNombre ?? "Todas"} | Usuario: ${input.usuarioFiltroNombre ?? "Todos"}`;
+    `Reporte de Auditoría de Movimientos de Inventario — Período: ${formatDisplayDate(input.fechaInicio)} al ${formatDisplayDate(input.fechaTermino)} | Tipo: ${input.tipoNombre ?? "Todos"} | Categoría: ${input.categoriaNombre ?? "Todas"} | Usuario: ${input.usuarioFiltroNombre ?? "Todos"}`;
   sheet.getCell("A2").font = { bold: true, size: 11 };
 
   sheet.mergeCells("A3:J3");
   sheet.getCell("A3").value =
-    `Fecha de generación: ${input.fechaGeneracion} | Generado por: ${input.usuario}`;
+    `Fecha de generación: ${formatDisplayDateTime(input.fechaGeneracion)} | Generado por: ${input.usuario}`;
   sheet.getCell("A3").font = { italic: true, size: 10 };
 
   sheet.addRow([]);
@@ -1173,7 +1177,7 @@ export async function createMovementXlsxBuffer(
 
   for (const item of input.items) {
     sheet.addRow([
-      item.fechaHora,
+      formatDisplayDateTime(item.fechaHora),
       item.productoNombre,
       item.productoEan13,
       item.categoriaNombre,
