@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { WasteReportItem, WasteReportSummary } from "../../../shared/report-waste";
+import { formatDisplayDate, formatDisplayDateTime } from "../../../shared/date-time";
 
 export type ReporteMermasPrintViewProps = {
   fechaInicio: string;
@@ -34,12 +35,12 @@ export function ReporteMermasPrintView({
           <div>
             <dt>Período</dt>
             <dd>
-              {fechaInicio} al {fechaTermino}
+              {formatDisplayDate(fechaInicio)} al {formatDisplayDate(fechaTermino)}
             </dd>
           </div>
           <div>
             <dt>Fecha de generación</dt>
-            <dd>{fechaGeneracion}</dd>
+            <dd>{formatDisplayDateTime(fechaGeneracion)}</dd>
           </div>
           <div>
             <dt>Usuario</dt>
@@ -94,7 +95,7 @@ export function ReporteMermasPrintView({
         <tbody>
           {items.map((item) => (
             <tr key={item.id}>
-              <td>{item.fechaHora}</td>
+              <td>{formatDisplayDateTime(item.fechaHora)}</td>
               <td>{item.productoNombre}</td>
               <td>{item.productoEan13}</td>
               <td>{item.categoriaNombre}</td>

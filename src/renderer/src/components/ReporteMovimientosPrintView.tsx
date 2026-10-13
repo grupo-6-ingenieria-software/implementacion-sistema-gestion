@@ -3,6 +3,7 @@ import type {
   MovementReportItem,
   MovementReportSummary,
 } from "../../../shared/report-movements";
+import { formatDisplayDate, formatDisplayDateTime } from "../../../shared/date-time";
 
 export type ReporteMovimientosPrintViewProps = {
   fechaInicio: string;
@@ -36,7 +37,7 @@ export function ReporteMovimientosPrintView({
           <div>
             <dt>Período</dt>
             <dd>
-              {fechaInicio} al {fechaTermino}
+              {formatDisplayDate(fechaInicio)} al {formatDisplayDate(fechaTermino)}
             </dd>
           </div>
           <div>
@@ -53,7 +54,7 @@ export function ReporteMovimientosPrintView({
           </div>
           <div>
             <dt>Fecha de generación</dt>
-            <dd>{fechaGeneracion}</dd>
+            <dd>{formatDisplayDateTime(fechaGeneracion)}</dd>
           </div>
           <div>
             <dt>Generado por</dt>
@@ -126,7 +127,7 @@ export function ReporteMovimientosPrintView({
         <tbody>
           {items.map((item) => (
             <tr key={item.id}>
-              <td>{item.fechaHora}</td>
+              <td>{formatDisplayDateTime(item.fechaHora)}</td>
               <td>{item.productoNombre}</td>
               <td>{item.productoEan13}</td>
               <td>{item.categoriaNombre}</td>
