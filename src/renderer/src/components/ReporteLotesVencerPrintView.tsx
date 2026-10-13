@@ -3,6 +3,7 @@ import type {
   ExpiringLotItem,
   ExpiringLotsReportSummary,
 } from "../../../shared/report-expiring-lots";
+import { formatDisplayDate, formatDisplayDateTime } from "../../../shared/date-time";
 
 export type ReporteLotesVencerPrintViewProps = {
   horizonte: number;
@@ -37,7 +38,7 @@ export function ReporteLotesVencerPrintView({
           </div>
           <div>
             <dt>Fecha de generación</dt>
-            <dd>{fechaGeneracion}</dd>
+            <dd>{formatDisplayDateTime(fechaGeneracion)}</dd>
           </div>
           <div>
             <dt>Usuario</dt>
@@ -122,7 +123,7 @@ export function ReporteLotesVencerPrintView({
                 {item.loteId.slice(0, 8)}
               </td>
               <td className="numeric">{item.cantidad}</td>
-              <td>{item.fechaVencimiento}</td>
+              <td>{formatDisplayDate(item.fechaVencimiento)}</td>
               <td className="numeric">{item.diasRestantes}</td>
               <td className="numeric">
                 ${item.precioCosto.toLocaleString("es-CL")}

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseDatabaseTimestamp } from "../../src/shared/date-time";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+  parseDatabaseTimestamp,
+  parseDisplayDateToIso,
+} from "../../src/shared/date-time";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -20,4 +25,28 @@ describe("marcas de tiempo de base de datos en el formateo de fechas del renderi
     }).format(parseDatabaseTimestamp(value));
     expect(formatted).toBe(expected);
   });
+
+  it("formatea fechas ISO a formato DD/MM/AAAA", () => {
+    expect(formatDisplayDate("2026-10-02")).toBe("02/10/2026");
+    expect(formatDisplayDate("2026-09-01")).toBe("01/09/2026");
+    expect(formatDisplayDate("01-09-2026")).toBe("01/09/2026");
+    expect(formatDisplayDate("01/09/2026")).toBe("01/09/2026");
+    expect(formatDisplayDate("")).toBe("");
+  });
+
+  it("formatea marcas de fecha y hora para que la fecha quede en DD/MM/AAAA", () => {
+    expect(formatDisplayDateTime("2026-09-10 14:00:00")).toBe("10/09/2026 14:00:00");
+    expect(formatDisplayDateTime("2026-09-10T14:00:00Z")).toBe("10/09/2026 14:00:00");
+    expect(formatDisplayDateTime("15-09-2026 18:00")).toBe("15/09/2026 18:00");
+    expect(formatDisplayDateTime("2026-10-02")).toBe("02/10/2026");
+  });
+
+  it("parsea fechas DD/MM/AAAA y YYYY-MM-DD a formato ISO", () => {
+    expect(parseDisplayDateToIso("13/10/2026")).toBe("2026-10-13");
+    expect(parseDisplayDateToIso("01/09/2026")).toBe("2026-09-01");
+    expect(parseDisplayDateToIso("2026-10-13")).toBe("2026-10-13");
+    expect(parseDisplayDateToIso("")).toBeNull();
+    expect(parseDisplayDateToIso("invalido")).toBeNull();
+  });
 });
+
