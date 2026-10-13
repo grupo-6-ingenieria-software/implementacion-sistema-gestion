@@ -169,7 +169,7 @@ describe("CU49 renderizador de ReporteMermasView", () => {
 
     expect(markup).toContain("Minimarket y Panadería Huáscar");
     expect(markup).toContain("Reporte de mermas");
-    expect(markup).toContain("2026-09-01 al 2026-09-15");
+    expect(markup).toContain("01/09/2026 al 15/09/2026");
     expect(markup).toContain("Leche Entera 1L");
     expect(markup).toContain("Pan de Molde 500g");
     expect(markup).toContain("Vencimiento");

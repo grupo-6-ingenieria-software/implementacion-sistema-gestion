@@ -27,7 +27,7 @@ describe("helpers de AuditLogView", () => {
   });
 
   it("formatea las marcas de tiempo de auditoría sin lanzar excepciones durante el renderizado de la tabla", () => {
-    expect(() => formatDateTime("2026-06-13T00:58:41.932Z")).not.toThrow();
+    expect(formatDateTime("2026-06-13T00:58:41.932Z")).toBe("12/06/2026 20:58");
     expect(formatDateTime("fecha sin formato")).toBe("fecha sin formato");
   });
 });
