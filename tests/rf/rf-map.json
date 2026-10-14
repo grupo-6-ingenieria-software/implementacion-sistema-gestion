@@ -8277,6 +8277,10 @@
         "tambien": [
           "RF57"
         ]
+      },
+      {
+        "file": "tests/main/rf59-contrasena-migration.integration.test.ts",
+        "test": "migración de RF59 al modelo físico de contraseñas > retira el trigger legado si un cliente anterior lo recreó tras la migración"
       }
     ],
     "RF60": [
@@ -8957,6 +8961,18 @@
           "RF18",
           "RF36"
         ]
+      },
+      {
+        "file": "tests/shared/date-time.test.ts",
+        "test": "marcas de tiempo de base de datos en el formateo de fechas del renderizador > formatea fechas ISO a formato DD/MM/AAAA"
+      },
+      {
+        "file": "tests/shared/date-time.test.ts",
+        "test": "marcas de tiempo de base de datos en el formateo de fechas del renderizador > formatea marcas de fecha y hora para que la fecha quede en DD/MM/AAAA"
+      },
+      {
+        "file": "tests/shared/date-time.test.ts",
+        "test": "marcas de tiempo de base de datos en el formateo de fechas del renderizador > parsea fechas DD/MM/AAAA y YYYY-MM-DD a formato ISO"
       }
     ]
   }
