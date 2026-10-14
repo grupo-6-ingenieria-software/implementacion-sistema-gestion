@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
+import { applyTriggers } from "../../../src/db/init";
 import {
   registerSale as registerSaleWithActor,
   SaleBusinessError,
@@ -67,6 +68,24 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
+  it.each([4, 5, 6])("vende %s de seis unidades con los triggers instalados", async (cantidad) => {
+    const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
+      metodoPago: "debito", items: [{ productoId: 1, cantidad }],
+    });
+    expect(receipt.detalle.flatMap(line => line.lotesConsumidos).reduce((sum, lot) => sum + lot.cantidad, 0)).toBe(cantidad);
+    expect(await testDb!.db.all(sql`SELECT SUM(lote_cantidad_actual) AS stock FROM lote`))
+      .toEqual([{ stock: 6 - cantidad }]);
+  });
+
+  it("vende la última unidad de un lote con los triggers instalados", async () => {
+    await testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = 0`);
+    await testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = 1 WHERE lote_id = '00000000-0000-4000-8000-000000000101'`);
+    await registerSale(testDb!.db as unknown as DbExecutor, {
+      metodoPago: "debito", items: [{ productoId: 1, cantidad: 1 }],
+    });
+    expect(await testDb!.db.all(sql`SELECT SUM(lote_cantidad_actual) AS stock FROM lote`))
+      .toEqual([{ stock: 0 }]);
+  });
   it.each(["dueno", "trabajador"] as const)(
     "CU37 conserva el registro con descuento para %s",
     async (rol) => {
@@ -741,6 +760,7 @@ async function createTestDatabase() {
 
   await client.execute("PRAGMA foreign_keys = ON");
   await applyMigrations(client);
+  await applyTriggers(client, join(process.cwd(), "src/db/triggers.sql"));
 
   return { client, db, dbPath, dir };
 }

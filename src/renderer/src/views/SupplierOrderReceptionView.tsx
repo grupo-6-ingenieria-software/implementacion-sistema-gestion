@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
+import { parseClpAmount, parseIntegerInput } from "../../../shared/numbers";
 import {
   supplierOrderStateLabels,
   type SupplierOrderDetail,
@@ -151,10 +152,8 @@ export function SupplierOrderReceptionView({
           operacionId: operationId,
           lineas: selected.lineas.map((line) => ({
             detallePedidoId: line.detallePedidoId,
-            cantidad: Number(draft[line.detallePedidoId]?.cantidad ?? 0),
-            precioCosto: Number(
-              draft[line.detallePedidoId]?.precioCosto ?? Number.NaN,
-            ),
+            cantidad: parseIntegerInput(draft[line.detallePedidoId]?.cantidad.trim() || 0),
+            precioCosto: parseClpAmount(draft[line.detallePedidoId]?.precioCosto) ?? Number.NaN,
             fechaVencimiento:
               draft[line.detallePedidoId]?.fechaVencimiento || undefined,
           })),
@@ -452,7 +451,8 @@ function OrderDetail({
                         className="w-28 rounded-md border border-[#9ba9b5] px-2 py-2"
                         min="1"
                         step="1"
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={lineDraft.precioCosto}
                         onChange={(event) =>
                           onUpdateDraft(line.detallePedidoId, "precioCosto", event.target.value)

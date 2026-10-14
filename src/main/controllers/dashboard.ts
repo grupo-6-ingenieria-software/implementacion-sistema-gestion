@@ -1,4 +1,5 @@
 import { controllers } from "../../shared/controllers";
+import { NumericRangeError } from "../../shared/numbers";
 import { db } from "../../db/client";
 import { isDashboardRequest } from "../../shared/dashboard";
 import {
@@ -30,6 +31,7 @@ export const dashboardController: RegisteredController = {
         await loadDashboardData(db as unknown as DashboardDb, payload),
       );
     } catch (error) {
+      if (error instanceof NumericRangeError) return controllerError("BUSINESS_RULE", error.message, metadata.id);
       console.error(error);
       return controllerError(
         "TECHNICAL_ERROR",

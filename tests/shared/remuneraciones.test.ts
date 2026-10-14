@@ -10,10 +10,23 @@ import {
 } from "../../src/shared/remuneraciones";
 
 describe("módulo compartido de remuneraciones", () => {
+  it("interpreta miles del bruto sin truncar importes inválidos", () => {
+    expect(normalizeRemuneracionCreatePayload({ montoBruto: "500.000" }).montoBruto).toBe(500000);
+    expect(normalizeRemuneracionCreatePayload({ montoBruto: "500.99" }).montoBruto).toBeNaN();
+    expect(normalizeRemuneracionCreatePayload({ montoBruto: 500.99 }).montoBruto).toBeNaN();
+  });
   it("redondea cada descuento al peso más cercano, con mitad hacia arriba", () => {
     expect(roundToNearestPeso(100.5)).toBe(101);
     expect(roundToNearestPeso(100.49)).toBe(100);
     expect(roundToNearestPeso(0.5)).toBe(1);
+    expect(roundToNearestPeso(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("rechaza una suma previsional fuera de rango aunque sus descuentos sean seguros", () => {
+    expect(() => calculateRemuneracion(Number.MAX_SAFE_INTEGER, [
+      { tipo: "afp", porcentaje: 100 },
+      { tipo: "salud", porcentaje: 100 },
+    ])).toThrow("rango permitido");
   });
 
   it("calcula descuentos y sueldo líquido con las tasas por defecto de RF34", () => {

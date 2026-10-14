@@ -1,3 +1,4 @@
+import { parseClpAmount, parseIntegerInput } from "../../../shared/numbers";
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   invalidEan13Message,
@@ -256,6 +257,7 @@ export function ProductFormView({
 
               <Field label="Precio costo" error={fieldErrors.precioCosto}>
                 <NumberInput
+                  money
                   value={form.precioCosto}
                   onChange={(value) =>
                     setForm((current) => ({ ...current, precioCosto: value }))
@@ -265,6 +267,7 @@ export function ProductFormView({
 
               <Field label="Precio venta" error={fieldErrors.precioVenta}>
                 <NumberInput
+                  money
                   value={form.precioVenta}
                   onChange={(value) =>
                     setForm((current) => ({ ...current, precioVenta: value }))
@@ -309,9 +312,9 @@ export function buildProductFormValues(
     ean13: form.ean13,
     nombre: form.nombre.trim(),
     categoriaId: parseNumericInput(form.categoriaId),
-    precioCosto: parseNumericInput(form.precioCosto),
-    precioVenta: parseNumericInput(form.precioVenta),
-    stockMinimo: parseNumericInput(form.stockMinimo),
+    precioCosto: parseClpAmount(form.precioCosto) ?? Number.NaN,
+    precioVenta: parseClpAmount(form.precioVenta) ?? Number.NaN,
+    stockMinimo: parseIntegerInput(form.stockMinimo),
   };
 }
 
@@ -342,16 +345,18 @@ function Field({
 function NumberInput({
   onChange,
   value,
+  money = false,
 }: {
   onChange: (value: string) => void;
   value: string;
+  money?: boolean;
 }): ReactElement {
   return (
     <input
       className="w-full rounded-md border border-[#9ba9b5] px-3 py-2"
       inputMode="numeric"
       min={0}
-      type="number"
+      type={money ? "text" : "number"}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />

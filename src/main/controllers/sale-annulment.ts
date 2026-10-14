@@ -5,6 +5,7 @@ import type {
 } from "../../shared/sales";
 import { db } from "../../db/client";
 import { AccessDeniedError } from "./auth-context";
+import { NumericRangeError } from "../../shared/numbers";
 import {
   controllerError,
   controllerSuccess,
@@ -61,7 +62,7 @@ export function createSaleAnnulmentController(
         if (error instanceof SaleAnnulmentNotFoundError) {
           return controllerError("NOT_FOUND", error.message, metadata.id);
         }
-        if (error instanceof SaleAnnulmentBusinessError) {
+        if (error instanceof SaleAnnulmentBusinessError || error instanceof NumericRangeError) {
           return controllerError("BUSINESS_RULE", error.message, metadata.id);
         }
         if (error instanceof AccessDeniedError) {

@@ -1,5 +1,7 @@
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
+import { assertInventoryTotals } from "./sql-validation-primitives";
+import { safeInteger, NumericRangeError } from "../../shared/numbers";
 import {
   hasSupplierOrderFieldErrors,
   isUuid,
@@ -147,8 +149,8 @@ export async function listSupplierOrdersWithExecutor(
       pp.pedido_proveedor_estado AS estado,
       pr.proveedor_id AS proveedorId,
       pr.proveedor_nombre_razon_social AS proveedorNombre,
-      COALESCE(SUM(dp.cantidad_solicitada), 0) AS totalSolicitado,
-      COALESCE(SUM(dp.cantidad_recibida), 0) AS totalRecibido
+      TOTAL(dp.cantidad_solicitada) AS totalSolicitado,
+      TOTAL(dp.cantidad_recibida) AS totalRecibido
     FROM pedido_proveedor pp
     INNER JOIN proveedor pr ON pr.proveedor_id = pp.proveedor_id
     LEFT JOIN detalle_pedido dp
@@ -167,10 +169,10 @@ export async function listSupplierOrdersWithExecutor(
   return rows.map((row) => ({
     ...row,
     proveedorId: Number(row.proveedorId),
-    totalSolicitado: Number(row.totalSolicitado),
-    totalRecibido: Number(row.totalRecibido),
+    totalSolicitado: safeInteger(row.totalSolicitado),
+    totalRecibido: safeInteger(row.totalRecibido),
     totalPendiente:
-      Number(row.totalSolicitado) - Number(row.totalRecibido),
+      safeInteger(row.totalSolicitado) - safeInteger(row.totalRecibido),
   }));
 }
 
@@ -598,12 +600,12 @@ export async function confirmSupplierOrderReceptionWithExecutor(
   }
 
   const balanceRows = await executor.all<{ pendiente: number }>(sql`
-    SELECT COALESCE(SUM(cantidad_solicitada - cantidad_recibida), 0) AS pendiente
+    SELECT TOTAL(cantidad_solicitada - cantidad_recibida) AS pendiente
     FROM detalle_pedido
     WHERE pedido_proveedor_id = ${order.id}
   `);
   const nextState =
-    Number(balanceRows[0]?.pendiente ?? 0) === 0 ? "recibido" : "parcial";
+    safeInteger(balanceRows[0]?.pendiente ?? 0) === 0 ? "recibido" : "parcial";
 
   if (nextState === "recibido") {
     await executor
@@ -637,6 +639,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     );
   }
 
+  await assertInventoryTotals(executor);
   await executor.insert(schema.historialAuditoriaPedido).values({
     historialApTipoEvento: "recepcion",
     historialApNota: `Recepción ${receiptId}; operación ${payload.operacionId}; estado ${nextState}.`,
@@ -715,7 +718,7 @@ export async function cancelSupplierOrderWithExecutor(
   }>(sql`
     SELECT
       pp.pedido_proveedor_estado AS estado,
-      COALESCE(SUM(dp.cantidad_recibida), 0) AS recibido,
+      TOTAL(dp.cantidad_recibida) AS recibido,
       (SELECT COUNT(*) FROM recepcion_pedido rp
         WHERE rp.pedido_proveedor_id = pp.pedido_proveedor_id) AS recepciones
     FROM pedido_proveedor pp
@@ -808,8 +811,8 @@ export async function closeSupplierOrderBalanceWithExecutor(
   }>(sql`
     SELECT
       pp.pedido_proveedor_estado AS estado,
-      COALESCE(SUM(dp.cantidad_solicitada), 0) AS solicitado,
-      COALESCE(SUM(dp.cantidad_recibida), 0) AS recibido
+      TOTAL(dp.cantidad_solicitada) AS solicitado,
+      TOTAL(dp.cantidad_recibida) AS recibido
     FROM pedido_proveedor pp
     LEFT JOIN detalle_pedido dp
       ON dp.pedido_proveedor_id = pp.pedido_proveedor_id
@@ -907,6 +910,9 @@ function validationResponse(fieldErrors: SupplierOrderFieldErrors) {
 }
 
 function normalizeReceptionError(error: unknown) {
+  if (error instanceof NumericRangeError) {
+    return { ok: false as const, error: { code: "BUSINESS_RULE" as const, controllerId: "supplier-order-reception" as const, message: error.message } };
+  }
   if (error instanceof AccessDeniedError) {
     return {
       ok: false as const,

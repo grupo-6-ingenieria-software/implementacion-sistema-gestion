@@ -24,6 +24,8 @@ import {
   StockDiscountBusinessError,
 } from "./stock-discount";
 import { AccessDeniedError } from "./auth-context";
+import { checkedAdd, checkedMultiply, safeInteger } from "../../shared/numbers";
+import { assertDailySaleTotals } from "./sql-validation-primitives";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
@@ -102,7 +104,7 @@ export async function registerSale(
       return {
         ...product,
         cantidad: item.cantidad,
-        subtotal: item.cantidad * product.precioUnitario,
+        subtotal: checkedMultiply(item.cantidad, product.precioUnitario),
         lotesConsumidos: [],
       };
     });
@@ -242,6 +244,7 @@ export async function registerSale(
       throw error;
     }
 
+    await assertDailySaleTotals(tx, now);
     await registerAuditLog(tx, {
       usuarioId: responsable.usuarioId,
       tipoAccion: "registrar_venta",
@@ -292,7 +295,7 @@ export async function validateSaleCart(
         AND producto_estado = 'activo'
         AND (${item.ean13 ?? null} IS NULL OR producto_ean_13 = ${item.ean13 ?? null})
         AND (
-          SELECT COALESCE(SUM(lote_cantidad_actual), 0)
+          SELECT TOTAL(lote_cantidad_actual)
           FROM lote
           WHERE producto_id = ${item.productoId}
         ) >= ${item.cantidad}
@@ -315,12 +318,12 @@ export async function validateSaleCart(
       cantidad: item.cantidad,
       precioUnitario: product.precioUnitario,
       stockDisponible: product.stockDisponible,
-      subtotal: item.cantidad * product.precioUnitario,
+      subtotal: checkedMultiply(item.cantidad, product.precioUnitario),
     });
   }
   return {
     lines,
-    subtotal: lines.reduce((total, line) => total + line.subtotal, 0),
+    subtotal: lines.reduce((total, line) => checkedAdd(total, line.subtotal), 0),
   };
 }
 
@@ -387,6 +390,7 @@ async function validateSalePayloadRules(
         typeof(${received}) IN ('integer', 'real')
         AND CAST(${received} AS INTEGER) = ${received}
         AND ${received} >= 0
+        AND ${received} <= ${Number.MAX_SAFE_INTEGER}
       ) THEN 1 ELSE 0 END AS receivedValid
   `);
   if (!numeric[0]?.discountValid) {
@@ -431,9 +435,11 @@ async function validateCartItemRules(
       WHERE typeof(${productId}) IN ('integer', 'real')
         AND CAST(${productId} AS INTEGER) = ${productId}
         AND ${productId} > 0
+        AND ${productId} <= ${Number.MAX_SAFE_INTEGER}
         AND typeof(${quantity}) IN ('integer', 'real')
         AND CAST(${quantity} AS INTEGER) = ${quantity}
         AND ${quantity} > 0
+        AND ${quantity} <= ${Number.MAX_SAFE_INTEGER}
         AND ${ean13ShapeValid ? 1 : 0} = 1
         AND (${ean13} IS NULL OR length(trim(${ean13})) > 0)
     `);
@@ -693,7 +699,7 @@ function normalizeCartItems(
     itemsByProduct.set(productoId, {
       productoId,
       ean13: item.ean13,
-      cantidad: (existing?.cantidad ?? 0) + cantidad,
+      cantidad: checkedAdd(existing?.cantidad ?? 0, cantidad),
     });
   }
   return [...itemsByProduct.values()];
@@ -718,7 +724,7 @@ async function loadProductSnapshots(
         producto_ean_13 AS ean13,
         producto_nombre AS nombre,
         categoria_id AS categoriaId,
-        producto_precio_venta AS productoPrecioVenta
+        CAST(producto_precio_venta AS TEXT) AS productoPrecioVenta
       FROM producto
       WHERE producto_id = ${item.productoId}
         AND producto_estado = 'activo'
@@ -751,7 +757,7 @@ async function loadProductSnapshots(
       precioUnitario: number;
     }>(sql`
       SELECT historial_precio_producto_id AS historialPrecioProductoId,
-        historial_precio_venta AS precioUnitario
+        CAST(historial_precio_venta AS TEXT) AS precioUnitario
       FROM historial_precio_producto
       WHERE producto_id = ${product.productoId}
         AND historial_fecha_hora_vigencia_hasta IS NULL
@@ -765,7 +771,7 @@ async function loadProductSnapshots(
       );
     }
     const stocks = await database.all<{ stockDisponible: number }>(sql`
-      SELECT COALESCE(SUM(lote_cantidad_actual), 0) AS stockDisponible
+      SELECT TOTAL(lote_cantidad_actual) AS stockDisponible
       FROM lote
       WHERE producto_id = ${product.productoId}
     `);
@@ -775,11 +781,11 @@ async function loadProductSnapshots(
       ean13: product.ean13,
       nombre: product.nombre,
       categoria: category.categoria,
-      precioUnitario: Number(
+      precioUnitario: safeInteger(
         price.precioUnitario ?? product.productoPrecioVenta,
       ),
       historialPrecioProductoId: price.historialPrecioProductoId,
-      stockDisponible: Number(stocks[0]?.stockDisponible ?? 0),
+      stockDisponible: safeInteger(stocks[0]?.stockDisponible ?? 0),
       exigeVencimiento: Boolean(category.exigeVencimiento),
     });
   }

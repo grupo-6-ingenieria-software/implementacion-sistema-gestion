@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
+import { applyTriggers } from "../../../src/db/init";
 import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
 import {
   createWasteController,
@@ -37,6 +38,16 @@ afterEach(async () => {
 });
 
 describe("controlador de merma", () => {
+  it("merma la última unidad sin dejar vínculos ni saldos inconsistentes", async () => {
+    await testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = 0 WHERE producto_id = 2`);
+    await testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = 1 WHERE lote_id = '00000000-0000-4000-8000-000000000201'`);
+    const result = await testDb!.db.transaction(tx => registerWasteWithExecutor(tx, schema, {
+      ean13: "7802920000022", cantidad: 1, motivo: "dano", usuarioId: "12345678-9",
+    }));
+    expect(result.lotesDescontados).toEqual([{ loteId: '00000000-0000-4000-8000-000000000201', cantidad: 1 }]);
+    expect(await testDb!.db.all(sql`SELECT SUM(lote_cantidad_actual) AS stock FROM lote WHERE producto_id = 2`))
+      .toEqual([{ stock: 0 }]);
+  });
   it("mapea fallos de autorización a respuestas prohibidas", async () => {
     const controller = createWasteController({
       register: async () => {
@@ -225,11 +236,11 @@ describe("controlador de merma", () => {
       "select:lote",
       "select:lote_perecible",
       "select:validation",
-      "update:lote",
-      "update:lote",
       "insert:merma",
       "insert:merma_lote",
+      "update:lote",
       "insert:ajuste_inventario",
+      "insert:merma_lote",
     ]);
   });
 
@@ -304,6 +315,7 @@ describe("controlador de merma", () => {
     await testDb!.client.execute(`
       CREATE TRIGGER fail_merma_lote_insert
       BEFORE INSERT ON merma_lote
+      WHEN NEW.lote_id = '00000000-0000-4000-8000-000000000101'
       BEGIN
         SELECT RAISE(ABORT, 'forced merma_lote failure');
       END
@@ -373,6 +385,7 @@ async function createTestDatabase() {
 
     await client.executeMultiple(migration);
   }
+  await applyTriggers(client, join(process.cwd(), "src/db/triggers.sql"));
 
   return { client, db, dir, queries };
 }

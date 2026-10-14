@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactElement } from "react";
+import { parseIntegerInput } from "../../../shared/numbers";
 import { CampoEAN13Input } from "../components/CampoEAN13Input";
 import type { Role } from "../../../shared/navigation";
 import type {
@@ -132,7 +133,7 @@ export function StockAdjustmentView({
       {
         ean13,
         loteId: form.loteId,
-        cantidad: Number(form.cantidad),
+        cantidad: parseIntegerInput(form.cantidad),
         justificacion: form.justificacion,
         usuarioId,
       },

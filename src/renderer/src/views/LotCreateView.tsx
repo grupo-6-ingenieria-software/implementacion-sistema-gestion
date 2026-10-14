@@ -373,6 +373,7 @@ export function LotCreateView({
                   error={fieldErrors.precioCosto}
                 >
                   <NumberInput
+                    money
                     value={form.precioCosto}
                     onChange={(value) =>
                       setForm((current) => ({ ...current, precioCosto: value }))
@@ -496,18 +497,20 @@ function Info({
 }
 
 function NumberInput({
+  money = false,
   onChange,
   value,
 }: {
   onChange: (value: string) => void;
   value: string;
+  money?: boolean;
 }): ReactElement {
   return (
     <input
       className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
       inputMode="numeric"
       min={0}
-      type="number"
+      type={money ? "text" : "number"}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />

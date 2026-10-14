@@ -63,7 +63,13 @@ import { SupplierOrderCreateView } from "./views/SupplierOrderCreateView";
 import { SupplierOrderReceptionView } from "./views/SupplierOrderReceptionView";
 import { SupplierFormView } from "./views/SupplierFormView";
 import { SupplierListView } from "./views/SupplierListView";
-import { UserManagementView } from "./views/UserManagementView";
+import {
+  TemporaryPasswordDialog,
+  UserManagementView,
+} from "./views/UserManagementView";
+import type { ControllerResponse } from "../../shared/controllers";
+import type { UserPasswordResetRequestResponse } from "../../shared/users";
+
 import { WasteCreateView } from "./views/WasteCreateView";
 import { WorkerFormView } from "./views/WorkerFormView";
 import { WorkerListView } from "./views/WorkerListView";
@@ -109,8 +115,14 @@ type LoginData = {
   passwordChangeRequired: boolean;
 };
 
+type PasswordResetHandler = (target: string) => Promise<
+  ControllerResponse<Omit<UserPasswordResetRequestResponse, "estado">>
+>;
+
 export function App(): ReactElement {
   const [session, setSession] = useState<AppSession>(defaultSession);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const sessionGeneration = useRef(0);
   const [path, setPath] = useState(getHashPath);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -253,6 +265,8 @@ export function App(): ReactElement {
   }, [session.isAuthenticated, expireSession]);
 
   const login = (data: LoginData): void => {
+    sessionGeneration.current += 1;
+    setTemporaryPassword(null);
     const nextSession: AppSession = {
       isAuthenticated: true,
       role: data.role,
@@ -290,6 +304,8 @@ export function App(): ReactElement {
   };
 
   const logout = (): void => {
+    sessionGeneration.current += 1;
+    setTemporaryPassword(null);
     void window.appApi.invoke("auth:logout", {}).catch(() => undefined);
     window.appApi.setSessionToken(null);
     setSession(defaultSession);
@@ -298,6 +314,8 @@ export function App(): ReactElement {
   };
 
   const completePasswordChange = (): void => {
+    sessionGeneration.current += 1;
+    setTemporaryPassword(null);
     // La definitiva invalida las sesiones temporales. Obtener un JWT nuevo
     // mediante login evita conservar los permisos restringidos del anterior.
     window.appApi.setSessionToken(null);
@@ -306,36 +324,60 @@ export function App(): ReactElement {
     navigate(PUBLIC_LOGIN_PATH);
   };
 
-  if (path === PUBLIC_LOGIN_PATH) {
-    return <LoginView notice={notice} onLogin={login} />;
-  }
+  const resetPassword: PasswordResetHandler = async (usuarioObjetivoId) => {
+    const generation = sessionGeneration.current;
+    const response = await window.appApi.invoke<Omit<UserPasswordResetRequestResponse, "estado">>(
+      "auth:restablecer-password",
+      { usuarioId: session.usuarioId, usuarioObjetivoId },
+    );
+    if (response.ok && generation === sessionGeneration.current) {
+      setTemporaryPassword(response.data.contrasenaTemporal);
+    }
+    return response;
+  };
 
-  if (path === PASSWORD_CHANGE_PATH) {
-    return (
+  let content: ReactElement;
+  if (path === PUBLIC_LOGIN_PATH) {
+    content = <LoginView notice={notice} onLogin={login} />;
+  } else if (path === PASSWORD_CHANGE_PATH) {
+    content = (
       <PasswordChangeView
         usuarioId={session.usuarioId}
         onComplete={completePasswordChange}
         onLogout={logout}
       />
     );
+  } else {
+    content = (
+      <AppShell
+        currentPath={path}
+        session={session}
+        bannerMessage={accessDeniedMessage}
+        onNavigate={(target) => {
+          setAccessDeniedMessage(null);
+          navigate(target);
+        }}
+        onAccessDenied={(message) => {
+          setAccessDeniedMessage(message);
+          navigate(APP_HOME_PATH);
+        }}
+        onLogout={logout}
+        onAuthenticationRequired={(message) => expireSession(message, true)}
+        onPasswordReset={resetPassword}
+        passwordDialogOpen={temporaryPassword !== null}
+      />
+    );
   }
-
   return (
-    <AppShell
-      currentPath={path}
-      session={session}
-      bannerMessage={accessDeniedMessage}
-      onNavigate={(target) => {
-        setAccessDeniedMessage(null);
-        navigate(target);
-      }}
-      onAccessDenied={(message) => {
-        setAccessDeniedMessage(message);
-        navigate(APP_HOME_PATH);
-      }}
-      onLogout={logout}
-      onAuthenticationRequired={(message) => expireSession(message, true)}
-    />
+    <>
+      {content}
+      {temporaryPassword ? (
+        <TemporaryPasswordDialog
+          password={temporaryPassword}
+          onClose={() => setTemporaryPassword(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -664,6 +706,8 @@ export function AppShell({
   onAccessDenied,
   onLogout,
   onAuthenticationRequired,
+  onPasswordReset,
+  passwordDialogOpen = false,
 }: {
   currentPath: string;
   session: AppSession;
@@ -672,6 +716,8 @@ export function AppShell({
   onAccessDenied?: (message: string) => void;
   onLogout: () => void;
   onAuthenticationRequired: (message?: string) => void;
+  onPasswordReset?: PasswordResetHandler;
+  passwordDialogOpen?: boolean;
 }): ReactElement {
   const [shiftNotice, setShiftNotice] = useState<{ path: string; message: string } | null>(null);
   const [absenceNotice, setAbsenceNotice] = useState<string | null>(null);
@@ -786,6 +832,8 @@ export function AppShell({
           onAbsenceNoticeConsumed={consumeAbsenceNotice}
           onAbsenceSaved={onAbsenceSaved}
           onAuthenticationRequired={onAuthenticationRequired}
+          onPasswordReset={onPasswordReset}
+          passwordDialogOpen={passwordDialogOpen}
         />
       </main>
     </div>
@@ -839,6 +887,8 @@ function ViewRenderer({
   onAbsenceNoticeConsumed,
   onAbsenceSaved,
   onAuthenticationRequired,
+  onPasswordReset,
+  passwordDialogOpen,
 }: {
   currentPath: string;
   node: NavNode;
@@ -852,6 +902,8 @@ function ViewRenderer({
   onAbsenceNoticeConsumed: () => void;
   onAbsenceSaved: (result: AbsenceResult) => void;
   onAuthenticationRequired: (message?: string) => void;
+  onPasswordReset?: PasswordResetHandler;
+  passwordDialogOpen: boolean;
 }): ReactElement {
   if (node.id === "dashboard" && session.role) {
     return (
@@ -1140,8 +1192,14 @@ function ViewRenderer({
     );
   }
 
-  if (node.id === "user-management" && session.usuarioId) {
-    return <UserManagementView usuarioId={session.usuarioId} />;
+  if (node.id === "user-management" && session.usuarioId && onPasswordReset) {
+    return (
+      <UserManagementView
+        usuarioId={session.usuarioId}
+        onPasswordReset={onPasswordReset}
+        passwordDialogOpen={passwordDialogOpen}
+      />
+    );
   }
 
   if (node.id === "audit-log") {

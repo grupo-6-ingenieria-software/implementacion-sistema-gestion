@@ -1,3 +1,4 @@
+import { parseClpAmount, parseIntegerInput } from "./numbers";
 import { isValidEan13 } from "./ean13";
 
 export type LotFieldErrors = Partial<
@@ -42,8 +43,8 @@ export function normalizeLotRegisterPayload(
 
   return {
     ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
-    cantidad: normalizeInteger(record.cantidad),
-    precioCosto: normalizeInteger(record.precioCosto),
+    cantidad: parseIntegerInput(record.cantidad),
+    precioCosto: parseClpAmount(record.precioCosto) ?? Number.NaN,
     fechaVencimiento:
       typeof record.fechaVencimiento === "string"
         ? record.fechaVencimiento.trim()
@@ -66,16 +67,16 @@ export function validateLotRegisterPayload(
     fieldErrors.ean13 = invalidLotEanMessage;
   }
 
-  if (!Number.isInteger(values.cantidad) || values.cantidad <= 0) {
+  if (!Number.isSafeInteger(values.cantidad) || values.cantidad <= 0) {
     fieldErrors.cantidad = "La cantidad debe ser un entero mayor que 0.";
   }
 
-  if (!Number.isInteger(values.precioCosto) || values.precioCosto <= 0) {
+  if (!Number.isSafeInteger(values.precioCosto) || values.precioCosto <= 0) {
     fieldErrors.precioCosto =
       "El costo del lote debe ser un entero mayor que 0.";
   }
 
-  if (!Number.isInteger(values.proveedorId) || values.proveedorId <= 0) {
+  if (!Number.isSafeInteger(values.proveedorId) || values.proveedorId <= 0) {
     fieldErrors.proveedorId = "Seleccione un proveedor existente.";
   }
 

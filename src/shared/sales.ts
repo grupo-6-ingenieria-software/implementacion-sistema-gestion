@@ -1,3 +1,4 @@
+import { parseClpAmount, checkedAdd, checkedMultiply } from "./numbers";
 import type { Role } from "./navigation";
 
 export type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
@@ -250,10 +251,7 @@ export type SaleDiscountErrors = { monto?: string; razon?: string };
 
 /** CU37: CLP enteros, con o sin agrupación chilena de miles. */
 export function parseSaleDiscountAmount(value: string): number | null {
-  const text = value.trim();
-  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(text)) return null;
-  const amount = Number(text.replaceAll(".", ""));
-  return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
+  return parseClpAmount(value);
 }
 
 export function validateSaleDiscount(
@@ -349,7 +347,7 @@ export function calculateSaleTotals(
   descuento = 0,
 ): SaleTotals {
   const subtotal = lines.reduce(
-    (total, line) => total + line.cantidad * line.precioUnitario,
+    (total, line) => checkedAdd(total, checkedMultiply(line.cantidad, line.precioUnitario)),
     0,
   );
   const error = getSaleDiscountAmountError(descuento, subtotal);

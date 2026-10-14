@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { safeInteger } from "../../shared/numbers";
 import { sql, type SQL } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import { controllerError, type RegisteredController } from "./base";
@@ -34,14 +35,14 @@ export async function planStockDiscount(
       sufficient: number;
     }>(sql`
       SELECT
-        COALESCE(SUM(lote_cantidad_actual), 0) AS available,
-        CASE WHEN COALESCE(SUM(lote_cantidad_actual), 0) >= ${item.cantidad}
+        TOTAL(lote_cantidad_actual) AS available,
+        CASE WHEN TOTAL(lote_cantidad_actual) >= ${item.cantidad}
           THEN 1 ELSE 0 END AS sufficient
       FROM lote
       WHERE producto_id = ${item.productoId}
         AND lote_cantidad_actual > 0
     `);
-    const available = Number(availability[0]?.available ?? 0);
+    const available = safeInteger(availability[0]?.available ?? 0);
     if (Number(availability[0]?.sufficient ?? 0) !== 1) {
       throw new StockDiscountBusinessError(
         `Stock insuficiente para confirmar la venta. Disponible: ${available}.`,
@@ -54,7 +55,7 @@ export async function planStockDiscount(
     }>(sql`
       SELECT
         l.lote_id AS loteId,
-        l.lote_cantidad_actual AS cantidadActual,
+        CAST(l.lote_cantidad_actual AS TEXT) AS cantidadActual,
         l.lote_fecha_hora_ingreso AS fechaIngreso
       FROM lote l
       WHERE l.producto_id = ${item.productoId}
@@ -92,7 +93,7 @@ export async function planStockDiscount(
     let remaining = item.cantidad;
     for (const lot of orderedLots) {
       if (remaining === 0) break;
-      const amount = Math.min(remaining, Number(lot.cantidadActual));
+      const amount = Math.min(remaining, safeInteger(lot.cantidadActual));
       if (amount <= 0) continue;
       plan.push({
         productoId: item.productoId,
@@ -112,13 +113,18 @@ export async function planStockDiscount(
   return plan;
 }
 
-/** C17: aplica el plan con el orden contractual UPDATE lote -> INSERT venta_lote. */
+/** El trigger comprueba el stock previo; el descuento permanece en la misma transacción. */
 export async function applyStockDiscount(
   database: Pick<StockDiscountDb, "run">,
   ventaId: string,
   plan: readonly PlannedLotConsumption[],
 ): Promise<void> {
   for (const lot of plan) {
+    await database.run(sql`
+      INSERT INTO venta_lote (
+        venta_lote_id, venta_id, lote_id, venta_lote_cantidad_consumida
+      ) VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${lot.cantidad})
+    `);
     const result = await database.run(sql`
       UPDATE lote
       SET lote_cantidad_actual = lote_cantidad_actual - ${lot.cantidad}
@@ -131,16 +137,6 @@ export async function applyStockDiscount(
         "El stock cambió durante la operación. Revise el carrito e intente nuevamente.",
       );
     }
-
-    await database.run(sql`
-      INSERT INTO venta_lote (
-        venta_lote_id,
-        venta_id,
-        lote_id,
-        venta_lote_cantidad_consumida
-      )
-      VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${lot.cantidad})
-    `);
   }
 }
 

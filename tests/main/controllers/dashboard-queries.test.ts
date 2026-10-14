@@ -128,6 +128,12 @@ describe("cálculo de ventas diarias", () => {
         subtotal: 1_001,
       }),
     ).toBe(851);
+    expect(calculateSaleAmount({
+      state: "completada",
+      discountType: "porcentaje",
+      discountValue: 15.5,
+      subtotal: 1_000,
+    })).toBe(845);
   });
 
   it("no produce un monto negativo con un descuento fijo", () => {

@@ -37,6 +37,7 @@ import {
   defaultDeps as defaultPasswordDeps,
   type PasswordDeps,
 } from "./password";
+import { runSerializedWriteTransaction } from "./write-transaction";
 
 type WorkerDependencies = {
   authorize: (
@@ -528,7 +529,7 @@ export async function updateWorkerWithExecutor(
   payload: UserFormValues,
   sesionRol?: Role,
 ): Promise<UserMutationResponse> {
-  await database.transaction(async (tx) => {
+  await runSerializedWriteTransaction(database, async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -546,6 +547,9 @@ export async function updateWorkerWithExecutor(
     }
 
     const roleChanged = existing.rol !== payload.rol;
+    if (roleChanged && existing.rol === "dueno" && existing.estado === "activo") {
+      await requireAnotherActiveOwner(tx, schema, existing.usuarioId);
+    }
     const camposCambiados = camposEditados(existing, payload);
 
     await tx
@@ -635,7 +639,7 @@ export async function changeStatusWithExecutor(
   sesionRol?: Role,
   notificarSesionInvalidada?: (usuarioId: string) => void,
 ): Promise<UserMutationResponse> {
-  const resultado = await database.transaction(async (tx) => {
+  const resultado = await runSerializedWriteTransaction(database, async (tx) => {
     const owner = await authorizeUser(
       tx,
       schema,
@@ -655,6 +659,20 @@ export async function changeStatusWithExecutor(
         "No se encontro el trabajador solicitado.",
       );
     }
+
+    if (existing.rol === "dueno" && existing.estado === "activo" &&
+      payload.estado === "inactivo") {
+      await requireAnotherActiveOwner(tx, schema, existing.usuarioId);
+    }
+
+    // Obtiene la identidad del responsable mientras su cuenta sigue activa.
+    // La auditoría también se revierte si el cambio de estado falla.
+    await registerAuditLog(tx, schema, {
+      tipoAccion: "edicion",
+      modulo: "trabajadores",
+      descripcion: `Estado de trabajador ${existing.rut} cambiado de ${existing.estado} a ${payload.estado}`,
+      usuarioId: owner.usuarioId,
+    });
 
     await tx
       .update(schema.trabajador)
@@ -676,13 +694,6 @@ export async function changeStatusWithExecutor(
         );
     }
 
-    await registerAuditLog(tx, schema, {
-      tipoAccion: "edicion",
-      modulo: "trabajadores",
-      descripcion: `Estado de trabajador ${existing.rut} cambiado de ${existing.estado} a ${payload.estado}`,
-      usuarioId: owner.usuarioId,
-    });
-
     return { usuarioId: existing.usuarioId, desactivo: payload.estado === "inactivo" };
   });
 
@@ -691,6 +702,32 @@ export async function changeStatusWithExecutor(
   }
 
   return { usuarioId: payload.usuarioObjetivoId };
+}
+
+async function requireAnotherActiveOwner(
+  tx: TransactionLike,
+  schema: SchemaLike,
+  excludedUserId: string,
+): Promise<void> {
+  const [other] = await tx
+    .select({ usuarioId: schema.usuario.usuarioId })
+    .from(schema.usuario)
+    .innerJoin(
+      schema.trabajador,
+      eq(schema.trabajador.trabajadorId, schema.usuario.trabajadorId),
+    )
+    .where(and(
+        eq(schema.usuario.usuarioRol, "dueno"),
+        eq(schema.trabajador.trabajadorEstado, "activo"),
+        sql`${schema.usuario.usuarioId} <> ${excludedUserId}`,
+    ))
+    .limit(1);
+  if (!other) {
+    throw new WorkerError(
+      "last-active-owner",
+      "Debe permanecer al menos un dueño activo en el sistema.",
+    );
+  }
 }
 
 async function findWorkerByRut(
@@ -799,6 +836,9 @@ function normalizeWorkerError(error: unknown) {
   if (!(error instanceof WorkerError)) {
     return null;
   }
+  if (error.reason === "last-active-owner") {
+    return { ok: false as const, error: { code: "BUSINESS_RULE" as const, controllerId: "worker" as const, message: error.message } };
+  }
 
   if (error.reason === "duplicate-rut") {
     return {
@@ -828,7 +868,7 @@ function todayIsoDate(): string {
 
 class WorkerError extends Error {
   constructor(
-    readonly reason: "duplicate-rut" | "not-found",
+    readonly reason: "duplicate-rut" | "not-found" | "last-active-owner",
     message: string,
   ) {
     super(message);

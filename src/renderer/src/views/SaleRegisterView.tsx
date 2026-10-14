@@ -1,3 +1,4 @@
+import { parseClpAmount, parseIntegerInput } from "../../../shared/numbers";
 import {
   useEffect,
   useMemo,
@@ -95,13 +96,22 @@ export function SaleRegisterView({
   const cartValidatedRef = useRef(false);
 
   const baseTotals = useMemo(
-    () =>
-      calculateSaleTotals(
-        cart.map((item) => ({
-          cantidad: item.cantidad,
-          precioUnitario: item.precioVenta,
-        })),
-      ),
+    () => {
+      try {
+        return {
+          ...calculateSaleTotals(cart.map((item) => ({
+            cantidad: item.cantidad,
+            precioUnitario: item.precioVenta,
+          }))),
+          error: null,
+        };
+      } catch (error) {
+        return {
+          subtotal: 0, descuento: 0, total: 0,
+          error: error instanceof Error ? error.message : "El total de la venta es inválido.",
+        };
+      }
+    },
     [cart],
   );
   const discountErrors = validateSaleDiscount(
@@ -109,9 +119,12 @@ export function SaleRegisterView({
     discount?.razon,
     baseTotals.subtotal,
   );
-  const discountError = discountErrors.monto ?? discountErrors.razon;
+  const discountError = baseTotals.error ?? discountErrors.monto ?? discountErrors.razon;
+  const received = parseClpAmount(montoRecibido);
+  const paymentError = metodoPago === "efectivo" && montoRecibido !== "" && received === null
+    ? "Ingrese un monto recibido en pesos enteros y dentro del rango permitido." : null;
   const totals = {
-    subtotal: baseTotals.subtotal,
+    subtotal: baseTotals.error ? null : baseTotals.subtotal,
     descuento: discount?.monto ?? 0,
     total: discountError ? null : baseTotals.subtotal - (discount?.monto ?? 0),
   };
@@ -364,8 +377,8 @@ export function SaleRegisterView({
       setError("Agregue al menos un producto al carrito.");
       return;
     }
-    if (discountError) {
-      setError(discountError);
+    if (discountError || paymentError) {
+      setError(discountError ?? paymentError);
       return;
     }
 
@@ -391,7 +404,7 @@ export function SaleRegisterView({
           metodoPago === "efectivo"
             ? montoRecibido === ""
               ? (null as never)
-              : Number(montoRecibido)
+              : received ?? (null as never)
             : undefined,
         descuento: discount ?? undefined,
       };
@@ -580,7 +593,7 @@ export function SaleRegisterView({
                       }
                     />
                     <p className="self-center font-semibold text-[#17202a]">
-                      {formatCurrency(item.cantidad * item.precioVenta)}
+                      {Number.isSafeInteger(item.cantidad * item.precioVenta) ? formatCurrency(item.cantidad * item.precioVenta) : "Pendiente de corrección"}
                     </p>
                     <button
                       className="rounded-md border border-[#b42318] px-3 py-2 font-semibold text-[#b42318] transition hover:bg-[#fff3f1]"
@@ -625,7 +638,8 @@ export function SaleRegisterView({
                       isSaving ||
                       isValidatingCart ||
                       !isCartValid ||
-                      !cashAvailable
+                      !cashAvailable ||
+                      Boolean(baseTotals.error)
                     }
                     onClick={() => setDiscountOpen(true)}
                     className="rounded-md border border-[#9ba9b5] px-3 py-2 font-semibold disabled:opacity-50"
@@ -648,7 +662,7 @@ export function SaleRegisterView({
                   ) : null}
                   {discountError ? (
                     <p role="alert" className="text-sm text-[#b42318]">
-                      {discountError} Edite o quite el descuento para continuar.
+                      {discountError}{baseTotals.error ? "" : " Edite o quite el descuento para continuar."}
                     </p>
                   ) : null}
                 </div>
@@ -685,7 +699,7 @@ export function SaleRegisterView({
                     isValidatingCart ||
                     !isCartValid ||
                     !cashAvailable ||
-                    Boolean(discountError) ||
+                    Boolean(discountError || paymentError) ||
                     discountOpen
                   }
                   type="button"
@@ -708,7 +722,7 @@ export function SaleRegisterView({
       </fieldset>
       {discountOpen ? (
         <DescuentoVentaModal
-          subtotal={totals.subtotal}
+          subtotal={baseTotals.subtotal}
           descuento={discount}
           onApply={(next) => {
             setDiscount(next);
@@ -740,7 +754,7 @@ function CartQuantityInput({
   }
 
   function handleBlur(): void {
-    onCommit(draft === "" ? Number.NaN : Number(draft));
+    onCommit(parseIntegerInput(draft));
   }
 
   return (

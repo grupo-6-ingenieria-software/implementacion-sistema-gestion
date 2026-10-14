@@ -1,4 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
+import { checkedAdd, safeInteger, NumericRangeError } from "../../shared/numbers";
 import { controllers } from "../../shared/controllers";
 import type { Role } from "../../shared/navigation";
 import {
@@ -83,8 +84,8 @@ export async function queryRestockListWithExecutor(
 
   return rows
     .map((row) => {
-      const stockActual = Number(row.stockActual);
-      const stockMinimo = Number(row.stockMinimo);
+      const stockActual = safeInteger(row.stockActual);
+      const stockMinimo = safeInteger(row.stockMinimo);
 
       return {
         nombre: row.nombre,
@@ -92,7 +93,7 @@ export async function queryRestockListWithExecutor(
         categoria: row.categoria,
         stockActual,
         stockMinimo,
-        cantidadSugerida: Math.max(0, 2 * stockMinimo - stockActual),
+        cantidadSugerida: Math.max(0, checkedAdd(stockMinimo, stockMinimo - stockActual)),
       };
     })
     .sort(compareRestockItems);
@@ -149,6 +150,7 @@ export function createRestockListController(
       );
       return { ok: true, data: result.items };
     } catch (error) {
+      if (error instanceof NumericRangeError) return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "restock-list", message: error.message } };
       if (error instanceof AccessDeniedError) {
         return {
           ok: false,

@@ -1,3 +1,4 @@
+import { checkedAdd, safeInteger, NumericRangeError } from "../../shared/numbers";
 import { sql, type SQL } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import {
@@ -64,8 +65,8 @@ export async function queryInventoryValuationWithExecutor(
       c.categoria_id AS categoriaId,
       c.categoria_nombre AS categoria,
       COUNT(DISTINCT p.producto_id) AS cantidadProductos,
-      SUM(l.lote_cantidad_actual) AS stockTotal,
-      SUM(l.lote_cantidad_actual * l.lote_precio_costo) AS valorTotal
+      TOTAL(l.lote_cantidad_actual) AS stockTotal,
+      TOTAL(l.lote_cantidad_actual * l.lote_precio_costo) AS valorTotal
     FROM lote l
     JOIN producto p ON p.producto_id = l.producto_id
     JOIN categoria c ON c.categoria_id = p.categoria_id
@@ -79,8 +80,8 @@ export async function queryInventoryValuationWithExecutor(
       categoriaId: Number(row.categoriaId),
       categoria: row.categoria,
       cantidadProductos: Number(row.cantidadProductos),
-      stockTotal: Number(row.stockTotal),
-      valorTotal: Number(row.valorTotal),
+      stockTotal: safeInteger(row.stockTotal),
+      valorTotal: safeInteger(row.valorTotal),
     }))
     .sort(
       (left, right) =>
@@ -91,7 +92,7 @@ export async function queryInventoryValuationWithExecutor(
   return {
     categorias,
     totalInventario: categorias.reduce(
-      (total, categoria) => total + categoria.valorTotal,
+      (total, categoria) => checkedAdd(total, categoria.valorTotal),
       0,
     ),
   };
@@ -142,6 +143,9 @@ export function createInventoryValuationController(
       );
       return { ok: true, data: result };
     } catch (error) {
+      if (error instanceof NumericRangeError) {
+        return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "inventory-valuation", message: error.message } };
+      }
       if (error instanceof AccessDeniedError) {
         return {
           ok: false,
