@@ -1,4 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
+import { checkedAdd, NumericRangeError } from "../../shared/numbers";
 import { controllers } from "../../shared/controllers";
 import {
   hasSupplierOrderFieldErrors,
@@ -98,6 +99,7 @@ export async function registerSupplierOrderWithExecutor(
       fieldErrors,
     );
   }
+  payload.lineas.reduce((total, line) => checkedAdd(total, line.cantidad), 0);
 
   const user = await authorizeUser(executor, schema, payload.usuarioId, [
     "dueno",
@@ -182,6 +184,9 @@ export async function registerSupplierOrderWithExecutor(
 }
 
 function normalizeSupplierOrderError(error: unknown) {
+  if (error instanceof NumericRangeError) {
+    return { ok: false as const, error: { code: "BUSINESS_RULE" as const, controllerId: "supplier-order" as const, message: error.message } };
+  }
   if (error instanceof AccessDeniedError) {
     return {
       ok: false as const,

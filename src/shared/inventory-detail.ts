@@ -1,3 +1,5 @@
+import { parseIntegerInput } from "./numbers";
+
 export type ActiveLotItem = {
   loteId: string;
   cantidadActual: number;
@@ -121,7 +123,7 @@ export function normalizeStockAdjustmentPayload(
   return {
     ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     loteId: typeof record.loteId === "string" ? record.loteId.trim() : "",
-    cantidad: normalizeInteger(record.cantidad),
+    cantidad: parseIntegerInput(record.cantidad),
     justificacion:
       typeof record.justificacion === "string"
         ? record.justificacion.trim().slice(0, 200)
@@ -147,7 +149,7 @@ export function validateStockAdjustmentPayload(
     fieldErrors.loteId = "Debe seleccionar un lote.";
   }
 
-  if (!Number.isInteger(values.cantidad) || values.cantidad === 0) {
+  if (!Number.isSafeInteger(values.cantidad) || values.cantidad === 0) {
     fieldErrors.cantidad =
       "La cantidad debe ser un entero distinto de cero.";
   }
@@ -215,19 +217,6 @@ export function normalizeMovementHistoryFilters(
 
 function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function normalizeInteger(value: unknown): number {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : Number.NaN;
-  }
-
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : Number.NaN;
-  }
-
-  return Number.NaN;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

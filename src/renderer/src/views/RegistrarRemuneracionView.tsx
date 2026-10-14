@@ -16,6 +16,7 @@ import {
   MESES_LABEL,
   calculateRemuneracion,
   normalizeRemuneracionCreatePayload,
+  validateRemuneracionCreatePayload,
   type RemuneracionFieldErrors,
   type RemuneracionMutationResponse,
 } from "../../../shared/remuneraciones";
@@ -157,24 +158,40 @@ export function RegistrarRemuneracionView({
     [form, usuarioId],
   );
 
-  const preview = useMemo(() => {
+  const { preview, previewError } = useMemo(() => {
     if (!Number.isFinite(payload.montoBruto) || payload.montoBruto <= 0) {
-      return null;
+      return { preview: null, previewError: null };
     }
 
-    return calculateRemuneracion(
-      payload.montoBruto,
-      (Object.keys(rates) as (keyof PrevisionalRates)[]).map((tipo) => ({
-        tipo,
-        porcentaje: rates[tipo],
-      })),
-    );
+    try {
+      return {
+        preview: calculateRemuneracion(
+          payload.montoBruto,
+          (Object.keys(rates) as (keyof PrevisionalRates)[]).map((tipo) => ({
+            tipo,
+            porcentaje: rates[tipo],
+          })),
+        ),
+        previewError: null,
+      };
+    } catch (error) {
+      return {
+        preview: null,
+        previewError: error instanceof Error ? error.message : "El cálculo supera el rango permitido.",
+      };
+    }
   }, [payload.montoBruto, rates]);
 
   async function submit(): Promise<void> {
     setFieldErrors({});
     setMessage(null);
     setResult(null);
+    const errors = validateRemuneracionCreatePayload(payload);
+    if (Object.keys(errors).length > 0 || preview === null) {
+      setFieldErrors(errors);
+      setMessage("Revise el monto bruto y los campos marcados antes de continuar.");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -308,7 +325,7 @@ export function RegistrarRemuneracionView({
                   }
                 />
               </Field>
-              <Field label="Monto bruto" error={fieldErrors.montoBruto}>
+              <Field label="Monto bruto" error={fieldErrors.montoBruto ?? (form.montoBruto !== "" ? validateRemuneracionCreatePayload(payload).montoBruto : undefined)}>
                 <input
                   className="w-full rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
                   inputMode="numeric"
@@ -338,6 +355,9 @@ export function RegistrarRemuneracionView({
               />
             </Field>
 
+            {previewError ? (
+              <p role="alert" className="text-sm text-[#b42318]">{previewError}</p>
+            ) : null}
             {preview ? (
               <div className="rounded-md border border-[#d7dee6] bg-[#f8fafb] px-4 py-3 text-sm text-[#24313d]">
                 <p className="font-semibold">Vista previa del calculo</p>
@@ -387,7 +407,7 @@ export function RegistrarRemuneracionView({
             <div className="flex flex-wrap gap-3 border-t border-[#e3e8ee] pt-5">
               <button
                 className="rounded-md bg-[#244d61] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4354] disabled:cursor-not-allowed disabled:bg-[#9ba9b5]"
-                disabled={saving || workersLoading || workers.length === 0}
+                disabled={saving || workersLoading || workers.length === 0 || preview === null}
                 type="submit"
               >
                 {saving ? "Guardando..." : "Guardar remuneracion"}

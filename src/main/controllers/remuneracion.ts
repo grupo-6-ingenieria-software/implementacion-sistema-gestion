@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import type { AttendanceWorkerOption } from "../../shared/attendance";
+import { NumericRangeError } from "../../shared/numbers";
 import {
   calculateRemuneracion,
   hasRemuneracionFieldErrors,
@@ -93,7 +94,7 @@ export const remuneracionController: RegisteredController = {
         return controllerError("FORBIDDEN", error.message, metadata.id);
       }
 
-      if (error instanceof RemuneracionBusinessError) {
+      if (error instanceof RemuneracionBusinessError || error instanceof NumericRangeError) {
         return controllerError("BUSINESS_RULE", error.message, metadata.id);
       }
 

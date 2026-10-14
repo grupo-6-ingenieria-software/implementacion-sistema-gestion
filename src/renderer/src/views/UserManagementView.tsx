@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import type { ControllerResponse } from "../../../shared/controllers";
 import {
   defaultUserListFilters,
   formatRoleLabel,
@@ -13,10 +14,16 @@ import {
 
 type UserManagementViewProps = {
   usuarioId: string;
+  onPasswordReset: (usuarioObjetivoId: string) => Promise<
+    ControllerResponse<Omit<UserPasswordResetRequestResponse, "estado">>
+  >;
+  passwordDialogOpen: boolean;
 };
 
 export function UserManagementView({
   usuarioId,
+  onPasswordReset,
+  passwordDialogOpen,
 }: UserManagementViewProps): ReactElement {
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [search, setSearch] = useState("");
@@ -36,11 +43,16 @@ export function UserManagementView({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(
-    null,
-  );
   const [resetting, setResetting] = useState(false);
   const resetPending = useRef(false);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const payload = useMemo(
     () => ({
@@ -96,7 +108,7 @@ export function UserManagementView({
   }, [payload, reloadKey]);
 
   async function requestPasswordReset(user: UserListItem): Promise<void> {
-    if (resetPending.current || temporaryPassword) return;
+    if (resetPending.current || passwordDialogOpen) return;
     resetPending.current = true;
     setResetting(true);
     setNotice(null);
@@ -107,6 +119,8 @@ export function UserManagementView({
         usuarioId,
         usuarioObjetivoId: user.usuarioId,
       });
+
+      if (!mounted.current) return;
 
       if (!preparation.ok) {
         setNotice(preparation.error.message);
@@ -121,26 +135,22 @@ export function UserManagementView({
         return;
       }
 
-      const response =
-        await window.appApi.invoke<Omit<UserPasswordResetRequestResponse, "estado">>(
-          "auth:restablecer-password",
-          {
-            usuarioId,
-            usuarioObjetivoId: preparation.data.usuarioObjetivoId,
-          },
-        );
+      const response = await onPasswordReset(preparation.data.usuarioObjetivoId);
+
+      if (!mounted.current) return;
 
       if (response.ok) {
         setNotice(null);
-        setTemporaryPassword(response.data.contrasenaTemporal);
       } else {
         setNotice(response.error.message);
       }
     } catch {
-      setNotice("No fue posible restablecer la contraseña. Intente nuevamente.");
+      if (mounted.current) {
+        setNotice("No fue posible restablecer la contraseña. Intente nuevamente.");
+      }
     } finally {
       resetPending.current = false;
-      setResetting(false);
+      if (mounted.current) setResetting(false);
     }
   }
 
@@ -305,7 +315,7 @@ export function UserManagementView({
                       <button
                         className="rounded-md border border-[#9ba9b5] px-2 py-1 text-xs font-semibold text-[#24313d] transition hover:bg-[#f0f3f6]"
                         type="button"
-                        disabled={resetting || temporaryPassword !== null}
+                        disabled={resetting || passwordDialogOpen}
                         onClick={() => void requestPasswordReset(user)}
                       >
                         Restablecer
@@ -319,17 +329,11 @@ export function UserManagementView({
         ) : null}
       </section>
 
-      {temporaryPassword ? (
-        <TemporaryPasswordDialog
-          password={temporaryPassword}
-          onClose={() => setTemporaryPassword(null)}
-        />
-      ) : null}
     </section>
   );
 }
 
-function TemporaryPasswordDialog({
+export function TemporaryPasswordDialog({
   password,
   onClose,
 }: {

@@ -24,6 +24,7 @@ type UserManagementDependencies = {
   authorize: (
     usuarioId: string | undefined,
     allowedRoles: readonly Role[],
+    sessionRole?: Role,
   ) => Promise<AuthenticatedUser>;
   listUsers: () => Promise<UserListItem[]>;
   requestPasswordReset: (
@@ -45,7 +46,7 @@ export function createUserManagementController(
     try {
       if (context.channel === "usuario:listar") {
         const usuarioId = normalizeUsuarioId(payload);
-        await dependencies.authorize(usuarioId, ["dueno"]);
+        await dependencies.authorize(usuarioId, ["dueno"], context.claims?.rol);
 
         const filters = normalizeUserListPayload(payload);
         const users = await dependencies.listUsers();
@@ -113,10 +114,10 @@ export function createUserManagementController(
 }
 
 const userManagementDependencies: UserManagementDependencies = {
-  authorize: async (usuarioId, allowedRoles) => {
+  authorize: async (usuarioId, allowedRoles, sessionRole) => {
     const { db, schema } = await import("../../db/client");
 
-    return authorizeUser(db, schema, usuarioId, allowedRoles);
+    return authorizeUser(db, schema, usuarioId, allowedRoles, sessionRole);
   },
   listUsers,
   requestPasswordReset,

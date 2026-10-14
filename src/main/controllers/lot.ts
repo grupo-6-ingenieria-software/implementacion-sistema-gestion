@@ -21,7 +21,8 @@ import {
   validateLotBasicsInSql,
   validateLotExpirationInSql,
 } from "./lot-sql-validation";
-import { numericSqlValue } from "./sql-validation-primitives";
+import { assertInventoryTotals, numericSqlValue } from "./sql-validation-primitives";
+import { NumericRangeError } from "../../shared/numbers";
 
 type LotDependencies = {
   register: (payload: LotRegisterPayload) => Promise<LotRegisterResponse>;
@@ -216,6 +217,7 @@ export async function registerLotWithExecutor(
     });
   }
 
+  await assertInventoryTotals(executor);
   await executor.insert(schema.ajusteInventario).values({
     ajusteCantidad: payload.cantidad,
     ajusteJustificacion: `Entrada de lote para ${payload.ean13}`,
@@ -254,6 +256,9 @@ async function findProviderById(
 }
 
 function normalizeLotError(error: unknown) {
+  if (error instanceof NumericRangeError) {
+    return { ok: false as const, error: { code: "BUSINESS_RULE" as const, controllerId: "lot" as const, message: error.message } };
+  }
   if (error instanceof AccessDeniedError) {
     return {
       ok: false as const,

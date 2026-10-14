@@ -1,4 +1,8 @@
 import { eq, sql } from "drizzle-orm";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { join } from "node:path";
+import { applyTriggers } from "../../../src/db/init";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import type { AttendanceWorkerOption } from "../../../src/shared/attendance";
@@ -927,5 +931,68 @@ describe("changeStatusWithExecutor (CU23, D9/D10)", () => {
     );
     expect(verificacion).toEqual({ active: false, reason: "sistema" });
     expect(token.split(".")).toHaveLength(3);
+  });
+});
+
+describe("continuidad del último dueño activo", () => {
+  let fixture: AuthTestDatabase;
+  const owner = "12345678-9";
+  const backup = "23456789-0";
+  const edit = (usuarioId = owner): UserFormValues => ({
+    usuarioId, rut: usuarioId, rol: "trabajador", nombreCompleto: "Nombre actualizado",
+    telefono: "987654321", correoElectronico: "",
+  });
+  beforeEach(async () => {
+    fixture = await createAuthTestDatabase();
+    await seedUser(fixture.db, { usuarioId: owner, rut: owner, trabajadorId: 1 });
+    await seedUser(fixture.db, { usuarioId: backup, rut: backup, trabajadorId: 2, rolBd: "trabajador" });
+    await applyTriggers(fixture.client, join(process.cwd(), "src/db/triggers.sql"));
+  });
+  afterEach(async () => { fixture.client.close(); await removeAuthTempDir(fixture.dir); });
+
+  it.each(["rol", "estado"])("bloquea cambiar el %s del último dueño sin escrituras", async (change) => {
+    const notify = vi.fn();
+    const operation = change === "rol"
+      ? updateWorkerWithExecutor(fixture.db, schema, edit(), "dueno")
+      : changeStatusWithExecutor(fixture.db, schema, { usuarioId: owner, usuarioObjetivoId: owner, estado: "inactivo", confirmacion: true }, "dueno", notify);
+    await expect(operation).rejects.toMatchObject({ reason: "last-active-owner" });
+    expect(await fixture.db.all(sql`SELECT u.usuario_rol AS rol, t.trabajador_estado AS estado FROM usuario u JOIN trabajador t ON t.trabajador_id = u.trabajador_id WHERE u.usuario_id = ${owner}`))
+      .toEqual([{ rol: "dueno", estado: "activo" }]);
+    expect(await fixture.db.select().from(schema.logAuditoria)).toHaveLength(0);
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("un dueño inactivo no permite degradar al último activo", async () => {
+    await fixture.db.run(sql`UPDATE usuario SET usuario_rol = 'dueno' WHERE usuario_id = ${backup}`);
+    await fixture.db.run(sql`UPDATE trabajador SET trabajador_estado = 'inactivo' WHERE trabajador_id = 2`);
+    await expect(updateWorkerWithExecutor(fixture.db, schema, edit(), "dueno"))
+      .rejects.toMatchObject({ reason: "last-active-owner" });
+  });
+
+  it("permite cambiar el propio rol si queda otro dueño activo", async () => {
+    await fixture.db.run(sql`UPDATE usuario SET usuario_rol = 'dueno' WHERE usuario_id = ${backup}`);
+    await expect(updateWorkerWithExecutor(fixture.db, schema, edit(), "dueno")).resolves.toEqual({ usuarioId: owner });
+  });
+
+  it("permite inactivarse si queda otro dueño y notifica después del commit", async () => {
+    await fixture.db.run(sql`UPDATE usuario SET usuario_rol = 'dueno' WHERE usuario_id = ${backup}`);
+    const notify = vi.fn();
+    await changeStatusWithExecutor(fixture.db, schema, { usuarioId: owner, usuarioObjetivoId: owner, estado: "inactivo", confirmacion: true }, "dueno", notify);
+    expect(notify).toHaveBeenCalledWith(owner);
+  });
+
+  it("serializa dos degradaciones concurrentes y conserva un dueño", async () => {
+    await fixture.db.run(sql`UPDATE usuario SET usuario_rol = 'dueno' WHERE usuario_id = ${backup}`);
+    const client = createClient({ url: `file:${join(fixture.dir, 'test.db').replaceAll('\\', '/')}` });
+    const otherDb = drizzle(client, { schema });
+    try {
+      const results = await Promise.allSettled([
+        updateWorkerWithExecutor(fixture.db, schema, edit(), "dueno"),
+        updateWorkerWithExecutor(otherDb, schema, edit(backup), "dueno"),
+      ]);
+      expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+      expect(results.filter(result => result.status === "rejected")).toMatchObject([{ reason: { reason: "last-active-owner" } }]);
+      expect(await fixture.db.all(sql`SELECT COUNT(*) AS owners FROM usuario WHERE usuario_rol = 'dueno'`)).toEqual([{ owners: 1 }]);
+    } finally { client.close(); }
   });
 });

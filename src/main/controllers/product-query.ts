@@ -1,3 +1,4 @@
+import { safeInteger, NumericRangeError } from "../../shared/numbers";
 import {
   and,
   asc,
@@ -118,6 +119,9 @@ export function createProductQueryController(
           },
         };
       } catch (error) {
+        if (error instanceof NumericRangeError) {
+          return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "product-query", message: error.message } };
+        }
         if (error instanceof AccessDeniedError) {
           return {
             ok: false,
@@ -213,6 +217,9 @@ export function createProductQueryController(
           },
         };
       } catch (error) {
+        if (error instanceof NumericRangeError) {
+          return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "product-query", message: error.message } };
+        }
         if (error instanceof AccessDeniedError) {
           return {
             ok: false,
@@ -266,6 +273,9 @@ export function createProductQueryController(
           data: products,
         };
       } catch (error) {
+        if (error instanceof NumericRangeError) {
+          return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "product-query", message: error.message } };
+        }
         if (error instanceof AccessDeniedError) {
           return {
             ok: false,
@@ -342,8 +352,8 @@ async function queryInventoryProductsWithExecutor(
       ean13: schema.producto.productoEan13,
       nombre: schema.producto.productoNombre,
       categoriaId: schema.producto.categoriaId,
-      precioVenta: schema.producto.productoPrecioVenta,
-      stockMinimo: schema.producto.productoStockMinimo,
+      precioVenta: sql<number>`CAST(${schema.producto.productoPrecioVenta} AS TEXT)`,
+      stockMinimo: sql<number>`CAST(${schema.producto.productoStockMinimo} AS TEXT)`,
       estado: schema.producto.productoEstado,
       fechaRegistro: schema.producto.productoFechaRegistro,
     })
@@ -372,7 +382,7 @@ async function queryInventoryProductsWithExecutor(
         : asc(schema.categoria.categoriaNombre),
     );
 
-  const stockExpression = sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`;
+  const stockExpression = sql<number>`coalesce(total(${schema.lote.loteCantidadActual}), 0)`;
   const stockRows = await db
     .select({
       productoId: schema.producto.productoId,
@@ -396,7 +406,7 @@ async function queryInventoryProductsWithExecutor(
     ? await db
         .select({
           productoId: schema.historialPrecioProducto.productoId,
-          precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
+          precioCosto: sql<number>`CAST(${schema.historialPrecioProducto.historialPrecioCosto} AS TEXT)`,
         })
         .from(schema.historialPrecioProducto)
         .where(
@@ -414,12 +424,12 @@ async function queryInventoryProductsWithExecutor(
 
   const categories = new Map(categoryRows.map((row) => [row.id, row.nombre]));
   const stocks = new Map(
-    stockRows.map((row) => [row.productoId, Number(row.stockActual ?? 0)]),
+    stockRows.map((row) => [row.productoId, safeInteger(row.stockActual ?? 0)]),
   );
   const costs = new Map<number, number>();
   for (const row of priceRows) {
     if (!costs.has(row.productoId)) {
-      costs.set(row.productoId, Number(row.precioCosto ?? 0));
+      costs.set(row.productoId, safeInteger(row.precioCosto ?? 0));
     }
   }
   const categoryRank = new Map(
@@ -449,9 +459,9 @@ async function queryInventoryProductsWithExecutor(
       nombre: row.nombre,
       categoria: categories.get(row.categoriaId) ?? "Sin categoria",
       categoriaId: row.categoriaId,
-      precioVenta: Number(row.precioVenta),
+      precioVenta: safeInteger(row.precioVenta),
       stockActual: stocks.get(row.productoId) ?? 0,
-      stockMinimo: Number(row.stockMinimo),
+      stockMinimo: safeInteger(row.stockMinimo),
       estado: row.estado,
       fechaRegistro: row.fechaRegistro,
     };
@@ -471,8 +481,8 @@ export async function queryProductDetailWithExecutor(
       ean13: schema.producto.productoEan13,
       nombre: schema.producto.productoNombre,
       categoriaId: schema.producto.categoriaId,
-      precioVenta: schema.producto.productoPrecioVenta,
-      stockMinimo: schema.producto.productoStockMinimo,
+      precioVenta: sql<number>`CAST(${schema.producto.productoPrecioVenta} AS TEXT)`,
+      stockMinimo: sql<number>`CAST(${schema.producto.productoStockMinimo} AS TEXT)`,
       estado: schema.producto.productoEstado,
     })
     .from(schema.producto)
@@ -480,12 +490,12 @@ export async function queryProductDetailWithExecutor(
     .limit(1);
   if (!product) return null;
   if (!includeCost) {
-    const { productoId: _productoId, ...visible } = product;
+    const { productoId: _productoId, ...visible } = { ...product, precioVenta: safeInteger(product.precioVenta), stockMinimo: safeInteger(product.stockMinimo) };
     return visible;
   }
   const [price] = await db
     .select({
-      precioCosto: schema.historialPrecioProducto.historialPrecioCosto,
+      precioCosto: sql<number>`CAST(${schema.historialPrecioProducto.historialPrecioCosto} AS TEXT)`,
     })
     .from(schema.historialPrecioProducto)
     .where(
@@ -498,8 +508,8 @@ export async function queryProductDetailWithExecutor(
       desc(schema.historialPrecioProducto.historialFechaHoraVigenciaDesde),
     )
     .limit(1);
-  const { productoId: _productoId, ...visible } = product;
-  return { ...visible, precioCosto: Number(price?.precioCosto ?? 0) };
+  const { productoId: _productoId, ...visible } = { ...product, precioVenta: safeInteger(product.precioVenta), stockMinimo: safeInteger(product.stockMinimo) };
+  return { ...visible, precioCosto: safeInteger(price?.precioCosto ?? 0) };
 }
 
 export async function queryProductCategoriesWithExecutor(
@@ -538,7 +548,7 @@ export async function queryActiveProductsWithExecutor(
       ean13: schema.producto.productoEan13,
       nombre: schema.producto.productoNombre,
       categoriaId: schema.producto.categoriaId,
-      precioVentaBase: schema.producto.productoPrecioVenta,
+      precioVentaBase: sql<number>`CAST(${schema.producto.productoPrecioVenta} AS TEXT)`,
     })
     .from(schema.producto)
     .where(and(...conditions))
@@ -558,7 +568,7 @@ export async function queryActiveProductsWithExecutor(
   const stocks = await db
     .select({
       productoId: schema.lote.productoId,
-      stockDisponible: sql<number>`coalesce(sum(${schema.lote.loteCantidadActual}), 0)`,
+      stockDisponible: sql<number>`coalesce(total(${schema.lote.loteCantidadActual}), 0)`,
     })
     .from(schema.lote)
     .where(inArray(schema.lote.productoId, productIds))
@@ -566,7 +576,7 @@ export async function queryActiveProductsWithExecutor(
   const prices = await db
     .select({
       productoId: schema.historialPrecioProducto.productoId,
-      precioVenta: schema.historialPrecioProducto.historialPrecioVenta,
+      precioVenta: sql<number>`CAST(${schema.historialPrecioProducto.historialPrecioVenta} AS TEXT)`,
     })
     .from(schema.historialPrecioProducto)
     .where(
@@ -580,12 +590,12 @@ export async function queryActiveProductsWithExecutor(
     );
   const categoryById = new Map(categories.map((row) => [row.id, row]));
   const stockByProduct = new Map(
-    stocks.map((row) => [row.productoId, Number(row.stockDisponible)]),
+    stocks.map((row) => [row.productoId, safeInteger(row.stockDisponible)]),
   );
   const priceByProduct = new Map<number, number>();
   for (const row of prices)
     if (!priceByProduct.has(row.productoId))
-      priceByProduct.set(row.productoId, Number(row.precioVenta));
+      priceByProduct.set(row.productoId, safeInteger(row.precioVenta));
   return products.flatMap((product) => {
     const category = categoryById.get(product.categoriaId);
     if (!category) return [];
@@ -598,7 +608,7 @@ export async function queryActiveProductsWithExecutor(
         exigeVencimiento: Boolean(category.exigeVencimiento),
         precioVenta:
           priceByProduct.get(product.productoId) ??
-          Number(product.precioVentaBase),
+          safeInteger(product.precioVentaBase),
         stockDisponible: stockByProduct.get(product.productoId) ?? 0,
       },
     ];

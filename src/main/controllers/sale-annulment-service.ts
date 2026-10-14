@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { checkedAdd } from "../../shared/numbers";
+import { assertDailySaleTotals, assertInventoryTotals } from "./sql-validation-primitives";
 import {
   isValidSaleId,
   type SaleAnnulmentRequest,
@@ -129,7 +131,7 @@ export async function annulSale(
           `No fue posible restituir el lote ${consumed.loteId}.`,
         );
       }
-      unidadesRestituidas += quantity;
+      unidadesRestituidas = checkedAdd(unidadesRestituidas, quantity);
     }
 
     const fechaHora = now.toISOString();
@@ -161,6 +163,8 @@ export async function annulSale(
       throw new Error(`No fue posible marcar la venta ${sale.ventaId}.`);
     }
 
+    await assertInventoryTotals(tx);
+    await assertDailySaleTotals(tx, now);
     await registerAuditLog(tx, {
       usuarioId: user.usuarioId,
       tipoAccion: "anular_venta",

@@ -239,9 +239,15 @@ try {
       0,
     );
     assert.match(await total.textContent(), /\$1\.000/);
-    await page.getByLabel("Monto recibido").fill("1000");
+    await page.getByLabel("Monto recibido").fill("5.00");
+    assert.equal(await confirm.isDisabled(), true);
+    await page.getByLabel("Monto recibido").fill("99999999999999999");
+    assert.equal(await confirm.isDisabled(), true);
+    assert.match(await total.textContent(), /\$1\.000/);
+    await page.getByLabel("Monto recibido").fill("5.000");
     await confirm.click();
     await page.getByText("Error de guardado de prueba").waitFor();
+    assert.equal(await page.evaluate(() => window.saleRequests.at(-1).montoRecibido), 5000);
     assert.equal(
       await page.evaluate(() => window.saleRequests.at(-1).descuento),
       undefined,
