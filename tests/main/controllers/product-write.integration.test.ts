@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
+import { applyTriggers } from "../../../src/db/init";
 import {
   ProductWriteError,
   createProductWithExecutor,
@@ -41,6 +42,9 @@ describe("persistencia de escritura de productos", () => {
       "precioVenta",
     ],
     ["CU1 E4 valor decimal", { precioCosto: 700.5 }, "precioCosto"],
+    ["CU1 E4 precio costo inseguro", { precioCosto: 1e17 }, "precioCosto"],
+    ["CU1 E4 precio venta inseguro", { precioVenta: 1e17 }, "precioVenta"],
+    ["CU1 E4 stock mínimo inseguro", { stockMinimo: 1e17 }, "stockMinimo"],
   ] as const)(
     "rechaza %s en SQL parametrizado sin escrituras",
     async (_scenario, override, field) => {
@@ -417,6 +421,7 @@ async function createTestDatabase() {
     const migration = await readFile(join(migrationsDir, file), "utf8");
     await client.executeMultiple(migration);
   }
+  await applyTriggers(client, join(process.cwd(), "src/db/triggers.sql"));
   return { client, db, dir, queries };
 }
 

@@ -12,6 +12,9 @@ import {
 } from '../../src/main/controllers/worker';
 import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/shift';
 import { normalizeShiftCreatePayload } from '../../src/shared/shifts';
+import { getPrevisionalRates } from '../../src/main/controllers/configuracion-previsional';
+import { listEligibleWorkers, registerRemuneracion } from '../../src/main/controllers/remuneracion';
+import { normalizeRemuneracionCreatePayload, normalizeRemuneracionPeriodoPayload } from '../../src/shared/remuneraciones';
 import * as schema from '../../src/db/schema';
 import {
   createAuthTestDatabase,
@@ -57,7 +60,14 @@ const server = await createServer({
             try {
               const message = JSON.parse(body) as { channel: string; payload: unknown };
               let result;
-              if (message.channel === 'trabajador:listar-activos') {
+              const actor = { role: 'dueno' as const, usuarioId: '11111111-1' };
+              if (message.channel === 'configuracion:previsional-obtener') {
+                result = { ok: true, data: await getPrevisionalRates(fixture.db as never, actor) };
+              } else if (message.channel === 'remuneracion:trabajadores-elegibles') {
+                result = { ok: true, data: await listEligibleWorkers(fixture.db as never, normalizeRemuneracionPeriodoPayload(message.payload)) };
+              } else if (message.channel === 'remuneracion:registrar') {
+                result = { ok: true, data: await registerRemuneracion(fixture.db as never, normalizeRemuneracionCreatePayload(message.payload), actor) };
+              } else if (message.channel === 'trabajador:listar-activos') {
                 result = { ok: true, data: [{ trabajadorId: 1, rut: '11111111-1', nombreCompleto: 'Dueño' }] };
               } else if (message.channel === 'turno:crear') {
                 try {
@@ -103,6 +113,21 @@ try {
   const page = await browser.newPage();
   page.setDefaultTimeout(10_000);
   const baseUrl = `${server.resolvedUrls!.local[0]}tests/renderer/personal-harness.html`;
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto(`${baseUrl}?view=salary`);
+  await page.getByLabel('Trabajador').selectOption('1');
+  await page.getByLabel('Monto bruto').fill('500.99');
+  assert.equal(await page.locator('button[type="submit"]').isDisabled(), true);
+  await page.getByLabel('Monto bruto').fill('99999999999999999');
+  assert.equal(await page.locator('button[type="submit"]').isDisabled(), true);
+  await page.getByLabel('Monto bruto').fill('500.000');
+  await page.getByText(/404\.500/).waitFor();
+  await page.locator('button[type="submit"]').click();
+  await page.getByText('Remuneracion registrada correctamente.', { exact: true }).waitFor();
+  assert.equal((await fixture.db.select().from(schema.remuneracion))[0].remuneracionMontoBruto, 500000);
+  assert.deepEqual(pageErrors, []);
+  console.log('PASS RF34 UI + SQLite: miles, decimales rechazados, enteros enormes y líquido sin error de render');
   await page.goto(baseUrl);
   await page.getByLabel('RUT').fill('12.345.678-5');
   await page.getByLabel('Nombre completo').fill('Ana Soto');
@@ -215,6 +240,9 @@ try {
 
   await page.getByRole('button', { name: 'Inactivar' }).click();
   await page.getByText('Cambiar estado del trabajador').waitFor();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByText('Debe permanecer al menos un dueño activo en el sistema.', { exact: true }).waitFor();
+  await seedUser(fixture.db, { usuarioId: '34567890-1', rut: '34567890-1', trabajadorId: 3, rolBd: 'dueno' });
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await page.getByText('Trabajador inactivo.').waitFor();
   statusCalls = await page.evaluate(() => (window as unknown as { calls: Array<{ channel: string; payload: Record<string, unknown> }> }).calls);

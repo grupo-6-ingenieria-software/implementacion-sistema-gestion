@@ -1,3 +1,4 @@
+import { parseClpAmount, checkedAdd, roundClpPercentage, safeInteger } from "./numbers";
 import type { TasaLegalTipo } from "./previsional";
 
 export type RemuneracionFieldErrors = Partial<
@@ -62,7 +63,7 @@ export function normalizeRemuneracionCreatePayload(
     trabajadorId: normalizeInteger(record.trabajadorId),
     mes: normalizeInteger(record.mes),
     anio: normalizeInteger(record.anio),
-    montoBruto: normalizeInteger(record.montoBruto),
+    montoBruto: parseClpAmount(record.montoBruto) ?? Number.NaN,
     observacion: getOptionalString(record, "observacion"),
   };
 }
@@ -109,8 +110,8 @@ export function validateRemuneracionCreatePayload(
     errors.trabajadorId = "Seleccione un trabajador.";
   }
 
-  if (!Number.isFinite(values.montoBruto) || values.montoBruto <= 0) {
-    errors.montoBruto = "El monto bruto debe ser mayor a 0.";
+  if (!Number.isSafeInteger(values.montoBruto) || values.montoBruto <= 0) {
+    errors.montoBruto = "El monto bruto debe ser un entero mayor a 0 y estar dentro del rango permitido.";
   }
 
   return errors;
@@ -124,7 +125,7 @@ export function hasRemuneracionFieldErrors(
 
 /** Redondeo "desde medio peso hacia arriba" (round half up) exigido por RF34. */
 export function roundToNearestPeso(value: number): number {
-  return Math.floor(value + 0.5);
+  return safeInteger(Math.round(value));
 }
 
 export function calculateRemuneracion(
@@ -134,12 +135,13 @@ export function calculateRemuneracion(
   const descuentos = rates.map((rate) => ({
     tipo: rate.tipo,
     porcentaje: rate.porcentaje,
-    monto: roundToNearestPeso((montoBruto * rate.porcentaje) / 100),
+    monto: roundClpPercentage(montoBruto, rate.porcentaje),
   }));
 
-  const montoLiquido =
-    montoBruto -
-    descuentos.reduce((sum, descuento) => sum + descuento.monto, 0);
+  const montoLiquido = checkedAdd(
+    montoBruto,
+    -checkedAdd(...descuentos.map((descuento) => descuento.monto)),
+  );
 
   return { descuentos, montoLiquido };
 }

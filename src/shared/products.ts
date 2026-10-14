@@ -1,3 +1,4 @@
+import { parseClpAmount, parseIntegerInput } from "./numbers";
 import { isValidEan13 } from "./ean13";
 
 export { isValidEan13 };
@@ -171,7 +172,7 @@ export function normalizeProductListPayload(
     : defaultProductListFilters.sortDirection;
   const categoriaId =
     typeof payload.categoriaId === "number" &&
-    Number.isInteger(payload.categoriaId) &&
+    Number.isSafeInteger(payload.categoriaId) &&
     payload.categoriaId > 0
       ? payload.categoriaId
       : undefined;
@@ -198,9 +199,9 @@ export function normalizeProductFormPayload(
     ean13: typeof record.ean13 === "string" ? record.ean13.trim() : "",
     nombre: typeof record.nombre === "string" ? record.nombre.trim() : "",
     categoriaId: normalizeInteger(record.categoriaId),
-    precioCosto: normalizeInteger(record.precioCosto),
-    precioVenta: normalizeInteger(record.precioVenta),
-    stockMinimo: normalizeInteger(record.stockMinimo),
+    precioCosto: parseClpAmount(record.precioCosto) ?? Number.NaN,
+    precioVenta: parseClpAmount(record.precioVenta) ?? Number.NaN,
+    stockMinimo: parseIntegerInput(record.stockMinimo),
   };
 }
 
@@ -266,30 +267,30 @@ export function validateProductFormValues(
     fieldErrors.nombre = "El nombre del producto es obligatorio.";
   }
 
-  if (!Number.isInteger(values.categoriaId) || values.categoriaId <= 0) {
+  if (!Number.isSafeInteger(values.categoriaId) || values.categoriaId <= 0) {
     fieldErrors.categoriaId = "Seleccione una categoria valida.";
   }
 
-  if (!Number.isInteger(values.precioCosto) || values.precioCosto < 0) {
+  if (!Number.isSafeInteger(values.precioCosto) || values.precioCosto < 0) {
     fieldErrors.precioCosto =
       "El precio costo debe ser un entero mayor o igual a 0.";
   }
 
-  if (!Number.isInteger(values.precioVenta) || values.precioVenta < 0) {
+  if (!Number.isSafeInteger(values.precioVenta) || values.precioVenta < 0) {
     fieldErrors.precioVenta =
       "El precio venta debe ser un entero mayor o igual a 0.";
   }
 
   if (
-    Number.isInteger(values.precioCosto) &&
-    Number.isInteger(values.precioVenta) &&
+    Number.isSafeInteger(values.precioCosto) &&
+    Number.isSafeInteger(values.precioVenta) &&
     values.precioVenta <= values.precioCosto
   ) {
     fieldErrors.precioVenta =
       "El precio venta debe ser mayor que el precio costo.";
   }
 
-  if (!Number.isInteger(values.stockMinimo) || values.stockMinimo < 0) {
+  if (!Number.isSafeInteger(values.stockMinimo) || values.stockMinimo < 0) {
     fieldErrors.stockMinimo =
       "El stock minimo debe ser un entero mayor o igual a 0.";
   }

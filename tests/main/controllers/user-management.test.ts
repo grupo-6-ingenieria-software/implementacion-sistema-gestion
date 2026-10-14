@@ -9,6 +9,7 @@ import type {
 import * as schema from "../../../src/db/schema";
 import {
   AccessDeniedError,
+  authorizeUser,
   type AuthenticatedUser,
 } from "../../../src/main/controllers/auth-context";
 import {
@@ -214,6 +215,25 @@ describe("conexión del restablecimiento de contraseña de usuarios (RF58)", () 
         ),
     });
   }
+
+  it.each([
+    { persisted: "trabajador" as const, effective: "dueno" as const, allowed: true },
+    { persisted: "dueno" as const, effective: "trabajador" as const, allowed: false },
+  ])("autoriza el listado con rol efectivo $effective aunque el persistido sea $persisted", async ({ persisted, effective, allowed }) => {
+    const usuarioId = "11111111-1";
+    await testDb!.db.run(sql`UPDATE usuario SET usuario_rol = ${persisted} WHERE usuario_id = ${usuarioId}`);
+    const controller = createUserManagementController({
+      authorize: (id, roles, sessionRole) => authorizeUser(testDb!.db, schema, id, roles, sessionRole),
+      listUsers: async () => users,
+      requestPasswordReset: async () => ({ ok: false, error: { code: "FORBIDDEN", message: "No usado" } }),
+    });
+    const response = await controller.handle({ usuarioId }, {
+      channel: "usuario:listar",
+      claims: { usuarioId, rol: effective, usuarioRol: effective, passwordTemporal: false, sesionId: "sesion" },
+    });
+    expect(response.ok).toBe(allowed);
+    if (!response.ok) expect(response.error.code).toBe("FORBIDDEN");
+  });
 
   it("permite que un solicitante dueno cree un registro de contraseña temporal de 24h", async () => {
     const response = await createDbBackedController().handle(

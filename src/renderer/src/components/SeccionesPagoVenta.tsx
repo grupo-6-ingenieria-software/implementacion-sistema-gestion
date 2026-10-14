@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { parseClpAmount } from "../../../shared/numbers";
 import type { PaymentMethod } from "../../../shared/sales";
 
 type SeccionesPagoVentaProps = {
@@ -16,8 +17,8 @@ export function SeccionesPagoVenta({
   onMetodoChange,
   onMontoRecibidoChange,
 }: SeccionesPagoVentaProps): ReactElement {
-  const received = Number(montoRecibido || 0);
-  const vuelto = total === null ? null : Math.max(0, received - total);
+  const received = parseClpAmount(montoRecibido);
+  const vuelto = total === null || received === null ? null : Math.max(0, received - total);
 
   return (
     <div className="rounded-md border border-[#cbd5df] bg-white p-4">
@@ -51,6 +52,7 @@ export function SeccionesPagoVenta({
               onChange={(event) => onMontoRecibidoChange(event.target.value)}
             />
           </label>
+          {montoRecibido !== "" && received === null ? <p role="alert" className="text-sm text-[#9f2d20]">Ingrese un monto recibido en pesos enteros y dentro del rango permitido.</p> : null}
           <div className="rounded-md border border-[#d7dee6] bg-[#f8fafb] px-3 py-2">
             <p className="text-xs font-semibold uppercase text-[#61717f]">
               Vuelto

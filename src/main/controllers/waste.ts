@@ -212,8 +212,6 @@ export async function registerWasteWithExecutor(
   const lotesDescontados = planWasteDiscounts(product, lots, payload.cantidad);
   const motivo = payload.motivo as WasteReason;
 
-  await updateWasteLots(executor, schema, lotesDescontados);
-
   await executor.insert(schema.merma).values({
     mermaId,
     mermaMotivo: motivo,
@@ -228,6 +226,7 @@ export async function registerWasteWithExecutor(
       loteId: lot.loteId,
       mermaLoteCantidadDescontada: lot.cantidad,
     });
+    await updateWasteLots(executor, schema, [lot]);
 
     await executor.insert(schema.ajusteInventario).values({
       ajusteCantidad: -lot.cantidad,

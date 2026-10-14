@@ -1,5 +1,6 @@
 import { controllers } from "../../shared/controllers";
 import { db } from "../../db/client";
+import { NumericRangeError } from "../../shared/numbers";
 import {
   controllerError,
   controllerSuccess,
@@ -103,7 +104,7 @@ export function createSaleController(
           return controllerError("VALIDATION_ERROR", error.message, "sale");
         }
 
-        if (error instanceof SaleBusinessError) {
+        if (error instanceof SaleBusinessError || error instanceof NumericRangeError) {
           return controllerError("BUSINESS_RULE", error.message, "sale");
         }
 

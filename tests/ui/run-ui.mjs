@@ -17,7 +17,6 @@ import { fileURLToPath } from "node:url";
 import { styleText } from "node:util";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const bin = (name) => join(root, "node_modules", ".bin", name);
 const color = (style, text) => styleText(style, text, { stream: process.stdout });
 const secs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`);
 
@@ -46,12 +45,12 @@ const groups = [
     // inventory-ui.mts solo envuelve la config de Vitest del grupo siguiente.
     items: list("tests/renderer", /-ui\.m[jt]s$/)
       .filter((file) => !file.endsWith("inventory-ui.mts"))
-      .map((file) => (nativeTs(file) ? { file, cmd: process.execPath, args: [file] } : { file, cmd: bin("tsx"), args: [file] })),
+      .map((file) => ({ file, cmd: process.execPath, args: nativeTs(file) ? [file] : ["--import", "tsx", file] })),
   },
   {
     label: "Chromium (Vitest)",
     parallel: 1,
-    items: [{ file: "tests/renderer/inventory-ui.chromium.ts", cmd: bin("vitest"), args: ["run", "-c", "tests/renderer/inventory-ui.vitest.config.ts"] }],
+    items: [{ file: "tests/renderer/inventory-ui.chromium.ts", cmd: process.execPath, args: [join(root, "node_modules", "vitest", "vitest.mjs"), "run", "-c", "tests/renderer/inventory-ui.vitest.config.ts"] }],
   },
   {
     label: "Electron",
@@ -65,7 +64,7 @@ const TIMEOUT = 5 * 60 * 1000;
 function run({ cmd, args }) {
   return new Promise((done) => {
     const started = performance.now();
-    const child = spawn(cmd, args, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" } });
+    const child = spawn(cmd, args, { cwd: root, env: { ...process.env, DATABASE_URL: "file::memory:", DATABASE_AUTH_TOKEN: "", FORCE_COLOR: "0" } });
     let output = "";
     child.stdout.on("data", (d) => (output += d));
     child.stderr.on("data", (d) => (output += d));

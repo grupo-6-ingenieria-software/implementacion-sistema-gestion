@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
+import { applyTriggers } from "../../../src/db/init";
 import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
 import {
   createLotController,
@@ -33,6 +34,27 @@ afterEach(async () => {
 });
 
 describe("controlador de lotes", () => {
+  it.each([{ cantidad: 1e17 }, { precioCosto: 1e17 }])("rechaza campos de lote no seguros %j sin persistir", async (override) => {
+    await expect(testDb!.db.transaction(tx => registerLotWithExecutor(tx, schema, {
+      ean13: "7802920000022", cantidad: 1, precioCosto: 700, proveedorId: 1, usuarioId: "12345678-9", ...override,
+    }))).rejects.toMatchObject({ reason: "validation" });
+    expect(await testDb!.db.select().from(schema.lote)).toHaveLength(0);
+  });
+  it("rechaza una fracción grande de unidades antes de que Number la redondee", async () => {
+    const controller = createLotController({
+      listProviders: async () => [],
+      register: (input) => testDb!.db.transaction(tx => registerLotWithExecutor(tx, schema, input)),
+    });
+    const response = await controller.handle({
+      ean13: "7802920000022", cantidad: "5000000000000000.5", precioCosto: 1,
+      proveedorId: 1, usuarioId: "12345678-9",
+    }, { channel: "lote:registrar" });
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION_ERROR", fieldErrors: { cantidad: expect.any(String) } },
+    });
+    expect(await testDb!.db.select().from(schema.lote)).toHaveLength(0);
+  });
   it("traduce fallos de autorización a respuestas prohibidas", async () => {
     const controller = createLotController({
       listProviders: async () => [],
@@ -272,6 +294,7 @@ async function createTestDatabase() {
     await client.executeMultiple(migration);
   }
 
+  await applyTriggers(client, join(process.cwd(), "src/db/triggers.sql"));
   return { client, db, dir, queries };
 }
 

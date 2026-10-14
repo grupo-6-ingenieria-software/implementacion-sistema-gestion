@@ -1,6 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import type { Role } from "../../shared/navigation";
+import { assertInventoryTotals } from "./sql-validation-primitives";
+import { checkedAdd, NumericRangeError } from "../../shared/numbers";
 import {
   normalizeStockAdjustmentPayload,
   validateStockAdjustmentPayload,
@@ -156,6 +158,9 @@ export function createStockAdjustmentController(
           };
         }
 
+        if (error instanceof NumericRangeError) {
+          return { ok: false, error: { code: "BUSINESS_RULE", controllerId: "stock-adjustment", message: error.message } };
+        }
         if (error instanceof StockAdjustmentError) {
           return {
             ok: false,
@@ -211,8 +216,15 @@ async function executeAdjustment(payload: {
   usuarioId: string;
 }): Promise<StockAdjustmentResponse> {
   const { db, schema } = await import("../../db/client");
+  return executeAdjustmentWithExecutor(db, schema, payload);
+}
 
-  return db.transaction(async (tx) => {
+export async function executeAdjustmentWithExecutor(
+  database: Pick<typeof import("../../db/client").db, "transaction">,
+  schema: typeof import("../../db/schema"),
+  payload: Parameters<typeof executeAdjustment>[0],
+): Promise<StockAdjustmentResponse> {
+  return database.transaction(async (tx) => {
     const product = await queryActiveProductByEan13(
       tx,
       schema,
@@ -246,7 +258,7 @@ async function executeAdjustment(payload: {
     }
 
     const currentQty = Number(lot.cantidadActual);
-    const newQty = currentQty + payload.cantidad;
+    const newQty = checkedAdd(currentQty, payload.cantidad);
 
     if (newQty < 0) {
       throw new StockAdjustmentError(
@@ -276,6 +288,7 @@ async function executeAdjustment(payload: {
       );
     }
 
+    await assertInventoryTotals(tx);
     const [adjustment] = await tx
       .insert(schema.ajusteInventario)
       .values({

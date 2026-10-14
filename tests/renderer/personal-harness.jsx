@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { WorkerFormView } from '../../src/renderer/src/views/WorkerFormView';
 import { WorkerListView } from '../../src/renderer/src/views/WorkerListView';
 import { ShiftCreateView } from '../../src/renderer/src/views/ShiftCreateView';
+import { RegistrarRemuneracionView } from '../../src/renderer/src/views/RegistrarRemuneracionView';
 
 window.calls = [];
 window.appApi = {
@@ -19,7 +20,9 @@ window.appApi = {
 
 const params = new URL(location.href).searchParams;
 const view = params.get('view');
-createRoot(document.getElementById('root')).render(view === 'shift'
+createRoot(document.getElementById('root')).render(view === 'salary'
+  ? <RegistrarRemuneracionView usuarioId="11111111-1" onNavigate={() => undefined} />
+  : view === 'shift'
   ? <ShiftCreateView currentPath="/app/personal/turnos/nuevo" usuarioId="11111111-1" onNavigate={() => undefined} />
   : view === 'list'
     ? <WorkerListView role={params.get('role') === 'trabajador' ? 'trabajador' : 'dueno'} usuarioId="11111111-1" onNavigate={() => undefined} />

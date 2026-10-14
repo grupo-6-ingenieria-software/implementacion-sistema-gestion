@@ -1,3 +1,4 @@
+import { parseClpAmount, parseIntegerInput } from "./numbers";
 import { isValidEan13, normalizeEan13 } from "./ean13";
 
 export const SUPPLIER_ORDERS_UPDATED_EVENT = "pedido:actualizado";
@@ -171,7 +172,7 @@ export function normalizeSupplierOrderCreatePayload(
       return {
         ean13:
           typeof item.ean13 === "string" ? normalizeEan13(item.ean13) : "",
-        cantidad: normalizeNumber(item.cantidad),
+        cantidad: parseIntegerInput(item.cantidad),
       };
     }),
     usuarioId: normalizeOptionalText(record.usuarioId),
@@ -183,7 +184,7 @@ export function validateSupplierOrderCreatePayload(
 ): SupplierOrderFieldErrors {
   const errors: SupplierOrderFieldErrors = {};
 
-  if (!Number.isInteger(payload.proveedorId) || payload.proveedorId <= 0) {
+  if (!Number.isSafeInteger(payload.proveedorId) || payload.proveedorId <= 0) {
     errors.proveedorId = "Seleccione un proveedor existente.";
   }
 
@@ -197,7 +198,7 @@ export function validateSupplierOrderCreatePayload(
       errors[`lineas.${index}.ean13`] = "Ingrese un EAN-13 válido.";
     }
 
-    if (!Number.isInteger(line.cantidad) || line.cantidad <= 0) {
+    if (!Number.isSafeInteger(line.cantidad) || line.cantidad <= 0) {
       errors[`lineas.${index}.cantidad`] =
         "La cantidad debe ser un entero mayor que cero.";
     }
@@ -254,7 +255,7 @@ export function normalizeSupplierOrderReceptionPayload(
       return {
         detallePedidoId:
           normalizeOptionalText(item.detallePedidoId) ?? "",
-        cantidad: normalizeNumber(item.cantidad),
+        cantidad: parseIntegerInput(item.cantidad),
         precioCosto: normalizeOptionalNumber(item.precioCosto),
         fechaVencimiento: normalizeOptionalText(item.fechaVencimiento),
       };
@@ -291,14 +292,14 @@ export function validateSupplierOrderReceptionShape(
     }
     seen.add(line.detallePedidoId);
 
-    if (!Number.isInteger(line.cantidad) || line.cantidad < 0) {
+    if (!Number.isSafeInteger(line.cantidad) || line.cantidad < 0) {
       errors[`lineas.${index}.cantidad`] =
         "La cantidad debe ser un entero mayor o igual que cero.";
     }
 
     if (
       line.cantidad > 0 &&
-      (!Number.isInteger(line.precioCosto) || Number(line.precioCosto) <= 0)
+      (!Number.isSafeInteger(line.precioCosto) || Number(line.precioCosto) <= 0)
     ) {
       errors[`lineas.${index}.precioCosto`] =
         "El costo debe ser un entero mayor que cero.";
@@ -359,7 +360,7 @@ function normalizeNumber(value: unknown): number {
 }
 
 function normalizeOptionalNumber(value: unknown): number | undefined {
-  const normalized = normalizeNumber(value);
+  const normalized = parseClpAmount(value) ?? Number.NaN;
   return Number.isNaN(normalized) ? undefined : normalized;
 }
 

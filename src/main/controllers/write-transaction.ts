@@ -1,5 +1,3 @@
-import type { DbExecutor } from "./sale-service";
-
 const MAX_WRITE_ATTEMPTS = 3;
 
 /**
@@ -7,9 +5,9 @@ const MAX_WRITE_ATTEMPTS = 3;
  * competidora puede recibir SQLITE_BUSY; al reintentar, vuelve a ejecutar todas
  * las lecturas de dominio dentro de una transacción nueva y ve el estado ganador.
  */
-export async function runSerializedWriteTransaction<T>(
-  database: DbExecutor,
-  callback: (tx: DbExecutor) => Promise<T>,
+export async function runSerializedWriteTransaction<T, TExecutor>(
+  database: { transaction: <TResult>(callback: (tx: TExecutor) => Promise<TResult>) => Promise<TResult> },
+  callback: (tx: TExecutor) => Promise<T>,
 ): Promise<T> {
   for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
     try {

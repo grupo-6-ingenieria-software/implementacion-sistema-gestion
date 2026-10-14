@@ -44,6 +44,27 @@
       {
         "file": "tests/main/controllers/product-write.test.ts",
         "test": "controladores de escritura de productos > traduce errores de EAN-13 duplicado a validación de campo"
+      },
+      {
+        "file": "tests/main/controllers/product-write.integration.test.ts",
+        "test": "persistencia de escritura de productos > rechaza CU1 E4 precio costo inseguro en SQL parametrizado sin escrituras",
+        "tambien": [
+          "RF02"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/product-write.integration.test.ts",
+        "test": "persistencia de escritura de productos > rechaza CU1 E4 precio venta inseguro en SQL parametrizado sin escrituras",
+        "tambien": [
+          "RF02"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/product-write.integration.test.ts",
+        "test": "persistencia de escritura de productos > rechaza CU1 E4 stock mínimo inseguro en SQL parametrizado sin escrituras",
+        "tambien": [
+          "RF02"
+        ]
       }
     ],
     "RF02": [
@@ -238,6 +259,34 @@
       {
         "file": "tests/shared/lots.test.ts",
         "test": "helpers de validación de lotes > exige una fecha de vencimiento futura cuando la categoría lo requiere"
+      },
+      {
+        "file": "tests/main/controllers/lot.test.ts",
+        "test": "controlador de lotes > rechaza campos de lote no seguros {\"cantidad\":100000000000000000} sin persistir"
+      },
+      {
+        "file": "tests/main/controllers/lot.test.ts",
+        "test": "controlador de lotes > rechaza campos de lote no seguros {\"precioCosto\":100000000000000000} sin persistir"
+      },
+      {
+        "file": "tests/main/controllers/lot.test.ts",
+        "test": "controlador de lotes > rechaza una fracción grande de unidades antes de que Number la redondee"
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > revierte un lote cuyos operandos seguros producen valorización insegura",
+        "tambien": [
+          "RF19",
+          "RF58"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > rechaza una entrada que desborda la suma de lotes",
+        "tambien": [
+          "RF19",
+          "RF58"
+        ]
       }
     ],
     "RF06": [
@@ -444,6 +493,10 @@
       {
         "file": "tests/shared/waste.test.ts",
         "test": "helpers de merma > acepta un payload válido con la observación opcional omitida"
+      },
+      {
+        "file": "tests/main/controllers/waste.test.ts",
+        "test": "controlador de merma > merma la última unidad sin dejar vínculos ni saldos inconsistentes"
       }
     ],
     "RF11": [
@@ -553,6 +606,14 @@
       {
         "file": "tests/shared/inventory-detail.test.ts",
         "test": "validación del payload de ajuste de stock > informa todos los errores de campo simultáneamente"
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > revierte el ajuste cuando la valorización resultante sale de rango",
+        "tambien": [
+          "RF19",
+          "RF58"
+        ]
       }
     ],
     "RF12": [
@@ -1167,6 +1228,13 @@
       {
         "file": "tests/main/controllers/supplier-order.test.ts",
         "test": "CU17 registro de pedidos a proveedor > rechaza cantidad solicitada inválida 1.5"
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > rechaza cantidades de pedido que desbordan su total antes de guardar",
+        "tambien": [
+          "RF18"
+        ]
       }
     ],
     "RF18": [
@@ -1230,6 +1298,14 @@
         "test": "CU18b cancelación de pedidos y cierre de saldos > rechaza nuevas recepciones para pedidos recibidos, cancelados y con cierre parcial",
         "tambien": [
           "RF17"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > revierte lote, recepción y saldo de pedido al desbordar valorización",
+        "tambien": [
+          "RF19",
+          "RF58"
         ]
       }
     ],
@@ -1296,6 +1372,15 @@
       {
         "file": "tests/shared/controllers.test.ts",
         "test": "registro de controladores > agrega el controlador de solo lectura de CU19"
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > detecta un stock antiguo no seguro sin fallar en el decoder de libSQL",
+        "tambien": [
+          "RF06",
+          "RF08",
+          "RF55"
+        ]
       }
     ],
     "RF20": [
@@ -1745,6 +1830,38 @@
         "tambien": [
           "RF21"
         ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > bloquea cambiar el rol del último dueño sin escrituras",
+        "tambien": [
+          "RF23",
+          "RF57"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > un dueño inactivo no permite degradar al último activo",
+        "tambien": [
+          "RF23",
+          "RF57"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > permite cambiar el propio rol si queda otro dueño activo",
+        "tambien": [
+          "RF23",
+          "RF57"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > serializa dos degradaciones concurrentes y conserva un dueño",
+        "tambien": [
+          "RF23",
+          "RF57"
+        ]
       }
     ],
     "RF23": [
@@ -1835,6 +1952,22 @@
         "test": "notifySessionInvalidated (CU23, D10) > registra en el log y retorna cuando no se puede leer la lista de ventanas",
         "tambien": [
           "RF56"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > bloquea cambiar el estado del último dueño sin escrituras",
+        "tambien": [
+          "RF57",
+          "RF58"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/worker.test.ts",
+        "test": "continuidad del último dueño activo > permite inactivarse si queda otro dueño y notifica después del commit",
+        "tambien": [
+          "RF57",
+          "RF58"
         ]
       }
     ],
@@ -3326,6 +3459,18 @@
       {
         "file": "tests/shared/remuneraciones.test.ts",
         "test": "módulo compartido de remuneraciones > normaliza y valida un payload de periodo de forma independiente de trabajador/bruto"
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > redondea descuentos previsionales con mitad exacta hacia arriba incluso en el límite"
+      },
+      {
+        "file": "tests/shared/remuneraciones.test.ts",
+        "test": "módulo compartido de remuneraciones > interpreta miles del bruto sin truncar importes inválidos"
+      },
+      {
+        "file": "tests/shared/remuneraciones.test.ts",
+        "test": "módulo compartido de remuneraciones > rechaza una suma previsional fuera de rango aunque sus descuentos sean seguros"
       }
     ],
     "RF35": [
@@ -3525,6 +3670,36 @@
         "test": "eventos de actualización del dashboard > mantiene la respuesta exitosa de venta cuando falla la notificación del dashboard",
         "tambien": [
           "RF44"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > rechaza un subtotal no seguro y efectivo no seguro sin crear venta",
+        "tambien": [
+          "RF39"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > revierte una venta que desborda el acumulado del día",
+        "tambien": [
+          "RF39",
+          "RF44",
+          "RF55"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > rechaza cantidades duplicadas cuyo acumulado no es seguro",
+        "tambien": [
+          "RF39"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > rechaza un carrito con líneas seguras cuyo total no lo es",
+        "tambien": [
+          "RF39"
         ]
       }
     ],
@@ -3881,6 +4056,14 @@
       {
         "file": "tests/main/controllers/sale-annulment-controller.test.ts",
         "test": "CU38 controlador de anulación de ventas > oculta los detalles inesperados de persistencia"
+      },
+      {
+        "file": "tests/main/controllers/numeric-transactions.test.ts",
+        "test": "precisión transaccional de inventario y ventas > revierte la anulación completa si su restitución desborda inventario",
+        "tambien": [
+          "RF19",
+          "RF58"
+        ]
       }
     ],
     "RF39": [
@@ -3915,11 +4098,39 @@
       },
       {
         "file": "tests/main/controllers/stock-discount.test.ts",
-        "test": "servicio de descuento de stock C17 > planifica FEFO antes de la persistencia y aplica UPDATE antes de venta_lote"
+        "test": "servicio de descuento de stock C17 > planifica FEFO y registra el consumo sobre el stock previo"
       },
       {
         "file": "tests/main/controllers/stock-discount.test.ts",
         "test": "servicio de descuento de stock C17 > rechaza stock insuficiente durante la planificación sin ejecutar escrituras",
+        "tambien": [
+          "RF36"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/sale-service.test.ts",
+        "test": "registerSale > vende 4 de seis unidades con los triggers instalados",
+        "tambien": [
+          "RF36"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/sale-service.test.ts",
+        "test": "registerSale > vende 5 de seis unidades con los triggers instalados",
+        "tambien": [
+          "RF36"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/sale-service.test.ts",
+        "test": "registerSale > vende 6 de seis unidades con los triggers instalados",
+        "tambien": [
+          "RF36"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/sale-service.test.ts",
+        "test": "registerSale > vende la última unidad de un lote con los triggers instalados",
         "tambien": [
           "RF36"
         ]
@@ -7459,6 +7670,20 @@
         "tambien": [
           "RF10"
         ]
+      },
+      {
+        "file": "tests/main/controllers/user-management.test.ts",
+        "test": "conexión del restablecimiento de contraseña de usuarios (RF58) > autoriza el listado con rol efectivo 'dueno' aunque el persistido sea 'trabajador'",
+        "tambien": [
+          "RF22"
+        ]
+      },
+      {
+        "file": "tests/main/controllers/user-management.test.ts",
+        "test": "conexión del restablecimiento de contraseña de usuarios (RF58) > autoriza el listado con rol efectivo 'trabajador' aunque el persistido sea 'dueno'",
+        "tambien": [
+          "RF22"
+        ]
       }
     ],
     "RF58": [
@@ -8405,6 +8630,187 @@
       {
         "file": "tests/shared/controllers.test.ts",
         "test": "registro de controladores > asigna al menos un canal IPC a cada controlador"
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > interpreta 500000 como quinientos mil pesos",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > interpreta 500.000 como quinientos mil pesos",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > interpreta  500.000  como quinientos mil pesos",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 500.99",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 5.00",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 500,50",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 1e6",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 0x100",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 99999999999999999",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido ",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido -1",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza dinero inválido 9007199254740992",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > admite el límite exacto y rechaza productos o acumulaciones no seguros",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > interpreta miles de forma consistente en producto, lote y recepción",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF18",
+          "RF34",
+          "RF36",
+          "RF37"
+        ]
+      },
+      {
+        "file": "tests/shared/numbers.test.ts",
+        "test": "precisión de CLP y unidades > rechaza fracciones de unidades que Number redondearía a un entero seguro",
+        "tambien": [
+          "RF01",
+          "RF05",
+          "RF10",
+          "RF11",
+          "RF17",
+          "RF18",
+          "RF36"
+        ]
       }
     ]
   }

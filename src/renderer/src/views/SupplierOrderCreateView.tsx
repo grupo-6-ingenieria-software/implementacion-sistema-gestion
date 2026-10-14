@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { isValidEan13 } from "../../../shared/ean13";
+import { parseIntegerInput } from "../../../shared/numbers";
 import type { LotProviderOption } from "../../../shared/lots";
 import type { ActiveProductSearchItem } from "../../../shared/products";
 import {
@@ -75,13 +76,13 @@ export function SupplierOrderCreateView({
   async function addProduct(): Promise<void> {
     setMessage(null);
     setErrors({});
-    const numericQuantity = Number(quantity);
+    const numericQuantity = parseIntegerInput(quantity);
 
     if (!isValidEan13(ean13)) {
       setErrors({ ean13: "Ingrese un EAN-13 válido." });
       return;
     }
-    if (!Number.isInteger(numericQuantity) || numericQuantity <= 0) {
+    if (!Number.isSafeInteger(numericQuantity) || numericQuantity <= 0) {
       setErrors({ cantidad: "La cantidad debe ser un entero mayor que cero." });
       return;
     }

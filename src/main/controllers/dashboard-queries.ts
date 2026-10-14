@@ -1,3 +1,4 @@
+import { checkedAdd, checkedMultiply, safeInteger } from "../../shared/numbers";
 import { sql, type SQL } from "drizzle-orm";
 import type {
   AttendanceSummary,
@@ -66,7 +67,7 @@ export async function loadStockAlerts(
     minimumStock: number;
   }>(sql`
     SELECT producto_id AS productId, producto_nombre AS productName, producto_ean_13 AS ean13,
-      categoria_id AS categoryId, producto_stock_minimo AS minimumStock FROM producto WHERE producto_estado = 'activo'
+      categoria_id AS categoryId, CAST(producto_stock_minimo AS TEXT) AS minimumStock FROM producto WHERE producto_estado = 'activo'
   `);
   const categories = await database.all<{
     categoryId: number;
@@ -78,10 +79,10 @@ export async function loadStockAlerts(
     productId: number;
     currentStock: number;
   }>(sql`
-    SELECT producto_id AS productId, SUM(lote_cantidad_actual) AS currentStock FROM lote GROUP BY producto_id
+    SELECT producto_id AS productId, TOTAL(lote_cantidad_actual) AS currentStock FROM lote GROUP BY producto_id
   `);
   const stockById = new Map(
-    stocks.map((row) => [row.productId, Number(row.currentStock)]),
+    stocks.map((row) => [row.productId, safeInteger(row.currentStock)]),
   );
   const categoryById = new Map(
     categories.map((row) => [row.categoryId, row.categoryName]),
@@ -91,7 +92,7 @@ export async function loadStockAlerts(
       productName: row.productName,
       ean13: row.ean13,
       categoryName: categoryById.get(row.categoryId) ?? "",
-      minimumStock: Number(row.minimumStock),
+      minimumStock: safeInteger(row.minimumStock),
       currentStock: stockById.get(row.productId) ?? 0,
     }))
     .filter((row) => row.currentStock <= row.minimumStock)
@@ -112,7 +113,7 @@ export async function loadExpirationAlerts(
     productId: number;
     availableQuantity: number;
   }>(sql`
-    SELECT lote_id AS lotId, producto_id AS productId, lote_cantidad_actual AS availableQuantity
+    SELECT lote_id AS lotId, producto_id AS productId, CAST(lote_cantidad_actual AS TEXT) AS availableQuantity
     FROM lote WHERE lote_cantidad_actual > 0
   `);
   const dates = await database.all<{
@@ -142,7 +143,7 @@ export async function loadExpirationAlerts(
       lotId: lot.lotId,
       productName: product.productName,
       ean13: product.ean13,
-      availableQuantity: Number(lot.availableQuantity),
+      availableQuantity: safeInteger(lot.availableQuantity),
       expirationDate,
       daysRemaining,
     });
@@ -174,7 +175,7 @@ export async function loadDailySaleRows(
     Omit<SaleRow, "subtotal"> & { saleId: string }
   >(sql`
     SELECT venta_id AS saleId, venta_estado AS state, venta_metodo_pago AS paymentMethod,
-      venta_descuento_tipo AS discountType, venta_descuento_valor AS discountValue
+      venta_descuento_tipo AS discountType, CAST(venta_descuento_valor AS TEXT) AS discountValue
     FROM venta WHERE datetime(venta_fecha_hora) >= datetime(${startUtc}) AND datetime(venta_fecha_hora) < datetime(${endUtc})
   `);
   if (!sales.length) return [];
@@ -187,12 +188,12 @@ export async function loadDailySaleRows(
     quantity: number;
     priceId: string;
   }>(sql`
-    SELECT venta_id AS saleId, detalle_venta_cantidad AS quantity, historial_precio_producto_id AS priceId
+    SELECT venta_id AS saleId, CAST(detalle_venta_cantidad AS TEXT) AS quantity, historial_precio_producto_id AS priceId
     FROM detalle_venta WHERE venta_id IN (${ids})
   `);
   const prices = details.length
     ? await database.all<{ priceId: string; price: number }>(sql`
-    SELECT historial_precio_producto_id AS priceId, historial_precio_venta AS price FROM historial_precio_producto
+    SELECT historial_precio_producto_id AS priceId, CAST(historial_precio_venta AS TEXT) AS price FROM historial_precio_producto
     WHERE historial_precio_producto_id IN (${sql.join(
       details.map((row) => sql`${row.priceId}`),
       sql`, `,
@@ -200,14 +201,16 @@ export async function loadDailySaleRows(
   `)
     : [];
   const byPrice = new Map(
-    prices.map((row) => [row.priceId, Number(row.price)]),
+    prices.map((row) => [row.priceId, safeInteger(row.price)]),
   );
   const subtotals = new Map<string, number>();
   for (const detail of details)
     subtotals.set(
       detail.saleId,
-      (subtotals.get(detail.saleId) ?? 0) +
-        Number(detail.quantity) * (byPrice.get(detail.priceId) ?? 0),
+      checkedAdd(
+        subtotals.get(detail.saleId) ?? 0,
+        checkedMultiply(safeInteger(detail.quantity), byPrice.get(detail.priceId) ?? 0),
+      ),
     );
   return sales.map(({ saleId, ...sale }) => ({
     ...sale,
@@ -221,10 +224,10 @@ export function summarizeDailySales(rows: SaleRow[]): DailySalesSummary {
       const amount = calculateSaleAmount(row);
 
       if (row.state === "anulada") {
-        summary.voidedAmount += amount;
+        summary.voidedAmount = checkedAdd(summary.voidedAmount, amount);
         summary.voidedTransactions += 1;
       } else {
-        summary.currentAmount += amount;
+        summary.currentAmount = checkedAdd(summary.currentAmount, amount);
         summary.currentTransactions += 1;
       }
 
@@ -281,10 +284,10 @@ export function buildCashSummary(
     const amount = calculateSaleAmount(row);
 
     if (row.state === "anulada") {
-      methodSummary.voidedAmount += amount;
+      methodSummary.voidedAmount = checkedAdd(methodSummary.voidedAmount, amount);
       methodSummary.voidedTransactions += 1;
     } else {
-      methodSummary.currentAmount += amount;
+      methodSummary.currentAmount = checkedAdd(methodSummary.currentAmount, amount);
       methodSummary.currentTransactions += 1;
     }
   }
@@ -353,5 +356,12 @@ export async function loadAttendanceSummary(
 }
 
 export function calculateSaleAmount(row: SaleRow): number {
-  return calculateRecordedSaleTotal(row);
+  const discountValue = row.discountValue == null ? null
+    : row.discountType === "porcentaje" ? Number(row.discountValue)
+    : safeInteger(row.discountValue);
+  return safeInteger(calculateRecordedSaleTotal({
+    ...row,
+    subtotal: safeInteger(row.subtotal),
+    discountValue,
+  }));
 }
