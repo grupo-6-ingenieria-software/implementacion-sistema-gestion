@@ -149,11 +149,11 @@ export function AuditLogView({
         Consulta de los últimos 12 meses; los registros son de solo lectura.
       </p>
       <section className="rounded-md border border-[#cbd5df] bg-white p-5 shadow-sm">
-        <div className="grid gap-4 xl:grid-cols-[1fr_220px_180px_180px]">
-          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px_180px_180px]">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#24313d]">
             Usuario
             <select
-              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              className="w-full min-w-0 rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={filters.usuarioFiltroId}
               onChange={(event) =>
                 setFilters((current) => ({
@@ -170,10 +170,10 @@ export function AuditLogView({
               ))}
             </select>
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#24313d]">
             Tipo de accion
             <select
-              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              className="w-full min-w-0 rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               value={filters.tipoAccion}
               onChange={(event) =>
                 setFilters((current) => ({
@@ -190,10 +190,10 @@ export function AuditLogView({
               ))}
             </select>
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#24313d]">
             Fecha desde
             <input
-              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              className="w-full min-w-0 rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               type="date"
               min={getAuditDateInput(queryWindow.desde)}
               max={getAuditDateInput(queryWindow.hasta)}
@@ -206,10 +206,10 @@ export function AuditLogView({
               }
             />
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-[#24313d]">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#24313d]">
             Fecha hasta
             <input
-              className="rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
+              className="w-full min-w-0 rounded-md border border-[#9ba9b5] px-3 py-2 font-normal"
               type="date"
               min={getAuditDateInput(queryWindow.desde)}
               max={getAuditDateInput(queryWindow.hasta)}
