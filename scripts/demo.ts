@@ -51,16 +51,6 @@ try {
   client.close();
 }
 
-console.log(`
-=== DEMO RF18 + RF36 ===
-SQLite local: ${databasePath}
-Usuario: 12345678-9 | Contraseña: Huascar2026
-RF18: recibir Producto Demo: 10 a $900; Galletas Demo: 5 a $600.
-RF36: vender Producto Demo: 2; Galletas Demo: 1. Total $4.000; efectivo $5.000; vuelto $1.000.
-EAN-13: Producto Demo 7802920000015 | Galletas Demo 7802920000022.
-Stock esperado: Producto Demo 0 → 10 → 8; Galletas Demo 0 → 5 → 4.
-Cada ejecución crea otra base limpia.
-`);
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   DATABASE_URL: `file:${databasePath}`,
@@ -72,7 +62,7 @@ delete env.ELECTRON_RUN_AS_NODE;
 delete env.ELECTRON_RENDERER_URL;
 const app = spawn(process.execPath, [
   resolve(root, "node_modules/electron-vite/bin/electron-vite.js"),
-  "dev", "--outDir", resolve(directory, "app"), "--clearScreen", "false", "--logLevel", "error",
+  "dev", "--outDir", resolve(directory, "app"),
   "--entry", resolve(directory, "app/main/index.js"),
   ...process.argv.slice(2),
 ], { cwd: root, env, stdio: "inherit" });
