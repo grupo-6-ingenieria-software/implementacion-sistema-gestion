@@ -30,16 +30,16 @@ try {
     });
     await tx.insert(schema.usuario).values({ usuarioId: "12345678-9", usuarioRol: "dueno", trabajadorId: 1 });
     await tx.insert(schema.contrasena).values({ contrasenaHash: await bcrypt.hash("Huascar2026", 10), usuarioId: "12345678-9", generadaPorUsuarioId: "12345678-9" });
-    await tx.insert(schema.categoria).values({ categoriaId: 1, categoriaNombre: "Demo no perecibles", categoriaExigeVencimiento: false });
+    await tx.insert(schema.categoria).values({ categoriaId: 1, categoriaNombre: "Abarrotes", categoriaExigeVencimiento: false });
     await tx.insert(schema.producto).values([
-      { productoId: 1, productoEan13: "7802920000015", productoNombre: "Producto Demo", productoPrecioVenta: 1500, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
-      { productoId: 2, productoEan13: "7802920000022", productoNombre: "Galletas Demo", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
+      { productoId: 1, productoEan13: "7802920000015", productoNombre: "Arroz grano largo 1 kg", productoPrecioVenta: 1500, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
+      { productoId: 2, productoEan13: "7802920000022", productoNombre: "Galletas de vainilla 150 g", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
     ]);
     await tx.insert(schema.historialPrecioProducto).values([
       { productoId: 1, historialPrecioVenta: 1500, historialPrecioCosto: 900 },
       { productoId: 2, historialPrecioVenta: 1000, historialPrecioCosto: 600 },
     ]);
-    await tx.insert(schema.proveedor).values({ proveedorId: 1, proveedorRut: "76543210-1", proveedorNombreRazonSocial: "Proveedor Demo", proveedorNombreContacto: "Contacto Demo", proveedorTelefono: "912345678", proveedorCorreoElectronico: "demo@example.test" });
+    await tx.insert(schema.proveedor).values({ proveedorId: 1, proveedorRut: "76543210-3", proveedorNombreRazonSocial: "Distribuidora Los Robles SpA", proveedorNombreContacto: "Carlos Muñoz", proveedorTelefono: "912345678", proveedorCorreoElectronico: "pedidos@distribuidoralosrobles.cl" });
     await tx.insert(schema.proveedorCategoria).values({ proveedorId: 1, categoriaId: 1 });
     await tx.insert(schema.pedidoProveedor).values({ pedidoProveedorId: "18000000-0000-4000-8000-000000000001", proveedorId: 1, usuarioEmisorId: "12345678-9", pedidoProveedorEstado: "pendiente" });
     await tx.insert(schema.detallePedido).values([

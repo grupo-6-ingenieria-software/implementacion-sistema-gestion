@@ -41,14 +41,14 @@ pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anterio
 
 | Producto | EAN-13 | Pedido | Costo unitario | Precio de venta |
 |---|---|---:|---:|---:|
-| Producto Demo | 7802920000015 | 10 | $900 | $1.500 |
-| Galletas Demo | 7802920000022 | 5 | $600 | $1.000 |
+| Arroz grano largo 1 kg | 7802920000015 | 10 | $900 | $1.500 |
+| Galletas de vainilla 150 g | 7802920000022 | 5 | $600 | $1.000 |
 
 1. Proveedores → Recepciones e historial de pedidos: abrir el pedido de
-   Proveedor Demo, ingresar cantidades 10 y 5, costos 900 y 600, y confirmar.
+   Distribuidora Los Robles SpA, ingresar cantidades 10 y 5, costos 900 y 600, y confirmar.
 2. Ventas → Registrar venta: ingresar ambos EAN-13 y esperar su incorporación
-   automática; cambiar la cantidad de Producto Demo a 2 y pulsar Tab.
-   Mantener Galletas Demo en 1. Efectivo: monto recibido 5000 y confirmar.
+   automática; cambiar la cantidad de Arroz grano largo 1 kg a 2 y pulsar Tab.
+   Mantener Galletas de vainilla 150 g en 1. Efectivo: monto recibido 5000 y confirmar.
    Total 4000, vuelto 1000 y stocks finales 8 y 4.
 
 La terminal muestra logs `[RF18]` y `[RF36]` de consultas, validación y

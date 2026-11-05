@@ -1,9 +1,23 @@
 import { sql } from "drizzle-orm";
 import { db } from "../../db/client";
 
+let previousBlock = "";
+const money = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" });
+export const demoMoney = (value: number): string => money.format(value);
+
 /** Etapas de negocio, no una traza del orden de las sentencias SQL. */
-export function demoLog(rf: "RF18" | "RF36", message: () => string): void {
-  if (process.env.HUASCAR_DEMO === "1") console.log(`[${rf}] ${message()}`);
+export function demoLog(
+  rf: "RF18" | "RF36",
+  title: string,
+  fields: () => Record<string, string | number>,
+): void {
+  if (process.env.HUASCAR_DEMO !== "1") return;
+  const entries = Object.entries(fields());
+  const width = Math.max(...entries.map(([label]) => label.length));
+  const block = `[${rf}] ${title}\n${entries.map(([label, value]) => `  ${label.padEnd(width)} : ${value}`).join("\n")}`;
+  if (block === previousBlock) return;
+  previousBlock = block;
+  console.log(`\n${block}`);
 }
 
 type DemoProduct = { productoId: number; nombre: string; ean13: string; stock: number };
@@ -19,7 +33,7 @@ export async function demoStockSnapshot(): Promise<DemoProduct[]> {
     `);
   } catch (error) {
     // Los logs nunca deben convertir una operación válida en un error para la UI.
-    console.warn("[DEMO] No se pudo consultar el stock para el log.", error);
+    console.warn("[Registro] No se pudo consultar el stock para el log.", error);
     return [];
   }
 }
@@ -29,7 +43,12 @@ export async function logDemoStockChanges(rf: "RF18" | "RF36", before: DemoProdu
   for (const product of await demoStockSnapshot()) {
     const previous = before.find((row) => row.productoId === product.productoId);
     if (previous && previous.stock !== product.stock) {
-      demoLog(rf, () => `${product.nombre} | EAN-13 ${product.ean13} | stock ${previous.stock} → ${product.stock} | movimiento ${product.stock > previous.stock ? "+" : ""}${product.stock - previous.stock}.`);
+      demoLog(rf, product.stock > previous.stock ? "Entrada de inventario" : "Salida de inventario", () => ({
+        Producto: product.nombre,
+        "EAN-13": product.ean13,
+        Stock: `${previous.stock} → ${product.stock}`,
+        Movimiento: `${product.stock > previous.stock ? "+" : ""}${product.stock - previous.stock} ${Math.abs(product.stock - previous.stock) === 1 ? "unidad" : "unidades"}`,
+      }));
     }
   }
 }

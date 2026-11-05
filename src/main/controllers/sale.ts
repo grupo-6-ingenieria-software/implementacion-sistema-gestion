@@ -17,7 +17,7 @@ import { notifyDashboardUpdated } from "./dashboard-events";
 import { inspectDailyCashRegister, type CashCheckDb } from "./cash-check";
 import { searchActiveProducts, type ActiveProductQuery } from "./product-query";
 import { AccessDeniedError } from "./auth-context";
-import { demoLog, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
+import { demoLog, demoMoney, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
 import type {
   DailyCashState,
   SaleCartValidationRequest,
@@ -51,7 +51,9 @@ export function createSaleController(
           const state = await dependencies.inspectCash(
             db as unknown as CashCheckDb,
           );
-          demoLog("RF36", () => `Verificación de caja: ${state.status}.`);
+          demoLog("RF36", "Verificación de caja", () => ({
+            Estado: state.status === "sin_registro" ? "Disponible para primera venta" : state.status,
+          }));
           return controllerSuccess<DailyCashState>(state);
         }
 
@@ -67,7 +69,12 @@ export function createSaleController(
             );
           }
           if (search) {
-            for (const product of products) demoLog("RF36", () => `Producto encontrado: ${product.nombre} | EAN-13 ${product.ean13} | stock ${product.stockDisponible} | precio $${product.precioVenta}.`);
+            for (const product of products) demoLog("RF36", "Producto encontrado", () => ({
+              Producto: product.nombre,
+              "EAN-13": product.ean13,
+              Stock: product.stockDisponible,
+              Precio: demoMoney(product.precioVenta),
+            }));
           }
           return controllerSuccess(products);
         }
@@ -77,7 +84,10 @@ export function createSaleController(
             db as unknown as DbExecutor,
             payload as SaleCartValidationRequest,
           );
-          demoLog("RF36", () => `Carrito validado: ${cart.lines.map((line) => `${line.cantidad} × ${line.nombre}`).join("; ")}; subtotal $${cart.subtotal}.`);
+          demoLog("RF36", "Carrito validado", () => ({
+            ...Object.fromEntries(cart.lines.map((line, index) => [`Producto ${index + 1}`, `${line.cantidad} × ${line.nombre}`])),
+            Subtotal: demoMoney(cart.subtotal),
+          }));
           return controllerSuccess<SaleCartValidationResult>(cart);
         }
 
@@ -103,8 +113,17 @@ export function createSaleController(
             rol: context.claims.rol,
           },
         );
-        demoLog("RF36", () => `Transacción confirmada: venta ${receipt.ventaId}, pago, detalle, consumo de lotes y auditoría registrados. Responsable: ${receipt.responsable.nombre}.`);
-        demoLog("RF36", () => `Pago confirmado: ${receipt.metodoPago}; total $${receipt.total}; recibido $${receipt.montoRecibido ?? 0}; vuelto $${receipt.vuelto ?? 0}.`);
+        demoLog("RF36", "Venta confirmada", () => ({
+          Venta: receipt.ventaId,
+          Responsable: receipt.responsable.nombre,
+          Registros: "Venta, pago, detalle, consumo de lotes y auditoría",
+        }));
+        demoLog("RF36", "Pago confirmado", () => ({
+          Método: receipt.metodoPago,
+          Total: demoMoney(receipt.total),
+          ...(receipt.montoRecibido !== undefined ? { Recibido: demoMoney(receipt.montoRecibido) } : {}),
+          ...(receipt.vuelto !== undefined ? { Vuelto: demoMoney(receipt.vuelto) } : {}),
+        }));
         await logDemoStockChanges("RF36", previousStock);
         dependencies.notify();
         return controllerSuccess<SaleReceipt>(receipt);

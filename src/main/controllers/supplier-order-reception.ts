@@ -69,7 +69,12 @@ export function createSupplierOrderReceptionController(): RegisteredController<
             return { ok: true, data: await listSupplierOrders(payload) };
           case "pedido:detalle": {
             const detail = await loadSupplierOrderDetail(payload);
-            demoLog("RF18", () => `Pedido ${detail.pedidoId}: ${detail.estado}. ${detail.lineas.map((line) => `${line.nombre} | EAN-13 ${line.ean13}: solicitado ${line.cantidadSolicitada}, recibido ${line.cantidadRecibida}, pendiente ${line.cantidadPendiente}`).join("; ")}`);
+            demoLog("RF18", "Pedido consultado", () => ({
+              Pedido: detail.pedidoId,
+              Proveedor: detail.proveedorNombre,
+              Estado: detail.estado,
+              ...Object.fromEntries(detail.lineas.map((line, index) => [`Producto ${index + 1}`, `${line.nombre} · ${line.cantidadRecibida}/${line.cantidadSolicitada} recibidas`])),
+            }));
             return { ok: true, data: detail };
           }
           case "pedido:confirmar-recepcion": {
@@ -405,9 +410,16 @@ async function confirmSupplierOrderReception(
       confirmSupplierOrderReceptionWithExecutor(tx, schema, payload),
     );
     if (result.idempotente) {
-      demoLog("RF18", () => `Recepción ${result.recepcionId} ya registrada; sin movimientos nuevos.`);
+      demoLog("RF18", "Recepción ya registrada", () => ({
+        Recepción: result.recepcionId,
+        Resultado: "Sin movimientos nuevos",
+      }));
     } else {
-      demoLog("RF18", () => `Transacción confirmada: recepción ${result.recepcionId}, lotes, acumulados y auditoría registrados. Estado: ${result.estado}.`);
+      demoLog("RF18", "Recepción confirmada", () => ({
+        Recepción: result.recepcionId,
+        Estado: result.estado,
+        Registros: "Recepción, lotes, acumulados y auditoría",
+      }));
       await logDemoStockChanges("RF18", previousStock);
     }
     notifySupplierOrdersUpdated();
