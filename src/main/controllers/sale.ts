@@ -17,6 +17,7 @@ import { notifyDashboardUpdated } from "./dashboard-events";
 import { inspectDailyCashRegister, type CashCheckDb } from "./cash-check";
 import { searchActiveProducts, type ActiveProductQuery } from "./product-query";
 import { AccessDeniedError } from "./auth-context";
+import { demoLog, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
 import type {
   DailyCashState,
   SaleCartValidationRequest,
@@ -50,6 +51,7 @@ export function createSaleController(
           const state = await dependencies.inspectCash(
             db as unknown as CashCheckDb,
           );
+          demoLog("RF36", () => `Verificación de caja: ${state.status}.`);
           return controllerSuccess<DailyCashState>(state);
         }
 
@@ -64,16 +66,19 @@ export function createSaleController(
               "sale",
             );
           }
+          if (search) {
+            for (const product of products) demoLog("RF36", () => `Producto encontrado: ${product.nombre} | EAN-13 ${product.ean13} | stock ${product.stockDisponible} | precio $${product.precioVenta}.`);
+          }
           return controllerSuccess(products);
         }
 
         if (context.channel === "venta:validar-carrito") {
-          return controllerSuccess<SaleCartValidationResult>(
-            await dependencies.validateCart(
-              db as unknown as DbExecutor,
-              payload as SaleCartValidationRequest,
-            ),
+          const cart = await dependencies.validateCart(
+            db as unknown as DbExecutor,
+            payload as SaleCartValidationRequest,
           );
+          demoLog("RF36", () => `Carrito validado: ${cart.lines.map((line) => `${line.cantidad} × ${line.nombre}`).join("; ")}; subtotal $${cart.subtotal}.`);
+          return controllerSuccess<SaleCartValidationResult>(cart);
         }
 
         if (!context.claims) {
@@ -88,6 +93,7 @@ export function createSaleController(
           montoRecibido: input.montoRecibido,
           descuento: input.descuento,
         };
+        const previousStock = await demoStockSnapshot();
         const receipt = await dependencies.register(
           db as unknown as DbExecutor,
           request,
@@ -97,6 +103,9 @@ export function createSaleController(
             rol: context.claims.rol,
           },
         );
+        demoLog("RF36", () => `Transacción confirmada: venta ${receipt.ventaId}, pago, detalle, consumo de lotes y auditoría registrados. Responsable: ${receipt.responsable.nombre}.`);
+        demoLog("RF36", () => `Pago confirmado: ${receipt.metodoPago}; total $${receipt.total}; recibido $${receipt.montoRecibido ?? 0}; vuelto $${receipt.vuelto ?? 0}.`);
+        await logDemoStockChanges("RF36", previousStock);
         dependencies.notify();
         return controllerSuccess<SaleReceipt>(receipt);
       } catch (error) {

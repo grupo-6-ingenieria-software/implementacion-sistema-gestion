@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "electron-vite dev",
+    "demo": "tsx scripts/demo.ts",
     "dev:debug": "HUASCAR_DEBUG_LOGIN=1 electron-vite dev",
     "build": "electron-vite build",
     "build:win": "electron-vite build && electron-builder --win --publish always",

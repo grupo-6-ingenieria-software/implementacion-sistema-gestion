@@ -32,6 +32,7 @@ import {
 } from "./auth-context";
 import { notifyDashboardUpdated } from "./dashboard-events";
 import { notifySupplierOrdersUpdated } from "./supplier-order-events";
+import { demoLog, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
 
 type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = Pick<
@@ -66,8 +67,11 @@ export function createSupplierOrderReceptionController(): RegisteredController<
         switch (context.channel) {
           case "pedido:listar":
             return { ok: true, data: await listSupplierOrders(payload) };
-          case "pedido:detalle":
-            return { ok: true, data: await loadSupplierOrderDetail(payload) };
+          case "pedido:detalle": {
+            const detail = await loadSupplierOrderDetail(payload);
+            demoLog("RF18", () => `Pedido ${detail.pedidoId}: ${detail.estado}. ${detail.lineas.map((line) => `${line.nombre} | EAN-13 ${line.ean13}: solicitado ${line.cantidadSolicitada}, recibido ${line.cantidadRecibida}, pendiente ${line.cantidadPendiente}`).join("; ")}`);
+            return { ok: true, data: detail };
+          }
           case "pedido:confirmar-recepcion": {
             const input = normalizeSupplierOrderReceptionPayload(payload);
             const errors = validateSupplierOrderReceptionShape(input);
@@ -396,9 +400,16 @@ async function confirmSupplierOrderReception(
   const { db, schema } = await import("../../db/client");
 
   try {
+    const previousStock = await demoStockSnapshot();
     const result = await db.transaction((tx) =>
       confirmSupplierOrderReceptionWithExecutor(tx, schema, payload),
     );
+    if (result.idempotente) {
+      demoLog("RF18", () => `Recepción ${result.recepcionId} ya registrada; sin movimientos nuevos.`);
+    } else {
+      demoLog("RF18", () => `Transacción confirmada: recepción ${result.recepcionId}, lotes, acumulados y auditoría registrados. Estado: ${result.estado}.`);
+      await logDemoStockChanges("RF18", previousStock);
+    }
     notifySupplierOrdersUpdated();
     notifyDashboardUpdated();
     return result;

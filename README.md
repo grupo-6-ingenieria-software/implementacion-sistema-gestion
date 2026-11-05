@@ -32,6 +32,31 @@ npm install
 
 ## Base de datos
 
+### Demostración RF18 y RF36
+
+Ejecutar `npm run demo`. Funciona sin internet con las dependencias instaladas.
+Iniciar sesión con **12345678-9 / Huascar2026** (María Huáscar, Dueño).
+Cada ejecución crea una SQLite independiente en `out/demo-*/demo.db`, con un
+pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anteriores.
+
+| Producto | EAN-13 | Pedido | Costo unitario | Precio de venta |
+|---|---|---:|---:|---:|
+| Producto Demo | 7802920000015 | 10 | $900 | $1.500 |
+| Galletas Demo | 7802920000022 | 5 | $600 | $1.000 |
+
+1. Proveedores → Recepciones e historial de pedidos: abrir el pedido de
+   Proveedor Demo, ingresar cantidades 10 y 5, costos 900 y 600, y confirmar.
+2. Ventas → Registrar venta: ingresar ambos EAN-13 y esperar su incorporación
+   automática; cambiar la cantidad de Producto Demo a 2 y pulsar Tab.
+   Mantener Galletas Demo en 1. Efectivo: monto recibido 5000 y confirmar.
+   Total 4000, vuelto 1000 y stocks finales 8 y 4.
+
+La terminal muestra logs `[RF18]` y `[RF36]` de consultas, validación y
+operaciones confirmadas, con nombre, EAN-13 y stock antes/después del movimiento.
+Agrupan las escrituras de cada transacción en etapas
+de negocio; no representan una traza SQL ni cambian el orden interno de las
+operaciones. Los logs se habilitan solo con `npm run demo`. Ctrl+C detiene la app.
+
 ```bash
 # Generar migración (tras cambios en schema)
 npm run db:generate
