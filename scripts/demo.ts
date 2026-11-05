@@ -12,7 +12,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const output = resolve(root, "out");
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(resolve(output, "demo-"));
-const databasePath = resolve(directory, "demo.db");
+const databasePath = resolve(directory, "huscar.db");
 const client = createClient({ url: `file:${databasePath}` });
 const db = drizzle(client, { schema });
 try {

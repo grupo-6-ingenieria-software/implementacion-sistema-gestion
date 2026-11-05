@@ -36,7 +36,7 @@ npm install
 
 Ejecutar `npm run demo`. Funciona sin internet con las dependencias instaladas.
 Iniciar sesión con **12345678-9 / Huascar2026** (María Huáscar, Dueño).
-Cada ejecución crea una SQLite independiente en `out/demo-*/demo.db`, con un
+Cada ejecución crea una SQLite independiente en `out/demo-*/huscar.db`, con un
 pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anteriores.
 
 | Producto | EAN-13 | Pedido | Costo unitario | Precio de venta |
