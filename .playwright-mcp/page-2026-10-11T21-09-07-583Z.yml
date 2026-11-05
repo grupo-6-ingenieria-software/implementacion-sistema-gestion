@@ -1,0 +1,59 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f1e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f1e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [ref=f1e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - complementary [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - paragraph [ref=f1e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f1e13]
+      - navigation [ref=f1e14]:
+        - paragraph [ref=f1e15]: Ventas
+        - generic [ref=f1e16]:
+          - button "Registrar venta" [ref=f1e17] [cursor=pointer]
+          - generic [ref=f1e18]: Ventas por categoría
+          - generic [ref=f1e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f1e20] [cursor=pointer]
+          - generic [ref=f1e21]: Anular venta
+        - paragraph [ref=f1e22]: Administración
+        - generic [ref=f1e23]:
+          - generic [ref=f1e24]: Usuarios
+          - generic [ref=f1e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f1e26] [cursor=pointer]
+    - main [ref=f1e27]:
+      - generic [ref=f1e28]:
+        - heading "Vista previa de boleta" [level=2] [ref=f1e85]
+        - generic [ref=f1e30]:
+          - generic [ref=f1e31]: María Huáscar
+          - button "Salir" [ref=f1e32] [cursor=pointer]
+      - generic [ref=f1e86]:
+        - generic [ref=f1e87]:
+          - text: "Así sale el papel, como lo muestra escpresso. Texto ESC/POS: negrita y doble tamaño en nombre y total, corte automático al final."
+          - generic [ref=f1e88]:
+            - generic [ref=f1e89]: "Ver:"
+            - button "80 mm · original · efectivo" [ref=f1e90] [cursor=pointer]
+            - button "80 mm · COPIA · débito" [ref=f1e91] [cursor=pointer]
+            - button "58 mm · original · efectivo" [active] [ref=f1e92] [cursor=pointer]
+            - button "Página de prueba" [ref=f1e93] [cursor=pointer]
+        - generic [ref=f1e94]:
+          - generic [ref=f1e95]:
+            - generic [ref=f1e96]: "MINIMARKET Y PANADERIA HUÁSCAR Huáscar 200, Rengo, O'Higgins ================================ BOLETA DE VENTA N° venta: 3f2a9c1e-7b4d-4e8a-9c51-0d2b6e7f 8a90 Fecha: 11/10/2026 17:42 Atendió: María Huáscar · Dueño -------------------------------- Producto Cant x Precio Subtotal -------------------------------- Pan amasado 1 kg 2 x $1.990 $3.980 Leche entera 1 L Colun 3 x $1.150 $3.450 Queso gauda laminado 250 g 1 x $3.930 $3.930 -------------------------------- Subtotal $11.360 Descuento -$1.000 Razón: Cliente frecuente TOTAL $10.360 -------------------------------- Pago Efectivo Recibido $15.000 Vuelto $4.640 ================================ Documento no válido como boleta electrónica SII ¡Gracias por su compra!"
+            - generic [ref=f1e97]: ✂ corte automático
+          - generic [ref=f1e98]:
+            - heading "Contenido mínimo, según la sección legal del Documento 0" [level=4] [ref=f1e99]
+            - list [ref=f1e100]:
+              - listitem [ref=f1e101]: Fecha y hora de la transacción
+              - listitem [ref=f1e102]: Detalle de productos con precio unitario
+              - listitem [ref=f1e103]: Descuento con monto y razón, cuando corresponde
+              - listitem [ref=f1e104]: Total cobrado
+            - heading "Además" [level=4] [ref=f1e105]
+            - list [ref=f1e106]:
+              - listitem [ref=f1e107]: N° de venta completo, para buscarla en Consulta de ventas
+              - listitem [ref=f1e108]: Responsable, según RF43
+              - listitem [ref=f1e109]: Método de pago; en efectivo, recibido y vuelto
+              - listitem [ref=f1e110]: Marca «COPIA» en reimpresiones
+              - listitem [ref=f1e111]: Leyenda no tributaria
+            - paragraph [ref=f1e112]: El RUT del negocio no aparece en el Documento 0. Si lo tienes, se agrega al encabezado.

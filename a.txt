@@ -1,0 +1,12 @@
+
+1. El código se aleja de los diagramas y de Vistas y Controladores (V&C). El código hace varias cosas que no aparecen en ningún diagrama:
+   - Selector de carpeta y confirmación para reemplazar el archivo.
+   - Revalidación de la sesión después de generar el archivo.
+   - Archivo temporal, respaldo y publicación con enlace duro, todo dentro de la transacción de auditoría.
+   - Un canal IPC nuevo, reporte:conciliar-exportacion (src/shared/controllers.ts:349), con el botón «Verificar exportación» (AccionExportarFormato.tsx:249) y archivos de evidencia en userData.
+
+   En V&C, C61 declara solo exportar-pdf/xlsx. Con CU58 y CU59 ustedes alinearon el código al diagrama; acá habría que simplificar el código o actualizar los diagramas y V&C.
+2. Los diagramas tienen un error propio. Los participantes son del reporte diario (V_ReporteDiarioVentasView, C_ReporteVentasDiariasHandler, cierre_caja), pero los pasos 30 y 32 hablan del gráfico y la tabla de RF47 (mensual). El PR implementa el mensual. Ese flujo diario no pasa por la nueva base común: sigue en su propio handler (report-export.ts:223) y, cuando no hay datos, responde «Sin ventas en la fecha seleccionada», no el mensaje E1 del CU54. Hay que corregir los diagramas: o se hacen genéricos o se pasan al reporte mensual.
+3. Regresión: ya no se puede exportar a un pendrive. La publicación usa link() (report-export-file.ts:263). Lo probé con imágenes de disco exFAT y FAT32: link falla con ENOTSUP, el store revierte bien, pero el usuario siempre recibe E1. Antes del PR, writeFile funcionaba en esos discos. Una solución mínima: cuando link falle con ENOTSUP o EPERM, usar copyFile(tmp, path, COPYFILE_EXCL).
+4. La trazabilidad apunta al controlador equivocado. En navigation.ts:607,671,677, la vista mensual, UI06 y UI07 quedan asociadas a restock-report-export (C33, reabastecimiento) en vez de report-export (C61, el C_ExportacionReportesHandler del diagrama). Revisé que los permisos efectivos no cambian, pero cualquier matriz que se genere desde navigation.ts va a mostrar C33. El test de navegación quedó ajustado a ese error.
+5. El CU54 queda parcial. Solo se registra el adaptador mensual. Productos más vendidos, rentabilidad y el diario siguen con sus propios handlers y diálogo «Guardar como», así que el usuario puede renombrar el archivo y RF54 no se cumple ahí. Mermas, Lotes y Movimientos siguen por el handler de reabastecimiento. El PR lo dice con honestidad, pero entonces el CU54 no se puede dar por terminado.

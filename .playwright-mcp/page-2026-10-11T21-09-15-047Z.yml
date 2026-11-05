@@ -1,0 +1,83 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f1e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f1e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [ref=f1e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - complementary [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - paragraph [ref=f1e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f1e13]
+      - navigation [ref=f1e14]:
+        - paragraph [ref=f1e15]: Ventas
+        - generic [ref=f1e16]:
+          - button "Registrar venta" [ref=f1e17] [cursor=pointer]
+          - generic [ref=f1e18]: Ventas por categoría
+          - generic [ref=f1e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f1e20] [cursor=pointer]
+          - generic [ref=f1e21]: Anular venta
+        - paragraph [ref=f1e22]: Administración
+        - generic [ref=f1e23]:
+          - generic [ref=f1e24]: Usuarios
+          - generic [ref=f1e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f1e26] [cursor=pointer]
+    - main [ref=f1e27]:
+      - generic [ref=f1e28]:
+        - heading "Consulta de ventas" [level=2] [ref=f1e162]
+        - generic [ref=f1e30]:
+          - generic [ref=f1e31]: María Huáscar
+          - button "Salir" [ref=f1e32] [cursor=pointer]
+      - generic [ref=f1e163]:
+        - generic [ref=f1e164]:
+          - text: "Qué cambia: el detalle de la venta suma el botón «Reimprimir boleta», que imprime una COPIA en la impresora de este equipo. Para ventas anuladas el botón aparece deshabilitado."
+          - generic [ref=f1e165]:
+            - generic [ref=f1e166]: "Simular venta:"
+            - button "Vigente" [ref=f1e167] [cursor=pointer]
+            - button "Anulada" [active] [ref=f1e168] [cursor=pointer]
+            - button "Vigente + impresora falla" [ref=f1e169] [cursor=pointer]
+        - article [ref=f1e170]:
+          - generic [ref=f1e171]:
+            - generic [ref=f1e172]:
+              - heading "Detalle de la venta" [level=4] [ref=f1e173]
+              - paragraph [ref=f1e174]: 3f2a9c1e-7b4d-4e8a-9c51-0d2b6e7f8a90
+            - generic [ref=f1e175]:
+              - generic [ref=f1e176]: Anulada
+              - button "Reimprimir boleta" [disabled] [ref=f1e177]
+              - button "Cerrar detalle" [ref=f1e178] [cursor=pointer]
+          - generic [ref=f1e179]:
+            - generic [ref=f1e180]:
+              - term [ref=f1e181]: Responsable
+              - definition [ref=f1e182]: María Huáscar · Dueño
+            - generic [ref=f1e183]:
+              - term [ref=f1e184]: Fecha y hora
+              - definition [ref=f1e185]: 11/10/2026 17:42
+          - table [ref=f1e187]:
+            - rowgroup [ref=f1e188]:
+              - row [ref=f1e189]:
+                - columnheader "Producto" [ref=f1e190]
+                - columnheader "EAN-13" [ref=f1e191]
+                - columnheader "Cantidad" [ref=f1e192]
+                - columnheader "Precio histórico" [ref=f1e193]
+                - columnheader "Subtotal" [ref=f1e194]
+            - rowgroup [ref=f1e195]:
+              - row [ref=f1e196]:
+                - cell "Pan amasado 1 kg" [ref=f1e197]
+                - cell "7801234567893" [ref=f1e198]
+                - cell "2" [ref=f1e199]
+                - cell "$1.990" [ref=f1e200]
+                - cell "$3.980" [ref=f1e201]
+              - row [ref=f1e202]:
+                - cell "Leche entera 1 L Colun" [ref=f1e203]
+                - cell "7802920000213" [ref=f1e204]
+                - cell "3" [ref=f1e205]
+                - cell "$1.150" [ref=f1e206]
+                - cell "$3.450" [ref=f1e207]
+              - row [ref=f1e208]:
+                - cell "Queso gauda laminado 250 g" [ref=f1e209]
+                - cell "7803400012345" [ref=f1e210]
+                - cell "1" [ref=f1e211]
+                - cell "$3.930" [ref=f1e212]
+                - cell "$3.930" [ref=f1e213]
+      - text: ✂ corte automático

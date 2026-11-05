@@ -1,0 +1,90 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e3]:
+    - generic [ref=f4e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f4e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f4e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [active] [ref=f4e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [ref=f4e8] [cursor=pointer]
+  - generic [ref=f4e9]:
+    - complementary [ref=f4e10]:
+      - generic [ref=f4e11]:
+        - paragraph [ref=f4e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f4e13]
+      - navigation [ref=f4e14]:
+        - paragraph [ref=f4e15]: Ventas
+        - generic [ref=f4e16]:
+          - button "Registrar venta" [ref=f4e17] [cursor=pointer]
+          - generic [ref=f4e18]: Ventas por categoría
+          - generic [ref=f4e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f4e20] [cursor=pointer]
+          - generic [ref=f4e21]: Anular venta
+        - paragraph [ref=f4e22]: Administración
+        - generic [ref=f4e23]:
+          - generic [ref=f4e24]: Usuarios
+          - generic [ref=f4e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f4e26] [cursor=pointer]
+    - main [ref=f4e27]:
+      - generic [ref=f4e28]:
+        - heading "Impresora de boletas" [level=2] [ref=f4e85]
+        - generic [ref=f4e30]:
+          - generic [ref=f4e31]: María Huáscar
+          - button "Salir" [ref=f4e32] [cursor=pointer]
+      - generic [ref=f4e86]:
+        - generic [ref=f4e87]: Vista nueva V45, solo Dueño. La configuración se guarda en este equipo, no en la base compartida, porque cada caja tiene su impresora. Los datos del negocio del encabezado son fijos en el código.
+        - generic [ref=f4e88]:
+          - paragraph [ref=f4e89]: Administración
+          - heading "Impresora de boletas" [level=3] [ref=f4e90]
+          - paragraph [ref=f4e91]: Configura la impresora térmica de esta caja y prueba la conexión.
+        - generic [ref=f4e92]:
+          - generic [ref=f4e93]:
+            - group "Tipo de conexión" [ref=f4e94]:
+              - generic [ref=f4e96]:
+                - generic [ref=f4e97] [cursor=pointer]:
+                  - radio "USB · impresora instalada en Windows Usa el driver del fabricante. Envío directo a la cola de impresión." [ref=f4e98]
+                  - generic [ref=f4e99]:
+                    - generic [ref=f4e100]: USB · impresora instalada en Windows
+                    - text: Usa el driver del fabricante. Envío directo a la cola de impresión.
+                - generic [ref=f4e101] [cursor=pointer]:
+                  - radio "Red · TCP/IP Impresoras de red y emulador escpresso en desarrollo." [checked] [ref=f4e102]
+                  - generic [ref=f4e103]:
+                    - generic [ref=f4e104]: Red · TCP/IP
+                    - text: Impresoras de red y emulador escpresso en desarrollo.
+            - generic [ref=f4e105]:
+              - generic [ref=f4e106]:
+                - text: Dirección IP o host
+                - textbox "Dirección IP o host" [ref=f4e107]: 127.0.0.1
+              - generic [ref=f4e108]:
+                - text: Puerto
+                - textbox "Puerto" [ref=f4e109]: "9100"
+            - group "Ancho de papel" [ref=f4e110]:
+              - generic [ref=f4e112]:
+                - generic [ref=f4e113]:
+                  - radio "80 mm · 48 caracteres" [checked] [ref=f4e114]
+                  - text: 80 mm · 48 caracteres
+                - generic [ref=f4e115]:
+                  - radio "58 mm · 32 caracteres" [ref=f4e116]
+                  - text: 58 mm · 32 caracteres
+            - generic [ref=f4e117]:
+              - button "Imprimir prueba" [ref=f4e118] [cursor=pointer]
+              - button "simular prueba fallida" [ref=f4e119] [cursor=pointer]
+              - button "Guardar configuración" [ref=f4e120] [cursor=pointer]
+          - complementary [ref=f4e121]:
+            - heading "Encabezado fijo de la boleta" [level=4] [ref=f4e122]
+            - generic [ref=f4e123]:
+              - generic [ref=f4e124]:
+                - term [ref=f4e125]: RUT
+                - definition [ref=f4e126]: 76731539-2
+              - generic [ref=f4e127]:
+                - term [ref=f4e128]: Negocio
+                - definition [ref=f4e129]: LA PANADERIA · SOC. COMERCIAL CRISTIAN CARRENO LTDA. · MINIMARKET Y PANADERIA
+              - generic [ref=f4e130]:
+                - term [ref=f4e131]: Dirección
+                - definition [ref=f4e132]: HUASCAR 200, RENGO
+              - generic [ref=f4e133]:
+                - term [ref=f4e134]: Contacto
+                - definition [ref=f4e135]: +56941802148 · jmacristian@gmail.com
+              - generic [ref=f4e136]:
+                - term [ref=f4e137]: Leyenda
+                - definition [ref=f4e138]: Documento no válido como boleta electrónica SII
+            - paragraph [ref=f4e139]: Definidos en el código; cambiarlos requiere una nueva versión.
+      - text: ✂ corte automático

@@ -1,0 +1,67 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - generic [ref=f2e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f2e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f2e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [ref=f2e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [active] [ref=f2e8] [cursor=pointer]
+  - generic [ref=f2e9]:
+    - complementary [ref=f2e10]:
+      - generic [ref=f2e11]:
+        - paragraph [ref=f2e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f2e13]
+      - navigation [ref=f2e14]:
+        - paragraph [ref=f2e15]: Ventas
+        - generic [ref=f2e16]:
+          - button "Registrar venta" [ref=f2e17] [cursor=pointer]
+          - generic [ref=f2e18]: Ventas por categoría
+          - generic [ref=f2e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f2e20] [cursor=pointer]
+          - generic [ref=f2e21]: Anular venta
+        - paragraph [ref=f2e22]: Administración
+        - generic [ref=f2e23]:
+          - generic [ref=f2e24]: Usuarios
+          - generic [ref=f2e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f2e26] [cursor=pointer]
+    - main [ref=f2e27]:
+      - generic [ref=f2e28]:
+        - heading "Vista previa de boleta" [level=2] [ref=f2e85]
+        - generic [ref=f2e30]:
+          - generic [ref=f2e31]: María Huáscar
+          - button "Salir" [ref=f2e32] [cursor=pointer]
+      - generic [ref=f2e86]:
+        - generic [ref=f2e87]:
+          - text: Así sale el papel, como lo muestra escpresso. Formato de la boleta real del local, sin la parte tributaria. Mayúsculas sin tildes, negrita en recuadro, nombre y total; corte automático al final.
+          - generic [ref=f2e88]:
+            - generic [ref=f2e89]: "Ver:"
+            - button "80 mm · original · efectivo" [ref=f2e90] [cursor=pointer]
+            - button "80 mm · COPIA · débito" [ref=f2e91] [cursor=pointer]
+            - button "58 mm · original · efectivo" [ref=f2e92] [cursor=pointer]
+            - button "Página de prueba" [ref=f2e93] [cursor=pointer]
+        - generic [ref=f2e94]:
+          - generic [ref=f2e95]:
+            - generic [ref=f2e96]: "+----------------------------------------------+ | RUT : 76731539-2 | | BOLETA DE VENTA | | N° VENTA | | 3F2A9C1E-7B4D-4E8A-9C51-0D2B6E7F8A90 | +----------------------------------------------+ LA PANADERIA SOC. COMERCIAL CRISTIAN CARRENO LTDA. MINIMARKET Y PANADERIA HUASCAR 200 RENGO +56941802148 JMACRISTIAN@GMAIL.COM EMISION: 11-10-2026 PAGO: EFECTIVO CAJERO: MARIA HUASCAR 17:42:08 ------------------------------------------------ DETALLE VALOR ------------------------------------------------ PAN AMASADO 1 KG 7801234567893 1.990 X 2 UN = $ 3.980 LECHE ENTERA 1 L COLUN 7802920000213 1.150 X 3 UN = $ 3.450 QUESO GAUDA LAMINADO 250 G 7803400012345 3.930 X 1 UN = $ 3.930 ------------------------------------------------ SUBTOTAL: $ 11.360 DESCUENTO: -$ 1.000 RAZON DESCUENTO: CLIENTE FRECUENTE TOTAL: $ 10.360 PAGOS: $ 15.000 VUELTO: $ 4.640 DOCUMENTO NO VALIDO COMO BOLETA ELECTRONICA SII"
+            - generic [ref=f2e97]: ✂ corte automático
+          - generic [ref=f2e98]:
+            - heading "Contenido mínimo, según la sección legal del Documento 0" [level=4] [ref=f2e99]
+            - list [ref=f2e100]:
+              - listitem [ref=f2e101]: Fecha y hora de la transacción
+              - listitem [ref=f2e102]: Detalle de productos con precio unitario
+              - listitem [ref=f2e103]: Descuento con monto y razón, cuando corresponde
+              - listitem [ref=f2e104]: Total cobrado
+            - heading "Además" [level=4] [ref=f2e105]
+            - list [ref=f2e106]:
+              - listitem [ref=f2e107]: N° de venta completo, para buscarla en Consulta de ventas
+              - listitem [ref=f2e108]: Responsable, según RF43
+              - listitem [ref=f2e109]: Método de pago; en efectivo, recibido y vuelto
+              - listitem [ref=f2e110]: Marca «COPIA» en reimpresiones
+              - listitem [ref=f2e111]: Leyenda no tributaria
+            - heading "Quitado de la boleta original, por ser tributario" [level=4] [ref=f2e112]
+            - list [ref=f2e113]:
+              - listitem [ref=f2e114]: «BOLETA ELECTRONICA» y folio SII; aquí van «BOLETA DE VENTA» y el N° de venta
+              - listitem [ref=f2e115]: «S.I.I. - RENGO», IVA, timbre PDF417, «Res. 80…», «Verifique en sii.cl» y URL de softmad
+              - listitem [ref=f2e116]: Datos del receptor SR(ES), RUT, DIR, COMUNA, CIUDAD, y «VENCE»
+              - listitem [ref=f2e117]: Código de barras del folio
+            - heading "Sin dato en el sistema" [level=4] [ref=f2e118]
+            - list [ref=f2e119]:
+              - listitem [ref=f2e120]: "«VENDEDOR» y «POS»: el modelo solo registra al responsable de la venta, que va como CAJERO"

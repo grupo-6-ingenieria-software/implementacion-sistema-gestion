@@ -1,0 +1,84 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f1e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f1e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [active] [ref=f1e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - complementary [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - paragraph [ref=f1e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f1e13]
+      - navigation [ref=f1e14]:
+        - paragraph [ref=f1e15]: Ventas
+        - generic [ref=f1e16]:
+          - button "Registrar venta" [ref=f1e17] [cursor=pointer]
+          - generic [ref=f1e18]: Ventas por categoría
+          - generic [ref=f1e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f1e20] [cursor=pointer]
+          - generic [ref=f1e21]: Anular venta
+        - paragraph [ref=f1e22]: Administración
+        - generic [ref=f1e23]:
+          - generic [ref=f1e24]: Usuarios
+          - generic [ref=f1e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f1e26] [cursor=pointer]
+    - main [ref=f1e27]:
+      - generic [ref=f1e28]:
+        - heading "Impresora de boletas" [level=2] [ref=f1e113]
+        - generic [ref=f1e30]:
+          - generic [ref=f1e31]: María Huáscar
+          - button "Salir" [ref=f1e32] [cursor=pointer]
+      - generic [ref=f1e114]:
+        - generic [ref=f1e115]: Vista nueva V45, solo Dueño. La configuración se guarda en este equipo, no en la base compartida, porque cada caja tiene su impresora. Los datos del negocio del encabezado son fijos en el código.
+        - generic [ref=f1e116]:
+          - paragraph [ref=f1e117]: Administración
+          - heading "Impresora de boletas" [level=3] [ref=f1e118]
+          - paragraph [ref=f1e119]: Configura la impresora térmica de esta caja y prueba la conexión.
+        - generic [ref=f1e120]:
+          - generic [ref=f1e121]:
+            - group "Tipo de conexión" [ref=f1e122]:
+              - generic [ref=f1e124]:
+                - generic [ref=f1e125] [cursor=pointer]:
+                  - radio "USB · impresora instalada en Windows Usa el driver del fabricante. Envío directo a la cola de impresión." [ref=f1e126]
+                  - generic [ref=f1e127]:
+                    - generic [ref=f1e128]: USB · impresora instalada en Windows
+                    - text: Usa el driver del fabricante. Envío directo a la cola de impresión.
+                - generic [ref=f1e129] [cursor=pointer]:
+                  - radio "Red · TCP/IP Impresoras de red y emulador escpresso en desarrollo." [checked] [ref=f1e130]
+                  - generic [ref=f1e131]:
+                    - generic [ref=f1e132]: Red · TCP/IP
+                    - text: Impresoras de red y emulador escpresso en desarrollo.
+            - generic [ref=f1e133]:
+              - generic [ref=f1e134]:
+                - text: Dirección IP o host
+                - textbox "Dirección IP o host" [ref=f1e135]: 127.0.0.1
+              - generic [ref=f1e136]:
+                - text: Puerto
+                - textbox "Puerto" [ref=f1e137]: "9100"
+            - group "Ancho de papel" [ref=f1e138]:
+              - generic [ref=f1e140]:
+                - generic [ref=f1e141]:
+                  - radio "80 mm · 48 caracteres" [checked] [ref=f1e142]
+                  - text: 80 mm · 48 caracteres
+                - generic [ref=f1e143]:
+                  - radio "58 mm · 32 caracteres" [ref=f1e144]
+                  - text: 58 mm · 32 caracteres
+            - generic [ref=f1e145]:
+              - button "Imprimir prueba" [ref=f1e146] [cursor=pointer]
+              - button "simular prueba fallida" [ref=f1e147] [cursor=pointer]
+              - button "Guardar configuración" [ref=f1e148] [cursor=pointer]
+          - complementary [ref=f1e149]:
+            - heading "Encabezado fijo de la boleta" [level=4] [ref=f1e150]
+            - generic [ref=f1e151]:
+              - generic [ref=f1e152]:
+                - term [ref=f1e153]: Negocio
+                - definition [ref=f1e154]: Minimarket y Panadería Huáscar
+              - generic [ref=f1e155]:
+                - term [ref=f1e156]: Dirección
+                - definition [ref=f1e157]: Huáscar 200, Rengo, O'Higgins
+              - generic [ref=f1e158]:
+                - term [ref=f1e159]: Leyenda
+                - definition [ref=f1e160]: Documento no válido como boleta electrónica SII
+            - paragraph [ref=f1e161]: Definidos en el código; cambiarlos requiere una nueva versión.
+      - text: ✂ corte automático

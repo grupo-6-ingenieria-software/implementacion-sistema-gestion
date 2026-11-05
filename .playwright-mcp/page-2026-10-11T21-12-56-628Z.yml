@@ -1,0 +1,87 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e3]:
+    - generic [ref=f5e4]: Mock · no es la app
+    - button "1. Registrar venta · V12" [ref=f5e5] [cursor=pointer]
+    - button "2. Consulta de ventas" [ref=f5e6] [cursor=pointer]
+    - button "3. Impresora de boletas · V45" [ref=f5e7] [cursor=pointer]
+    - button "4. Boleta impresa · UI10" [ref=f5e8] [cursor=pointer]
+  - generic [ref=f5e9]:
+    - complementary [ref=f5e10]:
+      - generic [ref=f5e11]:
+        - paragraph [ref=f5e12]: Minimarket y Panaderia
+        - heading "Huascar" [level=1] [ref=f5e13]
+      - navigation [ref=f5e14]:
+        - paragraph [ref=f5e15]: Ventas
+        - generic [ref=f5e16]:
+          - button "Registrar venta" [ref=f5e17] [cursor=pointer]
+          - generic [ref=f5e18]: Ventas por categoría
+          - generic [ref=f5e19]: Ventas del dia
+          - button "Consulta de ventas" [ref=f5e20] [cursor=pointer]
+          - generic [ref=f5e21]: Anular venta
+        - paragraph [ref=f5e22]: Administración
+        - generic [ref=f5e23]:
+          - generic [ref=f5e24]: Usuarios
+          - generic [ref=f5e25]: Log de auditoría
+          - button "Impresora de boletas NUEVO" [ref=f5e26] [cursor=pointer]
+    - main [ref=f5e27]:
+      - generic [ref=f5e28]:
+        - heading "Registrar venta" [level=2] [ref=f5e29]
+        - generic [ref=f5e30]:
+          - generic [ref=f5e31]: María Huáscar
+          - button "Salir" [ref=f5e32] [cursor=pointer]
+      - generic [ref=f5e33]:
+        - generic [ref=f5e34]:
+          - text: "Qué cambia: al confirmar, la boleta se envía sola a la impresora configurada en este equipo. La tarjeta «Comprobante» muestra el estado de impresión y el botón «Reimprimir boleta», que imprime una COPIA. Si la impresora falla, la venta ya quedó registrada: se muestra un aviso con «Reintentar» y la siguiente venta no se bloquea."
+          - generic [ref=f5e35]:
+            - generic [ref=f5e36]: "Simular estado:"
+            - button "Impresión correcta" [ref=f5e37] [cursor=pointer]
+            - button "Imprimiendo…" [ref=f5e38] [cursor=pointer]
+            - button "Impresora sin respuesta" [ref=f5e39] [cursor=pointer]
+            - button "Impresora no configurada" [ref=f5e40] [cursor=pointer]
+        - generic [ref=f5e41]:
+          - generic [ref=f5e42]:
+            - generic [ref=f5e44]:
+              - generic [ref=f5e45]:
+                - text: Código EAN-13
+                - textbox "Código EAN-13" [ref=f5e46]:
+                  - /placeholder: "7801234567890"
+              - generic [ref=f5e47]:
+                - text: Buscar producto
+                - textbox "Buscar producto" [ref=f5e48]
+              - button "Agregar" [ref=f5e49] [cursor=pointer]
+            - generic [ref=f5e50]:
+              - heading "Carrito" [level=3] [ref=f5e51]
+              - paragraph [ref=f5e52]: Agregue productos para iniciar una venta.
+          - complementary [ref=f5e53]:
+            - generic [ref=f5e54]:
+              - heading "Pago" [level=3] [ref=f5e55]
+              - generic [ref=f5e56]:
+                - generic [ref=f5e57]:
+                  - term [ref=f5e58]: Subtotal
+                  - definition [ref=f5e59]: $0
+                - generic [ref=f5e60]:
+                  - term [ref=f5e61]: Descuento
+                  - definition [ref=f5e62]: $0
+                - generic [ref=f5e63]:
+                  - term [ref=f5e64]: Total
+                  - definition [ref=f5e65]: $0
+              - paragraph [ref=f5e66]: Venta registrada por $10.360.
+              - button "Confirmar venta" [disabled] [ref=f5e67]
+            - generic [ref=f5e68]:
+              - generic [ref=f5e69]:
+                - heading "Comprobante" [level=3] [ref=f5e70]
+                - generic [ref=f5e71]: Boleta impresa
+              - generic [ref=f5e72]:
+                - generic [ref=f5e73]:
+                  - term [ref=f5e74]: Venta
+                  - definition [ref=f5e75]: 3f2a9c1e-7b4d-4e8a-9c51-0d2b6e7f8a90
+                - generic [ref=f5e76]:
+                  - term [ref=f5e77]: Fecha
+                  - definition [ref=f5e78]: 11-10-2026, 17:42:08
+                - generic [ref=f5e79]:
+                  - term [ref=f5e80]: Responsable
+                  - definition [ref=f5e81]: María Huáscar · Dueño
+              - generic [ref=f5e82]: 3 productos · Total $10.360 · Efectivo
+              - button "Reimprimir boleta" [ref=f5e83] [cursor=pointer]
+              - paragraph [ref=f5e84]: La reimpresión sale marcada «COPIA» y queda en el log de auditoría.
+      - text: ✂ corte automático
