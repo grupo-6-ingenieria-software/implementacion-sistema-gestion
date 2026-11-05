@@ -57,6 +57,14 @@ Agrupan las escrituras de cada transacción en etapas
 de negocio; no representan una traza SQL ni cambian el orden interno de las
 operaciones. Los logs se habilitan solo con `npm run demo`. Ctrl+C detiene la app.
 
+Para consultar la misma base que usa la aplicación, abre otra terminal y ejecuta
+`npm run demo:db`. Cada reinicio cambia la base; sal con `.quit` y vuelve a abrirla
+con ese comando después de reiniciar la demo. Dentro de SQLite, consulta el stock:
+
+```sql
+SELECT p.producto_nombre AS producto, p.producto_ean_13 AS ean13, COALESCE(SUM(l.lote_cantidad_actual), 0) AS stock FROM producto p LEFT JOIN lote l ON l.producto_id = p.producto_id GROUP BY p.producto_id ORDER BY p.producto_id;
+```
+
 ```bash
 # Generar migración (tras cambios en schema)
 npm run db:generate

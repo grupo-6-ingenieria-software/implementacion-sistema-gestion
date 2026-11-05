@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -68,5 +68,8 @@ const app = spawn(process.execPath, [
 ], { cwd: root, env, stdio: "inherit" });
 app.on("error", (error) => { console.error(error); process.exitCode = 1; });
 app.on("exit", (code) => { process.exitCode = code ?? 0; });
+if (app.pid) {
+  await writeFile(resolve(output, "demo-current.json"), JSON.stringify({ databasePath, pid: app.pid }));
+}
 process.on("SIGINT", () => app.kill("SIGINT"));
 process.on("SIGTERM", () => app.kill("SIGTERM"));
