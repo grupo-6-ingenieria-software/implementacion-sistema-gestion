@@ -72,6 +72,8 @@ export function createSaleController(
             for (const product of products) demoLog("RF36", "Producto encontrado", () => ({
               Producto: product.nombre,
               "EAN-13": product.ean13,
+              Estado: "Activo",
+              Validación: "Producto activo verificado",
               Stock: product.stockDisponible,
               Precio: demoMoney(product.precioVenta),
             }));
@@ -84,6 +86,13 @@ export function createSaleController(
             db as unknown as DbExecutor,
             payload as SaleCartValidationRequest,
           );
+          for (const line of cart.lines) demoLog("RF36", "Validación de stock", () => ({
+            Producto: line.nombre,
+            "EAN-13": line.ean13,
+            Disponible: line.stockDisponible,
+            Solicitado: line.cantidad,
+            Resultado: "Stock suficiente",
+          }));
           demoLog("RF36", "Carrito validado", () => ({
             ...Object.fromEntries(cart.lines.map((line, index) => [`Producto ${index + 1}`, `${line.cantidad} × ${line.nombre}`])),
             Subtotal: demoMoney(cart.subtotal),
@@ -115,6 +124,7 @@ export function createSaleController(
         );
         demoLog("RF36", "Venta confirmada", () => ({
           Venta: receipt.ventaId,
+          Estado: "Confirmada",
           Responsable: receipt.responsable.nombre,
           Registros: "Venta, pago, detalle, consumo de lotes y auditoría",
         }));
