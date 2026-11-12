@@ -6,7 +6,7 @@ import {
 } from "../../../src/main/controllers/stock-discount";
 
 describe("servicio de descuento de stock C17", () => {
-  it("planifica FEFO y registra el consumo sobre el stock previo", async () => {
+  it("planifica FEFO, descuenta stock y luego registra cada consumo", async () => {
     const all = vi
       .fn()
       .mockResolvedValueOnce([{ available: 7, sufficient: 1 }])
@@ -36,7 +36,15 @@ describe("servicio de descuento de stock C17", () => {
     ]);
 
     await applyStockDiscount({ run }, "venta-1", plan);
-    expect(operations).toEqual(["insert", "update", "insert", "update"]);
+    expect(operations).toEqual(["update", "insert", "update", "insert"]);
+  });
+
+  it("no registra consumo si el saldo cambió después de planificar", async () => {
+    const run = vi.fn().mockResolvedValue({ rowsAffected: 0 });
+    await expect(applyStockDiscount({ run }, "venta-1", [
+      { productoId: 1, loteId: "lote-1", cantidad: 2 },
+    ])).rejects.toBeInstanceOf(StockDiscountBusinessError);
+    expect(run).toHaveBeenCalledTimes(1);
   });
 
   it("rechaza stock insuficiente durante la planificación sin ejecutar escrituras", async () => {

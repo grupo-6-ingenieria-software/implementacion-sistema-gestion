@@ -75,8 +75,13 @@ export async function registerSale(
   actor: SaleActor,
   now = new Date(),
 ): Promise<SaleReceipt> {
+  const initialCashState = await inspectDailyCashRegister(database, now);
+  if (initialCashState.status === "cerrada") {
+    throw new SaleBusinessError(
+      "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
+    );
+  }
   return database.transaction(async (tx) => {
-    const responsable = await getResponsibleUser(tx, actor, now);
     const transactionCashState = await inspectDailyCashRegister(tx, now);
     if (transactionCashState.status === "cerrada") {
       throw new SaleBusinessError(
@@ -84,6 +89,7 @@ export async function registerSale(
       );
     }
     await validateSalePayloadRules(tx, payload);
+    const responsable = await getResponsibleUser(tx, actor, now);
     const normalized = normalizeSalePayload(payload);
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
@@ -558,8 +564,7 @@ async function getResponsibleUser(
     usuarioId: string;
     sesionFechaHoraCierre: string | null;
     sesionVigente: number;
-    trabajadorEstado: string;
-    nombre: string;
+    trabajadorId: number;
   }>(sql`
     SELECT
       s.usuario_id AS usuarioId,
@@ -569,11 +574,9 @@ async function getResponsibleUser(
           AND julianday(s.sesion_fecha_hora_ultimo_acceso) > julianday(${inactivityBoundary})
         THEN 1 ELSE 0
       END AS sesionVigente,
-      t.trabajador_estado AS trabajadorEstado,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombre
-    FROM sesion_usuario s
-    JOIN usuario u ON u.usuario_id = s.usuario_id
-    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
+      u.trabajador_id AS trabajadorId
+    FROM usuario u
+    JOIN sesion_usuario s ON s.usuario_id = u.usuario_id
     WHERE s.sesion_usuario_id = ${actor.sesionId}
     LIMIT 1
   `);
@@ -583,10 +586,22 @@ async function getResponsibleUser(
     !user ||
     user.usuarioId !== actor.usuarioId.trim() ||
     user.sesionFechaHoraCierre !== null ||
-    Number(user.sesionVigente) !== 1 ||
-    user.trabajadorEstado !== "activo" ||
-    !user.nombre.trim()
+    Number(user.sesionVigente) !== 1
   ) {
+    throw new AccessDeniedError(
+      "El usuario autenticado no está activo o la sesión ya no es válida.",
+    );
+  }
+
+  const workers = await database.all<{ estado: string; nombre: string }>(sql`
+    SELECT trabajador_estado AS estado,
+      trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
+    FROM trabajador
+    WHERE trabajador_id = ${user.trabajadorId}
+    LIMIT 1
+  `);
+  const worker = workers[0];
+  if (!worker || worker.estado !== "activo" || !worker.nombre.trim()) {
     throw new AccessDeniedError(
       "El usuario autenticado no está activo o la sesión ya no es válida.",
     );
@@ -595,7 +610,7 @@ async function getResponsibleUser(
   return {
     usuarioId: user.usuarioId,
     rol: actor.rol,
-    nombre: user.nombre,
+    nombre: worker.nombre,
   };
 }
 

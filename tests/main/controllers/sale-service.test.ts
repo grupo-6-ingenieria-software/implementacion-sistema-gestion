@@ -68,6 +68,24 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
+  it("actualiza el trigger anterior y sigue impidiendo stock negativo", async () => {
+    await testDb!.client.executeMultiple(`
+      CREATE TRIGGER trg_venta_lote_stock_suficiente
+      BEFORE INSERT ON venta_lote
+      WHEN NEW.venta_lote_cantidad_consumida >
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = NEW.lote_id)
+      BEGIN SELECT RAISE(ABORT, 'stock previo'); END;
+    `);
+    await applyTriggers(testDb!.client, join(process.cwd(), "src/db/triggers.sql"));
+    await applyTriggers(testDb!.client, join(process.cwd(), "src/db/triggers.sql"));
+    await expect(testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = -1`)).rejects.toThrow();
+    await registerSale(testDb!.db as unknown as DbExecutor, {
+      metodoPago: "debito", items: [{ productoId: 1, cantidad: 6 }],
+    });
+    expect(await testDb!.db.all(sql`SELECT SUM(lote_cantidad_actual) AS stock FROM lote`))
+      .toEqual([{ stock: 0 }]);
+  });
+
   it.each([4, 5, 6])("vende %s de seis unidades con los triggers instalados", async (cantidad) => {
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       metodoPago: "debito", items: [{ productoId: 1, cantidad }],
@@ -348,15 +366,6 @@ describe("registerSale", () => {
       .fn()
       .mockResolvedValueOnce([
         {
-          usuarioId: "12345678-9",
-          sesionFechaHoraCierre: null,
-          sesionVigente: 1,
-          trabajadorEstado: "activo",
-          nombre: "Maria Huascar",
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
           cierreCajaId: "caja-1",
           status: "cerrado",
           openedAt: "2026-06-12T08:00:00.000Z",
@@ -379,7 +388,8 @@ describe("registerSale", () => {
     await expect(registerSale(database, null as never)).rejects.toBeInstanceOf(
       SaleBusinessError,
     );
-    expect(transactionAll).toHaveBeenCalledTimes(2);
+    expect(outerAll).toHaveBeenCalledTimes(1);
+    expect(transactionAll).toHaveBeenCalledTimes(1);
     expect(tx.run).not.toHaveBeenCalled();
   });
 

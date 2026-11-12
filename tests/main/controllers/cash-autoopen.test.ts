@@ -101,9 +101,10 @@ describe("autoapertura de caja (#29)", () => {
     );
     const responsible = trace.findIndex(
       (entry) =>
-        entry.includes("FROM sesion_usuario") &&
-        entry.includes("JOIN trabajador"),
+        entry.includes("FROM usuario") &&
+        entry.includes("JOIN sesion_usuario"),
     );
+    const worker = trace.findIndex((entry) => entry.includes("FROM trabajador"));
     const product = trace.findIndex((entry) => entry.includes("FROM producto"));
     const category = trace.findIndex((entry) =>
       entry.includes("FROM categoria"),
@@ -128,15 +129,16 @@ describe("autoapertura de caja (#29)", () => {
 
     expect(stockPlan).toBeGreaterThanOrEqual(0);
     expect(responsible).toBeGreaterThanOrEqual(0);
-    expect(product).toBeGreaterThan(responsible);
+    expect(worker).toBeGreaterThan(responsible);
+    expect(product).toBeGreaterThan(worker);
     expect(category).toBeGreaterThan(product);
     expect(price).toBeGreaterThan(category);
     expect(stockSnapshot).toBeGreaterThan(price);
     expect(stockPlan).toBeGreaterThan(stockSnapshot);
     expect(openCash).toBeGreaterThan(stockPlan);
     expect(insertSale).toBeGreaterThan(openCash);
-    expect(insertSaleLot).toBeGreaterThan(insertSale);
-    expect(updateLot).toBeGreaterThan(insertSaleLot);
+    expect(updateLot).toBeGreaterThan(insertSale);
+    expect(insertSaleLot).toBeGreaterThan(updateLot);
   });
 
   it("no abre caja cuando la planificación SQL detecta stock insuficiente", async () => {

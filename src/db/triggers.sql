@@ -162,13 +162,22 @@ BEGIN
   SELECT RAISE(ABORT, 'log_errores_tecnicos es inmutable: DELETE no permitido (RNF10)');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_venta_lote_stock_suficiente
-BEFORE INSERT ON venta_lote
+DROP TRIGGER IF EXISTS trg_venta_lote_stock_suficiente;
+
+CREATE TRIGGER IF NOT EXISTS trg_lote_stock_no_negativo_ins
+BEFORE INSERT ON lote
 FOR EACH ROW
-WHEN NEW.venta_lote_cantidad_consumida >
-     (SELECT lote_cantidad_actual FROM lote WHERE lote_id = NEW.lote_id)
+WHEN NEW.lote_cantidad_actual < 0
 BEGIN
-  SELECT RAISE(ABORT, 'Cantidad vendida excede el stock disponible del lote');
+  SELECT RAISE(ABORT, 'El stock del lote no puede ser negativo');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_lote_stock_no_negativo_upd
+BEFORE UPDATE OF lote_cantidad_actual ON lote
+FOR EACH ROW
+WHEN NEW.lote_cantidad_actual < 0
+BEGIN
+  SELECT RAISE(ABORT, 'El stock del lote no puede ser negativo');
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_merma_lote_stock_suficiente

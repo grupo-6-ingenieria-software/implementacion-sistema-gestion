@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { controllers } from "../../shared/controllers";
 import { assertInventoryTotals } from "./sql-validation-primitives";
@@ -39,7 +40,7 @@ type QueryExecutor = Pick<
   "all" | "insert" | "select"
 >;
 type MutationExecutor = QueryExecutor &
-  Pick<typeof import("../../db/client").db, "update">;
+  Pick<typeof import("../../db/client").db, "update" | "run">;
 
 type ReceptionControllerData =
   | SupplierOrderListItem[]
@@ -431,11 +432,6 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     "dueno",
     "trabajador",
   ]);
-  const existing = await findExistingReception(executor, schema, payload);
-  if (existing) {
-    return { ...existing, idempotente: true };
-  }
-
   const orderRows = await executor
     .select({
       id: schema.pedidoProveedor.pedidoProveedorId,
@@ -453,13 +449,6 @@ export async function confirmSupplierOrderReceptionWithExecutor(
       "El pedido solicitado no existe.",
     );
   }
-  if (order.estado !== "pendiente" && order.estado !== "parcial") {
-    throw new SupplierOrderDomainError(
-      "state",
-      "El pedido ya no admite nuevas recepciones.",
-    );
-  }
-
   const dbLines = await executor
     .select({
       detallePedidoId: schema.detallePedido.detallePedidoId,
@@ -478,6 +467,16 @@ export async function confirmSupplierOrderReceptionWithExecutor(
       eq(schema.categoria.categoriaId, schema.producto.categoriaId),
     )
     .where(eq(schema.detallePedido.pedidoProveedorId, payload.pedidoId));
+  const existing = await findExistingReception(executor, schema, payload);
+  if (existing) {
+    return { ...existing, idempotente: true };
+  }
+  if (order.estado !== "pendiente" && order.estado !== "parcial") {
+    throw new SupplierOrderDomainError(
+      "state",
+      "El pedido ya no admite nuevas recepciones.",
+    );
+  }
   const dbLineById = new Map(
     dbLines.map((line) => [line.detallePedidoId, line]),
   );
@@ -539,12 +538,26 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     .returning({ id: schema.recepcionPedido.recepcionPedidoId });
   const receiptId = createdReceipts[0].id;
 
-  for (const [index, input] of payload.lineas.entries()) {
-    if (input.cantidad <= 0) continue;
-    const current = dbLineById.get(input.detallePedidoId)!;
-    const createdLots = await executor
+  const receivedLines = payload.lineas.flatMap((input, index) =>
+    input.cantidad > 0
+      ? [{ input, index, current: dbLineById.get(input.detallePedidoId)!, loteId: randomUUID() }]
+      : [],
+  );
+  await executor.run(sql`PRAGMA defer_foreign_keys = ON`);
+  for (const { input, current, loteId } of receivedLines) {
+    await executor.insert(schema.detalleRecepcion).values({
+      recepcionPedidoId: receiptId,
+      detallePedidoId: current.detallePedidoId,
+      loteId,
+      detalleRecepcionCantidad: input.cantidad,
+    });
+  }
+
+  for (const { input, current, loteId } of receivedLines) {
+    await executor
       .insert(schema.lote)
       .values({
+        loteId,
         loteCantidadInicial: input.cantidad,
         loteCantidadActual: input.cantidad,
         lotePrecioCosto: input.precioCosto!,
@@ -553,24 +566,17 @@ export async function confirmSupplierOrderReceptionWithExecutor(
         productoId: current.productoId,
         proveedorId: order.proveedorId,
         pedidoProveedorId: order.id,
-      })
-      .returning({ id: schema.lote.loteId });
-    const loteId = createdLots[0].id;
-
+      });
+  }
+  for (const { input, current, loteId } of receivedLines) {
     if (current.exigeVencimiento) {
       await executor.insert(schema.lotePerecible).values({
         loteId,
         lotePerecibleFechaVencimiento: input.fechaVencimiento!,
       });
     }
-
-    await executor.insert(schema.detalleRecepcion).values({
-      recepcionPedidoId: receiptId,
-      detallePedidoId: current.detallePedidoId,
-      loteId,
-      detalleRecepcionCantidad: input.cantidad,
-    });
-
+  }
+  for (const { input, current, index } of receivedLines) {
     const updated = await executor
       .update(schema.detallePedido)
       .set({

@@ -120,11 +120,6 @@ export async function applyStockDiscount(
   plan: readonly PlannedLotConsumption[],
 ): Promise<void> {
   for (const lot of plan) {
-    await database.run(sql`
-      INSERT INTO venta_lote (
-        venta_lote_id, venta_id, lote_id, venta_lote_cantidad_consumida
-      ) VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${lot.cantidad})
-    `);
     const result = await database.run(sql`
       UPDATE lote
       SET lote_cantidad_actual = lote_cantidad_actual - ${lot.cantidad}
@@ -137,6 +132,11 @@ export async function applyStockDiscount(
         "El stock cambió durante la operación. Revise el carrito e intente nuevamente.",
       );
     }
+    await database.run(sql`
+      INSERT INTO venta_lote (
+        venta_lote_id, venta_id, lote_id, venta_lote_cantidad_consumida
+      ) VALUES (${randomUUID()}, ${ventaId}, ${lot.loteId}, ${lot.cantidad})
+    `);
   }
 }
 
