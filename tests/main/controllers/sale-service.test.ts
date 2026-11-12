@@ -17,6 +17,7 @@ import {
 } from "../../../src/main/controllers/sale-service";
 import type { SaleRegisterRequest } from "../../../src/shared/sales";
 import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { demoQueryLogger, traceDemoCall, traceDemoRequest } from "../../../src/main/demo-trace";
 
 const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
 
@@ -58,6 +59,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   if (!testDb) {
     return;
   }
@@ -68,6 +71,58 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
+  it("la demo refleja venta, pago, detalle, consumo y auditoría antes del commit", async () => {
+    vi.stubEnv("HUASCAR_DEMO", "1");
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    await traceDemoRequest("venta:registrar", () => traceDemoCall("C_VentaHandler", "Registrar venta", async () => ({
+      ok: true,
+      data: await registerSale(testDb!.db as unknown as DbExecutor, {
+        metodoPago: "efectivo", montoRecibido: 5000,
+        items: [{ productoId: 1, cantidad: 2 }],
+      }),
+    })));
+    const logs = output.mock.calls.flat().join("\n");
+    const ordered = ["[venta]: INSERT", "[venta_efectivo]: INSERT", "[detalle_venta]: INSERT",
+      "[lote]: UPDATE", "[venta_lote]: INSERT", "[log_auditoria]: INSERT", "COMMIT completado", "Respuesta OK"];
+    let previous = -1;
+    for (const fragment of ordered) {
+      const index = logs.indexOf(fragment);
+      expect(index, fragment).toBeGreaterThan(previous);
+      previous = index;
+    }
+    expect(logs).toContain("C_DescuentoStockHandler → C_drizzle → C_libsql → [venta_lote]");
+    expect(logs).toContain("C_AuditoriaHandler → C_drizzle → C_libsql → [log_auditoria]");
+    expect(logs).toContain("C_VerificacionCajaHandler");
+    const preflight = logs.indexOf("Prevalidar caja sin escribir");
+    const recheck = logs.indexOf("Inspeccionar caja sin escribir");
+    const user = logs.indexOf("[usuario, sesion_usuario]: SELECT");
+    const worker = logs.indexOf("[trabajador]: SELECT");
+    const openCash = logs.indexOf("Revalidar caja y abrir solo si no existe");
+    expect(preflight).toBeGreaterThan(-1);
+    expect(recheck).toBeGreaterThan(preflight);
+    expect(user).toBeGreaterThan(recheck);
+    expect(worker).toBeGreaterThan(user);
+    expect(openCash).toBeGreaterThan(worker);
+  });
+
+  it("actualiza el trigger anterior y sigue impidiendo stock negativo", async () => {
+    await testDb!.client.executeMultiple(`
+      CREATE TRIGGER trg_venta_lote_stock_suficiente
+      BEFORE INSERT ON venta_lote
+      WHEN NEW.venta_lote_cantidad_consumida >
+        (SELECT lote_cantidad_actual FROM lote WHERE lote_id = NEW.lote_id)
+      BEGIN SELECT RAISE(ABORT, 'stock previo'); END;
+    `);
+    await applyTriggers(testDb!.client, join(process.cwd(), "src/db/triggers.sql"));
+    await applyTriggers(testDb!.client, join(process.cwd(), "src/db/triggers.sql"));
+    await expect(testDb!.db.run(sql`UPDATE lote SET lote_cantidad_actual = -1`)).rejects.toThrow();
+    await registerSale(testDb!.db as unknown as DbExecutor, {
+      metodoPago: "debito", items: [{ productoId: 1, cantidad: 6 }],
+    });
+    expect(await testDb!.db.all(sql`SELECT SUM(lote_cantidad_actual) AS stock FROM lote`))
+      .toEqual([{ stock: 0 }]);
+  });
+
   it.each([4, 5, 6])("vende %s de seis unidades con los triggers instalados", async (cantidad) => {
     const receipt = await registerSale(testDb!.db as unknown as DbExecutor, {
       metodoPago: "debito", items: [{ productoId: 1, cantidad }],
@@ -348,15 +403,6 @@ describe("registerSale", () => {
       .fn()
       .mockResolvedValueOnce([
         {
-          usuarioId: "12345678-9",
-          sesionFechaHoraCierre: null,
-          sesionVigente: 1,
-          trabajadorEstado: "activo",
-          nombre: "Maria Huascar",
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
           cierreCajaId: "caja-1",
           status: "cerrado",
           openedAt: "2026-06-12T08:00:00.000Z",
@@ -379,7 +425,8 @@ describe("registerSale", () => {
     await expect(registerSale(database, null as never)).rejects.toBeInstanceOf(
       SaleBusinessError,
     );
-    expect(transactionAll).toHaveBeenCalledTimes(2);
+    expect(outerAll).toHaveBeenCalledTimes(1);
+    expect(transactionAll).toHaveBeenCalledTimes(1);
     expect(tx.run).not.toHaveBeenCalled();
   });
 
@@ -756,7 +803,7 @@ async function createTestDatabase() {
   const dir = await mkdtemp(join(tmpdir(), "huascar-sale-"));
   const dbPath = join(dir, "test.db").replace(/\\/g, "/");
   const client = createClient({ url: `file:${dbPath}` });
-  const db = drizzle(client, { schema });
+  const db = drizzle(client, { schema, logger: demoQueryLogger });
 
   await client.execute("PRAGMA foreign_keys = ON");
   await applyMigrations(client);

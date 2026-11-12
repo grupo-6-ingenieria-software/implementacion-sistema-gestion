@@ -10,6 +10,8 @@ import {
   registerDebugLogin,
 } from "./controllers/debug-login";
 import { startAutoUpdater } from "./updater";
+import { DEMO_VIEW_STEP_CHANNEL } from "../shared/demo-sequence";
+import { loadDemoSqlViews, logDemoViewStep } from "./demo-trace";
 import {
   purgeExpiredAuditLogs,
   startAuditRetentionMaintenance,
@@ -88,6 +90,12 @@ app.whenReady().then(async () => {
     return;
   }
 
+  if (process.env.HUASCAR_DEMO === "1") {
+    await loadDemoSqlViews(client);
+    ipcMain.on(DEMO_VIEW_STEP_CHANNEL, (event, step: unknown) => {
+      if (event.sender === mainWindow?.webContents) logDemoViewStep(step);
+    });
+  }
   registerControllers(ipcMain);
 
   const stopAuditRetention = startAuditRetentionMaintenance({

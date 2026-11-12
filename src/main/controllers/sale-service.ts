@@ -26,6 +26,7 @@ import {
 import { AccessDeniedError } from "./auth-context";
 import { checkedAdd, checkedMultiply, safeInteger } from "../../shared/numbers";
 import { assertDailySaleTotals } from "./sql-validation-primitives";
+import { demoRandomUUID, traceDemoCall, traceDemoTransaction } from "../demo-trace";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
@@ -75,15 +76,21 @@ export async function registerSale(
   actor: SaleActor,
   now = new Date(),
 ): Promise<SaleReceipt> {
-  return database.transaction(async (tx) => {
-    const responsable = await getResponsibleUser(tx, actor, now);
-    const transactionCashState = await inspectDailyCashRegister(tx, now);
+  const initialCashState = await traceDemoCall("C_VerificacionCajaHandler", "Prevalidar caja sin escribir", () => inspectDailyCashRegister(database, now));
+  if (initialCashState.status === "cerrada") {
+    throw new SaleBusinessError(
+      "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
+    );
+  }
+  return traceDemoTransaction(() => database.transaction(async (tx) => {
+    const transactionCashState = await traceDemoCall("C_VerificacionCajaHandler", "Inspeccionar caja sin escribir", () => inspectDailyCashRegister(tx, now));
     if (transactionCashState.status === "cerrada") {
       throw new SaleBusinessError(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       );
     }
     await validateSalePayloadRules(tx, payload);
+    const responsable = await getResponsibleUser(tx, actor, now);
     const normalized = normalizeSalePayload(payload);
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
@@ -132,14 +139,14 @@ export async function registerSale(
 
     let stockPlan;
     try {
-      stockPlan = await planStockDiscount(
+      stockPlan = await traceDemoCall("C_DescuentoStockHandler", "Planificar consumo FEFO/FIFO antes de abrir caja", () => planStockDiscount(
         tx,
         receiptLines.map((line) => ({
           productoId: line.productoId,
           cantidad: line.cantidad,
           exigeVencimiento: line.exigeVencimiento,
         })),
-      );
+      ));
     } catch (error) {
       if (error instanceof StockDiscountBusinessError) {
         throw new SaleBusinessError(error.message);
@@ -149,7 +156,7 @@ export async function registerSale(
 
     // Revalidación transaccional: el plan de stock se completa antes de abrir la
     // primera caja del día, por lo que un carrito inválido no genera escrituras.
-    const cashState = await ensureDailyCashRegisterForSale(tx, now);
+    const cashState = await traceDemoCall("C_VerificacionCajaHandler", "Revalidar caja y abrir solo si no existe", () => ensureDailyCashRegisterForSale(tx, now));
     if (cashState.status === "cerrada") {
       throw new SaleBusinessError(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
@@ -236,7 +243,7 @@ export async function registerSale(
     }
 
     try {
-      await applyStockDiscount(tx, ventaId, stockPlan);
+      await traceDemoCall("C_DescuentoStockHandler", "Descontar stock y registrar consumo de lotes", () => applyStockDiscount(tx, ventaId, stockPlan));
     } catch (error) {
       if (error instanceof StockDiscountBusinessError) {
         throw new SaleBusinessError(error.message);
@@ -245,12 +252,12 @@ export async function registerSale(
     }
 
     await assertDailySaleTotals(tx, now);
-    await registerAuditLog(tx, {
+    await traceDemoCall("C_AuditoriaHandler", "Auditar venta y resolver versión del usuario", () => registerAuditLog(tx, {
       usuarioId: responsable.usuarioId,
       tipoAccion: "registrar_venta",
       modulo: "ventas",
       descripcion: `Venta ${ventaId} registrada por ${responsable.nombre} por $${totals.total}.`,
-    });
+    }));
 
     return {
       ventaId,
@@ -270,7 +277,7 @@ export async function registerSale(
         : undefined,
       detalle: receiptLines,
     };
-  });
+  }));
 }
 
 /** Validación remota y de solo lectura usada mientras se edita el carrito. */
@@ -526,7 +533,7 @@ export async function registerAuditLog(
       usuario_version_id
     )
     VALUES (
-      ${randomUUID()},
+      ${demoRandomUUID("auditoría de venta")},
       ${getAuditTimestamp()},
       ${input.tipoAccion},
       ${input.modulo},
@@ -558,8 +565,7 @@ async function getResponsibleUser(
     usuarioId: string;
     sesionFechaHoraCierre: string | null;
     sesionVigente: number;
-    trabajadorEstado: string;
-    nombre: string;
+    trabajadorId: number;
   }>(sql`
     SELECT
       s.usuario_id AS usuarioId,
@@ -569,11 +575,9 @@ async function getResponsibleUser(
           AND julianday(s.sesion_fecha_hora_ultimo_acceso) > julianday(${inactivityBoundary})
         THEN 1 ELSE 0
       END AS sesionVigente,
-      t.trabajador_estado AS trabajadorEstado,
-      trim(t.trabajador_nombre || ' ' || t.trabajador_apellido) AS nombre
-    FROM sesion_usuario s
-    JOIN usuario u ON u.usuario_id = s.usuario_id
-    JOIN trabajador t ON t.trabajador_id = u.trabajador_id
+      u.trabajador_id AS trabajadorId
+    FROM usuario u
+    JOIN sesion_usuario s ON s.usuario_id = u.usuario_id
     WHERE s.sesion_usuario_id = ${actor.sesionId}
     LIMIT 1
   `);
@@ -583,10 +587,22 @@ async function getResponsibleUser(
     !user ||
     user.usuarioId !== actor.usuarioId.trim() ||
     user.sesionFechaHoraCierre !== null ||
-    Number(user.sesionVigente) !== 1 ||
-    user.trabajadorEstado !== "activo" ||
-    !user.nombre.trim()
+    Number(user.sesionVigente) !== 1
   ) {
+    throw new AccessDeniedError(
+      "El usuario autenticado no está activo o la sesión ya no es válida.",
+    );
+  }
+
+  const workers = await database.all<{ estado: string; nombre: string }>(sql`
+    SELECT trabajador_estado AS estado,
+      trim(trabajador_nombre || ' ' || trabajador_apellido) AS nombre
+    FROM trabajador
+    WHERE trabajador_id = ${user.trabajadorId}
+    LIMIT 1
+  `);
+  const worker = workers[0];
+  if (!worker || worker.estado !== "activo" || !worker.nombre.trim()) {
     throw new AccessDeniedError(
       "El usuario autenticado no está activo o la sesión ya no es válida.",
     );
@@ -595,7 +611,7 @@ async function getResponsibleUser(
   return {
     usuarioId: user.usuarioId,
     rol: actor.rol,
-    nombre: user.nombre,
+    nombre: worker.nombre,
   };
 }
 
@@ -640,7 +656,7 @@ async function getOrCreateCurrentUserVersion(
       "No fue posible identificar al usuario responsable de la venta.",
     );
   }
-  const usuarioVersionId = randomUUID();
+  const usuarioVersionId = demoRandomUUID("versión de usuario");
 
   await database.run(sql`
     INSERT INTO usuario_version (

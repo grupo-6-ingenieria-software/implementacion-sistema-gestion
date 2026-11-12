@@ -171,6 +171,10 @@ export function SaleRegisterView({
   }, [cart, discount, draftReady, metodoPago, montoRecibido, session.usuarioId]);
 
   useEffect(() => {
+    window.appApi.demoViewStep?.("saleOpened");
+  }, []);
+
+  useEffect(() => {
     void checkCash();
     void loadProducts();
   }, [session.usuarioId]);
@@ -190,6 +194,7 @@ export function SaleRegisterView({
     }
     const available = response.data.status !== "cerrada";
     setCashAvailable(available);
+    if (available) window.appApi.demoViewStep?.("saleReady");
     if (!available)
       setError(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
@@ -206,6 +211,7 @@ export function SaleRegisterView({
     if (!isLatestSaleRequest(requestId, productRequestRef.current)) return;
     if (response.ok) {
       setProducts(response.data);
+      window.appApi.demoViewStep?.("productsShown");
     } else {
       setProducts([]);
       setError(response.error.message);
@@ -213,6 +219,7 @@ export function SaleRegisterView({
   }
 
   async function addByEan13(code: string): Promise<void> {
+    window.appApi.demoViewStep?.("productScanned");
     setError(null);
     setMessage(null);
     setReceipt(null);
@@ -220,9 +227,11 @@ export function SaleRegisterView({
 
     if (!isValidEan13(code)) {
       setError("Ingrese un código EAN-13 válido.");
+      window.appApi.demoViewStep?.("eanRejected");
       return;
     }
 
+    window.appApi.demoViewStep?.("eanAccepted");
     const requestId = ++productRequestRef.current;
     const response = await window.appApi.invoke<ActiveProduct[]>(
       "venta:producto",
@@ -235,6 +244,7 @@ export function SaleRegisterView({
       return;
     }
 
+    window.appApi.demoViewStep?.("productsShown");
     addToCart(response.data[0]);
     setEan13("");
   }
@@ -261,6 +271,7 @@ export function SaleRegisterView({
   }
 
   function updateQuantity(productoId: number, quantity: number): void {
+    window.appApi.demoViewStep?.("quantityEntered");
     commitCart(
       (pendingCartRef.current ?? cartRef.current).map((item) =>
         item.productoId === productoId
@@ -355,6 +366,7 @@ export function SaleRegisterView({
     setCartRevision((revision) => revision + 1);
     setError(null);
     setIsCartValid(true);
+    window.appApi.demoViewStep?.("cartShown");
   }
 
   async function confirmSale(): Promise<void> {
@@ -384,6 +396,7 @@ export function SaleRegisterView({
 
     savingRef.current = true;
     setIsSaving(true);
+    window.appApi.demoViewStep?.("saleSubmitted");
     try {
       writeSaleDraft({
         version: SALE_DRAFT_VERSION,
@@ -430,6 +443,7 @@ export function SaleRegisterView({
       setMessage(
         `Venta registrada por ${formatCurrency(response.data.total)}.`,
       );
+      window.appApi.demoViewStep?.("saleShown");
       pendingCartRef.current = null;
       cartRef.current = [];
       setCart([]);
@@ -495,6 +509,7 @@ export function SaleRegisterView({
                     onChange={(event) => {
                       const value = event.target.value;
                       setQuery(value);
+                      window.appApi.demoViewStep?.("productSearched");
                       void loadProducts(value);
                     }}
                   />
@@ -671,7 +686,10 @@ export function SaleRegisterView({
                   metodo={metodoPago}
                   total={totals.total}
                   montoRecibido={montoRecibido}
-                  onMetodoChange={setMetodoPago}
+                  onMetodoChange={(method) => {
+                    setMetodoPago(method);
+                    window.appApi.demoViewStep?.("paymentSelected");
+                  }}
                   onMontoRecibidoChange={setMontoRecibido}
                 />
 

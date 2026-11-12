@@ -65,6 +65,7 @@ import { expiringLotsReportController } from "./expiring-lots-report";
 import { movementReportController } from "./movement-report";
 import { receiptPrintController } from "./receipt-print";
 import type { RegisteredController } from "./base";
+import { traceDemoCall, traceDemoRequest } from "../demo-trace";
 
 const workerController = createWorkerController({
   ...workerDependencies,
@@ -148,15 +149,19 @@ export async function dispatchControllerWithAccessControl(
   controller: RegisteredController<any, any>,
   onSessionExpired: () => void,
 ) {
-  const guard = await authorizeRequest(channel, payload, onSessionExpired);
+  return traceDemoRequest(channel, async () => {
+    const guard = await authorizeRequest(channel, payload, onSessionExpired);
 
-  if (!guard.ok) {
-    return guard.response;
-  }
+    if (!guard.ok) return guard.response;
 
-  return handleWithAudit(controller, guard.payload, guard.context, (event) =>
-    registerAuditLog(db, appSchema, event),
-  );
+    return traceDemoCall(`C_${controller.metadata.name}`, channel, () =>
+      handleWithAudit(controller, guard.payload, guard.context, (event) =>
+        traceDemoCall("C_AuditoriaHandler", "Registrar auditoría de consulta", () =>
+          registerAuditLog(db, appSchema, event),
+        ),
+      ),
+    );
+  });
 }
 
 export function registerControllers(ipcMain: IpcMain): void {

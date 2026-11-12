@@ -49,6 +49,7 @@ export function SupplierOrderReceptionView({
         return;
       }
       setOrders(response.data);
+      window.appApi.demoViewStep?.("ordersShown");
     } catch {
       setOrders([]);
       setMessage("No fue posible cargar los pedidos.");
@@ -80,12 +81,18 @@ export function SupplierOrderReceptionView({
       );
       setOperationId(createOperationId());
       setCloseReason("");
+      window.appApi.demoViewStep?.("orderShown");
+      if (response.data.puedeRecibir) window.appApi.demoViewStep?.("deliveryFormShown");
     } catch {
       setMessage("No fue posible cargar el detalle del pedido.");
     } finally {
       setWorking(false);
     }
   }
+
+  useEffect(() => {
+    window.appApi.demoViewStep?.("receptionOpened");
+  }, []);
 
   useEffect(() => {
     void loadOrders(filter);
@@ -141,6 +148,7 @@ export function SupplierOrderReceptionView({
 
   async function submitReception(): Promise<void> {
     if (!selected) return;
+    window.appApi.demoViewStep?.("receptionSubmitted");
     setWorking(true);
     setErrors({});
     setMessage(null);
@@ -172,6 +180,7 @@ export function SupplierOrderReceptionView({
           : `Recepción registrada. Estado: ${supplierOrderStateLabels[response.data.estado]}.`,
       );
       setOperationId(createOperationId());
+      window.appApi.demoViewStep?.("receptionShown");
       await Promise.all([loadOrders(filter), loadDetail(selected.pedidoId)]);
     } catch {
       setMessage(
@@ -293,7 +302,10 @@ export function SupplierOrderReceptionView({
                 }`}
                 key={order.pedidoId}
                 type="button"
-                onClick={() => void loadDetail(order.pedidoId)}
+                onClick={() => {
+                  window.appApi.demoViewStep?.("orderSelected");
+                  void loadDetail(order.pedidoId);
+                }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <span className="font-semibold text-[#17202a]">

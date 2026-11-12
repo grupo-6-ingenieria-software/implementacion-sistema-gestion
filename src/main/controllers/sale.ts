@@ -18,6 +18,7 @@ import { inspectDailyCashRegister, type CashCheckDb } from "./cash-check";
 import { searchActiveProducts, type ActiveProductQuery } from "./product-query";
 import { AccessDeniedError } from "./auth-context";
 import { demoLog, demoMoney, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
+import { traceDemoCall } from "../demo-trace";
 import type {
   DailyCashState,
   SaleCartValidationRequest,
@@ -48,9 +49,9 @@ export function createSaleController(
     handle: async (payload, context) => {
       try {
         if (context.channel === "venta:verificar-caja") {
-          const state = await dependencies.inspectCash(
+          const state = await traceDemoCall("C_VerificacionCajaHandler", "Consultar estado de caja", () => dependencies.inspectCash(
             db as unknown as CashCheckDb,
-          );
+          ));
           demoLog("RF36", "Verificación de caja", () => ({
             Estado: state.status === "sin_registro" ? "Disponible para primera venta" : state.status,
           }));
@@ -59,7 +60,7 @@ export function createSaleController(
 
         if (context.channel === "venta:producto") {
           const input = (payload ?? {}) as ActiveProductQuery;
-          const products = await dependencies.searchProducts(input);
+          const products = await traceDemoCall("C_ConsultaProductoHandler", "Buscar productos activos", () => dependencies.searchProducts(input));
           const search = input.ean13?.trim() || input.query?.trim();
           if (search && products.length === 0) {
             return controllerError(
@@ -135,7 +136,7 @@ export function createSaleController(
           ...(receipt.vuelto !== undefined ? { Vuelto: demoMoney(receipt.vuelto) } : {}),
         }));
         await logDemoStockChanges("RF36", previousStock);
-        dependencies.notify();
+        await traceDemoCall("C_webContentsSend", "Emitir dashboard:actualizado", async () => dependencies.notify());
         return controllerSuccess<SaleReceipt>(receipt);
       } catch (error) {
         if (error instanceof SaleValidationError) {

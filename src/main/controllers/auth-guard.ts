@@ -13,6 +13,7 @@ import {
   type VerifySessionData,
 } from "./session";
 import { SESSION_EXPIRED_MESSAGE, SESSION_INVALIDATED_MESSAGE } from "../../shared/auth";
+import { traceDemoCall } from "../demo-trace";
 
 export const PUBLIC_CHANNELS: ReadonlySet<string> = new Set(["auth:login"]);
 
@@ -153,10 +154,10 @@ export async function authorizeRequest(
     const result = await deps.identity(channel, payload);
     if (!result.ok || !result.context.claims) return result;
     const claims = result.context.claims;
-    const session = await deps.session(
+    const session = await traceDemoCall("C_SesionHandler", "Validar sesión y actualizar último acceso", () => deps.session(
       claims,
       !NON_ACTIVITY_CHANNELS.has(channel),
-    );
+    ));
     if (!session.active) {
       if (session.reason === "inactividad") {
         onExpired();
@@ -266,7 +267,7 @@ export async function authenticateChannel(
   }
 
   const token = extractToken(payload);
-  const claims = deps.verifyToken(token);
+  const claims = await traceDemoCall("C_jsonwebtoken", "Verificar identidad y JWT", async () => deps.verifyToken(token));
 
   if (!claims) {
     return {

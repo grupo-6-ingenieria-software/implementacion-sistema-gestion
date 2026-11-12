@@ -3,9 +3,11 @@ import type { ControllerResponse } from "../shared/controllers";
 import { DASHBOARD_UPDATED_EVENT } from "../shared/dashboard";
 import { SESSION_EXPIRED_EVENT, SESSION_INVALIDATED_EVENT } from "../shared/auth";
 import { SUPPLIER_ORDERS_UPDATED_EVENT } from "../shared/supplier-orders";
+import { DEMO_VIEW_STEP_CHANNEL, isDemoViewStep, type DemoViewStep } from "../shared/demo-sequence";
 
 export type AppApi = {
   debugMode: boolean;
+  demoViewStep?: (step: DemoViewStep) => void;
   invoke: <TData = unknown>(
     channel: string,
     payload?: unknown,
@@ -24,6 +26,11 @@ let sessionToken: string | null = null;
 
 const api: AppApi = {
   debugMode: process.env.HUASCAR_DEBUG_LOGIN === "1",
+  ...(process.env.HUASCAR_DEMO === "1" && {
+    demoViewStep: (step: DemoViewStep) => {
+      if (isDemoViewStep(step)) ipcRenderer.send(DEMO_VIEW_STEP_CHANNEL, step);
+    },
+  }),
   invoke: (channel, payload) => {
     if (payload === undefined || payload === null) {
       return ipcRenderer.invoke(channel, { __authToken: sessionToken });

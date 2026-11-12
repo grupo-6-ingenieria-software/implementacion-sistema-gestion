@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { demoQueryLogger, traceDemoCall, traceDemoRequest, traceDemoTransaction } from "../../../src/main/demo-trace";
 import * as schema from "../../../src/db/schema";
 import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/supplier-order";
 import {
@@ -24,10 +25,49 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   if (!testDb) return;
   testDb.client.close();
   await removeTempDir(testDb.dir);
   testDb = undefined;
+});
+
+describe("secuencia demo CU18", () => {
+  it("crea el detalle antes del lote y no inventa escrituras al repetir una recepción", async () => {
+    const order = await createOrder(10);
+    const detailId = await getDetailId(order.pedidoId);
+    const operationId = randomUUID();
+    vi.stubEnv("HUASCAR_DEMO", "1");
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    const reception = () => traceDemoRequest("pedido:confirmar-recepcion", () =>
+      traceDemoCall("C_RecepcionPedidoHandler", "Confirmar recepción", async () => ({
+        ok: true,
+        data: await traceDemoTransaction(() => testDb!.db.transaction((tx) =>
+          confirmSupplierOrderReceptionWithExecutor(tx, schema, {
+            pedidoId: order.pedidoId, operacionId: operationId, usuarioId: "12345678-9",
+            lineas: [{ detallePedidoId: detailId, cantidad: 4, precioCosto: 700, fechaVencimiento: "2099-12-31" }],
+          }),
+        )),
+      })),
+    );
+    await reception();
+    const logs = output.mock.calls.flat().join("\n");
+    const ordered = ["[pedido_proveedor]: SELECT", "[detalle_pedido, producto, categoria]: SELECT", "[recepcion_pedido]: SELECT",
+      "[recepcion_pedido]: INSERT", "[detalle_recepcion]: INSERT", "[lote]: INSERT", "[lote_perecible]: INSERT",
+      "[detalle_pedido]: UPDATE", "[pedido_proveedor]: UPDATE",
+      "[historial_auditoria_pedido]: INSERT", "[log_auditoria]: INSERT", "COMMIT completado", "Respuesta OK"];
+    let previous = -1;
+    for (const fragment of ordered) {
+      const index = logs.indexOf(fragment);
+      expect(index, fragment).toBeGreaterThan(previous);
+      previous = index;
+    }
+    output.mockClear();
+    expect(await reception()).toMatchObject({ ok: true, data: { idempotente: true } });
+    expect(output.mock.calls.flat().join("\n")).not.toMatch(/INSERT solicitado|UPDATE solicitado/);
+    await expectOrderSnapshot(order.pedidoId, { estado: "parcial", lotes: 1, recepciones: 1, recibido: 4, stock: 4 });
+  });
 });
 
 describe("CU17 registro de pedidos a proveedor", () => {
@@ -120,12 +160,12 @@ describe("CU18 recepciones sucesivas y atómicas", () => {
     });
   });
 
-  it("devuelve el resultado previo de la misma operación sin duplicar stock", async () => {
+  it.each([4, 10])("devuelve el resultado previo de recibir %s unidades sin duplicar stock", async (cantidad) => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     const operationId = randomUUID();
-    const first = await receive(order.pedidoId, detailId, 4, operationId);
-    const retry = await receive(order.pedidoId, detailId, 4, operationId);
+    const first = await receive(order.pedidoId, detailId, cantidad, operationId);
+    const retry = await receive(order.pedidoId, detailId, cantidad, operationId);
 
     expect(first.idempotente).toBe(false);
     expect(retry).toMatchObject({
@@ -134,12 +174,30 @@ describe("CU18 recepciones sucesivas y atómicas", () => {
       operacionId: operationId,
     });
     await expectOrderSnapshot(order.pedidoId, {
-      estado: "parcial",
+      estado: cantidad === 10 ? "recibido" : "parcial",
       lotes: 1,
       recepciones: 1,
-      recibido: 4,
-      stock: 4,
+      recibido: cantidad,
+      stock: cantidad,
     });
+    expect(await testDb!.db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
+    expect(await testDb!.db.all(sql`PRAGMA defer_foreign_keys`)).toEqual([{ defer_foreign_keys: 0 }]);
+  });
+
+  it("no confirma detalles huérfanos si un lote no se llega a crear", async () => {
+    const order = await createOrder(10);
+    const detailId = await getDetailId(order.pedidoId);
+    await testDb!.client.executeMultiple(`
+      CREATE TRIGGER skip_received_lot BEFORE INSERT ON lote
+      BEGIN SELECT RAISE(IGNORE); END;
+    `);
+    await expect(receive(order.pedidoId, detailId, 4)).rejects.toThrow(/FOREIGN KEY/);
+    await expectOrderSnapshot(order.pedidoId, {
+      estado: "pendiente", lotes: 0, recepciones: 0, recibido: 0, stock: 0,
+    });
+    expect(await testDb!.db.all(sql`SELECT COUNT(*) AS detalles FROM detalle_recepcion`))
+      .toEqual([{ detalles: 0 }]);
+    expect(await testDb!.db.all(sql`PRAGMA defer_foreign_keys`)).toEqual([{ defer_foreign_keys: 0 }]);
   });
 
   it("rechaza una cantidad superior al saldo actual sin cambios", async () => {
@@ -205,19 +263,19 @@ describe("CU18 recepciones sucesivas y atómicas", () => {
     });
   });
 
-  it("revierte recepción, lote y cantidad acumulada cuando falla una escritura posterior", async () => {
+  it.each(["detalle_recepcion", "lote", "lote_perecible", "historial_auditoria_pedido", "log_auditoria"])("revierte la recepción si falla la escritura de %s", async (table) => {
     const order = await createOrder(10);
     const detailId = await getDetailId(order.pedidoId);
     await testDb!.client.executeMultiple(`
       CREATE TRIGGER fail_receipt_detail
-      BEFORE INSERT ON detalle_recepcion
+      BEFORE INSERT ON ${table}
       BEGIN
         SELECT RAISE(ABORT, 'controlled receipt failure');
       END;
     `);
 
     await expect(receive(order.pedidoId, detailId, 4)).rejects.toThrow(
-      /detalle_recepcion/,
+      new RegExp(table),
     );
     await expectOrderSnapshot(order.pedidoId, {
       estado: "pendiente",
@@ -226,6 +284,9 @@ describe("CU18 recepciones sucesivas y atómicas", () => {
       recibido: 0,
       stock: 0,
     });
+    expect(await testDb!.db.all(sql`SELECT COUNT(*) AS detalles FROM detalle_recepcion`))
+      .toEqual([{ detalles: 0 }]);
+    expect(await testDb!.db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
   });
 });
 
@@ -455,7 +516,7 @@ async function createTestDatabase() {
     url: `file:${join(dir, "test.db").replace(/\\/g, "/")}`,
   });
   await client.execute("PRAGMA foreign_keys = ON");
-  const db = drizzle(client, { schema });
+  const db = drizzle(client, { schema, logger: demoQueryLogger });
   const migrationsDir = join(process.cwd(), "drizzle/migrations");
   for (const file of (await readdir(migrationsDir))
     .filter((name) => name.endsWith(".sql"))
