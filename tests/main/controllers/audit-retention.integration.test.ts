@@ -8,11 +8,11 @@ import { getAuditLogWindow } from "../../../src/shared/audit";
 import {
   auditRetentionCutoffExpression,
   purgeExpiredAuditLogs,
-} from "../../../src/main/controllers/audit-retention-service";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/PurgaAuditoriaAuxiliar";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const USER = "12345678-9";
 const triggersPath = join(process.cwd(), "src/db/triggers.sql");

@@ -7,13 +7,13 @@ import {
   validateAndRefreshActiveSession,
   verifySessionWithExecutor,
   type SessionDeps,
-} from "../../../src/main/controllers/session";
+} from "../../../src/main/controllers/SesionHandler";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const NOW = new Date("2026-06-13T12:00:00.000Z");
 const SESSION_ID = "00000000-0000-4000-8000-000000000777";

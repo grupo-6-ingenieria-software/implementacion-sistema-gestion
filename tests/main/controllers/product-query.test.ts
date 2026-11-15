@@ -7,11 +7,11 @@ import type {
   ProductListItem,
   ProductListResponse,
 } from "../../../src/shared/products";
-import { createProductQueryController } from "../../../src/main/controllers/product-query";
+import { createConsultaProductoHandler } from "../../../src/main/controllers/ConsultaProductoHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 const products: ProductListItem[] = [
   {
@@ -53,7 +53,7 @@ const products: ProductListItem[] = [
 ];
 
 function createController() {
-  return createProductQueryController({
+  return createConsultaProductoHandler({
     authorize: async (usuarioId, allowedRoles) =>
       authorizeTestUser(usuarioId, allowedRoles),
     listProducts: async ({ filters, includeCost }) =>
@@ -214,7 +214,7 @@ describe("controlador de consulta de productos", () => {
 
   it("carga los productos antes que las opciones de categoría", async () => {
     const calls: string[] = [];
-    const controller = createProductQueryController({
+    const controller = createConsultaProductoHandler({
       authorize: async (usuarioId, roles) =>
         authorizeTestUser(usuarioId, roles),
       listProducts: async () => {
@@ -388,7 +388,7 @@ describe("controlador de consulta de productos", () => {
 
   it("devuelve no encontrado antes que las categorías cuando falta el detalle del producto", async () => {
     const calls: string[] = [];
-    const controller = createProductQueryController({
+    const controller = createConsultaProductoHandler({
       authorize: async (usuarioId, roles) =>
         authorizeTestUser(usuarioId, roles),
       listProducts: async () => [],

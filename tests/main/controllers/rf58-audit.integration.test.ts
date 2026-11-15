@@ -3,15 +3,15 @@ import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { queryAuditLog, registerAuditEvent } from "../../../src/main/controllers/audit-service";
-import { authenticateWithExecutor } from "../../../src/main/controllers/auth-login";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
-import { validateAccessWithExecutor } from "../../../src/main/controllers/access-control";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { queryAuditLog, registerAuditEvent } from "../../../src/main/controllers/RegistroAuditoriaAuxiliar";
+import { authenticateWithExecutor } from "../../../src/main/controllers/AuthHandler";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { validateAccessWithExecutor } from "../../../src/main/controllers/ControlAcceso";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const NOW = new Date("2026-09-29T15:00:00.000Z");
 const OWNER = "12345678-9";

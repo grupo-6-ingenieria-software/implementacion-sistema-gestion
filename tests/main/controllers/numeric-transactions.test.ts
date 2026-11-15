@@ -4,17 +4,17 @@ import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
-import { registerLotWithExecutor } from "../../../src/main/controllers/lot";
-import { executeAdjustmentWithExecutor } from "../../../src/main/controllers/stock-adjustment";
-import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/supplier-order";
-import { confirmSupplierOrderReceptionWithExecutor } from "../../../src/main/controllers/supplier-order-reception";
-import { registerSale, type DbExecutor } from "../../../src/main/controllers/sale-service";
-import { annulSale } from "../../../src/main/controllers/sale-annulment-service";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { registerLotWithExecutor } from "../../../src/main/controllers/LoteHandler";
+import { executeAdjustmentWithExecutor } from "../../../src/main/controllers/AjusteStockHandler";
+import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/PedidoProveedorHandler";
+import { confirmSupplierOrderReceptionWithExecutor } from "../../../src/main/controllers/RecepcionPedidoHandler";
+import { registerSale, type DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
+import { annulSale } from "../../../src/main/controllers/AnulacionVentaHandler";
 import { NumericRangeError } from "../../../src/shared/numbers";
-import { queryInventoryProducts } from "../../../src/main/controllers/product-query";
-import { queryInventoryValuationWithExecutor } from "../../../src/main/controllers/inventory-valuation";
-import { loadDashboardData } from "../../../src/main/controllers/dashboard-service";
+import { queryInventoryProducts } from "../../../src/main/controllers/ConsultaProductoHandler";
+import { queryInventoryValuationWithExecutor } from "../../../src/main/controllers/ValorizacionHandler";
+import { loadDashboardData } from "../../../src/main/controllers/CargaDashboardAuxiliar";
 import { defaultProductListFilters } from "../../../src/shared/products";
 
 describe("precisión transaccional de inventario y ventas", () => {

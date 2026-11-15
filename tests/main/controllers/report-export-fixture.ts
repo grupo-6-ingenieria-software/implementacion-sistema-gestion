@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { MonthlySalesReport } from "../../../src/shared/monthly-sales";
-import type { ControllerContext } from "../../../src/main/controllers/base";
-import { ReportFileStore } from "../../../src/main/controllers/report-export-file";
-import type { ReportExportDependencies } from "../../../src/main/controllers/report-export-service";
-import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/report-registry";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
+import { ReportFileStore } from "../../../src/main/controllers/ArchivoExportacionReporteAuxiliar";
+import type { ReportExportDependencies } from "../../../src/main/controllers/ServicioExportacionReporteAuxiliar";
+import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/RegistroTiposReporteAuxiliar";
 
 export const report: MonthlySalesReport = {
   periodo: { mes: 9, anio: 2026 }, transacciones: 1, montoTotal: 2500, montoMesAnterior: 0, variacionPorcentual: null,

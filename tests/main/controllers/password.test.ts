@@ -6,13 +6,13 @@ import {
   prepareResetWithExecutor,
   resetPasswordWithExecutor,
   type PasswordDeps,
-} from "../../../src/main/controllers/password";
+} from "../../../src/main/controllers/PasswordHandler";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const NOW = new Date("2026-06-13T12:00:00.000Z");
 const CURRENT = "Current123";

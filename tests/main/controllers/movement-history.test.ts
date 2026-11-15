@@ -6,11 +6,11 @@ import type {
   MovementHistoryResponse,
   MovementHistoryFilters,
 } from "../../../src/shared/inventory-detail";
-import { createMovementHistoryController } from "../../../src/main/controllers/movement-history";
+import { createHistorialMovimientosHandler } from "../../../src/main/controllers/HistorialMovimientosHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 function authorizeTestUser(
   usuarioId: string | undefined,
@@ -136,7 +136,7 @@ function createController(
       return { movements, total, page: filters.page, pageSize: filters.pageSize };
     });
 
-  return createMovementHistoryController({
+  return createHistorialMovimientosHandler({
     authorize: async (usuarioId, allowedRoles) =>
       authorizeTestUser(usuarioId, allowedRoles),
     queryMovements,

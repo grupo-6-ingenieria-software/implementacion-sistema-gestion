@@ -7,12 +7,12 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
-  createWasteController,
+  createMermaHandler,
   registerWasteWithExecutor,
   type WasteError,
-} from "../../../src/main/controllers/waste";
+} from "../../../src/main/controllers/MermaHandler";
 import {
   normalizeWasteRegisterPayload,
   validateWasteRegisterPayload,
@@ -49,7 +49,7 @@ describe("controlador de merma", () => {
       .toEqual([{ stock: 0 }]);
   });
   it("mapea fallos de autorización a respuestas prohibidas", async () => {
-    const controller = createWasteController({
+    const controller = createMermaHandler({
       register: async () => {
         throw new AccessDeniedError();
       },
@@ -74,7 +74,7 @@ describe("controlador de merma", () => {
   });
 
   it("rechaza canales no declarados para el controlador de merma", async () => {
-    const controller = createWasteController({
+    const controller = createMermaHandler({
       register: async () => ({
         mermaId: "00000000-0000-4000-8000-000000000001",
         ean13: "7802920000015",
@@ -94,7 +94,7 @@ describe("controlador de merma", () => {
   });
 
   it("carga la disponibilidad de stock mediante la operación dedicada C15", async () => {
-    const controller = createWasteController({
+    const controller = createMermaHandler({
       availability: async (payload) => ({
         ean13: payload.ean13,
         stockDisponible: 12,

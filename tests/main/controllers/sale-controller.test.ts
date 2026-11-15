@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSaleController } from "../../../src/main/controllers/sale";
+import { createVentaHandler } from "../../../src/main/controllers/VentaHandler";
 import {
   SaleBusinessError,
   SaleValidationError,
-} from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 const saleContext = {
   channel: "venta:registrar",
@@ -50,7 +50,7 @@ describe("contratos de saleController", () => {
         "El descuento no puede ser mayor al subtotal de la venta.",
       ),
     );
-    const response = await createSaleController(deps as never).handle(
+    const response = await createVentaHandler(deps as never).handle(
       { descuento: { monto: 5000, razon: "Promoción" } },
       saleContext,
     );
@@ -73,7 +73,7 @@ describe("contratos de saleController", () => {
           finish = resolve;
         }),
     );
-    const request = createSaleController(deps as never).handle(
+    const request = createVentaHandler(deps as never).handle(
       { descuento: { monto: 500, razon: "Promoción" } },
       saleContext,
     );
@@ -87,7 +87,7 @@ describe("contratos de saleController", () => {
     "devuelve el estado discriminado de caja diaria %s sin abrir caja",
     async (status) => {
       const deps = dependencies(status);
-      const controller = createSaleController(deps as never);
+      const controller = createVentaHandler(deps as never);
       const response = await controller.handle(
         {},
         { channel: "venta:verificar-caja" },
@@ -104,7 +104,7 @@ describe("contratos de saleController", () => {
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       ),
     );
-    const controller = createSaleController(deps as never);
+    const controller = createVentaHandler(deps as never);
     const response = await controller.handle(
       { items: "malformado", metodoPago: "cheque" },
       saleContext,
@@ -123,7 +123,7 @@ describe("contratos de saleController", () => {
       lines: [{ productoId: 1, cantidad: 2, stockDisponible: 4 }],
       subtotal: 2000,
     });
-    const controller = createSaleController(deps as never);
+    const controller = createVentaHandler(deps as never);
     const payload = { items: [{ productoId: 1, cantidad: 2 }] };
     const response = await controller.handle(payload, {
       channel: "venta:validar-carrito",
@@ -135,7 +135,7 @@ describe("contratos de saleController", () => {
 
   it("CU43 elimina la identidad falsificada y construye el actor a partir de claims de confianza", async () => {
     const deps = dependencies("abierta");
-    await createSaleController(deps as never).handle(
+    await createVentaHandler(deps as never).handle(
       {
         usuarioId: "atacante",
         nombre: "Nombre falso",
@@ -164,7 +164,7 @@ describe("contratos de saleController", () => {
 
   it("CU43 rechaza el registro cuando faltan claims de confianza", async () => {
     const deps = dependencies("abierta");
-    const response = await createSaleController(deps as never).handle(
+    const response = await createVentaHandler(deps as never).handle(
       { items: [{ productoId: 1, cantidad: 1 }], metodoPago: "debito" },
       { channel: "venta:registrar" },
     );

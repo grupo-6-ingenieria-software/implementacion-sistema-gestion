@@ -1,13 +1,12 @@
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queryCategoryProfitability } from "../../../src/main/controllers/category-profitability-service";
-import { createCategoryProfitabilityController } from "../../../src/main/controllers/category-profitability";
-import { guardChannel, authorizeRequest } from "../../../src/main/controllers/auth-guard";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+import { createReporteRentabilidadHandler, queryCategoryProfitability } from "../../../src/main/controllers/ReporteRentabilidadHandler";
+import { guardChannel, authorizeRequest } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 import { evaluateRouteAccess, getVisibleMenu } from "../../../src/shared/navigation";
 import { parseProfitabilityPeriod, PROFITABILITY_RANGE_ERROR } from "../../../src/shared/category-profitability";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 
 const periodo = { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" };
 const context: ControllerContext = {
@@ -93,7 +92,7 @@ describe("RF51 CU51 V42 C58", () => {
   });
 
   it("devuelve una tabla vacía exitosa para E1 sin modificar las ventas", async () => {
-    const controller = createCategoryProfitabilityController(async () => ({ report: await query(), user }));
+    const controller = createReporteRentabilidadHandler(async () => ({ report: await query(), user }));
     expect(await controller.handle(periodo, context)).toEqual({ ok: true, data: { periodo, categorias: [] } });
     expect((await client.execute("SELECT COUNT(*) AS count FROM venta")).rows[0].count).toBe(0);
   });
@@ -107,7 +106,7 @@ describe("RF51 CU51 V42 C58", () => {
 
   it("rechaza E3 antes de consultar datos y conserva el mensaje exacto", async () => {
     const load = vi.fn();
-    const controller = createCategoryProfitabilityController(load);
+    const controller = createReporteRentabilidadHandler(load);
     expect(await controller.handle({ fechaInicio: "2026-09-30", fechaTermino: "2026-09-01" }, context)).toMatchObject({
       ok: false, error: { code: "VALIDATION_ERROR", message: PROFITABILITY_RANGE_ERROR },
     });
@@ -126,7 +125,7 @@ describe("RF51 CU51 V42 C58", () => {
     expect(evaluateRouteAccess("/app/reportes/rentabilidad", { isAuthenticated: true, role: "trabajador" })).toMatchObject({ status: "deny", to: "/app/inicio" });
     expect(await guardChannel(context.channel, periodo, { verifyToken: () => worker, audit })).toMatchObject({ ok: false });
     expect(audit).toHaveBeenCalledOnce();
-    expect(await createCategoryProfitabilityController(load).handle(periodo, { ...context, claims: worker })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    expect(await createReporteRentabilidadHandler(load).handle(periodo, { ...context, claims: worker })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(load).not.toHaveBeenCalled();
   });
 
@@ -140,7 +139,7 @@ describe("RF51 CU51 V42 C58", () => {
 
   it("audita las consultas exitosas usando el dueño autenticado", async () => {
     const audit = vi.fn();
-    const controller = createCategoryProfitabilityController(async () => ({ report: await query(), user }));
+    const controller = createReporteRentabilidadHandler(async () => ({ report: await query(), user }));
     await handleWithAudit(controller, { ...periodo, usuarioId: "fake" }, context, audit);
     expect(audit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ usuarioId: "owner", modulo: "reportes", tipoAccion: "consulta" }));
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { authenticateChannel, authorizeRequest, guardChannel } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken, type SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import { authenticateChannel, authorizeRequest, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken, type SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 
 const channels = ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"];
 const claims: SessionTokenClaims = { usuarioId: "trusted", rol: "dueno", usuarioRol: "dueno", passwordTemporal: false, sesionId: "session" };

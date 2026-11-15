@@ -9,7 +9,7 @@ import * as schema from "../../../src/db/schema";
 import {
   loadExpirationAlerts,
   type DashboardDb,
-} from "../../../src/main/controllers/dashboard-service";
+} from "../../../src/main/controllers/CargaDashboardAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -82,11 +82,11 @@ describe("controlador de alertas de vencimiento", () => {
       },
     }));
 
-    const { expirationAlertController } =
-      await import("../../../src/main/controllers/expiration-alert");
+    const { alertaVencimientoHandler } =
+      await import("../../../src/main/controllers/AlertaVencimientoHandler");
 
     await expect(
-      expirationAlertController.handle(
+      alertaVencimientoHandler.handle(
         {},
         { channel: "dashboard:alertas-vencimiento" },
       ),

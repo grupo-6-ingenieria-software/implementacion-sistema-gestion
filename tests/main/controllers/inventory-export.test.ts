@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   CHANNEL_ROLES,
   authorizeRequest,
   guardChannel,
-} from "../../../src/main/controllers/auth-guard";
+} from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
 import {
   createInventoryExportController,
   type InventoryExportDependencies,
-} from "../../../src/main/controllers/inventory-export";
-import { InventoryExportDataError } from "../../../src/main/controllers/inventory-export-query";
+} from "../../../src/main/controllers/ExportacionReporteHandler";
+import { InventoryExportDataError } from "../../../src/main/controllers/ConsultaExportacionInventarioAuxiliar";
 import {
   INVENTORY_AUDIT_WARNING,
   INVENTORY_EMPTY_MESSAGE,
@@ -78,7 +78,7 @@ describe("orquestación de C50 de CU20", () => {
         new Set(["dueno", "trabajador"]),
       );
       const deps = dependencies();
-      const result = await createInventoryExportController(deps).handle(
+      const result = await createInventoryExportController(deps)(
         {
           formato: "pdf",
           usuarioId: "attacker",
@@ -110,7 +110,7 @@ describe("orquestación de C50 de CU20", () => {
   );
   it("genera solo XLSX cuando se selecciona", async () => {
     const deps = dependencies();
-    await createInventoryExportController(deps).handle(
+    await createInventoryExportController(deps)(
       { formato: "xlsx" },
       context(),
     );
@@ -126,7 +126,7 @@ describe("orquestación de C50 de CU20", () => {
     async (formato) => {
       const deps = dependencies({ query: vi.fn(async () => []) });
       expect(
-        await createInventoryExportController(deps).handle(
+        await createInventoryExportController(deps)(
           { formato },
           context(),
         ),
@@ -153,7 +153,7 @@ describe("orquestación de C50 de CU20", () => {
           : { confirmDestination: vi.fn(async () => false) },
       );
       expect(
-        await createInventoryExportController(deps).handle(
+        await createInventoryExportController(deps)(
           { formato: "pdf" },
           context(),
         ),
@@ -172,7 +172,7 @@ describe("orquestación de C50 de CU20", () => {
     async (formato) => {
       const deps = dependencies();
       expect(
-        await createInventoryExportController(deps).handle(
+        await createInventoryExportController(deps)(
           { formato },
           context(),
         ),
@@ -188,13 +188,13 @@ describe("orquestación de C50 de CU20", () => {
     });
     const controller = createInventoryExportController(deps);
     expect(
-      await controller.handle(
+      await controller(
         { formato: "pdf", usuarioId: "trusted" },
         { channel: INVENTORY_EXPORT_CHANNEL },
       ),
     ).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(
-      await controller.handle({ formato: "pdf" }, context()),
+      await controller({ formato: "pdf" }, context()),
     ).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(deps.query).not.toHaveBeenCalled();
   });
@@ -212,7 +212,7 @@ describe("orquestación de C50 de CU20", () => {
       vi.mocked(deps[action]).mockRejectedValueOnce(
         new Error("technical failure"),
       );
-      const result = await createInventoryExportController(deps).handle(
+      const result = await createInventoryExportController(deps)(
         { formato: action === "createXlsx" ? "xlsx" : "pdf" },
         context(),
       );
@@ -236,7 +236,7 @@ describe("orquestación de C50 de CU20", () => {
       }),
     });
     expect(
-      await createInventoryExportController(deps).handle(
+      await createInventoryExportController(deps)(
         { formato: "pdf" },
         context(),
       ),
@@ -256,7 +256,7 @@ describe("orquestación de C50 de CU20", () => {
       }),
     });
     expect(
-      await createInventoryExportController(deps).handle(
+      await createInventoryExportController(deps)(
         { formato: "pdf" },
         context(),
       ),
@@ -276,13 +276,13 @@ describe("orquestación de C50 de CU20", () => {
     });
     const controller = createInventoryExportController(deps);
     expect(
-      await controller.handle({ formato: "pdf" }, context()),
+      await controller({ formato: "pdf" }, context()),
     ).toMatchObject({
       ok: false,
       error: { message: INVENTORY_EXPORT_ERROR_MESSAGE },
     });
     expect(deps.save).not.toHaveBeenCalled();
-    expect(await controller.handle({}, { channel: "other" })).toMatchObject({
+    expect(await controller({}, { channel: "other" })).toMatchObject({
       ok: false,
       error: { code: "INVALID_CHANNEL" },
     });

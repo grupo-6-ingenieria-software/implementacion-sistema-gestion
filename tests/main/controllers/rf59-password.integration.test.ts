@@ -5,20 +5,19 @@ import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { authenticateWithExecutor } from "../../../src/main/controllers/auth-login";
-import { authorizeRequest, guardChannel } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/auth-jwt";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { loadCurrentPassword } from "../../../src/main/controllers/current-password";
+import { authenticateWithExecutor } from "../../../src/main/controllers/AuthHandler";
+import { authorizeRequest, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { loadCurrentPassword } from "../../../src/main/controllers/ContrasenaVigenteAuxiliar";
 import {
   changePasswordWithExecutor, resetPasswordWithExecutor, generateTemporaryPassword,
-  defaultDeps, type PasswordDeps,
-} from "../../../src/main/controllers/password";
-import { validateAndRefreshActiveSession } from "../../../src/main/controllers/session";
-import { createUserManagementController } from "../../../src/main/controllers/user-management";
+  createUserManagementHandler, defaultDeps, type PasswordDeps,
+} from "../../../src/main/controllers/PasswordHandler";
+import { validateAndRefreshActiveSession } from "../../../src/main/controllers/SesionHandler";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import { TEMP_PASSWORD_MS, SESSION_INVALIDATED_MESSAGE } from "../../../src/shared/auth";
 import { evaluateRouteAccess, resolveInitialRoute } from "../../../src/shared/navigation";
 
@@ -247,7 +246,7 @@ describe("RF59 / CU59 / CP63", () => {
       const response = await resetPasswordWithExecutor(fixture.db, schema, payload, deps, role);
       return response.ok ? { ok: true as const, data: { ...response.data, estado: "completado" as const } } : response;
     });
-    const controller = createUserManagementController({ authorize: vi.fn(), listUsers: async () => [], requestPasswordReset: requestReset });
+    const controller = { handle: createUserManagementHandler({ authorize: vi.fn(), listUsers: async () => [], requestPasswordReset: requestReset }) };
     const claims = { usuarioId: OWNER, rol: "trabajador" as const, usuarioRol: "dueno", passwordTemporal: false, sesionId: randomUUID() };
     expect(await controller.handle({ usuarioId: OWNER, usuarioObjetivoId: WORKER },
       { channel: "usuario:solicitar-restablecimiento", claims })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });

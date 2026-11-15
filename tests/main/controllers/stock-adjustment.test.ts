@@ -6,13 +6,13 @@ import type {
   StockAdjustmentResponse,
 } from "../../../src/shared/inventory-detail";
 import {
-  createStockAdjustmentController,
+  createAjusteStockHandler,
   StockAdjustmentError,
-} from "../../../src/main/controllers/stock-adjustment";
+} from "../../../src/main/controllers/AjusteStockHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 function authorizeTestUser(
   usuarioId: string | undefined,
@@ -79,7 +79,7 @@ function createController(
     ) => Promise<StockAdjustmentAvailability | null>;
   } = {},
 ) {
-  return createStockAdjustmentController({
+  return createAjusteStockHandler({
     authorize: async (usuarioId, allowedRoles) =>
       authorizeTestUser(usuarioId, allowedRoles),
     findActiveProduct: async () => null,

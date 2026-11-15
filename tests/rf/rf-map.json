@@ -1166,7 +1166,7 @@
       },
       {
         "file": "tests/shared/controllers.test.ts",
-        "test": "registro de controladores > agrega los controladores de CU16 sin cambiar los índices heredados"
+        "test": "registro de controladores > agrega el controlador de lista de reabastecimiento de CU16 sin cambiar los índices heredados"
       },
       {
         "file": "tests/renderer/src/views/RestockListView.test.ts",
@@ -3189,7 +3189,7 @@
       },
       {
         "file": "tests/shared/controllers.test.ts",
-        "test": "registro de controladores > agrega C51 sin cambiar los índices heredados"
+        "test": "registro de controladores > absorbe C50 y C51 en AsistenciaHandler sin cambiar los índices heredados"
       }
     ],
     "RF33": [
@@ -5041,23 +5041,23 @@
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > registra metadatos y atiende el canal reporte:lotes-por-vencer"
+        "test": "C57 ReporteLotesPorVencerHandler > registra metadatos y atiende el canal reporte:lotes-por-vencer"
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > ejecuta el flujo principal y consulta lotes por vencer con horizonte predeterminado 7"
+        "test": "C57 ReporteLotesPorVencerHandler > ejecuta el flujo principal y consulta lotes por vencer con horizonte predeterminado 7"
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > consulta con horizonte personalizado y filtro de categoría"
+        "test": "C57 ReporteLotesPorVencerHandler > consulta con horizonte personalizado y filtro de categoría"
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > rechaza valores de horizonte inválidos con el mensaje de error de validación E1"
+        "test": "C57 ReporteLotesPorVencerHandler > rechaza valores de horizonte inválidos con el mensaje de error de validación E1"
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > maneja correctamente los resultados vacíos (estado vacío E1)"
+        "test": "C57 ReporteLotesPorVencerHandler > maneja correctamente los resultados vacíos (estado vacío E1)"
       }
     ],
     "RF51": [
@@ -7270,7 +7270,7 @@
       },
       {
         "file": "tests/main/controllers/expiring-lots-report.test.ts",
-        "test": "C57 ReporteLotesVencerHandler > deniega el acceso cuando el rol de la sesión no es dueno",
+        "test": "C57 ReporteLotesPorVencerHandler > deniega el acceso cuando el rol de la sesión no es dueno",
         "tambien": [
           "RF50"
         ]

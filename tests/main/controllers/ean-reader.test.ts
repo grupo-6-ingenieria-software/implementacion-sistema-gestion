@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEanReaderController, eanReaderController } from "../../../src/main/controllers/ean-reader";
-import type { ControllerContext } from "../../../src/main/controllers/base";
-import { authorizeRequest, guardChannel, CHANNEL_ROLES } from "../../../src/main/controllers/auth-guard";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+import { createLectorEANHandler, lectorEANHandler } from "../../../src/main/controllers/LectorEANHandler";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
+import { authorizeRequest, guardChannel, CHANNEL_ROLES } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 
 const claims = {
   usuarioId: "trusted-user", rol: "trabajador" as const, usuarioRol: "trabajador",
@@ -18,12 +18,12 @@ const product = {
 function fixture() {
   const findProduct = vi.fn(async () => product);
   const report = vi.fn(async () => ({ ok: true as const, data: { registrado: true as const } }));
-  return { findProduct, report, controller: createEanReaderController({ findProduct, report }) };
+  return { findProduct, report, controller: createLectorEANHandler({ findProduct, report }) };
 }
 
 describe("controlador del lector EAN", () => {
   it("acepta una captura EAN-13 válida", async () => {
-    const response = await eanReaderController.handle(
+    const response = await lectorEANHandler.handle(
       { value: "7802920000015" },
       context,
     );
@@ -35,7 +35,7 @@ describe("controlador del lector EAN", () => {
   });
 
   it("rechaza una captura EAN-13 con longitud inválida", async () => {
-    const response = await eanReaderController.handle(
+    const response = await lectorEANHandler.handle(
       { value: "780292000001" },
       context,
     );
@@ -75,12 +75,12 @@ describe("controlador del lector EAN", () => {
   });
 
   it("informa producto desconocido y fallo de base de datos sin tratar ninguno como captura exitosa", async () => {
-    const controller = createEanReaderController({
+    const controller = createLectorEANHandler({
       findProduct: async () => null, report: fixture().report,
     });
     expect(await controller.handle({ value: product.ean13, mode: "buscar-producto" }, context))
       .toMatchObject({ ok: false, error: { code: "NOT_FOUND", message: "Producto no encontrado" } });
-    const broken = createEanReaderController({
+    const broken = createLectorEANHandler({
       findProduct: async () => { throw new Error("offline"); }, report: fixture().report,
     });
     expect(await broken.handle({ value: product.ean13, mode: "buscar-producto" }, context))
@@ -88,7 +88,7 @@ describe("controlador del lector EAN", () => {
   });
 
   it.each(["ean:validar-captura", "ean:registrar-fallo"])("requiere claims de confianza para %s", async (channel) => {
-    expect(await eanReaderController.handle({ value: product.ean13, modulo: "ventas", usuarioId: "spoofed" }, { channel }))
+    expect(await lectorEANHandler.handle({ value: product.ean13, modulo: "ventas", usuarioId: "spoofed" }, { channel }))
       .toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
@@ -123,7 +123,7 @@ describe("controlador del lector EAN", () => {
       .mockResolvedValueOnce({ ok: false, error: { code: "DATABASE_ERROR", controllerId: "audit", message: "No fue posible registrar la auditoria." } })
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce({ ok: true, data: { registrado: true } });
-    const controller = createEanReaderController({ findProduct: fixture().findProduct, report });
+    const controller = createLectorEANHandler({ findProduct: fixture().findProduct, report });
     for (let i = 0; i < 2; i++) {
       expect(await controller.handle({ modulo: "ventas" }, failureContext))
         .toMatchObject({ ok: false, error: { code: "DATABASE_ERROR", controllerId: "ean-reader" } });

@@ -4,14 +4,14 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import * as schema from "../../../src/db/schema";
 import {
   loadDashboardData,
   dashboardOperations,
-} from "../../../src/main/controllers/dashboard-service";
-import { loadAttendanceIndicator } from "../../../src/main/controllers/attendance-summary";
-import type { DashboardDb } from "../../../src/main/controllers/dashboard-queries";
+} from "../../../src/main/controllers/CargaDashboardAuxiliar";
+import { loadAttendanceIndicator } from "../../../src/main/controllers/IndicadorAsistenciaAuxiliar";
+import type { DashboardDb } from "../../../src/main/controllers/ConsultasDashboardAuxiliar";
 import { getAttendanceDisplay } from "../../../src/renderer/src/views/DashboardView";
 
 const NOW = new Date("2026-09-08T16:00:00Z");

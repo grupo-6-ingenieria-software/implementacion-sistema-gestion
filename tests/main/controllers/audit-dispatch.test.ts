@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { controllers } from "../../../src/shared/controllers";
-import { AUDITED_QUERY_CHANNELS, handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import type { ControllerContext, RegisteredController } from "../../../src/main/controllers/base";
+import { AUDITED_QUERY_CHANNELS, handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import type { ControllerContext, RegisteredController } from "../../../src/main/controllers/BaseControladorAuxiliar";
 
 function context(channel: string): ControllerContext {
   return { channel, claims: {
@@ -25,7 +25,9 @@ describe("RF58 auditoría de consultas y exportaciones de negocio", () => {
     expect(response.ok).toBe(true);
     expect(audit).toHaveBeenCalledExactlyOnceWith({
       descripcion: `Consulta realizada mediante ${channel}.`,
-      modulo: handler.metadata.module, tipoAccion: "consulta", usuarioId: "trusted-owner",
+      // usuario:listar se absorbió en PasswordHandler (auth), pero conserva su módulo histórico.
+      modulo: channel === "usuario:listar" ? "administracion" : handler.metadata.module,
+      tipoAccion: "consulta", usuarioId: "trusted-owner",
     });
   });
 
@@ -33,7 +35,7 @@ describe("RF58 auditoría de consultas y exportaciones de negocio", () => {
     const audit = vi.fn(async () => undefined);
     await handleWithAudit(controller(channel, { estado: "saved" }), {}, context(channel), audit);
     expect(audit).toHaveBeenCalledOnce();
-    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "exportacion" }));
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "exportacion", modulo: "inventario" }));
     audit.mockClear();
     await handleWithAudit(controller(channel, { estado: "cancelled" }), {}, context(channel), audit);
     expect(audit).not.toHaveBeenCalled();

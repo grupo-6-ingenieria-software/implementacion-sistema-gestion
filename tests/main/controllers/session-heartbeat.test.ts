@@ -1,19 +1,19 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
 import {
   NON_ACTIVITY_CHANNELS,
   refreshSessionActivity,
   verifySessionWithExecutor,
-} from "../../../src/main/controllers/session";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/SesionHandler";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const SESSION_ID = "123e4567-e89b-42d3-a456-556642440000";
 

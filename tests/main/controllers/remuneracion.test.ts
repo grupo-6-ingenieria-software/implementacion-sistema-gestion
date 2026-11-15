@@ -6,16 +6,16 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
-import { updatePrevisionalRates } from "../../../src/main/controllers/configuracion-previsional";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { updatePrevisionalRates } from "../../../src/main/controllers/ConfigPrevisionalHandler";
 import {
   RemuneracionBusinessError,
   RemuneracionValidationError,
   listEligibleWorkers,
   registerRemuneracion,
-  remuneracionController,
-} from "../../../src/main/controllers/remuneracion";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+  remuneracionHandler,
+} from "../../../src/main/controllers/RemuneracionHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 let testDb: AuthTestDatabase | undefined;
 const ownerActor = { role: "dueno" as const, usuarioId: "11111111-1" };
@@ -186,7 +186,7 @@ describe("servicio de remuneracion", () => {
     });
 
     it("rechaza sesiones que no son de rol dueno a través del canal IPC", async () => {
-      const response = await remuneracionController.handle(
+      const response = await remuneracionHandler.handle(
         { usuarioId: "22222222-2", mes: 6, anio: 2026 },
         { channel: "remuneracion:trabajadores-elegibles" },
       );
@@ -201,7 +201,7 @@ describe("servicio de remuneracion", () => {
   });
 
   it("rechaza sesiones que no son de rol dueno a través del canal IPC", async () => {
-    const response = await remuneracionController.handle(
+    const response = await remuneracionHandler.handle(
       {
         usuarioId: "22222222-2",
         trabajadorId: 2,
@@ -221,7 +221,7 @@ describe("servicio de remuneracion", () => {
   });
 
   it("rechaza un monto bruto no positivo", async () => {
-    const response = await remuneracionController.handle(
+    const response = await remuneracionHandler.handle(
       {
         usuarioId: "11111111-1",
         trabajadorId: 2,
@@ -278,7 +278,7 @@ describe("servicio de remuneracion", () => {
   });
 
   it("rechaza canales desconocidos", async () => {
-    const response = await remuneracionController.handle(
+    const response = await remuneracionHandler.handle(
       { usuarioId: "11111111-1" },
       { channel: "remuneracion:otro" },
     );

@@ -2,9 +2,9 @@ import * as fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ReportFileStore } from "../../../src/main/controllers/report-export-file";
-import { createReportExportHandler } from "../../../src/main/controllers/report-export-service";
-import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/report-registry";
+import { ReportFileStore } from "../../../src/main/controllers/ArchivoExportacionReporteAuxiliar";
+import { createReportExportHandler } from "../../../src/main/controllers/ServicioExportacionReporteAuxiliar";
+import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/RegistroTiposReporteAuxiliar";
 import { context, report, reportDependencies, request, user } from "./report-export-fixture";
 import { REPORT_RECONCILE_CHANNEL } from "../../../src/shared/reports";
 

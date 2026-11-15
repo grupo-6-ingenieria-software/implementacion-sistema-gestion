@@ -1,9 +1,8 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it, vi } from "vitest";
-import type { AuthenticatedUser } from "../../../src/main/controllers/auth-context";
+import type { AuthenticatedUser } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   createRestockPdfBuffer,
-  createRestockReportExportController,
   createRestockXlsxBuffer,
   formatDateTimeInSantiago,
   formatFilenameDateInSantiago,
@@ -11,7 +10,8 @@ import {
   type HiddenPrintWindow,
   type RestockExportDependencies,
   type RestockReportInput,
-} from "../../../src/main/controllers/restock-report-export";
+} from "../../../src/main/controllers/GeneracionArchivosReporteAuxiliar";
+import { createRestockReportExportController } from "../../../src/main/controllers/ExportacionReporteHandler";
 import { RESTOCK_EXPORT_ERROR_MESSAGE } from "../../../src/shared/restock";
 
 const items = [
@@ -60,7 +60,7 @@ describe("controlador de exportación de reporte (C33)", () => {
   it("ignora filas y rutas enviadas por el renderer, recalcula y guarda el formato seleccionado", async () => {
     const deps = dependencies();
     const controller = createRestockReportExportController(deps);
-    const response = await controller.handle(
+    const response = await controller(
       {
         usuarioId: "worker",
         filas: [{ nombre: "Inyectado" }],
@@ -94,11 +94,11 @@ describe("controlador de exportación de reporte (C33)", () => {
     });
     const controller = createRestockReportExportController(deps);
 
-    await controller.handle(
+    await controller(
       { usuarioId: "worker" },
       { channel: "inventario:reabastecimiento:exportar-pdf" },
     );
-    await controller.handle(
+    await controller(
       { usuarioId: "worker" },
       { channel: "inventario:reabastecimiento:exportar-xlsx" },
     );
@@ -111,7 +111,7 @@ describe("controlador de exportación de reporte (C33)", () => {
       load: vi.fn(async () => ({ items: [], user })),
     });
     const controller = createRestockReportExportController(deps);
-    const response = await controller.handle(
+    const response = await controller(
       { usuarioId: "worker" },
       { channel: "inventario:reabastecimiento:exportar-pdf" },
     );
@@ -128,7 +128,7 @@ describe("controlador de exportación de reporte (C33)", () => {
       showSaveDialog: vi.fn(async () => ({ canceled: true })),
     });
     const controller = createRestockReportExportController(deps);
-    const response = await controller.handle(
+    const response = await controller(
       { usuarioId: "worker" },
       { channel: "inventario:reabastecimiento:exportar-xlsx" },
     );
@@ -154,7 +154,7 @@ describe("controlador de exportación de reporte (C33)", () => {
       );
 
       await expect(
-        controller.handle(
+        controller(
           { usuarioId: "worker" },
           {
             channel:
@@ -176,7 +176,7 @@ describe("controlador de exportación de reporte (C33)", () => {
   it("rechaza canales inválidos", async () => {
     const response = await createRestockReportExportController(
       dependencies(),
-    ).handle({}, { channel: "reporte:otro" });
+    )({}, { channel: "reporte:otro" });
     expect(response).toMatchObject({
       ok: false,
       error: { code: "INVALID_CHANNEL" },

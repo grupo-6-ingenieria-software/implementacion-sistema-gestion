@@ -5,22 +5,22 @@ import { createServer } from 'vite';
 import { sql } from 'drizzle-orm';
 import {
   changeStatusWithExecutor,
-  createWorkerController,
+  createTrabajadorHandler,
   createWorkerWithExecutor,
   listWorkersWithExecutor,
   updateWorkerWithExecutor,
-} from '../../src/main/controllers/worker';
-import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/shift';
+} from '../../src/main/controllers/TrabajadorHandler';
+import { createShift, ShiftBusinessError, ShiftValidationError } from '../../src/main/controllers/TurnoHandler';
 import { normalizeShiftCreatePayload } from '../../src/shared/shifts';
-import { getPrevisionalRates } from '../../src/main/controllers/configuracion-previsional';
-import { listEligibleWorkers, registerRemuneracion } from '../../src/main/controllers/remuneracion';
+import { getPrevisionalRates } from '../../src/main/controllers/ConfigPrevisionalHandler';
+import { listEligibleWorkers, registerRemuneracion } from '../../src/main/controllers/RemuneracionHandler';
 import { normalizeRemuneracionCreatePayload, normalizeRemuneracionPeriodoPayload } from '../../src/shared/remuneraciones';
 import * as schema from '../../src/db/schema';
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
-} from '../../src/main/controllers/auth-fixtures';
+} from '../../src/main/controllers/DatosPruebaAutenticacionAuxiliar';
 
 const fixture = await createAuthTestDatabase();
 await seedUser(fixture.db, {
@@ -30,7 +30,7 @@ await seedUser(fixture.db, {
   rolBd: 'dueno',
 });
 
-const controller = createWorkerController({
+const controller = createTrabajadorHandler({
   authorize: async () => ({
     role: 'dueno', usuarioId: '11111111-1', usuarioRol: 'dueno', trabajadorNombre: 'Dueño',
   }),

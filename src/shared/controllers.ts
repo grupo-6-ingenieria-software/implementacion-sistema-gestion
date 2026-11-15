@@ -76,6 +76,8 @@ export const controllers = [
       "auth:cambiar-password",
       "auth:preparar-restablecimiento",
       "auth:restablecer-password",
+      "usuario:listar",
+      "usuario:solicitar-restablecimiento",
     ],
   },
   {
@@ -224,6 +226,8 @@ export const controllers = [
       "asistencia:entrada-sin-turno",
       "asistencia:salida",
       "asistencia:resumen-dashboard",
+      "ausencia:registrar",
+      "asistencia:resumen-mensual",
     ],
   },
   {
@@ -231,12 +235,6 @@ export const controllers = [
     name: "LectorEANHandler",
     module: "lector-ean",
     channels: ["ean:validar-captura", "ean:registrar-fallo"],
-  },
-  {
-    id: "user-management",
-    name: "GestionUsuariosHandler",
-    module: "administracion",
-    channels: ["usuario:listar", "usuario:solicitar-restablecimiento"],
   },
   {
     id: "product-delete",
@@ -326,12 +324,6 @@ export const controllers = [
     channels: ["inventario:lista-reabastecimiento"],
   },
   {
-    id: "restock-report-export",
-    name: "ExportacionReporteHandler",
-    module: "inventario",
-    channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
-  },
-  {
     id: "inventory-valuation",
     name: "ValorizacionHandler",
     module: "inventario",
@@ -339,19 +331,26 @@ export const controllers = [
   },
   {
     id: "daily-sales-report",
-    name: "ReporteVentasDiariasHandler",
+    name: "ReporteVentasDiaHandler",
     module: "reportes",
     channels: ["reporte:ventas-diarias"],
   },
   {
     id: "report-export",
-    name: "ExportacionReportesHandler",
+    name: "ExportacionReporteHandler",
     module: "reportes",
-    channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"],
+    channels: [
+      "reporte:exportar-pdf",
+      "reporte:exportar-xlsx",
+      "reporte:conciliar-exportacion",
+      "inventario:reabastecimiento:exportar-pdf",
+      "inventario:reabastecimiento:exportar-xlsx",
+      "inventario:exportar-productos",
+    ],
   },
   {
     id: "monthly-sales",
-    name: "ReporteVentasMensualesHandler",
+    name: "ReporteVentasMensualHandler",
     module: "reportes",
     channels: ["reporte:ventas-mensuales"],
   },
@@ -363,15 +362,9 @@ export const controllers = [
   },
   {
     id: "sale-categories",
-    name: "VentasCategoriaHandler",
+    name: "CategoriaVentaHandler",
     module: "ventas",
     channels: ["venta:por-categoria"],
-  },
-  {
-    id: "inventory-export",
-    name: "ExportacionInventarioHandler",
-    module: "inventario",
-    channels: ["inventario:exportar-productos"],
   },
   {
     id: "waste-report",
@@ -381,7 +374,7 @@ export const controllers = [
   },
   {
     id: "expiring-lots-report",
-    name: "ReporteLotesVencerHandler",
+    name: "ReporteLotesPorVencerHandler",
     module: "reportes",
     channels: ["reporte:lotes-por-vencer"],
   },
@@ -396,18 +389,6 @@ export const controllers = [
     name: "ReporteRentabilidadHandler",
     module: "reportes",
     channels: ["reporte:rentabilidad-categoria"],
-  },
-  {
-    id: "absence",
-    name: "AusenciaHandler",
-    module: "personal",
-    channels: ["ausencia:registrar"],
-  },
-  {
-    id: "attendance-monthly-summary",
-    name: "ResumenAsistenciaHandler",
-    module: "personal",
-    channels: ["asistencia:resumen-mensual"],
   },
   {
     id: "attendance-report",

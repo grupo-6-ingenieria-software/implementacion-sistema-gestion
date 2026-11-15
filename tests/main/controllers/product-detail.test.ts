@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ControllerResponse } from "../../../src/shared/controllers";
 import type { Role } from "../../../src/shared/navigation";
 import type { ProductDetailWithLotsResponse } from "../../../src/shared/inventory-detail";
-import { createProductDetailController } from "../../../src/main/controllers/product-detail";
+import { createDetalleProductoHandler } from "../../../src/main/controllers/DetalleProductoHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 const sampleProduct: ProductDetailWithLotsResponse = {
   product: {
@@ -98,7 +98,7 @@ function createController(
     ) => Promise<ProductDetailWithLotsResponse | null>;
   } = {},
 ) {
-  return createProductDetailController({
+  return createDetalleProductoHandler({
     authorize: async (usuarioId, allowedRoles) =>
       authorizeTestUser(usuarioId, allowedRoles),
     findProductWithLots:

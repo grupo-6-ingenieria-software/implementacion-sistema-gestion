@@ -20,27 +20,27 @@ import {
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   authorizeRequest,
   guardChannel,
-} from "../../../src/main/controllers/auth-guard";
-import { validateAndRefreshActiveSession } from "../../../src/main/controllers/session";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/auth-jwt";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { validateAndRefreshActiveSession } from "../../../src/main/controllers/SesionHandler";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
   changeStatusWithExecutor,
-  createWorkerController,
+  createTrabajadorHandler,
   listWorkersWithExecutor,
   updateWorkerWithExecutor,
-} from "../../../src/main/controllers/worker";
+} from "../../../src/main/controllers/TrabajadorHandler";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const workers: UserListItem[] = [
   {
@@ -85,7 +85,7 @@ function createController(overrides: Partial<Dependencies> = {}) {
     ...overrides,
   };
 
-  return createWorkerController(dependencies);
+  return createTrabajadorHandler(dependencies);
 }
 
 describe("controlador de trabajadores", () => {
@@ -337,7 +337,7 @@ describe("controlador de trabajadores", () => {
   });
 });
 
-type Dependencies = NonNullable<Parameters<typeof createWorkerController>[0]>;
+type Dependencies = NonNullable<Parameters<typeof createTrabajadorHandler>[0]>;
 
 function authorizeTestUser(
   usuarioId: string | undefined,

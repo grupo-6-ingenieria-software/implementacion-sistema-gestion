@@ -12,17 +12,17 @@ import {
   SaleAnnulmentBusinessError,
   SaleAnnulmentNotFoundError,
   SaleAnnulmentValidationError,
-} from "../../../src/main/controllers/sale-annulment-service";
+} from "../../../src/main/controllers/AnulacionVentaHandler";
 import {
   closeCashRegister,
   getCashClosingSummary,
-} from "../../../src/main/controllers/cash-closing-service";
-import { loadDailySalesSummary } from "../../../src/main/controllers/dashboard-queries";
+} from "../../../src/main/controllers/CierreCajaHandler";
+import { loadDailySalesSummary } from "../../../src/main/controllers/ConsultasDashboardAuxiliar";
 import {
   loadDailySalesHistory,
   loadSaleDetail,
-} from "../../../src/main/controllers/sales-history";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/HistorialVentasHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
