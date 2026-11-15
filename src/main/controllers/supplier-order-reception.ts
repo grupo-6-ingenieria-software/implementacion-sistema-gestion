@@ -33,8 +33,7 @@ import {
 } from "./auth-context";
 import { notifyDashboardUpdated } from "./dashboard-events";
 import { notifySupplierOrdersUpdated } from "./supplier-order-events";
-import { demoLog, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
-import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoTransaction } from "../demo-trace";
+import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
 
 type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = Pick<
@@ -69,16 +68,8 @@ export function createSupplierOrderReceptionController(): RegisteredController<
         switch (context.channel) {
           case "pedido:listar":
             return { ok: true, data: await listSupplierOrders(payload) };
-          case "pedido:detalle": {
-            const detail = await loadSupplierOrderDetail(payload);
-            demoLog("RF18", "Pedido consultado", () => ({
-              Pedido: detail.pedidoId,
-              Proveedor: detail.proveedorNombre,
-              Estado: detail.estado,
-              ...Object.fromEntries(detail.lineas.map((line, index) => [`Producto ${index + 1}`, `${line.nombre} · ${line.cantidadRecibida}/${line.cantidadSolicitada} recibidas`])),
-            }));
-            return { ok: true, data: detail };
-          }
+          case "pedido:detalle":
+            return { ok: true, data: await loadSupplierOrderDetail(payload) };
           case "pedido:confirmar-recepcion": {
             const input = normalizeSupplierOrderReceptionPayload(payload);
             const errors = validateSupplierOrderReceptionShape(input);
@@ -407,24 +398,10 @@ async function confirmSupplierOrderReception(
   const { db, schema } = await import("../../db/client");
 
   try {
-    const previousStock = await demoStockSnapshot();
     const result = await traceDemoTransaction(() => db.transaction((tx) =>
       confirmSupplierOrderReceptionWithExecutor(tx, schema, payload),
     ));
-    if (result.idempotente) {
-      demoLog("RF18", "Recepción ya registrada", () => ({
-        Recepción: result.recepcionId,
-        Resultado: "Sin movimientos nuevos",
-      }));
-    } else {
-      demoLog("RF18", "Recepción confirmada", () => ({
-        Recepción: result.recepcionId,
-        Estado: result.estado,
-        Registros: "Recepción, lotes, acumulados y auditoría",
-      }));
-      await logDemoStockChanges("RF18", previousStock);
-    }
-    await traceDemoCall("C_webContentsSend", "Emitir actualización de pedidos y dashboard", async () => {
+    await traceDemoCall("C_webContentsSend", "Notificar pedido e inventario actualizados", async () => {
       notifySupplierOrdersUpdated();
       notifyDashboardUpdated();
     });
@@ -433,10 +410,6 @@ async function confirmSupplierOrderReception(
     if (isUniqueOperationError(error)) {
       const existing = await findExistingReception(db, schema, payload);
       if (existing) {
-        demoLog("RF18", "Recepción ya registrada", () => ({
-          Recepción: existing.recepcionId,
-          Resultado: "Sin movimientos nuevos; operación concurrente recuperada",
-        }));
         return { ...existing, idempotente: true };
       }
     }
@@ -511,7 +484,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     dbLines.map((line) => [line.detallePedidoId, line]),
   );
   const fieldErrors: SupplierOrderFieldErrors = {};
-  demoTraceStep("C_RecepcionPedidoHandler", "Validar cantidades contra saldo y vencimiento de la entrega");
+  demoTraceStep("C_RecepcionPedidoHandler", "Validar cantidades, costo y vencimiento");
 
   if (payload.lineas.length !== dbLines.length) {
     fieldErrors.lineas = "Incluya todas las líneas del pedido en la entrega.";
@@ -643,7 +616,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
   `);
   const nextState =
     safeInteger(balanceRows[0]?.pendiente ?? 0) === 0 ? "recibido" : "parcial";
-  demoTraceStep("C_RecepcionPedidoHandler", `Determinar estado del pedido a partir de los saldos: ${nextState}`);
+  demoTraceStep("C_RecepcionPedidoHandler", `Determinar estado del pedido: ${nextState}`);
 
   if (nextState === "recibido") {
     await executor
@@ -677,14 +650,14 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     );
   }
 
-  await assertInventoryTotals(executor);
+  await withoutDemoTrace(() => assertInventoryTotals(executor));
   await executor.insert(schema.historialAuditoriaPedido).values({
     historialApTipoEvento: "recepcion",
     historialApNota: `Recepción ${receiptId}; operación ${payload.operacionId}; estado ${nextState}.`,
     pedidoProveedorId: order.id,
     usuarioId: user.usuarioId,
   });
-  await traceDemoCall("C_AuditoriaHandler", "Auditar recepción y resolver versión del usuario", () => registerAuditLog(executor, schema, {
+  await traceDemoCall("C_AuditoriaHandler", "Auditar recepción del pedido", () => registerAuditLog(executor, schema, {
     descripcion: `Recepción ${receiptId} registrada para pedido ${order.id}; estado ${nextState}.`,
     modulo: "proveedores",
     tipoAccion: "recepcion_pedido",

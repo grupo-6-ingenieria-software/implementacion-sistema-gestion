@@ -17,7 +17,6 @@ import { notifyDashboardUpdated } from "./dashboard-events";
 import { inspectDailyCashRegister, type CashCheckDb } from "./cash-check";
 import { searchActiveProducts, type ActiveProductQuery } from "./product-query";
 import { AccessDeniedError } from "./auth-context";
-import { demoLog, demoMoney, demoStockSnapshot, logDemoStockChanges } from "./demo-log";
 import { traceDemoCall } from "../demo-trace";
 import type {
   DailyCashState,
@@ -49,18 +48,15 @@ export function createSaleController(
     handle: async (payload, context) => {
       try {
         if (context.channel === "venta:verificar-caja") {
-          const state = await traceDemoCall("C_VerificacionCajaHandler", "Consultar estado de caja", () => dependencies.inspectCash(
+          const state = await traceDemoCall("C_VerificacionCajaHandler", "Verificar caja abierta del día", () => dependencies.inspectCash(
             db as unknown as CashCheckDb,
           ));
-          demoLog("RF36", "Verificación de caja", () => ({
-            Estado: state.status === "sin_registro" ? "Disponible para primera venta" : state.status,
-          }));
           return controllerSuccess<DailyCashState>(state);
         }
 
         if (context.channel === "venta:producto") {
           const input = (payload ?? {}) as ActiveProductQuery;
-          const products = await traceDemoCall("C_ConsultaProductoHandler", "Buscar productos activos", () => dependencies.searchProducts(input));
+          const products = await dependencies.searchProducts(input);
           const search = input.ean13?.trim() || input.query?.trim();
           if (search && products.length === 0) {
             return controllerError(
@@ -68,16 +64,6 @@ export function createSaleController(
               "No se encontraron productos activos para la búsqueda.",
               "sale",
             );
-          }
-          if (search) {
-            for (const product of products) demoLog("RF36", "Producto encontrado", () => ({
-              Producto: product.nombre,
-              "EAN-13": product.ean13,
-              Estado: "Activo",
-              Validación: "Producto activo verificado",
-              Stock: product.stockDisponible,
-              Precio: demoMoney(product.precioVenta),
-            }));
           }
           return controllerSuccess(products);
         }
@@ -87,17 +73,6 @@ export function createSaleController(
             db as unknown as DbExecutor,
             payload as SaleCartValidationRequest,
           );
-          for (const line of cart.lines) demoLog("RF36", "Validación de stock", () => ({
-            Producto: line.nombre,
-            "EAN-13": line.ean13,
-            Disponible: line.stockDisponible,
-            Solicitado: line.cantidad,
-            Resultado: "Stock suficiente",
-          }));
-          demoLog("RF36", "Carrito validado", () => ({
-            ...Object.fromEntries(cart.lines.map((line, index) => [`Producto ${index + 1}`, `${line.cantidad} × ${line.nombre}`])),
-            Subtotal: demoMoney(cart.subtotal),
-          }));
           return controllerSuccess<SaleCartValidationResult>(cart);
         }
 
@@ -113,7 +88,6 @@ export function createSaleController(
           montoRecibido: input.montoRecibido,
           descuento: input.descuento,
         };
-        const previousStock = await demoStockSnapshot();
         const receipt = await dependencies.register(
           db as unknown as DbExecutor,
           request,
@@ -123,20 +97,7 @@ export function createSaleController(
             rol: context.claims.rol,
           },
         );
-        demoLog("RF36", "Venta confirmada", () => ({
-          Venta: receipt.ventaId,
-          Estado: "Confirmada",
-          Responsable: receipt.responsable.nombre,
-          Registros: "Venta, pago, detalle, consumo de lotes y auditoría",
-        }));
-        demoLog("RF36", "Pago confirmado", () => ({
-          Método: receipt.metodoPago,
-          Total: demoMoney(receipt.total),
-          ...(receipt.montoRecibido !== undefined ? { Recibido: demoMoney(receipt.montoRecibido) } : {}),
-          ...(receipt.vuelto !== undefined ? { Vuelto: demoMoney(receipt.vuelto) } : {}),
-        }));
-        await logDemoStockChanges("RF36", previousStock);
-        await traceDemoCall("C_webContentsSend", "Emitir dashboard:actualizado", async () => dependencies.notify());
+        dependencies.notify();
         return controllerSuccess<SaleReceipt>(receipt);
       } catch (error) {
         if (error instanceof SaleValidationError) {

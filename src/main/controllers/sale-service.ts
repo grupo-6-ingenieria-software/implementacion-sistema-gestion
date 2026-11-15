@@ -26,7 +26,7 @@ import {
 import { AccessDeniedError } from "./auth-context";
 import { checkedAdd, checkedMultiply, safeInteger } from "../../shared/numbers";
 import { assertDailySaleTotals } from "./sql-validation-primitives";
-import { demoRandomUUID, traceDemoCall, traceDemoTransaction } from "../demo-trace";
+import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
@@ -76,22 +76,25 @@ export async function registerSale(
   actor: SaleActor,
   now = new Date(),
 ): Promise<SaleReceipt> {
-  const initialCashState = await traceDemoCall("C_VerificacionCajaHandler", "Prevalidar caja sin escribir", () => inspectDailyCashRegister(database, now));
+  // Prevalidaciones y consultas de apoyo que no aparecen en CU36/CU36b: la demo
+  // solo muestra la verificación de caja que crea u obtiene la caja del día.
+  const initialCashState = await withoutDemoTrace(() => inspectDailyCashRegister(database, now));
   if (initialCashState.status === "cerrada") {
     throw new SaleBusinessError(
       "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
     );
   }
   return traceDemoTransaction(() => database.transaction(async (tx) => {
-    const transactionCashState = await traceDemoCall("C_VerificacionCajaHandler", "Inspeccionar caja sin escribir", () => inspectDailyCashRegister(tx, now));
+    const transactionCashState = await withoutDemoTrace(() => inspectDailyCashRegister(tx, now));
     if (transactionCashState.status === "cerrada") {
       throw new SaleBusinessError(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       );
     }
-    await validateSalePayloadRules(tx, payload);
-    const responsable = await getResponsibleUser(tx, actor, now);
+    await withoutDemoTrace(() => validateSalePayloadRules(tx, payload));
+    const responsable = await withoutDemoTrace(() => getResponsibleUser(tx, actor, now));
     const normalized = normalizeSalePayload(payload);
+    demoTraceStep("C_VentaHandler", "Validar cantidades y recalcular total con precios persistidos");
     const products = await loadProductSnapshots(tx, normalized.items);
     const receiptLines: SaleReceiptLine[] = products.map((product) => {
       const item = normalized.items.find(
@@ -130,16 +133,19 @@ export async function registerSale(
     }
     const totals = calculateSaleTotals(receiptLines, requestedDiscount);
 
-    await validateCalculatedSaleRules(
+    if (normalized.metodoPago === "efectivo") {
+      demoTraceStep("C_VentaHandler", "Comparar monto recibido con total y calcular vuelto");
+    }
+    await withoutDemoTrace(() => validateCalculatedSaleRules(
       tx,
       normalized,
       totals.subtotal,
       totals.total,
-    );
+    ));
 
     let stockPlan;
     try {
-      stockPlan = await traceDemoCall("C_DescuentoStockHandler", "Planificar consumo FEFO/FIFO antes de abrir caja", () => planStockDiscount(
+      stockPlan = await traceDemoCall("C_DescuentoStockHandler", "Seleccionar lotes según FEFO/FIFO", () => planStockDiscount(
         tx,
         receiptLines.map((line) => ({
           productoId: line.productoId,
@@ -156,7 +162,7 @@ export async function registerSale(
 
     // Revalidación transaccional: el plan de stock se completa antes de abrir la
     // primera caja del día, por lo que un carrito inválido no genera escrituras.
-    const cashState = await traceDemoCall("C_VerificacionCajaHandler", "Revalidar caja y abrir solo si no existe", () => ensureDailyCashRegisterForSale(tx, now));
+    const cashState = await traceDemoCall("C_VerificacionCajaHandler", "Crear u obtener caja del día", () => ensureDailyCashRegisterForSale(tx, now));
     if (cashState.status === "cerrada") {
       throw new SaleBusinessError(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
@@ -243,7 +249,7 @@ export async function registerSale(
     }
 
     try {
-      await traceDemoCall("C_DescuentoStockHandler", "Descontar stock y registrar consumo de lotes", () => applyStockDiscount(tx, ventaId, stockPlan));
+      await traceDemoCall("C_DescuentoStockHandler", "Descontar lotes y registrar VentaLote", () => applyStockDiscount(tx, ventaId, stockPlan));
     } catch (error) {
       if (error instanceof StockDiscountBusinessError) {
         throw new SaleBusinessError(error.message);
@@ -251,8 +257,8 @@ export async function registerSale(
       throw error;
     }
 
-    await assertDailySaleTotals(tx, now);
-    await traceDemoCall("C_AuditoriaHandler", "Auditar venta y resolver versión del usuario", () => registerAuditLog(tx, {
+    await withoutDemoTrace(() => assertDailySaleTotals(tx, now));
+    await withoutDemoTrace(() => registerAuditLog(tx, {
       usuarioId: responsable.usuarioId,
       tipoAccion: "registrar_venta",
       modulo: "ventas",

@@ -65,7 +65,7 @@ import { expiringLotsReportController } from "./expiring-lots-report";
 import { movementReportController } from "./movement-report";
 import { receiptPrintController } from "./receipt-print";
 import type { RegisteredController } from "./base";
-import { traceDemoCall, traceDemoRequest } from "../demo-trace";
+import { enterDemoHandler, rememberDemoActor, traceDemoRequest, withoutDemoTrace } from "../demo-trace";
 
 const workerController = createWorkerController({
   ...workerDependencies,
@@ -153,14 +153,17 @@ export async function dispatchControllerWithAccessControl(
     const guard = await authorizeRequest(channel, payload, onSessionExpired);
 
     if (!guard.ok) return guard.response;
+    rememberDemoActor(guard.context.claims?.rol);
 
-    return traceDemoCall(`C_${controller.metadata.name}`, channel, () =>
+    const response = await enterDemoHandler(() =>
       handleWithAudit(controller, guard.payload, guard.context, (event) =>
-        traceDemoCall("C_AuditoriaHandler", "Registrar auditoría de consulta", () =>
-          registerAuditLog(db, appSchema, event),
-        ),
+        // La auditoría de consultas no forma parte de los diagramas de CU18/CU36.
+        withoutDemoTrace(() => registerAuditLog(db, appSchema, event)),
       ),
     );
+    // auth:login es público: el rol llega en la respuesta y no en los claims.
+    if (channel === "auth:login" && response.ok) rememberDemoActor((response.data as { role?: unknown } | undefined)?.role);
+    return response;
   });
 }
 

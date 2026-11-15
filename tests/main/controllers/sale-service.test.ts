@@ -17,7 +17,7 @@ import {
 } from "../../../src/main/controllers/sale-service";
 import type { SaleRegisterRequest } from "../../../src/shared/sales";
 import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { demoQueryLogger, traceDemoCall, traceDemoRequest } from "../../../src/main/demo-trace";
+import { demoQueryLogger, enterDemoHandler, traceDemoRequest } from "../../../src/main/demo-trace";
 
 const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
 
@@ -71,38 +71,42 @@ afterEach(async () => {
 });
 
 describe("registerSale", () => {
-  it("la demo refleja venta, pago, detalle, consumo y auditoría antes del commit", async () => {
+  it("la demo muestra el camino principal de CU36b: caja, venta, detalle y descuento por lote antes del commit", async () => {
     vi.stubEnv("HUASCAR_DEMO", "1");
+    vi.stubEnv("NO_COLOR", "1");
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
-    await traceDemoRequest("venta:registrar", () => traceDemoCall("C_VentaHandler", "Registrar venta", async () => ({
+    await traceDemoRequest("venta:registrar", () => enterDemoHandler(async () => ({
       ok: true,
       data: await registerSale(testDb!.db as unknown as DbExecutor, {
         metodoPago: "efectivo", montoRecibido: 5000,
         items: [{ productoId: 1, cantidad: 2 }],
       }),
     })));
-    const logs = output.mock.calls.flat().join("\n");
-    const ordered = ["[venta]: INSERT", "[venta_efectivo]: INSERT", "[detalle_venta]: INSERT",
-      "[lote]: UPDATE", "[venta_lote]: INSERT", "[log_auditoria]: INSERT", "COMMIT completado", "Respuesta OK"];
+    const logs = output.mock.calls.map(([line]) => String(line).replace(/ {2,}/g, " "));
+    const ordered = [
+      "[CU36] C_VentaHandler -> C_drizzle: Iniciar transacción",
+      "[CU36] C_VentaHandler -> C_VentaHandler: Validar cantidades y recalcular total con precios persistidos",
+      "[CU36] C_VentaHandler -> C_VentaHandler: Comparar monto recibido con total y calcular vuelto",
+      "[CU36] C_VentaHandler -> C_VerificacionCajaHandler: Crear u obtener caja del día",
+      "[CU36] C_libsql -> cierre_caja: INSERT",
+      "[CU36] C_libsql -> venta: INSERT",
+      "[CU36] C_libsql -> venta_efectivo: INSERT",
+      "[CU36] C_libsql -> detalle_venta: INSERT",
+      "[CU36] C_VentaHandler -> C_DescuentoStockHandler: Descontar lotes y registrar VentaLote",
+      "[CU36] C_libsql -> lote: UPDATE",
+      "[CU36] C_libsql -> venta_lote: INSERT",
+      "[CU36] C_drizzle -> C_libsql: COMMIT",
+      "[CU36] C_VentaHandler --> V_RegistrarVentaView: Venta registrada · efectivo · total $2.000 · vuelto $3.000",
+    ];
     let previous = -1;
-    for (const fragment of ordered) {
-      const index = logs.indexOf(fragment);
-      expect(index, fragment).toBeGreaterThan(previous);
+    for (const line of ordered) {
+      const index = logs.indexOf(line);
+      expect(index, line).toBeGreaterThan(previous);
       previous = index;
     }
-    expect(logs).toContain("C_DescuentoStockHandler → C_drizzle → C_libsql → [venta_lote]");
-    expect(logs).toContain("C_AuditoriaHandler → C_drizzle → C_libsql → [log_auditoria]");
-    expect(logs).toContain("C_VerificacionCajaHandler");
-    const preflight = logs.indexOf("Prevalidar caja sin escribir");
-    const recheck = logs.indexOf("Inspeccionar caja sin escribir");
-    const user = logs.indexOf("[usuario, sesion_usuario]: SELECT");
-    const worker = logs.indexOf("[trabajador]: SELECT");
-    const openCash = logs.indexOf("Revalidar caja y abrir solo si no existe");
-    expect(preflight).toBeGreaterThan(-1);
-    expect(recheck).toBeGreaterThan(preflight);
-    expect(user).toBeGreaterThan(recheck);
-    expect(worker).toBeGreaterThan(user);
-    expect(openCash).toBeGreaterThan(worker);
+    // Prevalidaciones, responsable y auditoría no aparecen en el diagrama de CU36.
+    expect(logs.filter((line) => line.includes("C_VerificacionCajaHandler:"))).toHaveLength(1);
+    expect(logs.join("\n")).not.toMatch(/usuario|trabajador|log_auditoria|C_AuditoriaHandler/);
   });
 
   it("actualiza el trigger anterior y sigue impidiendo stock negativo", async () => {

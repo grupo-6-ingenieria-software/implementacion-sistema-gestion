@@ -154,7 +154,7 @@ export async function authorizeRequest(
     const result = await deps.identity(channel, payload);
     if (!result.ok || !result.context.claims) return result;
     const claims = result.context.claims;
-    const session = await traceDemoCall("C_SesionHandler", "Validar sesión y actualizar último acceso", () => deps.session(
+    const session = await traceDemoCall("C_SesionHandler", "Validar sesión activa", () => deps.session(
       claims,
       !NON_ACTIVITY_CHANNELS.has(channel),
     ));
@@ -267,7 +267,7 @@ export async function authenticateChannel(
   }
 
   const token = extractToken(payload);
-  const claims = await traceDemoCall("C_jsonwebtoken", "Verificar identidad y JWT", async () => deps.verifyToken(token));
+  const claims = await traceDemoCall("C_jsonwebtoken", "Verificar firma del token y obtener usuario y rol", async () => deps.verifyToken(token));
 
   if (!claims) {
     return {

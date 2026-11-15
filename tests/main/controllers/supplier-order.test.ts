@@ -6,7 +6,7 @@ import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { demoQueryLogger, traceDemoCall, traceDemoRequest, traceDemoTransaction } from "../../../src/main/demo-trace";
+import { demoQueryLogger, enterDemoHandler, traceDemoRequest, traceDemoTransaction } from "../../../src/main/demo-trace";
 import * as schema from "../../../src/db/schema";
 import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/supplier-order";
 import {
@@ -39,9 +39,10 @@ describe("secuencia demo CU18", () => {
     const detailId = await getDetailId(order.pedidoId);
     const operationId = randomUUID();
     vi.stubEnv("HUASCAR_DEMO", "1");
+    vi.stubEnv("NO_COLOR", "1");
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
     const reception = () => traceDemoRequest("pedido:confirmar-recepcion", () =>
-      traceDemoCall("C_RecepcionPedidoHandler", "Confirmar recepción", async () => ({
+      enterDemoHandler(async () => ({
         ok: true,
         data: await traceDemoTransaction(() => testDb!.db.transaction((tx) =>
           confirmSupplierOrderReceptionWithExecutor(tx, schema, {
@@ -52,20 +53,37 @@ describe("secuencia demo CU18", () => {
       })),
     );
     await reception();
-    const logs = output.mock.calls.flat().join("\n");
-    const ordered = ["[pedido_proveedor]: SELECT", "[detalle_pedido, producto, categoria]: SELECT", "[recepcion_pedido]: SELECT",
-      "[recepcion_pedido]: INSERT", "[detalle_recepcion]: INSERT", "[lote]: INSERT", "[lote_perecible]: INSERT",
-      "[detalle_pedido]: UPDATE", "[pedido_proveedor]: UPDATE",
-      "[historial_auditoria_pedido]: INSERT", "[log_auditoria]: INSERT", "COMMIT completado", "Respuesta OK"];
+    const logs = output.mock.calls.map(([line]) => String(line).replace(/ {2,}/g, " "));
+    const ordered = [
+      "[CU18] C_drizzle -> C_libsql: BEGIN",
+      "[CU18] C_libsql -> pedido_proveedor: SELECT",
+      "[CU18] C_libsql -> detalle_pedido: SELECT",
+      "[CU18] C_libsql -> recepcion_pedido: SELECT",
+      "[CU18] C_RecepcionPedidoHandler -> C_RecepcionPedidoHandler: Validar cantidades, costo y vencimiento",
+      "[CU18] C_libsql -> recepcion_pedido: INSERT",
+      "[CU18] C_libsql -> detalle_recepcion: INSERT",
+      "[CU18] C_libsql -> lote: INSERT",
+      "[CU18] C_libsql -> lote_perecible: INSERT",
+      "[CU18] C_libsql -> detalle_pedido: UPDATE",
+      "[CU18] C_RecepcionPedidoHandler -> C_RecepcionPedidoHandler: Determinar estado del pedido: parcial",
+      "[CU18] C_libsql -> pedido_proveedor: UPDATE",
+      "[CU18] C_libsql -> historial_auditoria_pedido: INSERT",
+      "[CU18] C_AuditoriaHandler -> C_cryptoNode: Generar UUID de auditoría de recepción",
+      "[CU18] C_libsql -> log_auditoria: INSERT",
+      "[CU18] C_drizzle -> C_libsql: COMMIT",
+      "[CU18] C_RecepcionPedidoHandler --> V_ConfirmarRecepcionPedidoView: Entrega registrada; pedido parcial",
+    ];
     let previous = -1;
-    for (const fragment of ordered) {
-      const index = logs.indexOf(fragment);
-      expect(index, fragment).toBeGreaterThan(previous);
+    for (const line of ordered) {
+      const index = logs.indexOf(line);
+      expect(index, line).toBeGreaterThan(previous);
       previous = index;
     }
     output.mockClear();
     expect(await reception()).toMatchObject({ ok: true, data: { idempotente: true } });
-    expect(output.mock.calls.flat().join("\n")).not.toMatch(/INSERT solicitado|UPDATE solicitado/);
+    const retry = output.mock.calls.map(([line]) => String(line)).join("\n");
+    expect(retry).not.toMatch(/: (INSERT|UPDATE)$/m);
+    expect(retry).toContain("Entrega ya registrada; sin cambios");
     await expectOrderSnapshot(order.pedidoId, { estado: "parcial", lotes: 1, recepciones: 1, recibido: 4, stock: 4 });
   });
 });
