@@ -6,11 +6,11 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
-  createSupplierQueryController,
+  createConsultaProveedorHandler,
   listSuppliersWithExecutor,
-} from "../../../src/main/controllers/supplier-query";
+} from "../../../src/main/controllers/ConsultaProveedorHandler";
 import type { SupplierListRequest } from "../../../src/shared/suppliers";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
@@ -147,7 +147,7 @@ describe("errores del controlador de la lista de proveedores CU15", () => {
       [new AccessDeniedError(), "FORBIDDEN"],
       [new Error("database unavailable"), "DATABASE_ERROR"],
     ] as const) {
-      const controller = createSupplierQueryController({
+      const controller = createConsultaProveedorHandler({
         listSuppliers: async () => {
           throw error;
         },

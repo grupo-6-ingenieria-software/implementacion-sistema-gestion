@@ -7,12 +7,12 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
-  createLotController,
+  createLoteHandler,
   registerLotWithExecutor,
   type LotError,
-} from "../../../src/main/controllers/lot";
+} from "../../../src/main/controllers/LoteHandler";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -41,7 +41,7 @@ describe("controlador de lotes", () => {
     expect(await testDb!.db.select().from(schema.lote)).toHaveLength(0);
   });
   it("rechaza una fracción grande de unidades antes de que Number la redondee", async () => {
-    const controller = createLotController({
+    const controller = createLoteHandler({
       listProviders: async () => [],
       register: (input) => testDb!.db.transaction(tx => registerLotWithExecutor(tx, schema, input)),
     });
@@ -56,7 +56,7 @@ describe("controlador de lotes", () => {
     expect(await testDb!.db.select().from(schema.lote)).toHaveLength(0);
   });
   it("traduce fallos de autorización a respuestas prohibidas", async () => {
-    const controller = createLotController({
+    const controller = createLoteHandler({
       listProviders: async () => [],
       register: async () => {
         throw new AccessDeniedError();
@@ -83,7 +83,7 @@ describe("controlador de lotes", () => {
   });
 
   it("rechaza canales no declarados para el controlador de lotes", async () => {
-    const controller = createLotController({
+    const controller = createLoteHandler({
       listProviders: async () => [],
       register: async () => ({
         loteId: "00000000-0000-4000-8000-000000000001",
@@ -102,7 +102,7 @@ describe("controlador de lotes", () => {
   });
 
   it("lista proveedores para el registro de lotes", async () => {
-    const controller = createLotController({
+    const controller = createLoteHandler({
       listProviders: async () => [
         { id: 1, nombre: "Distribuidora Central S.A." },
       ],

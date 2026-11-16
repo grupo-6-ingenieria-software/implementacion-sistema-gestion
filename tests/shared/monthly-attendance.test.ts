@@ -32,7 +32,7 @@ describe("contrato compartido y navegación de CU33", () => {
     expect(navigationTree.find((node) => node.id === "attendance-monthly-summary")).toMatchObject({
       path: MONTHLY_ATTENDANCE_PATH, viewName: "ResumenMensualAsistenciaView", roles: ["dueno"], group: "personal", showInMenu: true,
     });
-    expect(findControllerById("attendance-monthly-summary")).toMatchObject({ name: "ResumenAsistenciaHandler", channels: ["asistencia:resumen-mensual"] });
+    expect(findControllerById("attendance")).toMatchObject({ name: "AsistenciaHandler", channels: expect.arrayContaining(["asistencia:resumen-mensual"]) });
     expect(findControllerByChannel("trabajador:listar-para-resumen")?.id).toBe("worker");
     expect(getVisibleMenu("dueno").some((node) => node.id === "attendance-monthly-summary")).toBe(true);
     expect(getVisibleMenu("trabajador").some((node) => node.id === "attendance-monthly-summary")).toBe(false);

@@ -10,8 +10,8 @@ import {
   loadDailySalesHistory,
   loadSaleDetail,
   searchSalesHistory,
-} from "../../../src/main/controllers/sales-history";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/HistorialVentasHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

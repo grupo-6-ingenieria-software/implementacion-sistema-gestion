@@ -11,13 +11,13 @@ import {
   ProductWriteError,
   createProductWithExecutor,
   editProductWithExecutor,
-} from "../../../src/main/controllers/product-write";
+} from "../../../src/main/controllers/EscrituraProductoAuxiliar";
 import {
   queryActiveProductsWithExecutor,
   queryInventoryProducts,
   queryProductCategoriesWithExecutor,
   queryProductDetailWithExecutor,
-} from "../../../src/main/controllers/product-query";
+} from "../../../src/main/controllers/ConsultaProductoHandler";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;

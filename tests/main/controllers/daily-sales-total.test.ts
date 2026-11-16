@@ -8,7 +8,7 @@ vi.mock("../../../src/db/client", () => ({
   },
 }));
 
-import { dailySalesTotalController } from "../../../src/main/controllers/daily-sales-total";
+import { totalVentasDiaHandler } from "../../../src/main/controllers/TotalVentasDiaHandler";
 
 beforeEach(() => {
   allMock.mockReset().mockResolvedValue([]);
@@ -17,7 +17,7 @@ beforeEach(() => {
 describe("controlador de total diario de ventas (CU44/C09)", () => {
   it("devuelve indicadores en cero cuando no hay ventas en el día chileno", async () => {
     await expect(
-      dailySalesTotalController.handle(
+      totalVentasDiaHandler.handle(
         {},
         { channel: "dashboard:total-ventas-dia" },
       ),
@@ -40,7 +40,7 @@ describe("controlador de total diario de ventas (CU44/C09)", () => {
       new Error("SQLITE_IOERR at C:/private/ventas.db"),
     );
 
-    const response = await dailySalesTotalController.handle(
+    const response = await totalVentasDiaHandler.handle(
       {},
       { channel: "dashboard:total-ventas-dia" },
     );

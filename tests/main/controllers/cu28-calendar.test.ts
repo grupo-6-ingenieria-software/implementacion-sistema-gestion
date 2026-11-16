@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
-import { authorizeRequest } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
-import { shiftController, listShifts } from "../../../src/main/controllers/shift";
-import { workerController } from "../../../src/main/controllers/worker";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { authorizeRequest } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { turnoHandler, listShifts } from "../../../src/main/controllers/TurnoHandler";
+import { workerController } from "../../../src/main/controllers/TrabajadorHandler";
 import type { ShiftListResponse } from "../../../src/shared/shifts";
 import type { AttendanceWorkerOption } from "../../../src/shared/attendance";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 // Redirect the production controllers to the fixture, never the configured database.
 const database = vi.hoisted(() => ({ current: undefined as unknown as typeof import("../../../src/db/client").db }));
@@ -53,7 +53,7 @@ function token(index: number) {
 async function request(channel: string, payload: Record<string, unknown> = {}, index = 1) {
   const guard = await authorizeRequest(channel, { __authToken: token(index), ...payload }, () => undefined);
   if (!guard.ok) return guard.response;
-  return (channel.startsWith("turno:") ? shiftController : workerController).handle(guard.payload, guard.context);
+  return (channel.startsWith("turno:") ? turnoHandler : workerController).handle(guard.payload, guard.context);
 }
 async function seedShift(id: string, worker: number, start: string, end?: string) {
   await fixture.db.insert(schema.turno).values({

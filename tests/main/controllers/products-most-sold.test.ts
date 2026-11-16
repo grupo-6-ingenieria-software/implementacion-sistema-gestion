@@ -1,10 +1,10 @@
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queryProductsMostSold, createProductsMostSoldController } from "../../../src/main/controllers/products-most-sold";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import { authorizeRequest, guardChannel } from "../../../src/main/controllers/auth-guard";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+import { queryProductsMostSold, createReporteProductosMasVendidosHandler } from "../../../src/main/controllers/ReporteProductosMasVendidosHandler";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import { authorizeRequest, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 import { PRODUCTS_MOST_SOLD_EMPTY_MESSAGE } from "../../../src/shared/products-most-sold";
 
 const period = { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" };
@@ -96,7 +96,7 @@ describe("productos más vendidos CU48 C55", () => {
 
   it("devuelve un resultado vacío auditable cuando no hay líneas elegibles", async () => {
     await sale("void", "2026-09-15T12:00:00Z", "anulada"); await detail("d1", "void", 1, 1);
-    const controller = createProductsMostSoldController(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
+    const controller = createReporteProductosMasVendidosHandler(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
     const audit = vi.fn(async () => undefined);
     expect(await handleWithAudit(controller, period, context, audit)).toMatchObject({ ok: true, data: { status: "empty", totalUnidadesPeriodo: 0, filas: [] } });
     expect(audit).toHaveBeenCalledTimes(1);
@@ -105,7 +105,7 @@ describe("productos más vendidos CU48 C55", () => {
 
   it("valida antes de la consulta y no disfraza errores de base de datos como resultado vacío", async () => {
     const load = vi.fn(async () => { throw new Error("DB down"); });
-    const controller = createProductsMostSoldController(load);
+    const controller = createReporteProductosMasVendidosHandler(load);
     expect(await controller.handle({ fechaInicio: "2026-10-01", fechaTermino: "2026-09-30" }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(load).not.toHaveBeenCalled();
     expect(await controller.handle(period, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
@@ -114,13 +114,13 @@ describe("productos más vendidos CU48 C55", () => {
   it("trata un descuento registrado imposible como dato inconsistente", async () => {
     await sale("bad", "2026-09-15T12:00:00Z", "completada", "monto", 2000);
     await detail("d1", "bad", 1, 1);
-    const controller = createProductsMostSoldController(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
+    const controller = createReporteProductosMasVendidosHandler(async () => ({ report: await queryProductsMostSold(drizzle(client), period), user }));
     expect(await controller.handle(period, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 
   it("deniega sesiones de trabajador, de contraseña temporal y revocadas antes de la consulta", async () => {
     const load = vi.fn();
-    expect(await createProductsMostSoldController(load).handle(period, { ...context, claims: { ...context.claims!, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    expect(await createReporteProductosMasVendidosHandler(load).handle(period, { ...context, claims: { ...context.claims!, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(load).not.toHaveBeenCalled();
     const audit = vi.fn(async () => undefined);
     const worker = await guardChannel(context.channel, { ...period, __authToken: "x" }, { verifyToken: () => ({ ...context.claims!, rol: "trabajador" }), audit });

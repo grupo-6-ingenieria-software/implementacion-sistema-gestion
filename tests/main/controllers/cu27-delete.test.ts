@@ -4,10 +4,10 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
-import { authorizeRequest } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
-import { shiftController } from "../../../src/main/controllers/shift";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { authorizeRequest } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { turnoHandler } from "../../../src/main/controllers/TurnoHandler";
 import type { ShiftListResponse } from "../../../src/shared/shifts";
 
 // CU27/RF27: real persistence, session authorization and transaction rollback.
@@ -65,7 +65,7 @@ async function request(channel: string, payload: Record<string, unknown>, index 
     sesionId: sessions[index],
   });
   const guard = await authorizeRequest(channel, { __authToken: token, ...payload });
-  return guard.ok ? shiftController.handle(guard.payload, guard.context) : guard.response;
+  return guard.ok ? turnoHandler.handle(guard.payload, guard.context) : guard.response;
 }
 
 async function calendar() {

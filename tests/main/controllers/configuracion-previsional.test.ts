@@ -5,15 +5,15 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import {
   PrevisionalAccessError,
-  configPrevisionalController,
+  configPrevisionalHandler,
   ensureVigentTasas,
   getPrevisionalRates,
   updatePrevisionalRates,
-} from "../../../src/main/controllers/configuracion-previsional";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/ConfigPrevisionalHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 let testDb: AuthTestDatabase | undefined;
 const ownerActor = { role: "dueno" as const, usuarioId: "11111111-1" };
@@ -123,7 +123,7 @@ describe("servicio de configuración previsional", () => {
   });
 
   it("devuelve FORBIDDEN por el canal IPC para sesiones que no son de dueño", async () => {
-    const response = await configPrevisionalController.handle(
+    const response = await configPrevisionalHandler.handle(
       { usuarioId: "22222222-2" },
       { channel: "configuracion:previsional-obtener" },
     );
@@ -137,7 +137,7 @@ describe("servicio de configuración previsional", () => {
   });
 
   it("devuelve VALIDATION_ERROR para porcentajes fuera de rango", async () => {
-    const response = await configPrevisionalController.handle(
+    const response = await configPrevisionalHandler.handle(
       { usuarioId: "11111111-1", afp: 150, salud: 7, cesantia: -1 },
       { channel: "configuracion:previsional-actualizar" },
     );
@@ -153,7 +153,7 @@ describe("servicio de configuración previsional", () => {
   });
 
   it("rechaza canales desconocidos", async () => {
-    const response = await configPrevisionalController.handle(
+    const response = await configPrevisionalHandler.handle(
       { usuarioId: "11111111-1" },
       { channel: "configuracion:otro" },
     );

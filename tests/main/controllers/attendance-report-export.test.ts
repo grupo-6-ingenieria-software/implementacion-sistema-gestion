@@ -3,15 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createAttendancePdf, createAttendanceReportExportHandler, createAttendanceXlsx,
   renderAttendancePrintHtml, type AttendanceExportDependencies,
-} from "../../../src/main/controllers/attendance-report-export";
-import { createReportExportController } from "../../../src/main/controllers/report-export";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
-import { MonthlyAttendanceError } from "../../../src/main/controllers/monthly-attendance-calculation";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ExportacionReporteAsistenciaAuxiliar";
+import { createExportacionReporteHandler } from "../../../src/main/controllers/ExportacionReporteHandler";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { MonthlyAttendanceError } from "../../../src/main/controllers/CalculoAsistenciaMensualAuxiliar";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import { REPORT_EXPORT_ERROR_MESSAGE } from "../../../src/shared/monthly-sales";
 import type { AttendanceReport } from "../../../src/shared/attendance-report";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 
 const report: AttendanceReport = { periodo: { mes: 9, anio: 2026 }, rol: "trabajador", filas: [
   { trabajadorId: 2, nombreCompleto: "Luis <Rojas>", rol: "trabajador", diasTrabajados: 3, ausenciasJustificadas: 1, ausenciasInjustificadas: 2, minutosTrabajados: 6001, promedioMinutosPorDia: 480 },
@@ -28,7 +28,7 @@ function dependencies(overrides: Partial<AttendanceExportDependencies> = {}): At
     now: () => new Date("2026-09-30T13:00:00Z"), documentsPath: () => "C:/Documentos", ...overrides,
   };
 }
-const controller = (deps: AttendanceExportDependencies) => createReportExportController(undefined, undefined, undefined, undefined, undefined, createAttendanceReportExportHandler(deps));
+const controller = (deps: AttendanceExportDependencies) => createExportacionReporteHandler(undefined, undefined, undefined, undefined, undefined, createAttendanceReportExportHandler(deps));
 
 describe("exportación de CU52 mediante C61", () => {
   it.each(["pdf", "xlsx"] as const)("recalcula %s filtrado en Main y audita el archivo guardado una sola vez", async (format) => {

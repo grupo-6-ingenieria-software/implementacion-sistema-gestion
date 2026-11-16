@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
 import { applyTriggers } from "../../../src/db/init";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
-import { loadSaleCategories } from "../../../src/main/controllers/sale-categories-service";
-import { queryCategoryProfitability } from "../../../src/main/controllers/category-profitability-service";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { loadSaleCategories } from "../../../src/main/controllers/CategoriaVentaHandler";
+import { queryCategoryProfitability } from "../../../src/main/controllers/ReporteRentabilidadHandler";
 
 let fixture: AuthTestDatabase;
 const usuarioId = "12345678-9";

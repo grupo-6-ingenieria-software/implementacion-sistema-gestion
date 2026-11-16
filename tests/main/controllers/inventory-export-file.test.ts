@@ -19,13 +19,13 @@ import {
   renderInventoryPrintHtml,
   saveInventoryFile,
   technicalErrorDetails,
-} from "../../../src/main/controllers/inventory-export-file";
+} from "../../../src/main/controllers/ArchivoExportacionInventarioAuxiliar";
 import {
   INVENTORY_BUSINESS_NAME,
   INVENTORY_EXPORT_COLUMNS,
   type InventoryReportInput,
 } from "../../../src/shared/inventory-export";
-import { formatDateTimeInSantiago } from "../../../src/main/controllers/restock-report-export";
+import { formatDateTimeInSantiago } from "../../../src/main/controllers/GeneracionArchivosReporteAuxiliar";
 
 const input: InventoryReportInput = {
   negocio: INVENTORY_BUSINESS_NAME,

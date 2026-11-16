@@ -58,7 +58,9 @@ export function SeccionesPagoVenta({
               Vuelto
             </p>
             <p className="mt-1 text-lg font-semibold text-[#17202a]">
-              {vuelto === null
+              {montoRecibido.trim() === ""
+                ? "Ingrese el monto recibido"
+                : vuelto === null
                 ? "Pendiente de corrección"
                 : formatCurrency(vuelto)}
             </p>

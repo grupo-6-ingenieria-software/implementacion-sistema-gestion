@@ -8,8 +8,8 @@ vi.mock("../../../src/db/client", () => ({
   },
 }));
 
-import { dashboardController } from "../../../src/main/controllers/dashboard";
-import { attendanceController } from "../../../src/main/controllers/attendance";
+import { dashboardHandler } from "../../../src/main/controllers/DashboardHandler";
+import { asistenciaHandler } from "../../../src/main/controllers/AsistenciaHandler";
 
 const claims = (rol: "dueno" | "trabajador", usuarioId = "usuario-1") => ({
   rol,
@@ -23,7 +23,7 @@ beforeEach(() => allMock.mockReset().mockResolvedValue([]));
 describe("controlador de dashboard", () => {
   it("rechaza solicitudes sin un rol de desarrollo compatible", async () => {
     await expect(
-      dashboardController.handle({}, { channel: "dashboard:cargar" }),
+      dashboardHandler.handle({}, { channel: "dashboard:cargar" }),
     ).resolves.toEqual({
       ok: false,
       error: {
@@ -36,7 +36,7 @@ describe("controlador de dashboard", () => {
 
   it("rechaza solicitudes del dashboard de trabajador sin usuario autenticado", async () => {
     await expect(
-      dashboardController.handle(
+      dashboardHandler.handle(
         { role: "trabajador" },
         { channel: "dashboard:cargar" },
       ),
@@ -58,7 +58,7 @@ describe("controlador de dashboard", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    const response = await dashboardController.handle(
+    const response = await dashboardHandler.handle(
       { role: "trabajador" },
       { channel: "dashboard:cargar", claims: claims("dueno") },
     );
@@ -128,7 +128,7 @@ describe("controlador de dashboard", () => {
     allMock.mockRejectedValueOnce(new Error("db unavailable"));
 
     await expect(
-      dashboardController.handle(
+      dashboardHandler.handle(
         { role: "trabajador", usuarioId: "trabajador-1" },
         { channel: "dashboard:cargar", claims: claims("trabajador") },
       ),
@@ -148,7 +148,7 @@ describe("controlador de dashboard", () => {
 describe("controlador de asistencia del dashboard", () => {
   it("rechaza resúmenes de trabajador sin usuario autenticado", async () => {
     await expect(
-      attendanceController.handle(
+      asistenciaHandler.handle(
         { role: "trabajador" },
         { channel: "asistencia:resumen-dashboard" },
       ),
@@ -173,14 +173,14 @@ describe("controlador de asistencia del dashboard", () => {
         { workerId: 2, fullName: "Luis Soto" },
       ])
       .mockResolvedValueOnce([{ workerId: 1 }]);
-    const workerResponse = await attendanceController.handle(
+    const workerResponse = await asistenciaHandler.handle(
       { role: "dueno", usuarioId: "usuario-ana" },
       {
         channel: "asistencia:resumen-dashboard",
         claims: claims("trabajador", "usuario-luis"),
       },
     );
-    const ownerResponse = await attendanceController.handle(
+    const ownerResponse = await asistenciaHandler.handle(
       {},
       { channel: "asistencia:resumen-dashboard", claims: claims("dueno") },
     );

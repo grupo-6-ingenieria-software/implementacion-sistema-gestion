@@ -7,13 +7,13 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { closeCashRegister } from "../../../src/main/controllers/cash-closing-service";
+import { closeCashRegister } from "../../../src/main/controllers/CierreCajaHandler";
 import {
   getOpenCashRegister,
   registerSale as registerSaleWithActor,
   SaleBusinessError,
   type DbExecutor,
-} from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/RegistroVentaAuxiliar";
 import type { SaleRegisterRequest } from "../../../src/shared/sales";
 
 const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";

@@ -7,22 +7,22 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../src/db/schema";
 import {
-  createLotController,
+  createLoteHandler,
   registerLotWithExecutor,
-} from "../../src/main/controllers/lot";
+} from "../../src/main/controllers/LoteHandler";
 import {
   createProductWithExecutor,
   createProductWriteController,
   normalizeCreatePayload,
-} from "../../src/main/controllers/product-write";
+} from "../../src/main/controllers/EscrituraProductoAuxiliar";
 import {
-  createWasteController,
+  createMermaHandler,
   registerWasteWithExecutor,
-} from "../../src/main/controllers/waste";
+} from "../../src/main/controllers/MermaHandler";
 import { buildLotRegisterPayload } from "../../src/renderer/src/views/LotCreateView";
 import { buildProductFormValues } from "../../src/renderer/src/views/ProductFormView";
 import { buildWasteRegisterPayload } from "../../src/renderer/src/views/WasteCreateView";
-import { controllers } from "../../src/shared/controllers";
+import { findControllerById } from "../../src/shared/controllers";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;
@@ -56,7 +56,7 @@ describe("payloads de la vista de inventario llegan a la validación SQL", () =>
     const controller = createProductWriteController({
       channel: "producto:registrar",
       controllerId: "product-create",
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
       dependencies: {
         save: (payload) =>
@@ -95,7 +95,7 @@ describe("payloads de la vista de inventario llegan a la validación SQL", () =>
       },
       "12345678-9",
     );
-    const controller = createLotController({
+    const controller = createLoteHandler({
       listProviders: async () => [],
       register: (input) =>
         testDb!.db.transaction((tx) =>
@@ -129,7 +129,7 @@ describe("payloads de la vista de inventario llegan a la validación SQL", () =>
       },
       "12345678-9",
     );
-    const controller = createWasteController({
+    const controller = createMermaHandler({
       availability: async () => ({
         ean13: payload.ean13,
         stockDisponible: 5,

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createExpiringLotsReportController,
+  createReporteLotesPorVencerHandler,
   type ExpiringLotsReportDependencies,
-} from "../../../src/main/controllers/expiring-lots-report";
-import { createRestockReportExportController } from "../../../src/main/controllers/restock-report-export";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+} from "../../../src/main/controllers/ReporteLotesPorVencerHandler";
+import { createRestockReportExportController } from "../../../src/main/controllers/ExportacionReporteHandler";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 import type {
   ExpiringLotsReportData,
   ExpiringLotsReportRequest,
@@ -97,16 +97,16 @@ function createContext(
   };
 }
 
-describe("C57 ReporteLotesVencerHandler", () => {
+describe("C57 ReporteLotesPorVencerHandler", () => {
   it("registra metadatos y atiende el canal reporte:lotes-por-vencer", () => {
-    const controller = createExpiringLotsReportController(createMockDeps());
+    const controller = createReporteLotesPorVencerHandler(createMockDeps());
     expect(controller.metadata.id).toBe("expiring-lots-report");
     expect(controller.metadata.channels).toContain("reporte:lotes-por-vencer");
     expect(controller.metadata.module).toBe("reportes");
   });
 
   it("deniega el acceso cuando el rol de la sesión no es dueno", async () => {
-    const controller = createExpiringLotsReportController(createMockDeps());
+    const controller = createReporteLotesPorVencerHandler(createMockDeps());
     const response = await controller.handle(
       { horizonte: 7 },
       createContext("trabajador"),
@@ -124,7 +124,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
 
   it("ejecuta el flujo principal y consulta lotes por vencer con horizonte predeterminado 7", async () => {
     const deps = createMockDeps();
-    const controller = createExpiringLotsReportController(deps);
+    const controller = createReporteLotesPorVencerHandler(deps);
 
     const response = await controller.handle({}, createContext("dueno"));
 
@@ -140,7 +140,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
 
   it("consulta con horizonte personalizado y filtro de categoría", async () => {
     const deps = createMockDeps();
-    const controller = createExpiringLotsReportController(deps);
+    const controller = createReporteLotesPorVencerHandler(deps);
 
     const response = await controller.handle(
       { horizonte: 14, categoriaId: 1 },
@@ -158,7 +158,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
   });
 
   it("rechaza valores de horizonte inválidos con el mensaje de error de validación E1", async () => {
-    const controller = createExpiringLotsReportController(createMockDeps());
+    const controller = createReporteLotesPorVencerHandler(createMockDeps());
 
     const invalidCases = [0, 32, -5, 100, "abc"];
 
@@ -197,7 +197,7 @@ describe("C57 ReporteLotesVencerHandler", () => {
     const deps = createMockDeps({
       queryExpiringLotsReport: vi.fn(async () => emptyData),
     });
-    const controller = createExpiringLotsReportController(deps);
+    const controller = createReporteLotesPorVencerHandler(deps);
 
     const response = await controller.handle(
       { horizonte: 7 },
@@ -233,7 +233,7 @@ describe("integración de exportación del reporte de lotes por vencer C61", () 
       audit: mockAudit,
     });
 
-    const response = await exportController.handle(
+    const response = await exportController(
       {
         tipoReporte: "lotes-por-vencer",
         horizonte: 7,
@@ -279,7 +279,7 @@ describe("integración de exportación del reporte de lotes por vencer C61", () 
       audit: vi.fn(async () => undefined),
     });
 
-    const response = await exportController.handle(
+    const response = await exportController(
       {
         tipoReporte: "lotes-por-vencer",
         horizonte: 7,
@@ -318,7 +318,7 @@ describe("integración de exportación del reporte de lotes por vencer C61", () 
       })),
     });
 
-    const response = await exportController.handle(
+    const response = await exportController(
       {
         tipoReporte: "lotes-por-vencer",
         horizonte: 7,
@@ -330,7 +330,7 @@ describe("integración de exportación del reporte de lotes por vencer C61", () 
       ok: false,
       error: {
         code: "BUSINESS_RULE",
-        controllerId: "restock-report-export",
+        controllerId: "report-export",
         message: EXPIRING_LOTS_EMPTY_MESSAGE,
       },
     });

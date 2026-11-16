@@ -9,7 +9,7 @@ import {
   loadStockAlerts,
   summarizeDailySales,
   type DashboardDb,
-} from "../../../src/main/controllers/dashboard-service";
+} from "../../../src/main/controllers/CargaDashboardAuxiliar";
 import {
   createDashboardRequest,
   getAttendanceDisplay,

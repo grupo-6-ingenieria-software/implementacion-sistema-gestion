@@ -6,15 +6,15 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import {
   authenticateChannel,
   authorizeRequest,
   guardChannel,
-} from "../../../src/main/controllers/auth-guard";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { validateAndRefreshActiveSession } from "../../../src/main/controllers/session";
-import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { validateAndRefreshActiveSession } from "../../../src/main/controllers/SesionHandler";
+import { signSessionToken, verifySessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
 
 const NOW = new Date("2026-09-08T12:00:00Z");
 const SESSION = "123e4567-e89b-42d3-a456-556642440000";

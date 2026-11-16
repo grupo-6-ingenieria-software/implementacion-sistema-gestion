@@ -4,7 +4,7 @@ import {
   getChileDateRange,
   getDashboardDay,
   parseDatabaseTimestamp,
-} from "../../../src/main/controllers/dashboard-date";
+} from "../../../src/main/controllers/FechaChileAuxiliar";
 
 describe("límites de fecha del dashboard", () => {
   it.each([

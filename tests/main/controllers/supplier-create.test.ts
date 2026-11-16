@@ -7,15 +7,15 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
 import {
-  createSupplierCreateController,
+  createRegistrarProveedorHandler,
   isSupplierRutUniqueConstraintError,
   listSupplierCategoriesWithExecutor,
   registerSupplierWithExecutor,
   SupplierRegistrationError,
-} from "../../../src/main/controllers/supplier-create";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/RegistrarProveedorHandler";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import type { SupplierRegistrationPayload } from "../../../src/shared/suppliers";
 
 const validPayload: SupplierRegistrationPayload = {
@@ -34,7 +34,7 @@ describe("RegistrarProveedorHandler", () => {
       proveedorId: 8,
       rut: "12345678-5",
     }));
-    const controller = createSupplierCreateController({
+    const controller = createRegistrarProveedorHandler({
       listCategories: async () => [{ id: 1, nombre: "Abarrotes" }],
       registerSupplier,
     });
@@ -63,7 +63,7 @@ describe("RegistrarProveedorHandler", () => {
       proveedorId: 1,
       rut: "12345678-5",
     }));
-    const controller = createSupplierCreateController({
+    const controller = createRegistrarProveedorHandler({
       listCategories: async () => [],
       registerSupplier,
     });
@@ -91,7 +91,7 @@ describe("RegistrarProveedorHandler", () => {
         rut: "El proveedor ya existe.",
       }),
     ]) {
-      const controller = createSupplierCreateController({
+      const controller = createRegistrarProveedorHandler({
         listCategories: async () => [],
         registerSupplier: async () => {
           throw domainError;
@@ -106,13 +106,13 @@ describe("RegistrarProveedorHandler", () => {
   });
 
   it("asigna errores de autorización, persistencia y canales desconocidos", async () => {
-    const forbidden = createSupplierCreateController({
+    const forbidden = createRegistrarProveedorHandler({
       listCategories: async () => {
         throw new AccessDeniedError();
       },
       registerSupplier: async () => validResult(),
     });
-    const databaseFailure = createSupplierCreateController({
+    const databaseFailure = createRegistrarProveedorHandler({
       listCategories: async () => [],
       registerSupplier: async () => {
         throw new Error("database unavailable");

@@ -8,17 +8,17 @@ import {
   guardChannel,
   type GuardDeps,
   type RequestAuthorizationDeps,
-} from "../../../src/main/controllers/auth-guard";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import { SESSION_INVALIDATED_MESSAGE } from "../../../src/shared/auth";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 function claimsFor(rol: "dueno" | "trabajador"): SessionTokenClaims {
   return {

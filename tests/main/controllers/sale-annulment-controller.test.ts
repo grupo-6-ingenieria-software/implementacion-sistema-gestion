@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../src/db/client", () => ({ db: {} }));
 
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { createSaleAnnulmentController } from "../../../src/main/controllers/sale-annulment";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { createAnulacionVentaHandler } from "../../../src/main/controllers/AnulacionVentaHandler";
 import {
   SaleAnnulmentBusinessError,
   SaleAnnulmentNotFoundError,
   SaleAnnulmentValidationError,
-} from "../../../src/main/controllers/sale-annulment-service";
+} from "../../../src/main/controllers/AnulacionVentaHandler";
 import type { SaleAnnulmentResult } from "../../../src/shared/sales";
 
 const result: SaleAnnulmentResult = {
@@ -34,7 +34,7 @@ describe("CU38 controlador de anulación de ventas", () => {
     deps.annul.mockImplementationOnce(
       () => new Promise((resolve) => (finish = resolve)),
     );
-    const request = createSaleAnnulmentController(deps).handle(
+    const request = createAnulacionVentaHandler(deps).handle(
       { ventaId: result.ventaId, razon: result.razon, usuarioId: "usuario-1" },
       { channel: "venta:anular" },
     );
@@ -56,7 +56,7 @@ describe("CU38 controlador de anulación de ventas", () => {
     const deps = dependencies();
     deps.annul.mockRejectedValueOnce(error);
 
-    const response = await createSaleAnnulmentController(deps).handle(
+    const response = await createAnulacionVentaHandler(deps).handle(
       {},
       { channel: "venta:anular" },
     );
@@ -70,7 +70,7 @@ describe("CU38 controlador de anulación de ventas", () => {
     deps.annul.mockRejectedValueOnce(new Error("database secret"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const response = await createSaleAnnulmentController(deps).handle(
+    const response = await createAnulacionVentaHandler(deps).handle(
       {},
       { channel: "venta:anular" },
     );

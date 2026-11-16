@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createWasteReportController,
+  createReporteMermasHandler,
   type WasteReportDependencies,
-} from "../../../src/main/controllers/waste-report";
-import { createRestockReportExportController } from "../../../src/main/controllers/restock-report-export";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+} from "../../../src/main/controllers/ReporteMermasHandler";
+import { createRestockReportExportController } from "../../../src/main/controllers/ExportacionReporteHandler";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 import type {
   WasteReportData,
   WasteReportRequest,
@@ -85,7 +85,7 @@ function createContext(
 describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
   it("rechaza canales IPC no registrados", async () => {
     const deps = createMockDeps();
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "2026-09-01", fechaTermino: "2026-09-15" },
       createContext("dueno", "reporte:otro"),
@@ -104,7 +104,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
 
   it("deniega el acceso al rol trabajador (CU49 restringido a dueno)", async () => {
     const deps = createMockDeps();
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "2026-09-01", fechaTermino: "2026-09-15" },
       createContext("trabajador"),
@@ -123,7 +123,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
 
   it("rechaza formatos de fecha inválidos", async () => {
     const deps = createMockDeps();
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "invalido", fechaTermino: "2026-09-15" },
       createContext("dueno"),
@@ -142,7 +142,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
 
   it("bloquea la generación si la fecha de inicio es posterior a la fecha de término (Excepción E2)", async () => {
     const deps = createMockDeps();
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "2026-09-20", fechaTermino: "2026-09-10" },
       createContext("dueno"),
@@ -161,7 +161,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
 
   it("devuelve el reporte con ítems y resumen para un rango de fechas válido (Flujo principal)", async () => {
     const deps = createMockDeps();
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "2026-09-01", fechaTermino: "2026-09-15" },
       createContext("dueno"),
@@ -198,7 +198,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
     const deps = createMockDeps({
       queryWasteReport: vi.fn(async () => emptyReport),
     });
-    const controller = createWasteReportController(deps);
+    const controller = createReporteMermasHandler(deps);
     const response = await controller.handle(
       { fechaInicio: "2026-08-01", fechaTermino: "2026-08-15" },
       createContext("dueno"),
@@ -234,7 +234,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
         audit,
       });
 
-      const response = await controller.handle(
+      const response = await controller(
         {
           tipoReporte: "mermas",
           fechaInicio: "2026-09-01",
@@ -291,7 +291,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
         audit,
       });
 
-      const response = await controller.handle(
+      const response = await controller(
         {
           tipoReporte: "mermas",
           fechaInicio: "2026-09-01",
@@ -343,7 +343,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
         loadWasteReport,
       });
 
-      const response = await controller.handle(
+      const response = await controller(
         {
           tipoReporte: "mermas",
           fechaInicio: "2026-09-01",
@@ -356,7 +356,7 @@ describe("CU49 Reporte de mermas (C56 ReporteMermasHandler)", () => {
         ok: false,
         error: {
           code: "BUSINESS_RULE",
-          controllerId: "restock-report-export",
+          controllerId: "report-export",
           message: "No se encontraron mermas para el período indicado.",
         },
       });

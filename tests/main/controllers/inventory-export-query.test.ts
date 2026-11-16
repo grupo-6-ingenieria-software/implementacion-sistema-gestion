@@ -5,11 +5,11 @@ import {
   createAuthTestDatabase,
   removeAuthTempDir,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import {
   InventoryExportDataError,
   queryInventoryExportWithExecutor,
-} from "../../../src/main/controllers/inventory-export-query";
+} from "../../../src/main/controllers/ConsultaExportacionInventarioAuxiliar";
 import { seedInventoryExport } from "./inventory-export-fixture";
 
 let fixture: AuthTestDatabase;

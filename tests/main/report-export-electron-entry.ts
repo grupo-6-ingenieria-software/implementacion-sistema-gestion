@@ -5,10 +5,10 @@ import { join, resolve } from "node:path";
 import { app } from "electron";
 import ExcelJS from "exceljs";
 import * as schema from "../../src/db/schema";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../src/main/controllers/auth-fixtures";
-import { createReportAuditStorage } from "../../src/main/controllers/report-export-audit";
-import { createReportExportHandler } from "../../src/main/controllers/report-export-service";
-import { createMonthlySalesReportAdapter, createReportRegistry } from "../../src/main/controllers/report-registry";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { createReportAuditStorage } from "../../src/main/controllers/AuditoriaExportacionReporteAuxiliar";
+import { createReportExportHandler } from "../../src/main/controllers/ServicioExportacionReporteAuxiliar";
+import { createMonthlySalesReportAdapter, createReportRegistry } from "../../src/main/controllers/RegistroTiposReporteAuxiliar";
 import { context, report, reportDependencies, request, user } from "./controllers/report-export-fixture";
 
 // Real Electron printing and transactional audit; only the native directory dialog is replaced.

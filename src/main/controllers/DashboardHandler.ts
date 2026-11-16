@@ -1,0 +1,43 @@
+import { findControllerById } from "../../shared/controllers";
+import { NumericRangeError } from "../../shared/numbers";
+import { db } from "../../db/client";
+import { isDashboardRequest } from "../../shared/dashboard";
+import {
+  controllerError,
+  controllerSuccess,
+  type RegisteredController,
+} from "./BaseControladorAuxiliar";
+import { loadDashboardData, type DashboardDb } from "./CargaDashboardAuxiliar";
+
+const metadata = findControllerById("dashboard")!;
+
+export const dashboardHandler: RegisteredController = {
+  metadata,
+  handle: async (_payload, context) => {
+    const payload = context.claims && {
+      role: context.claims.rol,
+      usuarioId: context.claims.usuarioId,
+    };
+    if (!isDashboardRequest(payload)) {
+      return controllerError(
+        "VALIDATION_ERROR",
+        "Se requiere una sesion valida para cargar el dashboard.",
+        metadata.id,
+      );
+    }
+
+    try {
+      return controllerSuccess(
+        await loadDashboardData(db as unknown as DashboardDb, payload),
+      );
+    } catch (error) {
+      if (error instanceof NumericRangeError) return controllerError("BUSINESS_RULE", error.message, metadata.id);
+      console.error(error);
+      return controllerError(
+        "TECHNICAL_ERROR",
+        "No fue posible cargar los indicadores. Intente nuevamente",
+        metadata.id,
+      );
+    }
+  },
+};

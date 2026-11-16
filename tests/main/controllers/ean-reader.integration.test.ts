@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
-import { createEanReaderController } from "../../../src/main/controllers/ean-reader";
-import { createProductQueryController, queryActiveProductsWithExecutor, queryProductDetailWithExecutor } from "../../../src/main/controllers/product-query";
-import { authorizeUser } from "../../../src/main/controllers/auth-context";
-import { registerAuditEvent } from "../../../src/main/controllers/audit-service";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser } from "../../../src/main/controllers/auth-fixtures";
+import { createLectorEANHandler } from "../../../src/main/controllers/LectorEANHandler";
+import { createConsultaProductoHandler, queryActiveProductsWithExecutor, queryProductDetailWithExecutor } from "../../../src/main/controllers/ConsultaProductoHandler";
+import { authorizeUser } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { registerAuditEvent } from "../../../src/main/controllers/RegistroAuditoriaAuxiliar";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 let fixture: Awaited<ReturnType<typeof createAuthTestDatabase>>;
 beforeAll(async () => {
@@ -21,7 +21,7 @@ afterAll(async () => {
 });
 
 function controller() {
-  return createEanReaderController({
+  return createLectorEANHandler({
     findProduct: (ean13) => queryProductDetailWithExecutor(fixture.db, schema, ean13, false),
     report: (event) => registerAuditEvent(fixture.db, schema, event),
   });
@@ -39,7 +39,7 @@ describe("C24 reutiliza C13 y C04 contra libSQL", () => {
     expect(products.map((product) => product.ean13)).toEqual(["7802920000015"]);
     const byName = await queryActiveProductsWithExecutor(fixture.db, schema, { query: "Lech", limit: 10 });
     expect(byName.map((product) => product.nombre)).toEqual(["Leche"]);
-    const productQuery = createProductQueryController({
+    const productQuery = createConsultaProductoHandler({
       authorize: (usuarioId, roles) => authorizeUser(fixture.db, schema, usuarioId, roles),
       listProducts: async () => [], listCategories: async () => [],
       findProduct: (ean13) => queryProductDetailWithExecutor(fixture.db, schema, ean13, false),

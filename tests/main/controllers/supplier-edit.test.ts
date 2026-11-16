@@ -6,20 +6,20 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
-  createSupplierEditController,
+  createEditarProveedorHandler,
   editSupplierWithExecutor,
   SupplierEditError,
   SupplierNotFoundError,
-} from "../../../src/main/controllers/supplier-edit";
+} from "../../../src/main/controllers/EditarProveedorHandler";
 import {
-  createSupplierQueryController,
+  createConsultaProveedorHandler,
   findSupplierWithExecutor,
   listSuppliersWithExecutor,
-} from "../../../src/main/controllers/supplier-query";
+} from "../../../src/main/controllers/ConsultaProveedorHandler";
 import type { SupplierEditPayload } from "../../../src/shared/suppliers";
 
 const validEdit: SupplierEditPayload = {
@@ -57,7 +57,7 @@ describe("CU14 controladores de proveedores", () => {
       correoElectronico: "ana@sur.cl",
       categoriaIds: [1],
     };
-    const query = createSupplierQueryController({
+    const query = createConsultaProveedorHandler({
       listSuppliers,
       findSupplier: async () => detail,
     });
@@ -65,7 +65,7 @@ describe("CU14 controladores de proveedores", () => {
       proveedorId: 1,
       rut: "12.345.678-5",
     }));
-    const edit = createSupplierEditController({ editSupplier });
+    const edit = createEditarProveedorHandler({ editSupplier });
 
     await expect(
       query.handle(
@@ -93,7 +93,7 @@ describe("CU14 controladores de proveedores", () => {
   });
 
   it("normaliza errores de validación, no encontrado, autorización y base de datos", async () => {
-    const query = createSupplierQueryController({
+    const query = createConsultaProveedorHandler({
       listSuppliers: async () => {
         throw new AccessDeniedError();
       },
@@ -125,7 +125,7 @@ describe("CU14 controladores de proveedores", () => {
       }),
       new Error("database unavailable"),
     ]) {
-      const edit = createSupplierEditController({
+      const edit = createEditarProveedorHandler({
         editSupplier: async () => {
           throw error;
         },
@@ -148,7 +148,7 @@ describe("CU14 controladores de proveedores", () => {
     }
 
     const persistence = vi.fn(async () => ({ proveedorId: 1, rut: "x" }));
-    const invalidEdit = createSupplierEditController({
+    const invalidEdit = createEditarProveedorHandler({
       editSupplier: persistence,
     });
     await expect(

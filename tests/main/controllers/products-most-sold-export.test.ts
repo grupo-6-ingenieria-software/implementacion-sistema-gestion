@@ -6,13 +6,13 @@ import {
   createProductsMostSoldXlsx,
   renderProductsMostSoldPrintHtml,
   type ProductsMostSoldExportDependencies,
-} from "../../../src/main/controllers/products-most-sold-export";
-import { createReportExportController } from "../../../src/main/controllers/report-export";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+} from "../../../src/main/controllers/ExportacionReporteProductosMasVendidosAuxiliar";
+import { createExportacionReporteHandler } from "../../../src/main/controllers/ExportacionReporteHandler";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 import { REPORT_EXPORT_ERROR_MESSAGE } from "../../../src/shared/monthly-sales";
 import type { ProductsMostSoldReport } from "../../../src/shared/products-most-sold";
-import type { ControllerContext } from "../../../src/main/controllers/base";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
 
 const report: ProductsMostSoldReport = {
   status: "ready", periodo: { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" }, totalUnidadesPeriodo: 3,
@@ -53,12 +53,12 @@ describe("exportación PDF/XLSX de CU48", () => {
       }
       return { ok: true as const, data: "reports" };
     });
-    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
+    const legacy = vi.fn(async () => ({ ok: true as const, data: "legacy" }));
     const products = vi.fn(async () => ({ ok: true as const, data: "products" }));
-    const daily = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
-    const controller = createReportExportController(reports, legacy, products, daily);
+    const daily = vi.fn(async () => ({ ok: true as const, data: "daily" }));
+    const controller = createExportacionReporteHandler(reports, legacy, products, daily);
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
-    expect(controller.metadata).toMatchObject({ id: "report-export", module: "reportes", channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion"] });
+    expect(controller.metadata).toMatchObject({ id: "report-export", module: "reportes", channels: ["reporte:exportar-pdf", "reporte:exportar-xlsx", "reporte:conciliar-exportacion", "inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx", "inventario:exportar-productos"] });
     expect(await controller.handle(request, ctx)).toMatchObject({ data: "products" });
     expect(await controller.handle({ tipo: "ventas-mensuales" }, ctx)).toMatchObject({ data: "reports" });
     expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, ctx)).toMatchObject({ data: "daily" });
@@ -66,7 +66,7 @@ describe("exportación PDF/XLSX de CU48", () => {
     for (const tipoReporte of ["mermas", "lotes-por-vencer", "movimientos-inventario"]) {
       const payload = { tipoReporte, tipo: "venta", fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" };
       expect(await controller.handle(payload, ctx)).toMatchObject({ data: "legacy" });
-      expect(legacy.handle).toHaveBeenLastCalledWith(payload, ctx);
+      expect(legacy).toHaveBeenLastCalledWith(payload, ctx);
     }
     const unknownRequest = { tipo: "unknown", periodo: {} };
     expect(await controller.handle(unknownRequest, ctx)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
@@ -78,8 +78,8 @@ describe("exportación PDF/XLSX de CU48", () => {
     expect(await controller.handle(request, { ...ctx, channel: "reporte:ventas-diarias" })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
     expect(products).toHaveBeenCalledTimes(1);
     expect(reports).toHaveBeenCalledTimes(3);
-    expect(daily.handle).toHaveBeenCalledTimes(1);
-    expect(legacy.handle).toHaveBeenCalledTimes(4);
+    expect(daily).toHaveBeenCalledTimes(1);
+    expect(legacy).toHaveBeenCalledTimes(4);
   });
 
   it("deniega a trabajadores y periodos inválidos antes de recalcular", async () => {
@@ -103,7 +103,7 @@ describe("exportación PDF/XLSX de CU48", () => {
         : variant === "cancel" ? { showSaveDialog: async () => ({ canceled: true }) }
         : { save: async () => { throw new Error("Disk full"); } });
       const audit = vi.fn(async () => undefined);
-      const controller = createReportExportController(undefined, undefined, createProductsMostSoldExportHandler(deps));
+      const controller = createExportacionReporteHandler(undefined, undefined, createProductsMostSoldExportHandler(deps));
       const result = await handleWithAudit(controller, request, context, audit);
       expect(audit).not.toHaveBeenCalled();
       if (variant === "cancel") expect(result).toMatchObject({ ok: true, data: { estado: "cancelled" } });
@@ -113,7 +113,7 @@ describe("exportación PDF/XLSX de CU48", () => {
 
   it("audita exactamente una exportación CU48 guardada con éxito", async () => {
     const audit = vi.fn(async () => undefined);
-    const controller = createReportExportController(undefined, undefined, createProductsMostSoldExportHandler(dependencies()));
+    const controller = createExportacionReporteHandler(undefined, undefined, createProductsMostSoldExportHandler(dependencies()));
     expect(await handleWithAudit(controller, request, context, audit)).toMatchObject({ ok: true, data: { estado: "saved" } });
     expect(audit).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "exportacion", modulo: "reportes", usuarioId: "owner" }));

@@ -8,21 +8,21 @@ import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
-} from "../../src/main/controllers/auth-fixtures";
+} from "../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 import {
-  createLotController,
+  createLoteHandler,
   registerLotWithExecutor,
-} from "../../src/main/controllers/lot";
+} from "../../src/main/controllers/LoteHandler";
 import {
   createProductWithExecutor,
   createProductWriteController,
   normalizeCreatePayload,
-} from "../../src/main/controllers/product-write";
+} from "../../src/main/controllers/EscrituraProductoAuxiliar";
 import {
-  createWasteController,
+  createMermaHandler,
   registerWasteWithExecutor,
-} from "../../src/main/controllers/waste";
-import { controllers } from "../../src/shared/controllers";
+} from "../../src/main/controllers/MermaHandler";
+import { findControllerById } from "../../src/shared/controllers";
 import { it, vi } from "vitest";
 
 vi.mock("electron", () => ({ BrowserWindow: { getAllWindows: () => [] } }));
@@ -40,7 +40,7 @@ it("forwards invalid inventory forms through Chromium, IPC controllers and SQL",
   const productController = createProductWriteController({
     channel: "producto:registrar",
     controllerId: "product-create",
-    metadata: controllers[9],
+    metadata: findControllerById("product-create")!,
     normalize: normalizeCreatePayload,
     dependencies: {
       save: (payload) =>
@@ -50,14 +50,14 @@ it("forwards invalid inventory forms through Chromium, IPC controllers and SQL",
         }),
     },
   });
-  const lotController = createLotController({
+  const loteHandler = createLoteHandler({
     listProviders: async () => [{ id: 1, nombre: "Proveedor" }],
     register: (payload) =>
       fixture.db.transaction((tx) =>
         registerLotWithExecutor(tx, schema, payload),
       ),
   });
-  const wasteController = createWasteController({
+  const mermaHandler = createMermaHandler({
     availability: async () => ({
       ean13: "7802920000015",
       stockDisponible: 5,
@@ -100,7 +100,7 @@ it("forwards invalid inventory forms through Chromium, IPC controllers and SQL",
                           },
                         }
                       : message.channel === "lote:proveedores"
-                        ? await lotController.handle(message.payload, {
+                        ? await loteHandler.handle(message.payload, {
                             channel: message.channel,
                           })
                         : message.channel === "producto:registrar"
@@ -108,10 +108,10 @@ it("forwards invalid inventory forms through Chromium, IPC controllers and SQL",
                               channel: message.channel,
                             })
                           : message.channel === "lote:registrar"
-                            ? await lotController.handle(message.payload, {
+                            ? await loteHandler.handle(message.payload, {
                                 channel: message.channel,
                               })
-                            : await wasteController.handle(message.payload, {
+                            : await mermaHandler.handle(message.payload, {
                                 channel: message.channel,
                               });
                   response.setHeader("content-type", "application/json");

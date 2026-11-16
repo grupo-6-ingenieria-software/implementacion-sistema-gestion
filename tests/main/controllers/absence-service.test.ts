@@ -7,10 +7,10 @@ import { sql, type SQL } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
-import { AbsenceError, registerAbsence, type AbsenceActor } from "../../../src/main/controllers/absence-service";
-import { AttendanceBusinessError, registerAttendanceEntryWithoutShift } from "../../../src/main/controllers/attendance-service";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { AbsenceError, registerAbsence, type AbsenceActor } from "../../../src/main/controllers/AsistenciaHandler";
+import { AttendanceBusinessError, registerAttendanceEntryWithoutShift } from "../../../src/main/controllers/AsistenciaHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 const NOW = new Date("2026-09-08T15:00:00Z");
 const USER = "11111111-1";

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createMovementReportController,
+  createReporteMovimientosHandler,
   type MovementReportDependencies,
-} from "../../../src/main/controllers/movement-report";
-import { createRestockReportExportController } from "../../../src/main/controllers/restock-report-export";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+} from "../../../src/main/controllers/ReporteMovimientosHandler";
+import { createRestockReportExportController } from "../../../src/main/controllers/ExportacionReporteHandler";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 import type {
   MovementReportData,
   MovementReportRequest,
@@ -140,14 +140,14 @@ function createContext(
 
 describe("C60 ReporteMovimientosHandler", () => {
   it("registra metadatos y atiende el canal reporte:movimientos-inventario", () => {
-    const controller = createMovementReportController(createMockDeps());
+    const controller = createReporteMovimientosHandler(createMockDeps());
     expect(controller.metadata.id).toBe("movement-report");
     expect(controller.metadata.channels).toContain("reporte:movimientos-inventario");
     expect(controller.metadata.module).toBe("reportes");
   });
 
   it("deniega el acceso cuando el rol de la sesión no es dueno", async () => {
-    const controller = createMovementReportController(createMockDeps());
+    const controller = createReporteMovimientosHandler(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "2026-09-01", fechaTermino: "2026-09-30" },
       createContext("trabajador"),
@@ -164,7 +164,7 @@ describe("C60 ReporteMovimientosHandler", () => {
   });
 
   it("devuelve error de validación (E2) cuando la fecha de inicio es posterior a la fecha de término", async () => {
-    const controller = createMovementReportController(createMockDeps());
+    const controller = createReporteMovimientosHandler(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "2026-09-30", fechaTermino: "2026-09-01" },
       createContext("dueno"),
@@ -181,7 +181,7 @@ describe("C60 ReporteMovimientosHandler", () => {
   });
 
   it("devuelve error de validación cuando las fechas son inválidas o mal formadas", async () => {
-    const controller = createMovementReportController(createMockDeps());
+    const controller = createReporteMovimientosHandler(createMockDeps());
     const response = await controller.handle(
       { fechaInicio: "fecha-invalida", fechaTermino: "2026-09-30" },
       createContext("dueno"),
@@ -199,7 +199,7 @@ describe("C60 ReporteMovimientosHandler", () => {
 
   it("ejecuta la consulta y devuelve los datos del reporte de movimientos con filtros", async () => {
     const mockQuery = vi.fn(async () => sampleMovementData);
-    const controller = createMovementReportController({
+    const controller = createReporteMovimientosHandler({
       queryMovementReport: mockQuery,
     });
 
@@ -241,7 +241,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       documentsPath: () => "/fake/docs",
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-01",
@@ -254,7 +254,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       ok: false,
       error: {
         code: "FORBIDDEN",
-        controllerId: "restock-report-export",
+        controllerId: "report-export",
         message: "Operación restringida al rol Dueño.",
       },
     });
@@ -271,7 +271,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       documentsPath: () => "/fake/docs",
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-30",
@@ -284,7 +284,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       ok: false,
       error: {
         code: "VALIDATION_ERROR",
-        controllerId: "restock-report-export",
+        controllerId: "report-export",
         message: MOVEMENT_REPORT_DATE_RANGE_ERROR,
       },
     });
@@ -305,7 +305,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       })),
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-01",
@@ -318,7 +318,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       ok: false,
       error: {
         code: "BUSINESS_RULE",
-        controllerId: "restock-report-export",
+        controllerId: "report-export",
         message: MOVEMENT_REPORT_EMPTY_MESSAGE,
       },
     });
@@ -345,7 +345,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       audit: auditMock,
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-01",
@@ -396,7 +396,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       audit: auditMock,
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-01",
@@ -442,7 +442,7 @@ describe("C61 ExportacionReportesHandler - Movimientos de Inventario", () => {
       audit: auditMock,
     });
 
-    const response = await controller.handle(
+    const response = await controller(
       {
         tipoReporte: "movimientos-inventario",
         fechaInicio: "2026-09-01",

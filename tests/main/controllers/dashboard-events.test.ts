@@ -6,7 +6,7 @@ import {
 } from "../../../src/shared/sales";
 
 const {
-  closeCashRegister,
+  cashDatabase,
   inspectDailyCashRegister,
   send,
   getAllWindows,
@@ -15,9 +15,37 @@ const {
 } = vi.hoisted(() => {
   const sendMock = vi.fn();
 
+  // Ejecutor mínimo: basta para que closeCashRegister (ahora en cash-closing.ts)
+  // complete una caja sin ventas y registre la auditoría.
+  const sqlText = (value: unknown): string => {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.map(sqlText).join(" ");
+    if (!value || typeof value !== "object") return "";
+    const record = value as { value?: unknown; queryChunks?: unknown };
+    return `${sqlText(record.value)} ${sqlText(record.queryChunks)}`;
+  };
+  const cashDatabaseMock = {
+    all: async (query: unknown): Promise<unknown[]> => {
+      const text = sqlText(query);
+      if (text.includes("usuario_version")) {
+        return [{ usuarioVersionId: "version-1" }];
+      }
+      if (text.includes("usuario_rol IN")) {
+        return [{ trabajadorId: 1, usuarioId: "usuario-1", usuarioRol: "dueno" }];
+      }
+      if (text.includes("FROM trabajador")) {
+        return [{ trabajadorNombre: "Trabajador", trabajadorApellido: "Prueba" }];
+      }
+      return [];
+    },
+    run: async () => ({ rowsAffected: 1 }),
+    transaction: async <T,>(callback: (tx: unknown) => Promise<T>) =>
+      callback(cashDatabaseMock),
+  };
+
   return {
     send: sendMock,
-    closeCashRegister: vi.fn(),
+    cashDatabase: cashDatabaseMock,
     getAllWindows: vi.fn(),
     logError: vi.fn(),
     registerSale: vi.fn(),
@@ -31,10 +59,10 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../../../src/main/controllers/cash-check", async () => {
+vi.mock("../../../src/main/controllers/VerificacionCajaHandler", async () => {
   const actual = await vi.importActual<
-    typeof import("../../../src/main/controllers/cash-check")
-  >("../../../src/main/controllers/cash-check");
+    typeof import("../../../src/main/controllers/VerificacionCajaHandler")
+  >("../../../src/main/controllers/VerificacionCajaHandler");
   return { ...actual, inspectDailyCashRegister };
 });
 
@@ -45,13 +73,13 @@ vi.mock("electron-log/main", () => ({
 }));
 
 vi.mock("../../../src/db/client", () => ({
-  db: {},
+  db: cashDatabase,
 }));
 
-vi.mock("../../../src/main/controllers/sale-service", async () => {
+vi.mock("../../../src/main/controllers/RegistroVentaAuxiliar", async () => {
   const actual = await vi.importActual<
-    typeof import("../../../src/main/controllers/sale-service")
-  >("../../../src/main/controllers/sale-service");
+    typeof import("../../../src/main/controllers/RegistroVentaAuxiliar")
+  >("../../../src/main/controllers/RegistroVentaAuxiliar");
 
   return {
     ...actual,
@@ -59,26 +87,14 @@ vi.mock("../../../src/main/controllers/sale-service", async () => {
   };
 });
 
-vi.mock("../../../src/main/controllers/cash-closing-service", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../src/main/controllers/cash-closing-service")
-  >("../../../src/main/controllers/cash-closing-service");
-
-  return {
-    ...actual,
-    closeCashRegister,
-  };
-});
-
-import { notifyDashboardUpdated } from "../../../src/main/controllers/dashboard-events";
-import { notifySaleAnnulled } from "../../../src/main/controllers/sale-annulment-events";
+import { notifyDashboardUpdated } from "../../../src/main/controllers/EventosDashboardAuxiliar";
+import { notifySaleAnnulled } from "../../../src/main/controllers/AnulacionVentaHandler";
 import {
   SaleBusinessError,
-} from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/RegistroVentaAuxiliar";
 import type { SaleReceipt } from "../../../src/shared/sales";
-import { saleController } from "../../../src/main/controllers/sale";
-import { cashClosingController } from "../../../src/main/controllers/cash-closing";
-import type { CashCloseResult } from "../../../src/shared/cash";
+import { ventaHandler } from "../../../src/main/controllers/VentaHandler";
+import { cierreCajaHandler } from "../../../src/main/controllers/CierreCajaHandler";
 
 const saleContext = {
   channel: "venta:registrar",
@@ -103,7 +119,6 @@ beforeEach(() => {
     cierreCajaId: "caja-1",
     openedAt: "2026-06-12T08:00:00.000Z",
   });
-  closeCashRegister.mockReset();
 });
 
 afterEach(() => {
@@ -166,7 +181,7 @@ describe("eventos de actualización del dashboard", () => {
   it("emite una actualización después de registrar una venta con éxito", async () => {
     registerSale.mockResolvedValueOnce(createSaleReceipt());
 
-    const response = await saleController.handle(
+    const response = await ventaHandler.handle(
       {
         usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
@@ -186,7 +201,7 @@ describe("eventos de actualización del dashboard", () => {
     });
     registerSale.mockResolvedValueOnce(createSaleReceipt());
 
-    const response = await saleController.handle(
+    const response = await ventaHandler.handle(
       {
         usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
@@ -210,7 +225,7 @@ describe("eventos de actualización del dashboard", () => {
       new SaleBusinessError("La caja se encuentra cerrada."),
     );
 
-    const response = await saleController.handle(
+    const response = await ventaHandler.handle(
       {
         usuarioId: "usuario-1",
         items: [{ productoId: 1, cantidad: 1 }],
@@ -224,9 +239,7 @@ describe("eventos de actualización del dashboard", () => {
   });
 
   it("emite una actualización después de que el cierre de caja termina con éxito", async () => {
-    closeCashRegister.mockResolvedValueOnce(createCashCloseResult());
-
-    const response = await cashClosingController.handle(
+    const response = await cierreCajaHandler.handle(
       { confirmacion: true, usuarioId: "usuario-1" },
       { channel: "caja:cerrar" },
     );
@@ -269,49 +282,5 @@ function createAnnulmentResult(): SaleAnnulmentResult {
     },
     lotesRestituidos: 2,
     unidadesRestituidas: 3,
-  };
-}
-
-function createCashCloseResult(): CashCloseResult {
-  return {
-    cierreCajaId: "caja-1",
-    closedAt: "2026-06-12T20:00:00.000Z",
-    closedBy: {
-      usuarioId: "usuario-1",
-      nombre: "Trabajador Prueba",
-    },
-    currentAmount: 1000,
-    currentTransactions: 1,
-    generatedAt: "2026-06-12T20:00:00.000Z",
-    openedAt: "2026-06-12T08:00:00.000Z",
-    payments: {
-      efectivo: {
-        currentAmount: 0,
-        currentTransactions: 0,
-        voidedAmount: 0,
-        voidedTransactions: 0,
-      },
-      debito: {
-        currentAmount: 1000,
-        currentTransactions: 1,
-        voidedAmount: 0,
-        voidedTransactions: 0,
-      },
-      credito: {
-        currentAmount: 0,
-        currentTransactions: 0,
-        voidedAmount: 0,
-        voidedTransactions: 0,
-      },
-      transferencia: {
-        currentAmount: 0,
-        currentTransactions: 0,
-        voidedAmount: 0,
-        voidedTransactions: 0,
-      },
-    },
-    status: "cerrada",
-    voidedAmount: 0,
-    voidedTransactions: 0,
   };
 }

@@ -8,19 +8,20 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
-import { authorizeUser, registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { authorizeUser, registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 import {
   auditInventoryExportWithExecutor,
   createInventoryExportController,
+  createExportacionReporteHandler,
   type InventoryExportDependencies,
-} from "../../../src/main/controllers/inventory-export";
-import { queryInventoryExportWithExecutor } from "../../../src/main/controllers/inventory-export-query";
+} from "../../../src/main/controllers/ExportacionReporteHandler";
+import { queryInventoryExportWithExecutor } from "../../../src/main/controllers/ConsultaExportacionInventarioAuxiliar";
 import {
   createInventoryXlsxBuffer,
   saveInventoryFile,
-} from "../../../src/main/controllers/inventory-export-file";
+} from "../../../src/main/controllers/ArchivoExportacionInventarioAuxiliar";
 import { INVENTORY_EXPORT_CHANNEL } from "../../../src/shared/inventory-export";
 import { seedInventoryExport } from "./inventory-export-fixture";
 
@@ -80,11 +81,13 @@ const context = {
   },
 };
 
+// El despachador del canal de inventario pasa por el controlador de exportación de reportes.
 function exportThroughAuditDispatcher(
   controller: ReturnType<typeof createInventoryExportController>,
   payload: unknown,
 ) {
-  return handleWithAudit(controller, payload, context, (event) =>
+  const survivor = createExportacionReporteHandler(undefined, undefined, undefined, undefined, undefined, undefined, controller);
+  return handleWithAudit(survivor, payload, context, (event) =>
     registerAuditLog(fixture.db, schema, event),
   );
 }

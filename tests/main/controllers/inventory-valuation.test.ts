@@ -5,16 +5,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  createInventoryValuationController,
+  createValorizacionHandler,
   loadAuthorizedInventoryValuation,
   queryInventoryValuationWithExecutor,
-} from "../../../src/main/controllers/inventory-valuation";
+} from "../../../src/main/controllers/ValorizacionHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
-import { guardChannel } from "../../../src/main/controllers/auth-guard";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 
 const owner: AuthenticatedUser = {
   role: "dueno",
@@ -32,7 +32,7 @@ describe("controlador de valorización de inventario CU19 (C36)", () => {
         result,
         user: { ...owner, role },
       }));
-      const controller = createInventoryValuationController({ load });
+      const controller = createValorizacionHandler({ load });
 
       const response = await controller.handle(
         { usuarioId: "trusted-user" },
@@ -48,7 +48,7 @@ describe("controlador de valorización de inventario CU19 (C36)", () => {
   );
 
   it("rechaza sesiones faltantes o inválidas y canales inválidos", async () => {
-    const controller = createInventoryValuationController({
+    const controller = createValorizacionHandler({
       load: async () => {
         throw new AccessDeniedError("Sesión requerida");
       },
@@ -73,7 +73,7 @@ describe("controlador de valorización de inventario CU19 (C36)", () => {
     const query = vi.fn(async () => {
       throw new Error("database unavailable");
     });
-    const controller = createInventoryValuationController({
+    const controller = createValorizacionHandler({
       load: (request, sessionRole) =>
         loadAuthorizedInventoryValuation(request, sessionRole, {
           authorize,

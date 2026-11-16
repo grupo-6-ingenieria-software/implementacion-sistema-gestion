@@ -19,7 +19,7 @@ vi.mock("electron-log/main", () => ({
   },
 }));
 
-import { notifySessionInvalidated } from "../../../src/main/controllers/session-events";
+import { notifySessionInvalidated } from "../../../src/main/controllers/EventosSesionAuxiliar";
 
 function windowWithSend(impl?: () => void) {
   return { webContents: { send: impl ?? send } };

@@ -14,9 +14,9 @@ import {
   SaleValidationError,
   validateSaleCart,
   type DbExecutor,
-} from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/RegistroVentaAuxiliar";
 import type { SaleRegisterRequest } from "../../../src/shared/sales";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 const TEST_SESSION_ID = "00000000-0000-4000-8000-000000000091";
 

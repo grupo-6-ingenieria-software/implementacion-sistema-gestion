@@ -6,8 +6,8 @@ describe("registro de controladores", () => {
   it("declara una entrada de metadatos por id de controlador", () => {
     const ids = controllers.map((controller) => controller.id);
 
-    expect(controllers).toHaveLength(54);
-    expect(new Set(ids)).toHaveProperty("size", 54);
+    expect(controllers).toHaveLength(49);
+    expect(new Set(ids)).toHaveProperty("size", 49);
     expect(ids).toEqual([
       "auth-login",
       "password",
@@ -33,7 +33,6 @@ describe("registro de controladores", () => {
       "shift",
       "attendance",
       "ean-reader",
-      "user-management",
       "product-delete",
       "sale-annulment",
       "product-detail",
@@ -47,20 +46,16 @@ describe("registro de controladores", () => {
       "supplier-query",
       "supplier-edit",
       "restock-list",
-      "restock-report-export",
       "inventory-valuation",
       "daily-sales-report",
       "report-export",
       "monthly-sales",
       "products-most-sold",
       "sale-categories",
-      "inventory-export",
       "waste-report",
       "expiring-lots-report",
       "movement-report",
       "category-profitability",
-      "absence",
-      "attendance-monthly-summary",
       "attendance-report",
       "receipt-print",
     ]);
@@ -73,9 +68,9 @@ describe("registro de controladores", () => {
   });
 
   it("agrega C50 sin reutilizar canales de C33", () => {
-    expect(controllers.find((controller) => controller.id === "inventory-export")).toMatchObject({
-      id: "inventory-export", name: "ExportacionInventarioHandler",
-      channels: ["inventario:exportar-productos"],
+    expect(controllers.find((controller) => controller.id === "report-export")).toMatchObject({
+      id: "report-export", name: "ExportacionReporteHandler", module: "reportes",
+      channels: expect.arrayContaining(["inventario:exportar-productos"]),
     });
     expect(new Set(ipcChannels.map(({ channel }) => channel)).size).toBe(ipcChannels.length);
   });
@@ -89,7 +84,7 @@ describe("registro de controladores", () => {
   });
 
   it("agrega el controlador de proveedores de CU13 sin cambiar los índices previos", () => {
-    expect(controllers.at(34)).toMatchObject({
+    expect(controllers.at(33)).toMatchObject({
       id: "supplier-create",
       name: "RegistrarProveedorHandler",
       channels: ["proveedor:categorias", "proveedor:registrar"],
@@ -97,7 +92,7 @@ describe("registro de controladores", () => {
   });
 
   it("registra los canales de consulta y edición de CU14", () => {
-    expect(controllers.slice(35, 37)).toMatchObject([
+    expect(controllers.slice(34, 36)).toMatchObject([
       {
         id: "supplier-query",
         channels: ["proveedor:listar", "proveedor:buscar-existente"],
@@ -106,23 +101,21 @@ describe("registro de controladores", () => {
     ]);
   });
 
-  it("agrega los controladores de CU16 sin cambiar los índices heredados", () => {
-    expect(controllers.slice(37, 39)).toMatchObject([
+  it("agrega el controlador de lista de reabastecimiento de CU16 sin cambiar los índices heredados", () => {
+    expect(controllers.slice(36, 37)).toMatchObject([
       {
         id: "restock-list",
         name: "ReabastecimientoHandler",
         channels: ["inventario:lista-reabastecimiento"],
       },
-      {
-        id: "restock-report-export",
-        name: "ExportacionReporteHandler",
-        channels: ["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"],
-      },
     ]);
+    expect(controllers.find((controller) => controller.id === "report-export")?.channels).toEqual(
+      expect.arrayContaining(["inventario:reabastecimiento:exportar-pdf", "inventario:reabastecimiento:exportar-xlsx"]),
+    );
   });
 
   it("agrega el controlador de solo lectura de CU19", () => {
-    expect(controllers.at(39)).toMatchObject({
+    expect(controllers.at(37)).toMatchObject({
       id: "inventory-valuation",
       name: "ValorizacionHandler",
       channels: ["inventario:valorizacion"],
@@ -132,7 +125,7 @@ describe("registro de controladores", () => {
   it("registra la consulta de CU45 después de los controladores heredados", () => {
     expect(controllers.find((controller) => controller.id === "sale-categories")).toMatchObject({
       id: "sale-categories",
-      name: "VentasCategoriaHandler",
+      name: "CategoriaVentaHandler",
       channels: ["venta:por-categoria"],
     });
   });
@@ -145,8 +138,12 @@ describe("registro de controladores", () => {
     });
   });
 
-  it("agrega C51 sin cambiar los índices heredados", () => {
-    expect(controllers.at(50)).toMatchObject({ id: "absence", name: "AusenciaHandler", module: "personal", channels: ["ausencia:registrar"] });
+  it("absorbe C50 y C51 en AsistenciaHandler sin cambiar los índices heredados", () => {
+    expect(controllers.at(47)).toMatchObject({ id: "attendance-report", name: "ReporteAsistenciaHandler" });
+    expect(controllers.find((controller) => controller.id === "attendance")).toMatchObject({
+      name: "AsistenciaHandler",
+      channels: expect.arrayContaining(["ausencia:registrar", "asistencia:resumen-mensual"]),
+    });
   });
 
   it("mantiene remuneracion acotada a sus canales documentados", () => {

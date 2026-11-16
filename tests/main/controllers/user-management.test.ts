@@ -11,18 +11,18 @@ import {
   AccessDeniedError,
   authorizeUser,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
+  createUserManagementHandler,
   resetPasswordWithExecutor,
   type PasswordDeps,
-} from "../../../src/main/controllers/password";
-import { createUserManagementController } from "../../../src/main/controllers/user-management";
+} from "../../../src/main/controllers/PasswordHandler";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const users: UserListItem[] = [
   {
@@ -45,6 +45,13 @@ const users: UserListItem[] = [
     estado: "activo",
   },
 ];
+
+type UserManagementTestDependencies = Parameters<typeof createUserManagementHandler>[0];
+
+// El canal de gestión de usuarios vive en C_PasswordHandler; el helper expone su handler con la forma `{ handle }`.
+function createUserManagementController(dependencies: UserManagementTestDependencies) {
+  return { handle: createUserManagementHandler(dependencies) };
+}
 
 function createController() {
   return createUserManagementController({

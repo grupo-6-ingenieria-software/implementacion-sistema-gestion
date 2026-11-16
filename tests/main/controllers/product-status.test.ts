@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
-  createProductStatusController,
+  createCambiarEstadoProductoHandler,
   ProductStatusError,
-} from "../../../src/main/controllers/product-status";
+} from "../../../src/main/controllers/CambiarEstadoProductoHandler";
 
 describe("controlador de estado de productos", () => {
   it("rechaza canales no declarados para el controlador", async () => {
-    const controller = createProductStatusController({
+    const controller = createCambiarEstadoProductoHandler({
       changeStatus: async () => ({
         ean13: "7802920000015",
         estado: "inactivo",
@@ -28,7 +28,7 @@ describe("controlador de estado de productos", () => {
   });
 
   it("valida el payload del estado solicitado", async () => {
-    const controller = createProductStatusController({
+    const controller = createCambiarEstadoProductoHandler({
       changeStatus: async () => ({
         ean13: "7802920000015",
         estado: "inactivo",
@@ -54,7 +54,7 @@ describe("controlador de estado de productos", () => {
   });
 
   it("mapea fallos de autorización a respuestas prohibidas", async () => {
-    const controller = createProductStatusController({
+    const controller = createCambiarEstadoProductoHandler({
       changeStatus: async () => {
         throw new AccessDeniedError();
       },
@@ -78,7 +78,7 @@ describe("controlador de estado de productos", () => {
   });
 
   it("cambia el estado del producto", async () => {
-    const controller = createProductStatusController({
+    const controller = createCambiarEstadoProductoHandler({
       changeStatus: async (payload) => ({
         ean13: payload.ean13!,
         estado: payload.estado!,
@@ -106,7 +106,7 @@ describe("controlador de estado de productos", () => {
   });
 
   it("mapea productos inexistentes a respuestas no encontrado", async () => {
-    const controller = createProductStatusController({
+    const controller = createCambiarEstadoProductoHandler({
       changeStatus: async () => {
         throw new ProductStatusError(
           "not-found",

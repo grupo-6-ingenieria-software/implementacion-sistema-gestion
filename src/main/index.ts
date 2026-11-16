@@ -8,12 +8,12 @@ import { registerControllers } from "./controllers";
 import {
   isDebugLoginEnabled,
   registerDebugLogin,
-} from "./controllers/debug-login";
+} from "./controllers/LoginDepuracionAuxiliar";
 import { startAutoUpdater } from "./updater";
 import {
   purgeExpiredAuditLogs,
   startAuditRetentionMaintenance,
-} from "./controllers/audit-retention-service";
+} from "./controllers/PurgaAuditoriaAuxiliar";
 
 let mainWindow: BrowserWindow | null = null;
 // Ruta explícita para ESM; no depende del shim __dirname del bundler.

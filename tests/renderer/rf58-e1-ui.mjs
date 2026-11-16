@@ -7,14 +7,14 @@ import { createServer } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import * as schema from "../../src/db/schema.ts";
 import { applyTriggers } from "../../src/db/init.ts";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser } from "../../src/main/controllers/auth-fixtures.ts";
-import { authenticateWithExecutor } from "../../src/main/controllers/auth-login.ts";
-import { authenticateChannel, authorizeRequest } from "../../src/main/controllers/auth-guard.ts";
-import { verifySessionToken, signSessionToken } from "../../src/main/controllers/auth-jwt.ts";
-import { registerAuditLog } from "../../src/main/controllers/auth-context.ts";
-import { validateAccessWithExecutor } from "../../src/main/controllers/access-control.ts";
-import { queryAuditLog } from "../../src/main/controllers/audit-service.ts";
-import { validateAndRefreshActiveSession } from "../../src/main/controllers/session.ts";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser } from "../../src/main/controllers/DatosPruebaAutenticacionAuxiliar.ts";
+import { authenticateWithExecutor } from "../../src/main/controllers/AuthHandler.ts";
+import { authenticateChannel, authorizeRequest } from "../../src/main/controllers/ValidacionAccesoAuxiliar.ts";
+import { verifySessionToken, signSessionToken } from "../../src/main/controllers/TokenSesionAuxiliar.ts";
+import { registerAuditLog } from "../../src/main/controllers/ContextoAutenticacionAuxiliar.ts";
+import { validateAccessWithExecutor } from "../../src/main/controllers/ControlAcceso.ts";
+import { queryAuditLog } from "../../src/main/controllers/RegistroAuditoriaAuxiliar.ts";
+import { validateAndRefreshActiveSession } from "../../src/main/controllers/SesionHandler.ts";
 
 // CU58-E1: el Trabajador abre el log, Main rechaza auditoria:consultar después
 // de validar la sesión, registra un único intento y la vista vuelve al dashboard

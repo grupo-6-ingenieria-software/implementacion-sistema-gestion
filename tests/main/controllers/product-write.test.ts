@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { controllers } from "../../../src/shared/controllers";
+import { findControllerById } from "../../../src/shared/controllers";
 import type {
   ProductCreatePayload,
   ProductEditPayload,
@@ -11,8 +11,8 @@ import {
   normalizeEditPayload,
   validateCreatePayload,
   validateEditPayload,
-} from "../../../src/main/controllers/product-write";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/EscrituraProductoAuxiliar";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 const validCreatePayload: ProductCreatePayload = {
   usuarioId: "12345678-9",
@@ -39,7 +39,7 @@ describe("controladores de escritura de productos", () => {
           ean13: payload.ean13,
         }),
       },
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
     });
 
@@ -62,7 +62,7 @@ describe("controladores de escritura de productos", () => {
           throw new AccessDeniedError();
         },
       },
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
     });
 
@@ -95,7 +95,7 @@ describe("controladores de escritura de productos", () => {
           );
         },
       },
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
     });
 
@@ -136,7 +136,7 @@ describe("controladores de escritura de productos", () => {
           );
         },
       },
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
     });
 
@@ -165,7 +165,7 @@ describe("controladores de escritura de productos", () => {
           );
         },
       },
-      metadata: controllers[9],
+      metadata: findControllerById("product-create")!,
       normalize: normalizeCreatePayload,
     });
 
@@ -192,7 +192,7 @@ describe("controladores de escritura de productos", () => {
           ean13: payload.originalEan13,
         }),
       },
-      metadata: controllers[10],
+      metadata: findControllerById("product-edit")!,
       normalize: normalizeEditPayload,
     });
 
@@ -219,7 +219,7 @@ describe("controladores de escritura de productos", () => {
           );
         },
       },
-      metadata: controllers[10],
+      metadata: findControllerById("product-edit")!,
       normalize: normalizeEditPayload,
     });
 
@@ -273,7 +273,7 @@ describe("controladores de escritura de productos", () => {
           );
         },
       },
-      metadata: controllers[10],
+      metadata: findControllerById("product-edit")!,
       normalize: normalizeEditPayload,
     });
 
