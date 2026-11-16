@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMonthlyAttendanceController } from "../../../src/main/controllers/monthly-attendance";
-import { MonthlyAttendanceError } from "../../../src/main/controllers/monthly-attendance-service";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { authenticateChannel, authorizeRequest, CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/auth-guard";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import { createWorkerController } from "../../../src/main/controllers/worker";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import { createMonthlyAttendanceController } from "../../../src/main/controllers/AsistenciaHandler";
+import { MonthlyAttendanceError } from "../../../src/main/controllers/CalculoAsistenciaMensualAuxiliar";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { authenticateChannel, authorizeRequest, CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import { createTrabajadorHandler } from "../../../src/main/controllers/TrabajadorHandler";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import type { MonthlyAttendanceSummary } from "../../../src/shared/monthly-attendance";
 
 const claims: SessionTokenClaims = { usuarioId: "trusted-owner", rol: "dueno", usuarioRol: "dueno", passwordTemporal: false, sesionId: "session" };
@@ -21,7 +21,7 @@ afterEach(() => vi.restoreAllMocks());
 function workerController() {
   const authorize = vi.fn(async () => ({ role: "dueno" as const, usuarioId: claims.usuarioId, usuarioRol: "dueno", trabajadorNombre: "Ana Soto" }));
   const list = vi.fn(async () => [report.trabajador]);
-  const controller = createWorkerController({ authorize, listSummaryWorkers: list, listActiveWorkers: async () => [], listWorkers: async () => [],
+  const controller = createTrabajadorHandler({ authorize, listSummaryWorkers: list, listActiveWorkers: async () => [], listWorkers: async () => [],
     changeStatus: async () => ({ usuarioId: "unused" }), createWorker: async () => ({ usuarioId: "unused" }), updateWorker: async () => ({ usuarioId: "unused" }) });
   return { authorize, list, controller };
 }
@@ -32,7 +32,7 @@ describe("controlador de asistencia mensual C52, permisos y auditoría", () => {
     const controller = createMonthlyAttendanceController(load);
     expect(await controller.handle({ ...request, usuarioId: "spoofed", rol: "trabajador" }, context)).toEqual({ ok: true, data: report });
     expect(load).toHaveBeenCalledExactlyOnceWith(request, context);
-    expect(controller.metadata).toMatchObject({ id: "attendance-monthly-summary", name: "ResumenAsistenciaHandler" });
+    expect(controller.metadata).toMatchObject({ id: "attendance", name: "AsistenciaHandler" });
   });
   it("rechaza una sesión ausente, un rol de trabajador y un canal desconocido antes de cargar registros", async () => {
     const load = vi.fn(async () => report);

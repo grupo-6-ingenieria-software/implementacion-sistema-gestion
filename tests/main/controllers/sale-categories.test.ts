@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SQL } from "drizzle-orm";
-import { CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/auth-guard";
-import { createSaleCategoriesController } from "../../../src/main/controllers/sale-categories";
-import type { SaleCategoryDb } from "../../../src/main/controllers/sale-categories-service";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import { CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { createCategoriaVentaHandler, type SaleCategoryDb } from "../../../src/main/controllers/CategoriaVentaHandler";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 
 const claims: SessionTokenClaims = {
   usuarioId: "trusted-worker",
@@ -29,7 +28,7 @@ describe("controlador de categorías y autorización CU45", () => {
 
   it("verifica E1 después de la identidad y antes de cualquier lectura de venta", async () => {
     const all = vi.fn(async () => []);
-    const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
+    const controller = createCategoriaVentaHandler({ all } as unknown as SaleCategoryDb);
     const noSession = await controller.handle(validRange, { channel: "venta:por-categoria" });
     expect(noSession).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     const reversed = await controller.handle(
@@ -48,7 +47,7 @@ describe("controlador de categorías y autorización CU45", () => {
 
   it("rechaza fechas imposibles y reporta E2 como resultado exitoso en cero", async () => {
     const all = vi.fn(async () => []);
-    const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
+    const controller = createCategoriaVentaHandler({ all } as unknown as SaleCategoryDb);
     expect(await controller.handle(
       { fechaInicio: "2026-02-29", fechaTermino: "2026-03-01" },
       { channel: "venta:por-categoria", claims },
@@ -64,7 +63,7 @@ describe("controlador de categorías y autorización CU45", () => {
 
   it("usa la identidad del claim aunque el payload suplante a un usuario", async () => {
     const all = vi.fn(async (_query: SQL) => []);
-    const controller = createSaleCategoriesController({ all } as unknown as SaleCategoryDb);
+    const controller = createCategoriaVentaHandler({ all } as unknown as SaleCategoryDb);
     await controller.handle({ ...validRange, usuarioId: "other-user" }, {
       channel: "venta:por-categoria", claims,
     });
@@ -74,7 +73,7 @@ describe("controlador de categorías y autorización CU45", () => {
   });
 
   it("oculta detalles de la base de datos en errores técnicos", async () => {
-    const controller = createSaleCategoriesController({
+    const controller = createCategoriaVentaHandler({
       all: vi.fn(async () => { throw new Error("SQL table and secret"); }),
     } as unknown as SaleCategoryDb);
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);

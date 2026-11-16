@@ -225,9 +225,14 @@ try {
       .waitFor();
     assert.equal(await confirm.isDisabled(), true);
     assert.match(await total.textContent(), /Pendiente de corrección/);
+    // Sin monto recibido, el vuelto muestra la indicación en vez de "Pendiente de corrección".
     assert.equal(
       await page.getByText("Pendiente de corrección", { exact: true }).count(),
-      2,
+      1,
+    );
+    assert.equal(
+      await page.getByText("Ingrese el monto recibido", { exact: true }).count(),
+      1,
     );
     await edit.click();
     assert.equal(await amount.inputValue(), "1500");

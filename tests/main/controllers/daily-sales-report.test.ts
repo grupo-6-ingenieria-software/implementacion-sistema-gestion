@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { CHANNEL_ROLES } from "../../../src/main/controllers/auth-guard";
-import { createDailySalesReportController } from "../../../src/main/controllers/daily-sales-report";
-import { DailySalesReportValidationError } from "../../../src/main/controllers/daily-sales-report-service";
+import { CHANNEL_ROLES } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { createReporteVentasDiaHandler } from "../../../src/main/controllers/ReporteVentasDiaHandler";
+import { DailySalesReportValidationError } from "../../../src/main/controllers/ReporteVentasDiaAuxiliar";
 import type { DailySalesReport } from "../../../src/shared/reports";
 
 const empty: DailySalesReport = {
@@ -25,17 +25,17 @@ describe("CU46 acceso y C53", () => {
 
   it("devuelve E1 y evita consultas de Trabajador por IPC directo", async () => {
     const load = vi.fn(async () => empty);
-    const controller = createDailySalesReportController({ load });
+    const controller = createReporteVentasDiaHandler({ load });
     expect(await controller.handle({ fecha: empty.fecha }, { channel: "reporte:ventas-diarias", claims })).toEqual({ ok: true, data: empty });
     expect(await controller.handle({ fecha: empty.fecha }, { channel: "reporte:ventas-diarias", claims: { ...claims, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(load).toHaveBeenCalledOnce();
   });
 
   it("distingue fecha inválida y fallo de base de datos", async () => {
-    const controller = createDailySalesReportController({ load: async () => { throw new DailySalesReportValidationError("Ingrese una fecha válida."); } });
+    const controller = createReporteVentasDiaHandler({ load: async () => { throw new DailySalesReportValidationError("Ingrese una fecha válida."); } });
     expect(await controller.handle({}, { channel: "reporte:ventas-diarias", claims })).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(await controller.handle({ fecha: "2026-02-30" }, { channel: "reporte:ventas-diarias", claims })).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
-    const broken = createDailySalesReportController({ load: async () => { throw new Error("db"); } });
+    const broken = createReporteVentasDiaHandler({ load: async () => { throw new Error("db"); } });
     expect(await broken.handle({ fecha: empty.fecha }, { channel: "reporte:ventas-diarias", claims })).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
   });
 });

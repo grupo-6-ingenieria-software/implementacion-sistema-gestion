@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAttendanceReportController } from "../../../src/main/controllers/attendance-report";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { authenticateChannel, authorizeRequest, CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/auth-guard";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import { MonthlyAttendanceError } from "../../../src/main/controllers/monthly-attendance-calculation";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+import { createReporteAsistenciaHandler } from "../../../src/main/controllers/ReporteAsistenciaHandler";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { authenticateChannel, authorizeRequest, CHANNEL_ROLES, guardChannel } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import { MonthlyAttendanceError } from "../../../src/main/controllers/CalculoAsistenciaMensualAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import type { AttendanceReport } from "../../../src/shared/attendance-report";
 
 const claims: SessionTokenClaims = { usuarioId: "trusted-owner", rol: "dueno", usuarioRol: "dueno", passwordTemporal: false, sesionId: "session" };
@@ -17,14 +17,14 @@ afterEach(() => vi.restoreAllMocks());
 describe("controlador, acceso y auditoría de C59", () => {
   it("pasa al cargador solo filtros validados y contexto confiable, incluidos resultados vacíos", async () => {
     const load = vi.fn(async () => ({ report, user }));
-    const controller = createAttendanceReportController(load);
+    const controller = createReporteAsistenciaHandler(load);
     expect(await controller.handle({ ...request, usuarioId: "fake", filas: [{ nombreCompleto: "Fake" }] }, context)).toEqual({ ok: true, data: report });
     expect(load).toHaveBeenCalledExactlyOnceWith(request, context);
     expect(controller.metadata).toMatchObject({ id: "attendance-report", name: "ReporteAsistenciaHandler", module: "reportes", channels: ["reporte:asistencia"] });
   });
   it("rechaza canales incorrectos, filtros inválidos y llamadores no autorizados antes de cargar", async () => {
     const load = vi.fn(async () => ({ report, user }));
-    const controller = createAttendanceReportController(load);
+    const controller = createReporteAsistenciaHandler(load);
     expect(await controller.handle(request, { ...context, channel: "asistencia:entrada" })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
     expect(await controller.handle({ ...request, mes: 0 }, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     for (const identity of [undefined, { ...claims, rol: "trabajador" as const }]) {
@@ -33,10 +33,10 @@ describe("controlador, acceso y auditoría de C59", () => {
     expect(load).not.toHaveBeenCalled();
   });
   it("propaga conflictos y errores de autorización, sin exponer detalles de la base de datos", async () => {
-    expect(await createAttendanceReportController(async () => { throw new MonthlyAttendanceError("BUSINESS_RULE", "Luis: 2026-09-08"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE", message: "Luis: 2026-09-08" } });
-    expect(await createAttendanceReportController(async () => { throw new AccessDeniedError(); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    expect(await createReporteAsistenciaHandler(async () => { throw new MonthlyAttendanceError("BUSINESS_RULE", "Luis: 2026-09-08"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE", message: "Luis: 2026-09-08" } });
+    expect(await createReporteAsistenciaHandler(async () => { throw new AccessDeniedError(); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(await createAttendanceReportController(async () => { throw new Error("Secret details"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR", message: "No fue posible consultar el reporte de asistencia. Intente nuevamente." } });
+    expect(await createReporteAsistenciaHandler(async () => { throw new Error("Secret details"); }).handle(request, context)).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR", message: "No fue posible consultar el reporte de asistencia. Intente nuevamente." } });
   });
   it("exige identidad válida, sesión activa y el rol de dueño efectivo", async () => {
     expect([...CHANNEL_ROLES.get(context.channel)!]).toEqual(["dueno"]);
@@ -52,13 +52,13 @@ describe("controlador, acceso y auditoría de C59", () => {
     expect(allowed.payload).toMatchObject({ usuarioId: claims.usuarioId, __rolSesion: "dueno" });
   });
   it("audita los éxitos vacíos una sola vez y reporta fallos de auditoría; las consultas no exitosas no se convierten en éxitos", async () => {
-    const controller = createAttendanceReportController(async () => ({ report, user }));
+    const controller = createReporteAsistenciaHandler(async () => ({ report, user }));
     const audit = vi.fn(async () => undefined);
     expect((await handleWithAudit(controller, request, context, audit)).ok).toBe(true);
     expect(audit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ modulo: "reportes", tipoAccion: "consulta", usuarioId: claims.usuarioId }));
     expect(await handleWithAudit(controller, request, context, async () => { throw Error("Audit failure"); })).toMatchObject({ ok: false, error: { code: "DATABASE_ERROR" } });
     audit.mockClear();
-    await handleWithAudit(createAttendanceReportController(async () => { throw new MonthlyAttendanceError("BUSINESS_RULE", "Conflict"); }), request, context, audit);
+    await handleWithAudit(createReporteAsistenciaHandler(async () => { throw new MonthlyAttendanceError("BUSINESS_RULE", "Conflict"); }), request, context, audit);
     expect(audit).not.toHaveBeenCalled();
   });
 });

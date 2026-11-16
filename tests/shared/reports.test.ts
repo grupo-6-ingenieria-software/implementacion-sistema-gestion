@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isReportExportRequest, parseReportExportRequest, REPORT_RECONCILE_CHANNEL, reportExportFormat } from "../../src/shared/reports";
-import { createReportRegistry } from "../../src/main/controllers/report-registry";
+import { createReportRegistry } from "../../src/main/controllers/RegistroTiposReporteAuxiliar";
 
 describe("contrato compartido CU54", () => {
   it.each(["reporte:exportar-pdf", "reporte:exportar-xlsx"])("mantiene %s legado solo con identidad y clasifica descriptores malformados como reportes", (channel) => {

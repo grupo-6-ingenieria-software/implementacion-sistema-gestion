@@ -1,5 +1,5 @@
 import * as schema from "../../../src/db/schema";
-import type { AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
+import type { AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 export async function seedInventoryExport(
   fixture: AuthTestDatabase,

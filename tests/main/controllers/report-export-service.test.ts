@@ -2,13 +2,13 @@ import { mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/pro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import { createReportExportController } from "../../../src/main/controllers/report-export";
-import { ReportCommitUncertainError } from "../../../src/main/controllers/report-export-audit";
-import { ReportFileStore } from "../../../src/main/controllers/report-export-file";
-import { createReportExportHandler } from "../../../src/main/controllers/report-export-service";
-import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/report-registry";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import { createExportacionReporteHandler } from "../../../src/main/controllers/ExportacionReporteHandler";
+import { ReportCommitUncertainError } from "../../../src/main/controllers/AuditoriaExportacionReporteAuxiliar";
+import { ReportFileStore } from "../../../src/main/controllers/ArchivoExportacionReporteAuxiliar";
+import { createReportExportHandler } from "../../../src/main/controllers/ServicioExportacionReporteAuxiliar";
+import { createMonthlySalesReportAdapter, createReportRegistry } from "../../../src/main/controllers/RegistroTiposReporteAuxiliar";
 import { REPORT_EXPORT_ERROR_MESSAGE, REPORT_RECONCILE_CHANNEL } from "../../../src/shared/reports";
 import { context, report, reportDependencies, request, user } from "./report-export-fixture";
 
@@ -25,7 +25,7 @@ describe("flujo principal CU54, E1 y reconciliación", () => {
     const deps = reportDependencies(directory, { registry: createReportRegistry([createMonthlySalesReportAdapter(load, pdf, xlsx)]) });
     const finalize = vi.spyOn(deps.audit, "finalize");
     const duplicateAudit = vi.fn(); const ctx = { ...context, channel: `reporte:exportar-${format}` };
-    const result = await handleWithAudit(createReportExportController(createReportExportHandler(deps)),
+    const result = await handleWithAudit(createExportacionReporteHandler(createReportExportHandler(deps)),
       { ...request, dias: [{ monto: 999999 }], usuario: "Fake", ruta: "Fake" }, ctx, duplicateAudit);
     expect(result).toMatchObject({ ok: true, data: { estado: "saved", formato: format, cantidadFilas: 30, ruta: join(directory, filename.replace("pdf", format)) } });
     expect(load).toHaveBeenCalledWith(report.periodo, ctx);
@@ -65,10 +65,10 @@ describe("flujo principal CU54, E1 y reconciliación", () => {
     expect(dialog).not.toHaveBeenCalled(); expect(audit).not.toHaveBeenCalled();
   });
   it.each([{ tipo: "unknown", periodo: {} }, { periodo: report.periodo }, { filtros: {} }, [], { tipo: "ventas-mensuales", periodo: { mes: 13, anio: 2026 } }, { ...request, filtros: { usuario: "other" } }])("rechaza descriptores mal formados sin respaldo heredado: %j", async (payload) => {
-    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn() };
-    const controller = createReportExportController(createReportExportHandler(reportDependencies(directory)), legacy);
+    const legacy = vi.fn();
+    const controller = createExportacionReporteHandler(createReportExportHandler(reportDependencies(directory)), legacy);
     expect(await controller.handle(payload, context)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
-    expect(legacy.handle).not.toHaveBeenCalled(); expect(await readdir(directory)).toEqual([]);
+    expect(legacy).not.toHaveBeenCalled(); expect(await readdir(directory)).toEqual([]);
   });
   it("rechaza reportes documentados sin productor", async () => {
     expect(await createReportExportHandler(reportDependencies(directory))({ tipo: "ventas-diarias", periodo: "2026-09-30" }, context))
@@ -76,8 +76,8 @@ describe("flujo principal CU54, E1 y reconciliación", () => {
     expect(await readdir(directory)).toEqual([]);
   });
   it("mantiene en C33 las solicitudes heredadas que solo traen identidad", async () => {
-    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
-    expect(await createReportExportController(createReportExportHandler(reportDependencies(directory)), legacy)
+    const legacy = vi.fn(async () => ({ ok: true as const, data: "legacy" }));
+    expect(await createExportacionReporteHandler(createReportExportHandler(reportDependencies(directory)), legacy)
       .handle({ usuarioId: "worker", __authToken: "token", __rolSesion: "trabajador" }, context)).toEqual({ ok: true, data: "legacy" });
   });
   it.each(["trabajador", "temporary", "missing"])("rechaza %s antes de cargar, incluida la reconciliación", async (mode) => {

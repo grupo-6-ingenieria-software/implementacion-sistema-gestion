@@ -17,7 +17,6 @@ export type ControllerId =
   | "access-control"
   | "audit"
   | "session"
-  | "user-management"
   | "dashboard"
   | "stock-alert"
   | "expiration-alert"
@@ -38,9 +37,7 @@ export type ControllerId =
   | "worker"
   | "shift"
   | "attendance"
-  | "attendance-monthly-summary"
   | "attendance-report"
-  | "absence"
   | "ean-reader"
   | "sale-annulment"
   | "product-detail"
@@ -54,9 +51,7 @@ export type ControllerId =
   | "supplier-query"
   | "supplier-edit"
   | "restock-list"
-  | "restock-report-export"
   | "inventory-valuation"
-  | "inventory-export"
   | "daily-sales-report"
   | "report-export"
   | "waste-report"
@@ -159,7 +154,7 @@ export const navigationTree = [
     group: "inventario",
     showInMenu: true,
     entryFrom: "Menu Inventario > Productos.",
-    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "inventory-export"],
+    controllerIds: ["access-control", "product-status", "product-query", "ean-reader", "report-export"],
   },
   {
     id: "product-create",
@@ -296,7 +291,7 @@ export const navigationTree = [
     controllerIds: [
       "access-control",
       "restock-list",
-      "restock-report-export",
+      "report-export",
     ],
   },
   {
@@ -536,7 +531,7 @@ export const navigationTree = [
     group: "personal",
     showInMenu: true,
     entryFrom: "Personal; acción por trabajador activo desde Trabajadores (V15).",
-    controllerIds: ["access-control", "absence", "worker", "audit"],
+    controllerIds: ["access-control", "attendance", "worker", "audit"],
   },
   {
     id: "attendance-monthly-summary",
@@ -547,7 +542,7 @@ export const navigationTree = [
     group: "personal",
     showInMenu: true,
     entryFrom: "Personal; Trabajadores (V15); Asistencia (V19).",
-    controllerIds: ["access-control", "session", "worker", "attendance-monthly-summary", "audit"],
+    controllerIds: ["access-control", "session", "worker", "attendance", "audit"],
   },
   {
     id: "remuneracion-create",
@@ -596,7 +591,7 @@ export const navigationTree = [
     group: "administracion",
     showInMenu: true,
     entryFrom: "Menu Administracion > Usuarios.",
-    controllerIds: ["access-control", "user-management", "audit"],
+    controllerIds: ["access-control", "password", "audit"],
   },
   {
     id: "audit-log",
@@ -619,7 +614,7 @@ export const navigationTree = [
     group: "reportes",
     showInMenu: true,
     entryFrom: "Menu Reportes > Ventas mensuales.",
-    controllerIds: ["access-control", "session", "monthly-sales", "audit", "restock-report-export"],
+    controllerIds: ["access-control", "session", "monthly-sales", "audit", "report-export"],
   },
   {
     id: "products-most-sold",
@@ -694,13 +689,13 @@ export const internalComponents = [
     id: "export-format-action",
     name: "AccionExportarFormato",
     usedIn: ["product-list", "monthly-sales", "attendance-report"],
-    controllerIds: ["inventory-export", "restock-report-export", "report-export"],
+    controllerIds: ["report-export"],
   },
   {
     id: "report-print-view",
     name: "ReportePrintView",
     usedIn: ["product-list", "monthly-sales", "attendance-report"],
-    controllerIds: ["inventory-export", "restock-report-export", "report-export"],
+    controllerIds: ["report-export"],
   },
   {
     id: "sale-discount-modal",
@@ -741,7 +736,7 @@ export const internalComponents = [
     id: "restock-print-view",
     name: "ListaReabastecimientoPrintView",
     usedIn: ["restock-list"],
-    controllerIds: ["restock-report-export"],
+    controllerIds: ["report-export"],
   },
   {
     id: "daily-report-export",
@@ -759,19 +754,19 @@ export const internalComponents = [
     id: "waste-report-print-view",
     name: "ReporteMermasPrintView",
     usedIn: ["reporte-mermas"],
-    controllerIds: ["restock-report-export"],
+    controllerIds: ["report-export"],
   },
   {
     id: "expiring-lots-report-print-view",
     name: "ReporteLotesVencerPrintView",
     usedIn: ["reporte-lotes-vencer"],
-    controllerIds: ["restock-report-export"],
+    controllerIds: ["report-export"],
   },
   {
     id: "movement-report-print-view",
     name: "ReporteMovimientosPrintView",
     usedIn: ["reporte-movimientos"],
-    controllerIds: ["restock-report-export"],
+    controllerIds: ["report-export"],
   },
 ] as const;
 

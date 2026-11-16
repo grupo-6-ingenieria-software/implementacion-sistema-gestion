@@ -5,14 +5,14 @@ import ExcelJS from "exceljs";
 import { describe, expect, it, vi } from "vitest";
 import {
   createDailySalesExportController,
-  createReportExportController,
+  createExportacionReporteHandler,
   createDailySalesPdfBuffer,
   createDailySalesXlsxBuffer,
   renderDailySalesPrintHtml,
   saveDailySalesWithAudit,
   type DailySalesExportDependencies,
-} from "../../../src/main/controllers/report-export";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+} from "../../../src/main/controllers/ExportacionReporteHandler";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 import type { DailySalesReport } from "../../../src/shared/reports";
 import { REPORT_EXPORT_ERROR_MESSAGE } from "../../../src/shared/reports";
 
@@ -41,7 +41,7 @@ describe("CU46 C61 exportación", () => {
   it.each(["pdf", "xlsx"] as const)("conserva una sola auditoría al despachar la exportación diaria %s", async (format) => {
     const deps = dependencies();
     const daily = createDailySalesExportController(deps);
-    const controller = createReportExportController(undefined, undefined, undefined, daily);
+    const controller = createExportacionReporteHandler(undefined, undefined, undefined, daily);
     const audit = vi.fn(async () => undefined);
     const result = await handleWithAudit(controller, { tipo: "ventas-diarias", fecha: report.fecha }, { channel: `reporte:exportar-${format}`, claims }, audit);
     expect(result).toMatchObject({ ok: true, data: { estado: "saved", formato: format } });
@@ -52,7 +52,7 @@ describe("CU46 C61 exportación", () => {
   it.each(["pdf", "xlsx"] as const)("recalcula y exporta %s usando identidad de Main", async (format) => {
     const deps = dependencies({ showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: `C:/Documentos/reporte.${format}` })) });
     const controller = createDailySalesExportController(deps);
-    const result = await controller.handle({ tipo: "ventas-diarias", fecha: report.fecha, filas: [{ nombre: "falso" }], ruta: "C:/ataque.pdf" }, { channel: `reporte:exportar-${format}`, claims });
+    const result = await controller({ tipo: "ventas-diarias", fecha: report.fecha, filas: [{ nombre: "falso" }], ruta: "C:/ataque.pdf" }, { channel: `reporte:exportar-${format}`, claims });
     expect(result).toMatchObject({ ok: true, data: { formato: format, estado: "saved", ruta: `C:/Documentos/reporte.${format}` } });
     expect(deps.load).toHaveBeenCalledExactlyOnceWith(report.fecha);
     expect(deps.userName).toHaveBeenCalledExactlyOnceWith("owner");
@@ -63,19 +63,19 @@ describe("CU46 C61 exportación", () => {
   it("bloquea trabajador, fecha inválida, E1 y cancelación", async () => {
     const deps = dependencies();
     const controller = createDailySalesExportController(deps);
-    expect(await controller.handle({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims: { ...claims, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
-    expect(await controller.handle({ tipo: "otro", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
+    expect(await controller({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims: { ...claims, rol: "trabajador" } })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    expect(await controller({ tipo: "otro", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     const empty = createDailySalesExportController(dependencies({ load: vi.fn(async () => ({ ...report, tieneVentas: false, ventas: [] })) }));
-    expect(await empty.handle({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
+    expect(await empty({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE" } });
     const cancelled = dependencies({ showSaveDialog: vi.fn(async () => ({ canceled: true })) });
-    expect(await createDailySalesExportController(cancelled).handle({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: true, data: { estado: "cancelled" } });
+    expect(await createDailySalesExportController(cancelled)({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: "reporte:exportar-pdf", claims })).toMatchObject({ ok: true, data: { estado: "cancelled" } });
     expect(cancelled.saveAndAudit).not.toHaveBeenCalled();
     expect(deps.load).not.toHaveBeenCalled();
   });
 
   it.each(["load", "showSaveDialog", "createPdf", "createXlsx", "saveAndAudit"] as const)("devuelve E2 si falla %s", async (stage) => {
     const deps = dependencies({ [stage]: vi.fn(async () => { throw new Error("fallo interno"); }) });
-    const result = await createDailySalesExportController(deps).handle({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: stage === "createXlsx" ? "reporte:exportar-xlsx" : "reporte:exportar-pdf", claims });
+    const result = await createDailySalesExportController(deps)({ tipo: "ventas-diarias", fecha: report.fecha }, { channel: stage === "createXlsx" ? "reporte:exportar-xlsx" : "reporte:exportar-pdf", claims });
     expect(result).toMatchObject({ ok: false, error: { code: "TECHNICAL_ERROR", message: REPORT_EXPORT_ERROR_MESSAGE } });
   });
 

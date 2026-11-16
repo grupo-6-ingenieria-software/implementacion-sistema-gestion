@@ -4,14 +4,14 @@ import * as schema from "../../../src/db/schema";
 import {
   validateAccessWithExecutor,
   type AccessControlDeps,
-} from "../../../src/main/controllers/access-control";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
+} from "../../../src/main/controllers/ControlAcceso";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
   createAuthTestDatabase,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 function claimsFor(rol: "dueno" | "trabajador"): SessionTokenClaims {
   return {

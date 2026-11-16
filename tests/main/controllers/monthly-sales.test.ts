@@ -1,11 +1,11 @@
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queryMonthlySales, createMonthlySalesController } from "../../../src/main/controllers/monthly-sales";
-import { guardChannel, authorizeRequest } from "../../../src/main/controllers/auth-guard";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
+import { queryMonthlySales, createReporteVentasMensualHandler } from "../../../src/main/controllers/ReporteVentasMensualHandler";
+import { guardChannel, authorizeRequest } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
 import { MONTHLY_SALES_EMPTY_MESSAGE } from "../../../src/shared/monthly-sales";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 
 export const ownerContext: ControllerContext = {
   channel: "reporte:ventas-mensuales",
@@ -82,20 +82,20 @@ describe("RF47 CU47 CP54", () => {
   it("devuelve el mensaje exacto E1 cuando solo hay ventas anuladas", async () => {
     await sale("previous", "2026-08-15T15:00:00Z");
     await sale("void", "2026-09-15T15:00:00Z", { state: "anulada" });
-    const controller = createMonthlySalesController(async (period) => ({ report: await queryMonthlySales(drizzle(client), period as { mes: number; anio: number }), user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
+    const controller = createReporteVentasMensualHandler(async (period) => ({ report: await queryMonthlySales(drizzle(client), period as { mes: number; anio: number }), user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
     expect(await controller.handle({ mes: 9, anio: 2026 }, ownerContext)).toMatchObject({ ok: false, error: { code: "BUSINESS_RULE", message: MONTHLY_SALES_EMPTY_MESSAGE } });
   });
 
   it.each([{ mes: 0, anio: 2026 }, { mes: 13, anio: 2026 }, { mes: 2.5, anio: 2026 }, { mes: 2, anio: "2026" }, null])("rechaza períodos inválidos antes de consultar: %j", async (period) => {
     const load = vi.fn();
-    expect(await createMonthlySalesController(load).handle(period, ownerContext)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
+    expect(await createReporteVentasMensualHandler(load).handle(period, ownerContext)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     expect(load).not.toHaveBeenCalled();
   });
 
   it("audita una consulta de reporte autorizada", async () => {
     await sale("sale", "2026-09-15T15:00:00Z");
     const report = await queryMonthlySales(drizzle(client), { mes: 9, anio: 2026 });
-    const controller = createMonthlySalesController(async () => ({ report, user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
+    const controller = createReporteVentasMensualHandler(async () => ({ report, user: { usuarioId: "owner", role: "dueno", usuarioRol: "dueno", trabajadorNombre: "Ana" } }));
     const audit = vi.fn(async () => undefined);
     await handleWithAudit(controller, report.periodo, ownerContext, audit);
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ tipoAccion: "consulta", modulo: "reportes", usuarioId: "owner" }));

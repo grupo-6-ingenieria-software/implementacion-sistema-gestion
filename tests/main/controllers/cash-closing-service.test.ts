@@ -13,11 +13,11 @@ import {
   CashClosingValidationError,
   closeCashRegister,
   getCashClosingSummary,
-} from "../../../src/main/controllers/cash-closing-service";
+} from "../../../src/main/controllers/CierreCajaHandler";
 import {
   registerSale,
   type DbExecutor,
-} from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

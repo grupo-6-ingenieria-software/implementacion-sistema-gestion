@@ -4,9 +4,9 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
-import { queryMovementReportFromDb } from "../../../src/main/controllers/movement-report";
-import { movementHistoryController } from "../../../src/main/controllers/movement-history";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { queryMovementReportFromDb } from "../../../src/main/controllers/ReporteMovimientosHandler";
+import { historialMovimientosHandler } from "../../../src/main/controllers/HistorialMovimientosHandler";
 
 // Exercise the existing queries against a temporary database, without replacing them.
 const database = vi.hoisted(() => ({ current: undefined as unknown as typeof import("../../../src/db/client").db }));
@@ -106,8 +106,8 @@ describe("consultas de movimientos con SQL real y marcas de tiempo ISO", () => {
   it("ordena V22 antes de la paginación conservando su filtro de producto", async () => {
     await fixture.db.delete(schema.anulacionVenta).where(eq(schema.anulacionVenta.ventaId, saleId));
     await fixture.db.update(schema.venta).set({ ventaEstado: "completada" }).where(eq(schema.venta.ventaId, saleId));
-    const first = await movementHistoryController.handle({ usuarioId: owner, ean13, page: 1, pageSize: 2 }, { channel: "movimiento:historial" });
-    const second = await movementHistoryController.handle({ usuarioId: owner, ean13, page: 2, pageSize: 2 }, { channel: "movimiento:historial" });
+    const first = await historialMovimientosHandler.handle({ usuarioId: owner, ean13, page: 1, pageSize: 2 }, { channel: "movimiento:historial" });
+    const second = await historialMovimientosHandler.handle({ usuarioId: owner, ean13, page: 2, pageSize: 2 }, { channel: "movimiento:historial" });
     expect(first).toMatchObject({ ok: true, data: { total: 4, page: 1, pageSize: 2, movements: [{ id: receiptLot }, { id: adjustmentId }] } });
     expect(second).toMatchObject({ ok: true, data: { total: 4, page: 2, pageSize: 2, movements: [{ tipo: "venta" }, { id: initialLot }] } });
   });

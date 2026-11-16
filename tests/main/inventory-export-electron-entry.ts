@@ -11,19 +11,19 @@ import {
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../src/main/controllers/auth-fixtures";
-import { authorizeUser } from "../../src/main/controllers/auth-context";
+} from "../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { authorizeUser } from "../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   auditInventoryExportWithExecutor,
   createInventoryExportController,
   type InventoryExportDependencies,
-} from "../../src/main/controllers/inventory-export";
-import { queryInventoryExportWithExecutor } from "../../src/main/controllers/inventory-export-query";
+} from "../../src/main/controllers/ExportacionReporteHandler";
+import { queryInventoryExportWithExecutor } from "../../src/main/controllers/ConsultaExportacionInventarioAuxiliar";
 import {
   createInventoryPdfBuffer,
   createInventoryXlsxBuffer,
   saveInventoryFile,
-} from "../../src/main/controllers/inventory-export-file";
+} from "../../src/main/controllers/ArchivoExportacionInventarioAuxiliar";
 import {
   INVENTORY_EXPORT_CHANNEL,
   INVENTORY_AUDIT_WARNING,
@@ -105,7 +105,7 @@ try {
       const path = join(output, `${role}.${formato}`);
       const response = await createInventoryExportController(
         dependencies(path),
-      ).handle({ formato }, context(role));
+      )({ formato }, context(role));
       if (!response.ok) throw new Error(response.error.message);
       assert.equal(response.data.estado, "saved");
       assert.equal(response.data.cantidadFilas, 122);
@@ -148,7 +148,7 @@ try {
   cancelled.createXlsx = async () => {
     throw new Error("Unexpected generation after cancel");
   };
-  const cancelResult = await createInventoryExportController(cancelled).handle(
+  const cancelResult = await createInventoryExportController(cancelled)(
     { formato: "xlsx" },
     context("trabajador"),
   );
@@ -160,7 +160,7 @@ try {
   const warningPath = join(output, "audit-warning.xlsx");
   const warning = await createInventoryExportController(
     dependencies(warningPath),
-  ).handle({ formato: "xlsx" }, context("trabajador"));
+  )({ formato: "xlsx" }, context("trabajador"));
   assert.equal(
     warning.ok && warning.data.estado === "saved" && warning.data.auditoria,
     "fallida",
@@ -179,7 +179,7 @@ try {
   );
   const invalid = await createInventoryExportController(
     dependencies(join(output, "invalid.pdf")),
-  ).handle({ formato: "pdf" }, context("dueno"));
+  )({ formato: "pdf" }, context("dueno"));
   assert.equal(
     !invalid.ok && invalid.error.message,
     "No fue posible generar el archivo",
@@ -194,7 +194,7 @@ try {
     throw new Error("Unexpected dialog for E1");
   };
   for (const role of ["dueno", "trabajador"] as const) {
-    const response = await createInventoryExportController(empty).handle(
+    const response = await createInventoryExportController(empty)(
       { formato: "pdf" },
       context(role),
     );

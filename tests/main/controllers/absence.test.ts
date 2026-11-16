@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAbsenceController } from "../../../src/main/controllers/absence";
-import { AbsenceError } from "../../../src/main/controllers/absence-service";
-import { guardChannel, CHANNEL_ROLES } from "../../../src/main/controllers/auth-guard";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+import { AbsenceError, createAbsenceController } from "../../../src/main/controllers/AsistenciaHandler";
+import { guardChannel, CHANNEL_ROLES } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 import type { AbsenceResult } from "../../../src/shared/absence";
 
 const claims: SessionTokenClaims = { usuarioId: "11111111-1", rol: "dueno", usuarioRol: "dueno", passwordTemporal: false, sesionId: "00000000-0000-4000-8000-000000000701" };
@@ -18,7 +17,7 @@ describe("controlador de ausencias y acceso a canales C51", () => {
     const payload = { trabajadorId: 2, usuarioId: "spoofed", rol: "dueno" };
     expect(await controller.handle(payload, { channel: "ausencia:registrar", claims })).toEqual({ ok: true, data: result });
     expect(register).toHaveBeenCalledWith(database, payload, claims);
-    expect(controller.metadata).toMatchObject({ id: "absence", name: "AusenciaHandler" });
+    expect(controller.metadata).toMatchObject({ id: "attendance", name: "AsistenciaHandler" });
   });
   it("rechaza llamadas directas sin sesión de dueño antes de ejecutar el servicio", async () => {
     const register = vi.fn(async () => result);
@@ -30,7 +29,7 @@ describe("controlador de ausencias y acceso a canales C51", () => {
   });
   it.each(["VALIDATION_ERROR", "NOT_FOUND", "BUSINESS_RULE", "FORBIDDEN"] as const)("devuelve %s con detalle de campo", async (code) => {
     const controller = createAbsenceController(async () => { throw new AbsenceError(code, "Domain error", { fecha: "Fecha inválida" }); }, database);
-    expect(await controller.handle({}, { channel: "ausencia:registrar", claims })).toMatchObject({ ok: false, error: { code, controllerId: "absence", fieldErrors: { fecha: "Fecha inválida" } } });
+    expect(await controller.handle({}, { channel: "ausencia:registrar", claims })).toMatchObject({ ok: false, error: { code, controllerId: "attendance", fieldErrors: { fecha: "Fecha inválida" } } });
   });
   it("devuelve un error técnico seguro y maneja un canal desconocido", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);

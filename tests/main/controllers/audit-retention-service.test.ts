@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AUDIT_RETENTION_INTERVAL_MS,
   startAuditRetentionMaintenance,
-} from "../../../src/main/controllers/audit-retention-service";
+} from "../../../src/main/controllers/PurgaAuditoriaAuxiliar";
 
 afterEach(() => vi.useRealTimers());
 

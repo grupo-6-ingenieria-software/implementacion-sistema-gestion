@@ -6,7 +6,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { loadDailySalesReport } from "../../../src/main/controllers/daily-sales-report-service";
+import { loadDailySalesReport } from "../../../src/main/controllers/ReporteVentasDiaAuxiliar";
 
 let fixture: Awaited<ReturnType<typeof createFixture>>;
 const sale1 = "00000000-0000-4000-8000-000000000451";

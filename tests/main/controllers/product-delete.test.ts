@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { AccessDeniedError } from "../../../src/main/controllers/auth-context";
+import { AccessDeniedError } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 import {
   ProductDeleteError,
-  createProductDeleteController,
-} from "../../../src/main/controllers/product-delete";
+  createEliminarProductoHandler,
+} from "../../../src/main/controllers/EliminarProductoHandler";
 
 const validPayload = {
   ean13: "7802920000015",
@@ -13,7 +13,7 @@ const validPayload = {
 
 describe("controlador de eliminación de productos", () => {
   it("rechaza canales no declarados para el controlador", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async () => ({ ean13: validPayload.ean13 }),
     });
 
@@ -31,7 +31,7 @@ describe("controlador de eliminación de productos", () => {
   });
 
   it("valida EAN-13, confirmación y usuario autenticado", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async () => ({ ean13: validPayload.ean13 }),
     });
 
@@ -54,7 +54,7 @@ describe("controlador de eliminación de productos", () => {
   });
 
   it("mapea fallos de autorización a respuestas de acceso prohibido", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async () => {
         throw new AccessDeniedError();
       },
@@ -73,7 +73,7 @@ describe("controlador de eliminación de productos", () => {
   });
 
   it("mapea productos inexistentes a respuestas de no encontrado", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async () => {
         throw new ProductDeleteError(
           "not-found",
@@ -95,7 +95,7 @@ describe("controlador de eliminación de productos", () => {
   });
 
   it("bloquea productos con registros asociados", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async () => {
         throw new ProductDeleteError(
           "has-relations",
@@ -118,7 +118,7 @@ describe("controlador de eliminación de productos", () => {
   });
 
   it("elimina productos sin registros asociados", async () => {
-    const controller = createProductDeleteController({
+    const controller = createEliminarProductoHandler({
       deleteProduct: async (payload) => ({
         ean13: payload.ean13!,
       }),

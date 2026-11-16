@@ -6,8 +6,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { loadSaleCategories } from "../../../src/main/controllers/sale-categories-service";
-import type { SaleCategoryDb } from "../../../src/main/controllers/sale-categories-service";
+import { loadSaleCategories, type SaleCategoryDb } from "../../../src/main/controllers/CategoriaVentaHandler";
 
 const owner = { usuarioId: "12345678-9", rol: "dueno" as const };
 const worker = { usuarioId: "12345678-9", rol: "trabajador" as const };

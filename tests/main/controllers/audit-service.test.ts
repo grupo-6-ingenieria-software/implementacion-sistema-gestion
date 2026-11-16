@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../../src/db/schema";
-import { queryAuditLog } from "../../../src/main/controllers/audit-service";
+import { queryAuditLog } from "../../../src/main/controllers/RegistroAuditoriaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

@@ -15,11 +15,11 @@ describe("árbol de navegación", () => {
   it("registra CU20 para ambos roles de V06 y mantiene UI06/UI07 como internos", () => {
     const route = navigationTree.find((node) => node.id === "product-list")!;
     expect(route.roles).toEqual(["dueno", "trabajador"]);
-    expect(route.controllerIds).toContain("inventory-export");
+    expect(route.controllerIds).toContain("report-export");
     for (const name of ["AccionExportarFormato", "ReportePrintView"]) {
       const component = internalComponents.find((component) => component.name === name)!;
       expect(component.usedIn).toEqual(["product-list", "monthly-sales", "attendance-report"]);
-      expect(component.controllerIds).toEqual(["inventory-export", "restock-report-export", "report-export"]);
+      expect(component.controllerIds).toEqual(["report-export"]);
       expect(navigationTree.some((node) => (node.viewName as string) === name)).toBe(false);
     }
   });
@@ -174,7 +174,7 @@ describe("árbol de navegación", () => {
       controllerIds: [
         "access-control",
         "restock-list",
-        "restock-report-export",
+        "report-export",
       ],
     });
 
@@ -196,7 +196,7 @@ describe("árbol de navegación", () => {
       id: "restock-print-view",
       name: "ListaReabastecimientoPrintView",
       usedIn: ["restock-list"],
-      controllerIds: ["restock-report-export"],
+      controllerIds: ["report-export"],
     });
   });
 

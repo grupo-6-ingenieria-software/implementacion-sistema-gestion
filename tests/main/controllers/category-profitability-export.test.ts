@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createCategoryProfitabilityExportHandler, createProfitabilityPdf, createProfitabilityXlsx,
   renderProfitabilityPrintHtml, type ProfitabilityExportDependencies,
-} from "../../../src/main/controllers/category-profitability-export";
-import { createReportExportController } from "../../../src/main/controllers/report-export";
-import { handleWithAudit } from "../../../src/main/controllers/audit-dispatch";
-import type { ControllerContext } from "../../../src/main/controllers/base";
+} from "../../../src/main/controllers/ExportacionReporteRentabilidadAuxiliar";
+import { createExportacionReporteHandler } from "../../../src/main/controllers/ExportacionReporteHandler";
+import { handleWithAudit } from "../../../src/main/controllers/DespachoAuditoriaAuxiliar";
+import type { ControllerContext } from "../../../src/main/controllers/BaseControladorAuxiliar";
 import type { CategoryProfitabilityReport } from "../../../src/shared/category-profitability";
 
 const report: CategoryProfitabilityReport = {
@@ -40,9 +40,9 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     });
     const products = vi.fn(async () => ({ ok: true as const, data: "products" }));
     const profitability = vi.fn(async () => ({ ok: true as const, data: "profitability" }));
-    const legacy = { metadata: createReportExportController().metadata, handle: vi.fn(async () => ({ ok: true as const, data: "legacy" })) };
-    const daily = { metadata: legacy.metadata, handle: vi.fn(async () => ({ ok: true as const, data: "daily" })) };
-    const controller = createReportExportController(reports, legacy, products, daily, profitability);
+    const legacy = vi.fn(async () => ({ ok: true as const, data: "legacy" }));
+    const daily = vi.fn(async () => ({ ok: true as const, data: "daily" }));
+    const controller = createExportacionReporteHandler(reports, legacy, products, daily, profitability);
     for (const channel of ["reporte:exportar-pdf", "reporte:exportar-xlsx"]) {
       const ctx = { ...context, channel };
       expect(await controller.handle({ tipo: "ventas-diarias", fecha: "2026-09-30" }, ctx)).toMatchObject({ data: "daily" });
@@ -53,13 +53,13 @@ describe("CU51 exportación C61 UI06 UI07", () => {
       expect(await controller.handle({ tipo: "unknown" }, ctx)).toMatchObject({ ok: false, error: { code: "VALIDATION_ERROR" } });
     }
     expect(reports).toHaveBeenCalledTimes(4);
-    for (const handler of [products, profitability, legacy.handle, daily.handle]) expect(handler).toHaveBeenCalledTimes(2);
+    for (const handler of [products, profitability, legacy, daily]) expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it.each(["pdf", "xlsx"] as const)("recalcula %s en Main en lugar de confiar en las filas o la identidad del renderer", async (format) => {
     const deps = dependencies();
     const ctx = { ...context, channel: `reporte:exportar-${format}` };
-    const controller = createReportExportController(undefined, undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
+    const controller = createExportacionReporteHandler(undefined, undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
     const audit = vi.fn();
     const result = await handleWithAudit(controller, { ...request, categorias: [], usuario: "Fake", ruta: "Fake" }, ctx, audit);
     expect(deps.load).toHaveBeenCalledExactlyOnceWith(report.periodo, ctx);
@@ -80,7 +80,7 @@ describe("CU51 exportación C61 UI06 UI07", () => {
     for (const fail of [false, true]) {
       const deps = dependencies(fail ? { save: vi.fn(async () => { throw new Error("Disk full"); }) } : { showSaveDialog: async () => ({ canceled: true }) });
       const audit = vi.fn();
-      const controller = createReportExportController(undefined, undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
+      const controller = createExportacionReporteHandler(undefined, undefined, undefined, undefined, createCategoryProfitabilityExportHandler(deps));
       const result = await handleWithAudit(controller, request, context, audit);
       expect(audit).not.toHaveBeenCalled();
       if (fail) expect(result).toMatchObject({ ok: false, error: { message: "No fue posible generar el archivo" } });

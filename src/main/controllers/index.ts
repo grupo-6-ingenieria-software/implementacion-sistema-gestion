@@ -1,73 +1,68 @@
 import type { IpcMain } from "electron";
 import { findControllerByChannel } from "../../shared/controllers";
 import { db, schema as appSchema } from "../../db/client";
-import { authorizeRequest } from "./auth-guard";
-import { handleWithAudit } from "./audit-dispatch";
-import { registerAuditLog } from "./auth-context";
+import { authorizeRequest } from "./ValidacionAccesoAuxiliar";
+import { handleWithAudit } from "./DespachoAuditoriaAuxiliar";
+import { registerAuditLog } from "./ContextoAutenticacionAuxiliar";
 import { SESSION_EXPIRED_EVENT } from "../../shared/auth";
-import { notifySessionInvalidated } from "./session-events";
-import { accessControlController } from "./access-control";
-import { attendanceController } from "./attendance";
-import { absenceController } from "./absence";
-import { monthlyAttendanceController } from "./monthly-attendance";
-import { attendanceReportController } from "./attendance-report";
-import { auditController } from "./audit";
-import { authLoginController } from "./auth-login";
-import { cashCheckController } from "./cash-check";
-import { cashClosingController } from "./cash-closing";
-import { configPrevisionalController } from "./configuracion-previsional";
-import { dailySalesTotalController } from "./daily-sales-total";
-import { dashboardController } from "./dashboard";
-import { eanReaderController } from "./ean-reader";
-import { expirationAlertController } from "./expiration-alert";
-import { lotController } from "./lot";
-import { createPasswordController } from "./password";
-import { productCreateController } from "./product-create";
-import { productDeleteController } from "./product-delete";
-import { productEditController } from "./product-edit";
-import { productQueryController } from "./product-query";
-import { productStatusController } from "./product-status";
-import { remuneracionController } from "./remuneracion";
-import { saleController } from "./sale";
-import { saleCategoriesController } from "./sale-categories";
-import { saleAnnulmentController } from "./sale-annulment";
-import { salesHistoryController } from "./sales-history";
-import { sessionController } from "./session";
-import { shiftController } from "./shift";
-import { stockAlertController } from "./stock-alert";
-import { stockDiscountController } from "./stock-discount";
-import { supplierOrderController } from "./supplier-order";
-import { supplierOrderReceptionController } from "./supplier-order-reception";
-import { supplierCreateController } from "./supplier-create";
-import { supplierEditController } from "./supplier-edit";
-import { supplierQueryController } from "./supplier-query";
-import { userManagementController } from "./user-management";
-import { movementHistoryController } from "./movement-history";
-import { productDetailController } from "./product-detail";
-import { stockAdjustmentController } from "./stock-adjustment";
-import { wasteController } from "./waste";
+import { notifySessionInvalidated } from "./EventosSesionAuxiliar";
+import { controlAcceso } from "./ControlAcceso";
+import { asistenciaHandler } from "./AsistenciaHandler";
+import { reporteAsistenciaHandler } from "./ReporteAsistenciaHandler";
+import { auditoriaHandler } from "./AuditoriaHandler";
+import { authHandler } from "./AuthHandler";
+import { verificacionCajaHandler } from "./VerificacionCajaHandler";
+import { cierreCajaHandler } from "./CierreCajaHandler";
+import { configPrevisionalHandler } from "./ConfigPrevisionalHandler";
+import { totalVentasDiaHandler } from "./TotalVentasDiaHandler";
+import { dashboardHandler } from "./DashboardHandler";
+import { lectorEANHandler } from "./LectorEANHandler";
+import { alertaVencimientoHandler } from "./AlertaVencimientoHandler";
+import { loteHandler } from "./LoteHandler";
+import { createPasswordHandler } from "./PasswordHandler";
+import { registrarProductoHandler } from "./RegistrarProductoHandler";
+import { eliminarProductoHandler } from "./EliminarProductoHandler";
+import { editarProductoHandler } from "./EditarProductoHandler";
+import { consultaProductoHandler } from "./ConsultaProductoHandler";
+import { cambiarEstadoProductoHandler } from "./CambiarEstadoProductoHandler";
+import { remuneracionHandler } from "./RemuneracionHandler";
+import { ventaHandler } from "./VentaHandler";
+import { categoriaVentaHandler } from "./CategoriaVentaHandler";
+import { anulacionVentaHandler } from "./AnulacionVentaHandler";
+import { historialVentasHandler } from "./HistorialVentasHandler";
+import { sesionHandler } from "./SesionHandler";
+import { turnoHandler } from "./TurnoHandler";
+import { alertaStockHandler } from "./AlertaStockHandler";
+import { descuentoStockHandler } from "./DescuentoStockHandler";
+import { pedidoProveedorHandler } from "./PedidoProveedorHandler";
+import { recepcionPedidoHandler } from "./RecepcionPedidoHandler";
+import { registrarProveedorHandler } from "./RegistrarProveedorHandler";
+import { editarProveedorHandler } from "./EditarProveedorHandler";
+import { consultaProveedorHandler } from "./ConsultaProveedorHandler";
+import { historialMovimientosHandler } from "./HistorialMovimientosHandler";
+import { detalleProductoHandler } from "./DetalleProductoHandler";
+import { ajusteStockHandler } from "./AjusteStockHandler";
+import { mermaHandler } from "./MermaHandler";
 import {
   changeStatusWithExecutor,
-  createWorkerController,
+  createTrabajadorHandler,
   workerDependencies,
-} from "./worker";
-import { restockListController } from "./restock-list";
-import { restockReportExportController } from "./restock-report-export";
-import { reportExportController } from "./report-export";
-import { monthlySalesController } from "./monthly-sales";
-import { categoryProfitabilityController } from "./category-profitability";
-import { productsMostSoldController } from "./products-most-sold";
-import { inventoryValuationController } from "./inventory-valuation";
-import { inventoryExportController } from "./inventory-export";
-import { dailySalesReportController } from "./daily-sales-report";
-import { wasteReportController } from "./waste-report";
-import { expiringLotsReportController } from "./expiring-lots-report";
-import { movementReportController } from "./movement-report";
-import { receiptPrintController } from "./receipt-print";
-import type { RegisteredController } from "./base";
+} from "./TrabajadorHandler";
+import { reabastecimientoHandler } from "./ReabastecimientoHandler";
+import { exportacionReporteHandler } from "./ExportacionReporteHandler";
+import { reporteVentasMensualHandler } from "./ReporteVentasMensualHandler";
+import { reporteRentabilidadHandler } from "./ReporteRentabilidadHandler";
+import { reporteProductosMasVendidosHandler } from "./ReporteProductosMasVendidosHandler";
+import { valorizacionHandler } from "./ValorizacionHandler";
+import { reporteVentasDiaHandler } from "./ReporteVentasDiaHandler";
+import { reporteMermasHandler } from "./ReporteMermasHandler";
+import { reporteLotesPorVencerHandler } from "./ReporteLotesPorVencerHandler";
+import { reporteMovimientosHandler } from "./ReporteMovimientosHandler";
+import { impresionBoletaHandler } from "./ImpresionBoletaHandler";
+import type { RegisteredController } from "./BaseControladorAuxiliar";
 import { enterDemoHandler, rememberDemoActor, traceDemoRequest, withoutDemoTrace } from "../demo-trace";
 
-const workerController = createWorkerController({
+const trabajadorHandler = createTrabajadorHandler({
   ...workerDependencies,
   changeStatus: (payload, sesionRol) =>
     changeStatusWithExecutor(
@@ -79,64 +74,59 @@ const workerController = createWorkerController({
     ),
 });
 
-const passwordController = createPasswordController({}, notifySessionInvalidated);
+const passwordHandler = createPasswordHandler({}, notifySessionInvalidated);
 
 export const registeredControllers: readonly RegisteredController<any, any>[] =
   [
-    authLoginController,
-    passwordController,
-    accessControlController,
-    auditController,
-    sessionController,
-    dashboardController,
-    stockAlertController,
-    expirationAlertController,
-    dailySalesTotalController,
-    productCreateController,
-    productEditController,
-    productStatusController,
-    productQueryController,
-    lotController,
-    wasteController,
-    saleController,
-    stockDiscountController,
-    salesHistoryController,
-    cashClosingController,
-    cashCheckController,
-    workerController,
-    shiftController,
-    attendanceController,
-    eanReaderController,
-    userManagementController,
-    productDeleteController,
-    saleAnnulmentController,
-    productDetailController,
-    stockAdjustmentController,
-    movementHistoryController,
-    remuneracionController,
-    configPrevisionalController,
-    supplierOrderController,
-    supplierOrderReceptionController,
-    supplierCreateController,
-    supplierQueryController,
-    supplierEditController,
-    restockListController,
-    restockReportExportController,
-    inventoryValuationController,
-    dailySalesReportController,
-    reportExportController,
-    monthlySalesController,
-    productsMostSoldController,
-    saleCategoriesController,
-    inventoryExportController,
-    wasteReportController,
-    expiringLotsReportController,
-    movementReportController,
-    categoryProfitabilityController,
-    absenceController,
-    monthlyAttendanceController,
-    attendanceReportController,
-    receiptPrintController,
+    authHandler,
+    passwordHandler,
+    controlAcceso,
+    auditoriaHandler,
+    sesionHandler,
+    dashboardHandler,
+    alertaStockHandler,
+    alertaVencimientoHandler,
+    totalVentasDiaHandler,
+    registrarProductoHandler,
+    editarProductoHandler,
+    cambiarEstadoProductoHandler,
+    consultaProductoHandler,
+    loteHandler,
+    mermaHandler,
+    ventaHandler,
+    descuentoStockHandler,
+    historialVentasHandler,
+    cierreCajaHandler,
+    verificacionCajaHandler,
+    trabajadorHandler,
+    turnoHandler,
+    asistenciaHandler,
+    lectorEANHandler,
+    eliminarProductoHandler,
+    anulacionVentaHandler,
+    detalleProductoHandler,
+    ajusteStockHandler,
+    historialMovimientosHandler,
+    remuneracionHandler,
+    configPrevisionalHandler,
+    pedidoProveedorHandler,
+    recepcionPedidoHandler,
+    registrarProveedorHandler,
+    consultaProveedorHandler,
+    editarProveedorHandler,
+    reabastecimientoHandler,
+    valorizacionHandler,
+    reporteVentasDiaHandler,
+    exportacionReporteHandler,
+    reporteVentasMensualHandler,
+    reporteProductosMasVendidosHandler,
+    categoriaVentaHandler,
+    reporteMermasHandler,
+    reporteLotesPorVencerHandler,
+    reporteMovimientosHandler,
+    reporteRentabilidadHandler,
+    reporteAsistenciaHandler,
+    impresionBoletaHandler,
   ];
 
 /**

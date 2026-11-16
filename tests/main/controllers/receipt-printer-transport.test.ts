@@ -6,7 +6,7 @@ import {
   createPrinterTransport,
   sendTcp,
   type CommandRunner,
-} from "../../../src/main/controllers/receipt-printer-transport";
+} from "../../../src/main/controllers/ImpresionBoletaHandler";
 
 let server: Server | undefined;
 

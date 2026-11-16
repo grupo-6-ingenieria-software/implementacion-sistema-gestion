@@ -8,13 +8,13 @@ import { drizzle } from "drizzle-orm/libsql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { demoQueryLogger, enterDemoHandler, traceDemoRequest, traceDemoTransaction } from "../../../src/main/demo-trace";
 import * as schema from "../../../src/db/schema";
-import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/supplier-order";
+import { registerSupplierOrderWithExecutor } from "../../../src/main/controllers/PedidoProveedorHandler";
 import {
   SupplierOrderDomainError,
   cancelSupplierOrderWithExecutor,
   closeSupplierOrderBalanceWithExecutor,
   confirmSupplierOrderReceptionWithExecutor,
-} from "../../../src/main/controllers/supplier-order-reception";
+} from "../../../src/main/controllers/RecepcionPedidoHandler";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 let testDb: TestDatabase | undefined;

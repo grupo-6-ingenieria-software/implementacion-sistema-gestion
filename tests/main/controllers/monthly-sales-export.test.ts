@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it, vi } from "vitest";
-import { createMonthlySalesPdf, createMonthlySalesXlsx, renderMonthlySalesPrintHtml } from "../../../src/main/controllers/monthly-sales-export";
+import { createMonthlySalesPdf, createMonthlySalesXlsx, renderMonthlySalesPrintHtml } from "../../../src/main/controllers/ExportacionReporteVentasMensualAuxiliar";
 import { MONTHLY_SALES_EMPTY_MESSAGE } from "../../../src/shared/monthly-sales";
 import { report, user } from "./report-export-fixture";
 const input = { report, usuario: user.trabajadorNombre, fecha: "30-09-2026 10:00" };

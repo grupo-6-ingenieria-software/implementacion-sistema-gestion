@@ -11,12 +11,11 @@ vi.mock("electron-log/main", () => ({ default: { error: vi.fn() } }));
 vi.mock("../../../src/db/client", () => ({ db: {}, schema: {} }));
 
 import * as schema from "../../../src/db/schema";
-import { registerAuditLog } from "../../../src/main/controllers/auth-context";
-import { createReceiptPrintController } from "../../../src/main/controllers/receipt-print";
-import { createPrinterTransport } from "../../../src/main/controllers/receipt-printer-transport";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
-import { loadSaleDetail, type SalesHistoryDb } from "../../../src/main/controllers/sales-history";
+import { registerAuditLog } from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
+import { createPrinterTransport, createImpresionBoletaHandler } from "../../../src/main/controllers/ImpresionBoletaHandler";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
+import { loadSaleDetail, type SalesHistoryDb } from "../../../src/main/controllers/HistorialVentasHandler";
 
 const cashSaleId = "00000000-0000-4000-8000-000000000911";
 const annulledSaleId = "00000000-0000-4000-8000-000000000912";
@@ -62,7 +61,7 @@ afterEach(async () => {
 });
 
 async function controllerWithPrinter() {
-  return createReceiptPrintController({
+  return createImpresionBoletaHandler({
     loadSale: (ventaId) => loadSaleDetail(fixture!.db as unknown as SalesHistoryDb, { ventaId }),
     printer: { transport: "tcp", host: "127.0.0.1", port: printerPort, paperWidth: 80 },
     transport: createPrinterTransport(),

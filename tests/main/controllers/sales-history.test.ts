@@ -2,7 +2,7 @@ import type { SQL } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createSalesHistoryController,
+  createHistorialVentasHandler,
   findSaleForAnnulment,
   loadDailySalesHistory,
   loadSaleDetail,
@@ -12,7 +12,7 @@ import {
   SaleLookupValidationError,
   searchSalesHistory,
   type SalesHistoryDb,
-} from "../../../src/main/controllers/sales-history";
+} from "../../../src/main/controllers/HistorialVentasHandler";
 
 const allMock = vi.fn();
 const database: SalesHistoryDb = {
@@ -479,7 +479,7 @@ describe("consulta del historial de ventas diarias", () => {
 
 describe("controlador del historial de ventas", () => {
   it("enruta búsquedas CU41 sin cambiar la forma de solicitud heredada de CU38", async () => {
-    const controller = createSalesHistoryController(
+    const controller = createHistorialVentasHandler(
       database,
       () => new Date("2026-06-12T18:00:00.000Z"),
     );
@@ -516,7 +516,7 @@ describe("controlador del historial de ventas", () => {
   });
 
   it("mapea filtros CU41 inválidos a un error de validación público", async () => {
-    const controller = createSalesHistoryController(database);
+    const controller = createHistorialVentasHandler(database);
     await expect(
       controller.handle(
         {
@@ -541,7 +541,7 @@ describe("controlador del historial de ventas", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const controller = createSalesHistoryController(
+    const controller = createHistorialVentasHandler(
       failingDatabase,
       () => new Date("2026-06-11T12:00:00Z"),
     );
@@ -569,7 +569,7 @@ describe("controlador del historial de ventas", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const controller = createSalesHistoryController(
+    const controller = createHistorialVentasHandler(
       failingDatabase,
       () => new Date("2026-06-11T12:00:00Z"),
     );

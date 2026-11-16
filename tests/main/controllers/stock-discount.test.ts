@@ -3,7 +3,7 @@ import {
   applyStockDiscount,
   planStockDiscount,
   StockDiscountBusinessError,
-} from "../../../src/main/controllers/stock-discount";
+} from "../../../src/main/controllers/DescuentoStockHandler";
 
 describe("servicio de descuento de stock C17", () => {
   it("planifica FEFO, descuenta stock y luego registra cada consumo", async () => {

@@ -5,14 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  createRestockListController,
+  createReabastecimientoHandler,
   loadAuthorizedRestockList,
   queryRestockListWithExecutor,
-} from "../../../src/main/controllers/restock-list";
+} from "../../../src/main/controllers/ReabastecimientoHandler";
 import {
   AccessDeniedError,
   type AuthenticatedUser,
-} from "../../../src/main/controllers/auth-context";
+} from "../../../src/main/controllers/ContextoAutenticacionAuxiliar";
 
 const owner: AuthenticatedUser = {
   role: "dueno",
@@ -26,7 +26,7 @@ describe("controlador de lista de reabastecimiento CU16 (C32)", () => {
     "autoriza y devuelve la lista para %s",
     async (role) => {
       const load = vi.fn(async () => ({ items: [], user: { ...owner, role } }));
-      const controller = createRestockListController({ load });
+      const controller = createReabastecimientoHandler({ load });
 
       const response = await controller.handle(
         { usuarioId: "trusted-user" },
@@ -42,7 +42,7 @@ describe("controlador de lista de reabastecimiento CU16 (C32)", () => {
   );
 
   it("rechaza acceso no autenticado y canales inválidos", async () => {
-    const controller = createRestockListController({
+    const controller = createReabastecimientoHandler({
       load: async () => {
         throw new AccessDeniedError("Sesión requerida");
       },
@@ -67,7 +67,7 @@ describe("controlador de lista de reabastecimiento CU16 (C32)", () => {
       throw new Error("database unavailable");
     });
     const authorize = vi.fn(async () => owner);
-    const controller = createRestockListController({
+    const controller = createReabastecimientoHandler({
       load: (request, sessionRole) =>
         loadAuthorizedRestockList(request, sessionRole, { authorize, query }),
     });

@@ -5,14 +5,14 @@ import * as schema from "../../../src/db/schema";
 import {
   authenticateWithExecutor,
   type LoginDeps,
-} from "../../../src/main/controllers/auth-login";
+} from "../../../src/main/controllers/AuthHandler";
 import {
   createAuthTestDatabase,
   insertLoginAttempt,
   removeAuthTempDir,
   seedUser,
   type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
 
 const NOW = new Date("2026-06-13T12:00:00.000Z");
 

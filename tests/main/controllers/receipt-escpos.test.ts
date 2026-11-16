@@ -3,7 +3,7 @@ import {
   composeReceipt,
   encodeEscPos,
   toReceiptText,
-} from "../../../src/main/controllers/receipt-escpos";
+} from "../../../src/main/controllers/ImpresionBoletaHandler";
 import { NEGOCIO, RECEIPT_LEGEND } from "../../../src/shared/receipt-print";
 import type { SaleDetail } from "../../../src/shared/sales";
 

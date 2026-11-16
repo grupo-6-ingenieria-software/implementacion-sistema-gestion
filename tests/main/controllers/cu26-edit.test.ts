@@ -4,11 +4,11 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
 import {
   createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase,
-} from "../../../src/main/controllers/auth-fixtures";
-import { authorizeRequest } from "../../../src/main/controllers/auth-guard";
-import { signSessionToken } from "../../../src/main/controllers/auth-jwt";
-import { authenticateWithExecutor } from "../../../src/main/controllers/auth-login";
-import { shiftController } from "../../../src/main/controllers/shift";
+} from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { authorizeRequest } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import { signSessionToken } from "../../../src/main/controllers/TokenSesionAuxiliar";
+import { authenticateWithExecutor } from "../../../src/main/controllers/AuthHandler";
+import { turnoHandler } from "../../../src/main/controllers/TurnoHandler";
 import type { ShiftListResponse } from "../../../src/shared/shifts";
 
 // Every request, including session checks and audits, uses the temporary database.
@@ -65,7 +65,7 @@ async function request(channel: string, payload: Record<string, unknown>, index 
     sesionId: sessions[index],
   });
   const guard = await authorizeRequest(channel, { __authToken: token, ...payload });
-  return guard.ok ? shiftController.handle(guard.payload, guard.context) : guard.response;
+  return guard.ok ? turnoHandler.handle(guard.payload, guard.context) : guard.response;
 }
 
 async function persistedShifts() {
@@ -159,7 +159,7 @@ describe("CU26 edición mediante autorización de sesión y controlador de turno
 
   it.each(["turno:crear", "turno:editar", "turno:eliminar"])("rechaza contexto de confianza ausente para %s", async (channel) => {
     const before = await persistedShifts();
-    expect(await shiftController.handle({ ...edit, trabajadorId: 2, confirmacion: true, usuarioId: users[0] }, { channel }))
+    expect(await turnoHandler.handle({ ...edit, trabajadorId: 2, confirmacion: true, usuarioId: users[0] }, { channel }))
       .toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await persistedShifts()).toEqual(before);
   });

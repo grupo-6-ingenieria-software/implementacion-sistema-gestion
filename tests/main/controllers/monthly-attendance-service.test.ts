@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import * as schema from "../../../src/db/schema";
-import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/auth-fixtures";
-import { queryMonthlyAttendance } from "../../../src/main/controllers/monthly-attendance-service";
-import { listSummaryWorkersWithExecutor } from "../../../src/main/controllers/worker";
-import { registerAbsence } from "../../../src/main/controllers/absence-service";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+import { createAuthTestDatabase, removeAuthTempDir, seedUser, type AuthTestDatabase } from "../../../src/main/controllers/DatosPruebaAutenticacionAuxiliar";
+import { queryMonthlyAttendance } from "../../../src/main/controllers/AsistenciaHandler";
+import { listSummaryWorkersWithExecutor } from "../../../src/main/controllers/TrabajadorHandler";
+import { registerAbsence } from "../../../src/main/controllers/AsistenciaHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 import type { MonthlyAttendanceAbsenceType } from "../../../src/shared/monthly-attendance";
 
 let fixture: AuthTestDatabase;

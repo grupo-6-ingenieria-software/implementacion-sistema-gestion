@@ -14,9 +14,9 @@ import {
   deleteShift,
   editShift,
   listShifts,
-} from "../../../src/main/controllers/shift";
-import { registerAttendanceEntry } from "../../../src/main/controllers/attendance-service";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/TurnoHandler";
+import { registerAttendanceEntry } from "../../../src/main/controllers/AsistenciaHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

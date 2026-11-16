@@ -14,8 +14,8 @@ import {
   registerAttendanceEntry,
   registerAttendanceEntryWithoutShift,
   registerAttendanceExit,
-} from "../../../src/main/controllers/attendance-service";
-import type { DbExecutor } from "../../../src/main/controllers/sale-service";
+} from "../../../src/main/controllers/AsistenciaHandler";
+import type { DbExecutor } from "../../../src/main/controllers/RegistroVentaAuxiliar";
 
 type TestDatabase = Awaited<ReturnType<typeof createTestDatabase>>;
 

@@ -3,17 +3,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron-log/main", () => ({ default: { error: vi.fn() } }));
 vi.mock("../../../src/db/client", () => ({ db: {}, schema: {} }));
 
-import { CHANNEL_ROLES } from "../../../src/main/controllers/auth-guard";
-import type { SessionTokenClaims } from "../../../src/main/controllers/auth-jwt";
-import { createReceiptPrintController } from "../../../src/main/controllers/receipt-print";
-import type { ReceiptPrintDependencies } from "../../../src/main/controllers/receipt-print-service";
+import { CHANNEL_ROLES } from "../../../src/main/controllers/ValidacionAccesoAuxiliar";
+import type { SessionTokenClaims } from "../../../src/main/controllers/TokenSesionAuxiliar";
 import {
   DEV_PRINTER_ENV,
+  PrinterUnavailableError,
   RECEIPT_PRINTER,
+  createImpresionBoletaHandler,
   resolveReceiptPrinter,
-} from "../../../src/main/controllers/receipt-printer-settings";
-import { PrinterUnavailableError } from "../../../src/main/controllers/receipt-printer-transport";
-import { SaleLookupNotFoundError } from "../../../src/main/controllers/sales-history";
+  type ReceiptPrintDependencies,
+} from "../../../src/main/controllers/ImpresionBoletaHandler";
+import { SaleLookupNotFoundError } from "../../../src/main/controllers/HistorialVentasHandler";
 import { ANNULLED_REPRINT_MESSAGE, type PrinterConfig } from "../../../src/shared/receipt-print";
 import type { SaleDetail } from "../../../src/shared/sales";
 
@@ -55,7 +55,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("ImpresionBoletaHandler", () => {
   it("imprime la boleta de la venta registrada sin auditar la impresión automática", async () => {
     const d = deps();
-    const response = await createReceiptPrintController(d).handle(
+    const response = await createImpresionBoletaHandler(d).handle(
       { ventaId, copia: false },
       { channel: "boleta:imprimir", claims: worker },
     );
@@ -69,7 +69,7 @@ describe("ImpresionBoletaHandler", () => {
 
   it("reimprime como copia y registra la reimpresión en el log de auditoría", async () => {
     const d = deps();
-    const response = await createReceiptPrintController(d).handle(
+    const response = await createImpresionBoletaHandler(d).handle(
       { ventaId, copia: true },
       { channel: "boleta:imprimir", claims: worker },
     );
@@ -86,7 +86,7 @@ describe("ImpresionBoletaHandler", () => {
 
   it("rechaza reimprimir una venta anulada sin enviar nada a la impresora", async () => {
     const d = deps({ loadSale: vi.fn(async () => ({ ...sale, estado: "anulada" as const })) });
-    const response = await createReceiptPrintController(d).handle(
+    const response = await createImpresionBoletaHandler(d).handle(
       { ventaId, copia: true },
       { channel: "boleta:imprimir", claims: worker },
     );
@@ -99,7 +99,7 @@ describe("ImpresionBoletaHandler", () => {
   it("registra la falla técnica y no audita cuando la impresora no responde", async () => {
     const d = deps();
     d.transport.send.mockRejectedValueOnce(new PrinterUnavailableError("sin respuesta"));
-    const response = await createReceiptPrintController(d).handle(
+    const response = await createImpresionBoletaHandler(d).handle(
       { ventaId, copia: true },
       { channel: "boleta:imprimir", claims: worker },
     );
@@ -114,7 +114,7 @@ describe("ImpresionBoletaHandler", () => {
 
   it("informa cuando la copia se imprimió pero la auditoría falló", async () => {
     const d = deps({ audit: vi.fn(async () => { throw new Error("db"); }) });
-    const response = await createReceiptPrintController(d).handle(
+    const response = await createImpresionBoletaHandler(d).handle(
       { ventaId, copia: true },
       { channel: "boleta:imprimir", claims: worker },
     );
@@ -128,13 +128,13 @@ describe("ImpresionBoletaHandler", () => {
     [{ ventaId }, "NOT_FOUND"],
   ])("valida el número de venta %#", async (payload, code) => {
     const d = deps({ loadSale: vi.fn(async () => { throw new SaleLookupNotFoundError("La venta indicada no fue encontrada."); }) });
-    const response = await createReceiptPrintController(d).handle(payload, { channel: "boleta:imprimir", claims: worker });
+    const response = await createImpresionBoletaHandler(d).handle(payload, { channel: "boleta:imprimir", claims: worker });
     expect(response).toMatchObject({ ok: false, error: { code } });
   });
 
   it("rechaza llamadas directas sin sesión y canales desconocidos", async () => {
     const d = deps();
-    const controller = createReceiptPrintController(d);
+    const controller = createImpresionBoletaHandler(d);
     expect(await controller.handle({ ventaId }, { channel: "boleta:imprimir" })).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(await controller.handle({}, { channel: "boleta:config-guardar", claims: worker })).toMatchObject({ ok: false, error: { code: "INVALID_CHANNEL" } });
     expect(d.transport.send).not.toHaveBeenCalled();
