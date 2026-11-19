@@ -205,6 +205,23 @@ describe("secuencias de la demo", () => {
     expect(String(output.mock.calls[0][0])).toContain("\x1b[38;5;67mV_RegistrarVentaView\x1b[0m");
   });
 
+  it("muestra el canal de impresión y su resultado bajo CU36", async () => {
+    vi.stubEnv("HUASCAR_DEMO", "1");
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    await traceDemoRequest("boleta:imprimir", () => enterDemoHandler(async () => ({
+      ok: true,
+      data: { copia: false },
+    })));
+
+    expect(lines(output)).toEqual([
+      "[CU36] ────────── Imprimir boleta ──────────",
+      "[CU36] VistaElectron -> C_ImpresionBoletaHandler: boleta:imprimir (venta, copia, JWT)",
+      "[CU36] C_ImpresionBoletaHandler -> C_ControlAcceso: Validar JWT, rol y sesión",
+      "[CU36] C_ControlAcceso --> C_ImpresionBoletaHandler: Acceso concedido",
+      "[CU36] C_ImpresionBoletaHandler --> VistaElectron: Boleta enviada a impresión",
+    ]);
+  });
+
   it("un fallo de consola no cambia el resultado de la operación", async () => {
     vi.stubEnv("HUASCAR_DEMO", "1");
     vi.spyOn(console, "log").mockImplementation(() => { throw new Error("consola cerrada"); });

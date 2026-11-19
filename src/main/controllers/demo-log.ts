@@ -1,3 +1,4 @@
+import type { ReceiptPrintResult } from "../../shared/receipt-print";
 import type { DailyCashState, SaleCartValidationResult, SaleReceipt } from "../../shared/sales";
 import type { SupplierOrderDetail, SupplierOrderListItem, SupplierOrderReceptionResponse } from "../../shared/supplier-orders";
 
@@ -39,6 +40,8 @@ export function summarizeDemoResponse(channel: string, data: unknown): string {
       }
       case "venta:validar-carrito":
         return `Carrito válido · subtotal ${formatMoney((data as SaleCartValidationResult).subtotal)}`;
+      case "boleta:imprimir":
+        return (data as ReceiptPrintResult).copia ? "Copia enviada a impresión" : "Boleta enviada a impresión";
       case "venta:registrar": {
         const receipt = data as SaleReceipt;
         const change = receipt.vuelto !== undefined ? ` · vuelto ${formatMoney(receipt.vuelto)}` : "";

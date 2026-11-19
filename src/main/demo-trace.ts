@@ -49,6 +49,16 @@ const sale: Flow = {
   ]),
 };
 
+const receiptPrint: Flow = {
+  ...sale,
+  view: "VistaElectron",
+  handler: "C_ImpresionBoletaHandler",
+  tables: new Set([
+    "sesion_usuario", "venta", "cierre_caja", "venta_efectivo", "anulacion_venta",
+    "detalle_venta", "producto", "historial_precio_producto", "log_auditoria",
+  ]),
+};
+
 const channels: Record<string, { flow: Flow; request: string }> = {
   "pedido:listar": { flow: reception, request: "pedido:listar (estados, JWT)" },
   "pedido:detalle": { flow: reception, request: "pedido:detalle (pedido, JWT)" },
@@ -57,6 +67,7 @@ const channels: Record<string, { flow: Flow; request: string }> = {
   "venta:producto": { flow: sale, request: "venta:producto (EAN-13 o nombre, JWT)" },
   "venta:validar-carrito": { flow: sale, request: "venta:validar-carrito (carrito, JWT)" },
   "venta:registrar": { flow: sale, request: "venta:registrar (carrito, pago, JWT)" },
+  "boleta:imprimir": { flow: receiptPrint, request: "boleta:imprimir (venta, copia, JWT)" },
 };
 
 /**
@@ -247,6 +258,7 @@ export async function traceDemoRequest<T extends ControllerResponse>(
   const definition = channels[channel];
   if (!demoEnabled() || !definition) return action();
   const { flow } = definition;
+  if (channel === "boleta:imprimir") emitSeparator(flow.cu, "Imprimir boleta");
   emit(flow, flow.view, "->", flow.handler, definition.request);
   return context.run({ flow, channel, participant: ACCESS }, async () => {
     traceDemoReceptionPhase("session");

@@ -23,6 +23,7 @@ import {
   controllerSuccess,
   type RegisteredController,
 } from "./BaseControladorAuxiliar";
+import { demoTraceStep, traceDemoCall } from "../demo-trace";
 import { registerAuditLog } from "./ContextoAutenticacionAuxiliar";
 import {
   SaleLookupNotFoundError,
@@ -504,11 +505,13 @@ export async function printReceipt(
     );
   }
   const copia = request.copia === true;
+  demoTraceStep("C_ImpresionBoletaHandler", "Cargar detalle persistido de la venta");
   const sale = await deps.loadSale(request.ventaId.trim());
   if (sale.estado === "anulada") {
     throw new ReceiptPrintBusinessError(ANNULLED_REPRINT_MESSAGE);
   }
 
+  demoTraceStep("C_ImpresionBoletaHandler", "Componer boleta y codificar en ESC/POS");
   const printedAt = deps.now();
   const data = encodeEscPos(
     composeReceipt(sale, {
@@ -518,7 +521,11 @@ export async function printReceipt(
     }),
   );
   try {
-    await deps.transport.send(deps.printer, data);
+    await traceDemoCall(
+      deps.printer.transport === "usb" ? "C_spoolerWindows" : "Impresora TCP",
+      "Enviar boleta en formato ESC/POS",
+      () => deps.transport.send(deps.printer, data),
+    );
   } catch (error) {
     deps.logFailure(`Falla de impresión: venta ${sale.ventaId}`, error);
     throw new ReceiptPrintFailedError(
