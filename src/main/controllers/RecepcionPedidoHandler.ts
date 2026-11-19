@@ -35,7 +35,7 @@ import {
   registerAuditLog,
 } from "./ContextoAutenticacionAuxiliar";
 import { notifyDashboardUpdated } from "./EventosDashboardAuxiliar";
-import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
+import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoReceptionPhase, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
 
 type SchemaLike = typeof import("../../db/schema");
 type QueryExecutor = Pick<
@@ -440,6 +440,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
   schema: SchemaLike,
   payload: SupplierOrderReceptionPayload,
 ): Promise<SupplierOrderReceptionResponse> {
+  traceDemoReceptionPhase("validation");
   const shapeErrors = validateSupplierOrderReceptionShape(payload);
   if (hasSupplierOrderFieldErrors(shapeErrors)) {
     throw new SupplierOrderDomainError(
@@ -549,6 +550,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
     );
   }
 
+  traceDemoReceptionPhase("registration");
   const createdReceipts = await executor
     .insert(schema.recepcionPedido)
     .values({
@@ -598,6 +600,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
       });
     }
   }
+  traceDemoReceptionPhase("orderUpdate");
   for (const { input, current, index } of receivedLines) {
     const updated = await executor
       .update(schema.detallePedido)
@@ -669,6 +672,7 @@ export async function confirmSupplierOrderReceptionWithExecutor(
   }
 
   await withoutDemoTrace(() => assertInventoryTotals(executor));
+  traceDemoReceptionPhase("audit");
   await executor.insert(schema.historialAuditoriaPedido).values({
     historialApTipoEvento: "recepcion",
     historialApNota: `Recepción ${receiptId}; operación ${payload.operacionId}; estado ${nextState}.`,

@@ -84,14 +84,21 @@ describe("registerSale", () => {
     })));
     const logs = output.mock.calls.map(([line]) => String(line).replace(/ {2,}/g, " "));
     const ordered = [
+      "[CU36] ────────── Revalidar sesión y permisos ──────────",
       "[CU36] C_VentaHandler -> C_drizzle: Iniciar transacción",
+      "[CU36] ────────── Validar carrito y calcular el pago ──────────",
       "[CU36] C_VentaHandler -> C_VentaHandler: Validar cantidades y recalcular total con precios persistidos",
       "[CU36] C_VentaHandler -> C_VentaHandler: Comparar monto recibido con total y calcular vuelto",
+      "[CU36] ────────── Verificar stock y seleccionar lotes ──────────",
+      "[CU36] C_VentaHandler -> C_DescuentoStockHandler: Seleccionar lotes según FEFO/FIFO",
+      "[CU36] ────────── Verificar o abrir la caja del día ──────────",
       "[CU36] C_VentaHandler -> C_VerificacionCajaHandler: Crear u obtener caja del día",
       "[CU36] C_libsql -> cierre_caja: INSERT",
+      "[CU36] ────────── Registrar venta, pago y detalle ──────────",
       "[CU36] C_libsql -> venta: INSERT",
       "[CU36] C_libsql -> venta_efectivo: INSERT",
       "[CU36] C_libsql -> detalle_venta: INSERT",
+      "[CU36] ────────── Descontar stock y registrar los lotes usados ──────────",
       "[CU36] C_VentaHandler -> C_DescuentoStockHandler: Descontar lotes y registrar VentaLote",
       "[CU36] C_libsql -> lote: UPDATE",
       "[CU36] C_libsql -> venta_lote: INSERT",

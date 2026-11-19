@@ -113,6 +113,20 @@ describe("secuencias de la demo", () => {
     ]);
   });
 
+  it("separa el listado de pedidos de la siguiente acción del usuario", () => {
+    vi.stubEnv("HUASCAR_DEMO", "1");
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    logDemoViewStep("ordersShown");
+    logDemoViewStep("orderSelected");
+
+    expect(lines(output)).toEqual([
+      "[CU18] V_ConfirmarRecepcionPedidoView --> Dueño/Trabajador: Mostrar pedidos pendientes, parciales y terminados",
+      "[CU18] ────────── Listado de pedidos listo ──────────",
+      "[CU18] Dueño/Trabajador -> V_ConfirmarRecepcionPedidoView: Selecciona un pedido",
+    ]);
+  });
+
   it("nombra al actor con el rol efectivo de la sesión verificada", () => {
     vi.stubEnv("HUASCAR_DEMO", "1");
     const output = vi.spyOn(console, "log").mockImplementation(() => {});

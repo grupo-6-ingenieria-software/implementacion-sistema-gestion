@@ -26,7 +26,7 @@ import {
 import { AccessDeniedError } from "./ContextoAutenticacionAuxiliar";
 import { checkedAdd, checkedMultiply, safeInteger } from "../../shared/numbers";
 import { assertDailySaleTotals } from "./PrimitivasValidacionSqlAuxiliar";
-import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
+import { demoRandomUUID, demoTraceStep, traceDemoCall, traceDemoSalePhase, traceDemoTransaction, withoutDemoTrace } from "../demo-trace";
 
 export type SaleRegisterItemInput = SaleCartItemInput;
 
@@ -91,6 +91,7 @@ export async function registerSale(
         "La caja de este día ya fue cerrada. No es posible registrar nuevas ventas.",
       );
     }
+    traceDemoSalePhase("validation");
     await withoutDemoTrace(() => validateSalePayloadRules(tx, payload));
     const responsable = await withoutDemoTrace(() => getResponsibleUser(tx, actor, now));
     const normalized = normalizeSalePayload(payload);
@@ -143,6 +144,7 @@ export async function registerSale(
       totals.total,
     ));
 
+    traceDemoSalePhase("stockPlan");
     let stockPlan;
     try {
       stockPlan = await traceDemoCall("C_DescuentoStockHandler", "Seleccionar lotes según FEFO/FIFO", () => planStockDiscount(
@@ -162,6 +164,7 @@ export async function registerSale(
 
     // Revalidación transaccional: el plan de stock se completa antes de abrir la
     // primera caja del día, por lo que un carrito inválido no genera escrituras.
+    traceDemoSalePhase("cash");
     const cashState = await traceDemoCall("C_VerificacionCajaHandler", "Crear u obtener caja del día", () => ensureDailyCashRegisterForSale(tx, now));
     if (cashState.status === "cerrada") {
       throw new SaleBusinessError(
@@ -172,6 +175,7 @@ export async function registerSale(
       throw new SaleBusinessError("No fue posible habilitar la caja del día.");
     }
 
+    traceDemoSalePhase("registration");
     const ventaId = randomUUID();
     const fechaHora = now.toISOString();
     const descuentoTipo = totals.descuento > 0 ? "monto" : "ninguno";
@@ -248,6 +252,7 @@ export async function registerSale(
         .map(({ loteId, cantidad }) => ({ loteId, cantidad }));
     }
 
+    traceDemoSalePhase("stockUpdate");
     try {
       await traceDemoCall("C_DescuentoStockHandler", "Descontar lotes y registrar VentaLote", () => applyStockDiscount(tx, ventaId, stockPlan));
     } catch (error) {

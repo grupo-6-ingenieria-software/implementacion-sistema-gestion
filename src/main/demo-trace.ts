@@ -4,7 +4,7 @@ import { getTableName, isTable } from "drizzle-orm";
 import * as schema from "../db/schema";
 import type { ControllerResponse } from "../shared/controllers";
 import type { Role } from "../shared/navigation";
-import { demoViewSteps, isDemoViewStep } from "../shared/demo-sequence";
+import { demoViewSteps, isDemoViewStep, type DemoViewStep } from "../shared/demo-sequence";
 import { summarizeDemoResponse } from "./controllers/demo-log";
 
 /**
@@ -173,6 +173,50 @@ export function demoTraceStep(target: string, message: string): void {
   if (active) emit(active.flow, active.participant, "->", target, message);
 }
 
+function emitSeparator(cu: Flow["cu"], label: string): void {
+  demoOutput(`[${cu}] ────────── ${label} ──────────`);
+}
+
+const receptionPhases = {
+  session: "Revalidar sesión y permisos",
+  validation: "Validar pedido y datos de la entrega",
+  registration: "Registrar cantidades, costos y lotes de la entrega",
+  orderUpdate: "Actualizar saldo y estado del pedido",
+  audit: "Registrar auditoría de la recepción",
+} as const;
+
+export function traceDemoReceptionPhase(phase: keyof typeof receptionPhases): void {
+  const active = activeContext();
+  if (active?.channel === "pedido:confirmar-recepcion") {
+    emitSeparator(active.flow.cu, receptionPhases[phase]);
+  }
+}
+
+const salePhases = {
+  session: receptionPhases.session,
+  validation: "Validar carrito y calcular el pago",
+  stockPlan: "Verificar stock y seleccionar lotes",
+  cash: "Verificar o abrir la caja del día",
+  registration: "Registrar venta, pago y detalle",
+  stockUpdate: "Descontar stock y registrar los lotes usados",
+} as const;
+
+export function traceDemoSalePhase(phase: keyof typeof salePhases): void {
+  const active = activeContext();
+  if (active?.channel === "venta:registrar") {
+    emitSeparator(active.flow.cu, salePhases[phase]);
+  }
+}
+
+const completedViewActions: Partial<Record<DemoViewStep, string>> = {
+  ordersShown: "Listado de pedidos listo",
+  deliveryFormShown: "Detalle del pedido listo",
+  saleReady: "Vista de venta lista",
+  productsShown: "Búsqueda de producto completada",
+  cartShown: "Carrito actualizado",
+  saleShown: "Venta registrada",
+};
+
 export function logDemoViewStep(step: unknown): void {
   if (!demoEnabled() || !isDemoViewStep(step)) return;
   const [cu, source, message] = demoViewSteps[step];
@@ -180,6 +224,11 @@ export function logDemoViewStep(step: unknown): void {
   if (source === "actor") emit(flow, actor, "->", flow.view, message);
   else if (source === "self") emit(flow, flow.view, "->", flow.view, message);
   else emit(flow, flow.view, "-->", actor, message);
+
+  const completedAction = completedViewActions[step];
+  if (completedAction) {
+    emitSeparator(cu, completedAction);
+  }
 }
 
 export function demoRandomUUID(purpose: string): string {
@@ -199,8 +248,10 @@ export async function traceDemoRequest<T extends ControllerResponse>(
   if (!demoEnabled() || !definition) return action();
   const { flow } = definition;
   emit(flow, flow.view, "->", flow.handler, definition.request);
-  emit(flow, flow.handler, "->", ACCESS, "Validar JWT, rol y sesión");
   return context.run({ flow, channel, participant: ACCESS }, async () => {
+    traceDemoReceptionPhase("session");
+    traceDemoSalePhase("session");
+    emit(flow, flow.handler, "->", ACCESS, "Validar JWT, rol y sesión");
     try {
       const response = await action();
       emit(flow, flow.handler, "-->", flow.view, response.ok

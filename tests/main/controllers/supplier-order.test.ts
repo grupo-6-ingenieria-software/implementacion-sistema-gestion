@@ -55,18 +55,23 @@ describe("secuencia demo CU18", () => {
     await reception();
     const logs = output.mock.calls.map(([line]) => String(line).replace(/ {2,}/g, " "));
     const ordered = [
+      "[CU18] ────────── Revalidar sesión y permisos ──────────",
       "[CU18] C_drizzle -> C_libsql: BEGIN",
+      "[CU18] ────────── Validar pedido y datos de la entrega ──────────",
       "[CU18] C_libsql -> pedido_proveedor: SELECT",
       "[CU18] C_libsql -> detalle_pedido: SELECT",
       "[CU18] C_libsql -> recepcion_pedido: SELECT",
       "[CU18] C_RecepcionPedidoHandler -> C_RecepcionPedidoHandler: Validar cantidades, costo y vencimiento",
+      "[CU18] ────────── Registrar cantidades, costos y lotes de la entrega ──────────",
       "[CU18] C_libsql -> recepcion_pedido: INSERT",
       "[CU18] C_libsql -> detalle_recepcion: INSERT",
       "[CU18] C_libsql -> lote: INSERT",
       "[CU18] C_libsql -> lote_perecible: INSERT",
+      "[CU18] ────────── Actualizar saldo y estado del pedido ──────────",
       "[CU18] C_libsql -> detalle_pedido: UPDATE",
       "[CU18] C_RecepcionPedidoHandler -> C_RecepcionPedidoHandler: Determinar estado del pedido: parcial",
       "[CU18] C_libsql -> pedido_proveedor: UPDATE",
+      "[CU18] ────────── Registrar auditoría de la recepción ──────────",
       "[CU18] C_libsql -> historial_auditoria_pedido: INSERT",
       "[CU18] C_AuditoriaHandler -> C_cryptoNode: Generar UUID de auditoría de recepción",
       "[CU18] C_libsql -> log_auditoria: INSERT",
