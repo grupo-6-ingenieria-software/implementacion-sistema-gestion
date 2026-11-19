@@ -43,15 +43,13 @@ pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anterio
 | Producto | EAN-13 | Pedido | Costo unitario | Precio de venta |
 |---|---|---:|---:|---:|
 | Arroz grano largo 1 kg | 7802920000015 | 10 | $900 | $1.500 |
-| Agua Purificada 500ml | 0078742040370 | 5 | $600 | $1.000 |
-
-El código UPC-A `078742040370` se registra con un cero inicial como EAN-13 `0078742040370`.
+| Selz sabor queso 35g | 7802225683234 | 5 | $600 | $1.000 |
 
 1. Proveedores → Recepciones e historial de pedidos: abrir el pedido de
    Distribuidora Los Robles SpA, ingresar cantidades 10 y 5, costos 900 y 600, y confirmar.
 2. Ventas → Registrar venta: ingresar ambos EAN-13 y esperar su incorporación
    automática; cambiar la cantidad de Arroz grano largo 1 kg a 2 y pulsar Tab.
-   Mantener Agua Purificada 500ml en 1. Efectivo: monto recibido 5000 y confirmar.
+   Mantener Selz sabor queso 35g en 1. Efectivo: monto recibido 5000 y confirmar.
    Total 4000, vuelto 1000 y stocks finales 8 y 4.
 
 La terminal muestra logs `[RF18]` y `[RF36]` de consultas, validación y

@@ -45,7 +45,7 @@ try {
     await tx.insert(schema.categoria).values({ categoriaId: 1, categoriaNombre: "Abarrotes", categoriaExigeVencimiento: false });
     await tx.insert(schema.producto).values([
       { productoId: 1, productoEan13: "7802920000015", productoNombre: "Arroz grano largo 1 kg", productoPrecioVenta: 1500, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
-      { productoId: 2, productoEan13: "0078742040370", productoNombre: "Agua Purificada 500ml", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
+      { productoId: 2, productoEan13: "7802225683234", productoNombre: "Selz sabor queso 35g", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
     ]);
     await tx.insert(schema.historialPrecioProducto).values([
       { productoId: 1, historialPrecioVenta: 1500, historialPrecioCosto: 900 },
