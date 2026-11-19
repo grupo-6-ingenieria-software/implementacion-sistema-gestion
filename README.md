@@ -35,6 +35,7 @@ npm install
 ### Demostración RF18 y RF36
 
 Ejecutar `npm run demo`. Funciona sin internet con las dependencias instaladas.
+En Windows la demo configura automáticamente la consola en UTF-8 para mostrar correctamente los caracteres de los logs.
 Iniciar sesión con **12345678-9 / Huascar2026** (María Huáscar, Dueño).
 Cada ejecución crea una SQLite independiente en `out/demo-*/huscar.db`, con un
 pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anteriores.
@@ -42,13 +43,15 @@ pedido pendiente de dos productos, ambos con stock 0. Conserva las bases anterio
 | Producto | EAN-13 | Pedido | Costo unitario | Precio de venta |
 |---|---|---:|---:|---:|
 | Arroz grano largo 1 kg | 7802920000015 | 10 | $900 | $1.500 |
-| Galletas de vainilla 150 g | 7802920000022 | 5 | $600 | $1.000 |
+| Agua Purificada 500ml | 0078742040370 | 5 | $600 | $1.000 |
+
+El código UPC-A `078742040370` se registra con un cero inicial como EAN-13 `0078742040370`.
 
 1. Proveedores → Recepciones e historial de pedidos: abrir el pedido de
    Distribuidora Los Robles SpA, ingresar cantidades 10 y 5, costos 900 y 600, y confirmar.
 2. Ventas → Registrar venta: ingresar ambos EAN-13 y esperar su incorporación
    automática; cambiar la cantidad de Arroz grano largo 1 kg a 2 y pulsar Tab.
-   Mantener Galletas de vainilla 150 g en 1. Efectivo: monto recibido 5000 y confirmar.
+   Mantener Agua Purificada 500ml en 1. Efectivo: monto recibido 5000 y confirmar.
    Total 4000, vuelto 1000 y stocks finales 8 y 4.
 
 La terminal muestra logs `[RF18]` y `[RF36]` de consultas, validación y

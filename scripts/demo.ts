@@ -1,12 +1,24 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
 import * as schema from "../src/db/schema";
 import { initializeDatabase } from "../src/db/init";
+
+// Electron hereda la página de códigos de la consola de Windows al arrancar.
+// UTF-8 evita que las tildes, la ñ y los separadores se interpreten como CP850.
+if (process.platform === "win32") {
+  try {
+    execFileSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", "chcp 65001 > nul"], {
+      stdio: "inherit", windowsHide: true, timeout: 2000,
+    });
+  } catch {
+    // Sin consola adjunta (por ejemplo, con salida redirigida) no hay página que cambiar.
+  }
+}
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = resolve(root, "out");
@@ -33,7 +45,7 @@ try {
     await tx.insert(schema.categoria).values({ categoriaId: 1, categoriaNombre: "Abarrotes", categoriaExigeVencimiento: false });
     await tx.insert(schema.producto).values([
       { productoId: 1, productoEan13: "7802920000015", productoNombre: "Arroz grano largo 1 kg", productoPrecioVenta: 1500, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
-      { productoId: 2, productoEan13: "7802920000022", productoNombre: "Galletas de vainilla 150 g", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
+      { productoId: 2, productoEan13: "0078742040370", productoNombre: "Agua Purificada 500ml", productoPrecioVenta: 1000, productoStockMinimo: 0, productoEstado: "activo", categoriaId: 1 },
     ]);
     await tx.insert(schema.historialPrecioProducto).values([
       { productoId: 1, historialPrecioVenta: 1500, historialPrecioCosto: 900 },
